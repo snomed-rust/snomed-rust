@@ -35,5 +35,5 @@ pub mod prelude {
         SimpleMapRefsetMember, SimpleRefsetMember,
     };
     pub use snomed_rf2::release_type::ReleaseType;
-    pub use snomed_store::{SnapshotStore, SnapshotStoreBuilder};
+    pub use snomed_store::{LoadError, LoadReport, SnapshotStore, SnapshotStoreBuilder};
 }

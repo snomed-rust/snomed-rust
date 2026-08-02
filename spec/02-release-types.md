@@ -38,3 +38,42 @@ Let `rows(id)` be all rows sharing a component id.
 - Rows with equal `effectiveTime` and equal id are the same version; a
   well-formed release never contains two different rows with the same
   (id, effectiveTime). Parsers MAY treat a conflicting duplicate as an error.
+
+## Loading a release directory (normative for `snomed-store::load_release_dir`)
+
+Real RF2 releases nest files under a directory tree, typically:
+
+```
+SnomedCT_InternationalRF2_PRODUCTION_<date>/
+  Snapshot/
+    Terminology/
+      sct2_Concept_Snapshot_INT_<date>.txt
+      sct2_Description_Snapshot-en_INT_<date>.txt
+      sct2_Relationship_Snapshot_INT_<date>.txt
+    Refset/
+      Language/
+        der2_cRefset_LanguageSnapshot-en_INT_<date>.txt
+      Map/
+        der2_sRefset_SimpleMapSnapshot_INT_<date>.txt
+      ...
+  Full/
+    ...
+  Delta/
+    ...
+```
+
+1. A loader MUST accept a root directory and a requested `ReleaseType`, and
+   MUST recurse into subdirectories to find `.txt` files regardless of the
+   folder names above — folder names are conventional, not normative.
+2. A loader MUST skip (not error on) any file whose name does not parse as a
+   `ReleaseFileName`, and MUST skip any file whose `release_type` does not
+   match the requested type.
+3. A loader MUST skip-and-report any recognized file whose (content type,
+   summary) combination it does not know how to load. It MUST error on a
+   recognized, dispatched file that fails RF2 parsing (spec/01's format
+   rules) — malformed data in a file the loader claims to understand is a
+   hard error, not a skip.
+4. `snomed-store::load_release_dir` currently dispatches Concept,
+   Description/TextDefinition, Relationship/StatedRelationship, and Language
+   refset files (spec/05..08); other refset patterns are recognized-but-not-
+   yet-loaded, tracked in `tasks.md`.

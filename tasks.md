@@ -21,12 +21,23 @@ current: check items off in the same change that completes them.
 - [x] `cargo test` green (39 tests), `cargo clippy --all-targets` clean.
 - [x] Project docs: README, CLAUDE.md, AGENTS.md, AGENTS/*, plan.md, tasks.md.
 
+## Done (2026-08-02, continued)
+
+- [x] `snomed-store::load_release_dir`: recursive directory walker +
+      dispatcher. Loads Concept, Description/TextDefinition,
+      Relationship/StatedRelationship, and Language refset files; skips
+      non-RF2 file names and recognized-but-unsupported content types with a
+      reason in `LoadReport`; errors on malformed data in a dispatched file.
+      Spec rules added to `spec/02-release-types.md`. Tests cover a
+      synthetic multi-file release tree and a malformed-row error case.
+
 ## Next up (Phase 4 — real releases)
 
-- [ ] `snomed-rf2`: release directory walker — map `ReleaseFileName` to a
-      typed loader; skip/report unrecognized files.
-- [ ] `snomed-store`: `load_release_dir(path)` convenience that fills a
-      builder from a snapshot directory.
+- [ ] Extend `load_release_dir` dispatch (and `SnapshotStoreBuilder`
+      storage) to the remaining refset types already parseable by
+      `snomed-rf2` (Simple, Association, AttributeValue, SimpleMap,
+      ExtendedMap, OWLExpression, ModuleDependency) — currently
+      recognized-but-skipped.
 - [ ] Add refset descriptor (`cciRefset`) and description type (`ciRefset`)
       member records per spec/08.
 - [ ] Add `RelationshipConcreteValues` record (value column variant) and
