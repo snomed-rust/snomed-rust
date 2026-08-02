@@ -288,6 +288,48 @@ impl SnapshotStoreBuilder {
             .map(|m| (m.core.refset_id, m.core.referenced_component_id))
             .collect();
 
+        let association_members =
+            group_by_refset_and_component(self.association_members, |m| &m.core);
+        let attribute_value_members =
+            group_by_refset_and_component(self.attribute_value_members, |m| &m.core);
+        let simple_map_members =
+            group_by_refset_and_component(self.simple_map_members, |m| &m.core);
+        let extended_map_members =
+            group_by_refset_and_component(self.extended_map_members, |m| &m.core);
+        let owl_expression_members =
+            group_by_refset_and_component(self.owl_expression_members, |m| &m.core);
+        let module_dependency_members =
+            group_by_refset_and_component(self.module_dependency_members, |m| &m.core);
+        let refset_descriptor_members =
+            group_by_refset_and_component(self.refset_descriptor_members, |m| &m.core);
+        let description_type_members =
+            group_by_refset_and_component(self.description_type_members, |m| &m.core);
+
+        // Unified (refsetId -> referencedComponentIds) membership, spanning
+        // every refset type: RF2 "membership" is refsetId +
+        // referencedComponentId + active, independent of the refset's
+        // structural pattern (spec/08). Built from each type's already-
+        // filtered-to-active grouping keys, so this stays in sync with the
+        // per-type indexes above by construction.
+        let mut refset_memberships: HashMap<SctId, HashSet<SctId>> = HashMap::new();
+        for &(refset_id, component_id) in simple_members
+            .iter()
+            .chain(association_members.keys())
+            .chain(attribute_value_members.keys())
+            .chain(simple_map_members.keys())
+            .chain(extended_map_members.keys())
+            .chain(owl_expression_members.keys())
+            .chain(module_dependency_members.keys())
+            .chain(refset_descriptor_members.keys())
+            .chain(description_type_members.keys())
+            .chain(acceptability.keys())
+        {
+            refset_memberships
+                .entry(refset_id)
+                .or_default()
+                .insert(component_id);
+        }
+
         SnapshotStore {
             concepts: self.concepts,
             descriptions: self.descriptions,
@@ -299,34 +341,15 @@ impl SnapshotStoreBuilder {
             parents,
             children,
             acceptability,
-            simple_members,
-            association_members: group_by_refset_and_component(self.association_members, |m| {
-                &m.core
-            }),
-            attribute_value_members: group_by_refset_and_component(
-                self.attribute_value_members,
-                |m| &m.core,
-            ),
-            simple_map_members: group_by_refset_and_component(self.simple_map_members, |m| &m.core),
-            extended_map_members: group_by_refset_and_component(self.extended_map_members, |m| {
-                &m.core
-            }),
-            owl_expression_members: group_by_refset_and_component(
-                self.owl_expression_members,
-                |m| &m.core,
-            ),
-            module_dependency_members: group_by_refset_and_component(
-                self.module_dependency_members,
-                |m| &m.core,
-            ),
-            refset_descriptor_members: group_by_refset_and_component(
-                self.refset_descriptor_members,
-                |m| &m.core,
-            ),
-            description_type_members: group_by_refset_and_component(
-                self.description_type_members,
-                |m| &m.core,
-            ),
+            refset_memberships,
+            association_members,
+            attribute_value_members,
+            simple_map_members,
+            extended_map_members,
+            owl_expression_members,
+            module_dependency_members,
+            refset_descriptor_members,
+            description_type_members,
         }
     }
 }
@@ -347,8 +370,10 @@ pub struct SnapshotStore {
     children: HashMap<SctId, Vec<SctId>>,
     /// (language refset id, description id) -> acceptability id.
     acceptability: HashMap<(SctId, SctId), SctId>,
-    /// Active Simple refset memberships: (refsetId, referencedComponentId).
-    simple_members: HashSet<(SctId, SctId)>,
+    /// Active refset memberships, any refset type: refsetId ->
+    /// referencedComponentIds (spec/08: membership is refsetId +
+    /// referencedComponentId + active, independent of refset pattern).
+    refset_memberships: HashMap<SctId, HashSet<SctId>>,
     association_members: HashMap<(SctId, SctId), Vec<AssociationRefsetMember>>,
     attribute_value_members: HashMap<(SctId, SctId), Vec<AttributeValueRefsetMember>>,
     simple_map_members: HashMap<(SctId, SctId), Vec<SimpleMapRefsetMember>>,
@@ -516,10 +541,24 @@ impl SnapshotStore {
 
     // -- Reference sets (spec/08-refset-files.md) --------------------------
 
-    /// True when `component_id` has an active membership in the Simple
-    /// refset `refset_id`.
+    /// True when `component_id` has an active membership in `refset_id`,
+    /// of any refset type (Simple, Language, Association, …) — this is
+    /// RF2 "membership" per spec/08, and what ECL's `^` (memberOf)
+    /// operator queries.
     pub fn is_member(&self, refset_id: SctId, component_id: SctId) -> bool {
-        self.simple_members.contains(&(refset_id, component_id))
+        self.refset_memberships
+            .get(&refset_id)
+            .is_some_and(|members| members.contains(&component_id))
+    }
+
+    /// All components with an active membership in `refset_id`, of any
+    /// refset type. Order is unspecified.
+    pub fn refset_members(&self, refset_id: SctId) -> impl Iterator<Item = SctId> + '_ {
+        self.refset_memberships
+            .get(&refset_id)
+            .into_iter()
+            .flatten()
+            .copied()
     }
 
     /// Active Association refset members for `component_id` in `refset_id`
@@ -841,6 +880,35 @@ mod tests {
             !store.is_member(ICD10_MAP, MI),
             "the later inactivation must win"
         );
+    }
+
+    #[test]
+    fn is_member_spans_every_refset_type() {
+        // A description in the US English language refset must be visible
+        // through is_member/refset_members even though it arrives via
+        // add_language_member, not add_simple_member (spec/08: membership
+        // is refsetId + referencedComponentId + active, regardless of the
+        // refset's structural pattern).
+        let fsn_id = SctId::compose(1001, ComponentType::Description, None).unwrap();
+        let mut b = SnapshotStore::builder();
+        b.add_language_member(LanguageRefsetMember {
+            core: core(
+                "80000000-0000-4000-8000-000000000014",
+                20190731,
+                true,
+                constants::US_ENGLISH_LANGUAGE_REFSET,
+                fsn_id,
+            ),
+            acceptability_id: constants::PREFERRED,
+        });
+        let store = b.build();
+
+        assert!(store.is_member(constants::US_ENGLISH_LANGUAGE_REFSET, fsn_id));
+        let members: Vec<_> = store
+            .refset_members(constants::US_ENGLISH_LANGUAGE_REFSET)
+            .collect();
+        assert_eq!(members, vec![fsn_id]);
+        assert!(store.refset_members(ICD10_MAP).next().is_none());
     }
 
     #[test]

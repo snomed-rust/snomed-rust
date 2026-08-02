@@ -53,3 +53,12 @@ ordered/annotation refset variants, MRCM refsets.
 2. Column count MUST match the file's refset pattern exactly.
 3. A member's meaning is scoped by `refsetId`; the same
    `referencedComponentId` may appear in many refsets.
+4. **Membership** (the general notion queried by `SnapshotStore::is_member`/
+   `refset_members`, and by ECL's `^`/`memberOf` operator per
+   [10-ecl.md](10-ecl.md)) is `refsetId` + `referencedComponentId` + active,
+   full stop — it applies uniformly across every refset type in this table,
+   not just Simple. A description that is an active member of the US
+   English language refset IS a member of `900000000000509007`, exactly as
+   a concept in an ICD-10 map row is a member of `447562003`; the extra
+   columns a refset type carries are additional data about the membership,
+   not a precondition for it.
