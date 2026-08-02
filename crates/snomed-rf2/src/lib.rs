@@ -1,0 +1,36 @@
+//! SNOMED CT RF2 release file parsing.
+//!
+//! Implements `spec/02-release-types.md` (release types),
+//! `spec/03-file-naming.md` (file names), `spec/05..07` (core component
+//! files), and `spec/08-refset-files.md` (reference sets).
+//!
+//! The entry points are:
+//!
+//! - [`filename::ReleaseFileName::parse`] — understand what a file contains
+//!   from its name;
+//! - [`reader::Rf2Reader`] — stream typed records from any `BufRead`;
+//! - [`reader::read_all`] — collect a whole file into a `Vec`.
+//!
+//! ```
+//! use snomed_rf2::reader::read_all;
+//! use snomed_core::Concept;
+//!
+//! let data = "id\teffectiveTime\tactive\tmoduleId\tdefinitionStatusId\n\
+//!             138875005\t20190731\t1\t900000000000207008\t900000000000074008\n";
+//! let concepts: Vec<Concept> = read_all(data.as_bytes()).unwrap();
+//! assert_eq!(concepts.len(), 1);
+//! ```
+
+pub mod error;
+pub mod filename;
+pub mod reader;
+pub mod record;
+pub mod records;
+pub mod refset;
+pub mod release_type;
+
+pub use error::Rf2Error;
+pub use filename::{FileType, ReleaseFileName};
+pub use reader::{read_all, Rf2Reader};
+pub use record::Rf2Record;
+pub use release_type::ReleaseType;

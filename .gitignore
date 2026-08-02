@@ -1,0 +1,8 @@
+/target
+Cargo.lock
+*.zip
+
+# SNOMED CT release content is licensed material — never commit RF2 data files.
+/data/
+sct2_*.txt
+der2_*.txt

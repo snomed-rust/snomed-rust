@@ -1,0 +1,15 @@
+[package]
+name = "snomed-store"
+description = "In-memory SNOMED CT snapshot store: latest-version resolution, IS-A hierarchy, subsumption"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+keywords.workspace = true
+categories.workspace = true
+authors.workspace = true
+
+[dependencies]
+snomed-core.workspace = true
+snomed-rf2.workspace = true

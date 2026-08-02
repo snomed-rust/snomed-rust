@@ -1,0 +1,14 @@
+[package]
+name = "snomed-rf2"
+description = "SNOMED CT RF2 release file parsing: file names, core component files, reference sets"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+keywords.workspace = true
+categories.workspace = true
+authors.workspace = true
+
+[dependencies]
+snomed-core.workspace = true

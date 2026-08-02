@@ -1,0 +1,16 @@
+[package]
+name = "snomed"
+description = "SNOMED CT for Rust: RF2 parsing, SCTID validation, snapshot store, hierarchy queries"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+keywords.workspace = true
+categories.workspace = true
+authors.workspace = true
+
+[dependencies]
+snomed-core.workspace = true
+snomed-rf2.workspace = true
+snomed-store.workspace = true
