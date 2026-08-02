@@ -61,18 +61,24 @@ current: check items off in the same change that completes them.
       `"<string>"` wire form. `Rf2Record` impl in `snomed-rf2::records`.
       spec/07 documents the column table and value encoding rules.
       50 tests passing.
-- [ ] Not yet done: wire these three new record types into
-      `SnapshotStoreBuilder`/`load_release_dir` (they're currently
-      parseable but not stored — `cciRefset`/`ciRefset` files still
-      skip-and-report; `RelationshipConcreteValues` files aren't
-      dispatched at all yet, tracked below).
+
+## Done (2026-08-02, wiring complete)
+
+- [x] `RefsetDescriptorRefsetMember`, `DescriptionTypeRefsetMember`, and
+      `RelationshipConcreteValue` fully wired into `SnapshotStoreBuilder`
+      storage (`add_refset_descriptor_member(s)`,
+      `add_description_type_member(s)`,
+      `add_relationship_concrete_value(s)`) and `load_release_dir`
+      dispatch (`cciRefset`/`RefsetDescriptor`, `ciRefset`/
+      `DescriptionType`, `RelationshipConcreteValues`). New
+      `SnapshotStore` queries: `relationship_concrete_value`,
+      `relationship_concrete_values_of`, `refset_descriptor_members`,
+      `description_type_members`. Every RF2 record type this workspace
+      parses is now also loadable into a queryable snapshot. 54 tests
+      passing, clippy clean.
 
 ## Next up (Phase 4 — real releases)
 
-- [ ] Wire `RefsetDescriptorRefsetMember`, `DescriptionTypeRefsetMember`,
-      and `RelationshipConcreteValue` into `SnapshotStoreBuilder` storage
-      and `load_release_dir` dispatch, matching the pattern used for the
-      other 8 refset types.
 - [ ] Benchmark loading a real International Edition snapshot; record
       numbers in plan.md.
 - [ ] Decide on precomputed transitive closure (memory vs. query cost).

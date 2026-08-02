@@ -2,13 +2,14 @@
 
 use std::collections::{HashMap, HashSet, VecDeque};
 
-use snomed_core::components::{Concept, Description, Relationship};
+use snomed_core::components::{Concept, Description, Relationship, RelationshipConcreteValue};
 use snomed_core::constants;
 use snomed_core::sctid::SctId;
 use snomed_rf2::refset::{
-    AssociationRefsetMember, AttributeValueRefsetMember, ExtendedMapRefsetMember,
-    LanguageRefsetMember, ModuleDependencyRefsetMember, OwlExpressionRefsetMember,
-    RefsetMemberCore, SimpleMapRefsetMember, SimpleRefsetMember,
+    AssociationRefsetMember, AttributeValueRefsetMember, DescriptionTypeRefsetMember,
+    ExtendedMapRefsetMember, LanguageRefsetMember, ModuleDependencyRefsetMember,
+    OwlExpressionRefsetMember, RefsetDescriptorRefsetMember, RefsetMemberCore,
+    SimpleMapRefsetMember, SimpleRefsetMember,
 };
 
 /// Accumulates RF2 rows (from any mix of Full, Snapshot, and Delta files)
@@ -20,6 +21,7 @@ pub struct SnapshotStoreBuilder {
     concepts: HashMap<SctId, Concept>,
     descriptions: HashMap<SctId, Description>,
     relationships: HashMap<SctId, Relationship>,
+    relationship_concrete_values: HashMap<SctId, RelationshipConcreteValue>,
     // Refset members, all keyed by member UUID (spec/08: versioning is
     // identical to components, keyed by the member UUID).
     simple_members: HashMap<String, SimpleRefsetMember>,
@@ -30,6 +32,8 @@ pub struct SnapshotStoreBuilder {
     extended_map_members: HashMap<String, ExtendedMapRefsetMember>,
     owl_expression_members: HashMap<String, OwlExpressionRefsetMember>,
     module_dependency_members: HashMap<String, ModuleDependencyRefsetMember>,
+    refset_descriptor_members: HashMap<String, RefsetDescriptorRefsetMember>,
+    description_type_members: HashMap<String, DescriptionTypeRefsetMember>,
 }
 
 fn upsert<K: std::hash::Hash + Eq, V, F: Fn(&V) -> u32>(
@@ -119,6 +123,13 @@ impl SnapshotStoreBuilder {
         self
     }
 
+    pub fn add_relationship_concrete_value(&mut self, row: RelationshipConcreteValue) -> &mut Self {
+        upsert(&mut self.relationship_concrete_values, row.id, row, |r| {
+            r.effective_time.as_u32()
+        });
+        self
+    }
+
     refset_member_methods!(
         add_simple_member,
         add_simple_members,
@@ -167,6 +178,18 @@ impl SnapshotStoreBuilder {
         module_dependency_members,
         ModuleDependencyRefsetMember
     );
+    refset_member_methods!(
+        add_refset_descriptor_member,
+        add_refset_descriptor_members,
+        refset_descriptor_members,
+        RefsetDescriptorRefsetMember
+    );
+    refset_member_methods!(
+        add_description_type_member,
+        add_description_type_members,
+        description_type_members,
+        DescriptionTypeRefsetMember
+    );
 
     pub fn add_concepts(&mut self, rows: impl IntoIterator<Item = Concept>) -> &mut Self {
         rows.into_iter().for_each(|r| {
@@ -185,6 +208,16 @@ impl SnapshotStoreBuilder {
     pub fn add_relationships(&mut self, rows: impl IntoIterator<Item = Relationship>) -> &mut Self {
         rows.into_iter().for_each(|r| {
             self.add_relationship(r);
+        });
+        self
+    }
+
+    pub fn add_relationship_concrete_values(
+        &mut self,
+        rows: impl IntoIterator<Item = RelationshipConcreteValue>,
+    ) -> &mut Self {
+        rows.into_iter().for_each(|r| {
+            self.add_relationship_concrete_value(r);
         });
         self
     }
@@ -229,6 +262,14 @@ impl SnapshotStoreBuilder {
             v.dedup();
         }
 
+        let mut relationship_concrete_values_by_source: HashMap<SctId, Vec<SctId>> = HashMap::new();
+        for r in self.relationship_concrete_values.values() {
+            relationship_concrete_values_by_source
+                .entry(r.source_id)
+                .or_default()
+                .push(r.id);
+        }
+
         // Acceptability by (language refset, description id), active members only.
         let mut acceptability: HashMap<(SctId, SctId), SctId> = HashMap::new();
         for m in self.language_members.values() {
@@ -251,8 +292,10 @@ impl SnapshotStoreBuilder {
             concepts: self.concepts,
             descriptions: self.descriptions,
             relationships: self.relationships,
+            relationship_concrete_values: self.relationship_concrete_values,
             descriptions_by_concept,
             relationships_by_source,
+            relationship_concrete_values_by_source,
             parents,
             children,
             acceptability,
@@ -276,6 +319,14 @@ impl SnapshotStoreBuilder {
                 self.module_dependency_members,
                 |m| &m.core,
             ),
+            refset_descriptor_members: group_by_refset_and_component(
+                self.refset_descriptor_members,
+                |m| &m.core,
+            ),
+            description_type_members: group_by_refset_and_component(
+                self.description_type_members,
+                |m| &m.core,
+            ),
         }
     }
 }
@@ -286,8 +337,10 @@ pub struct SnapshotStore {
     concepts: HashMap<SctId, Concept>,
     descriptions: HashMap<SctId, Description>,
     relationships: HashMap<SctId, Relationship>,
+    relationship_concrete_values: HashMap<SctId, RelationshipConcreteValue>,
     descriptions_by_concept: HashMap<SctId, Vec<SctId>>,
     relationships_by_source: HashMap<SctId, Vec<SctId>>,
+    relationship_concrete_values_by_source: HashMap<SctId, Vec<SctId>>,
     /// Active inferred IS-A edges: child -> parents.
     parents: HashMap<SctId, Vec<SctId>>,
     /// Active inferred IS-A edges: parent -> children.
@@ -302,6 +355,8 @@ pub struct SnapshotStore {
     extended_map_members: HashMap<(SctId, SctId), Vec<ExtendedMapRefsetMember>>,
     owl_expression_members: HashMap<(SctId, SctId), Vec<OwlExpressionRefsetMember>>,
     module_dependency_members: HashMap<(SctId, SctId), Vec<ModuleDependencyRefsetMember>>,
+    refset_descriptor_members: HashMap<(SctId, SctId), Vec<RefsetDescriptorRefsetMember>>,
+    description_type_members: HashMap<(SctId, SctId), Vec<DescriptionTypeRefsetMember>>,
 }
 
 impl SnapshotStore {
@@ -321,6 +376,10 @@ impl SnapshotStore {
 
     pub fn relationship(&self, id: SctId) -> Option<&Relationship> {
         self.relationships.get(&id)
+    }
+
+    pub fn relationship_concrete_value(&self, id: SctId) -> Option<&RelationshipConcreteValue> {
+        self.relationship_concrete_values.get(&id)
     }
 
     /// True when the concept exists and its latest version is active.
@@ -381,6 +440,19 @@ impl SnapshotStore {
             .into_iter()
             .flatten()
             .filter_map(|id| self.relationships.get(id))
+    }
+
+    /// All (latest-version) concrete-value relationships whose source is
+    /// this concept (spec/07's `RelationshipConcreteValues` file).
+    pub fn relationship_concrete_values_of(
+        &self,
+        source_id: SctId,
+    ) -> impl Iterator<Item = &RelationshipConcreteValue> {
+        self.relationship_concrete_values_by_source
+            .get(&source_id)
+            .into_iter()
+            .flatten()
+            .filter_map(|id| self.relationship_concrete_values.get(id))
     }
 
     // -- Hierarchy -------------------------------------------------------
@@ -526,11 +598,39 @@ impl SnapshotStore {
             .map(Vec::as_slice)
             .unwrap_or(&[])
     }
+
+    /// Active RefsetDescriptor members describing `described_refset_id`
+    /// (`referencedComponentId` in the file), filed under `refset_id` (the
+    /// refset descriptor refset itself).
+    pub fn refset_descriptor_members(
+        &self,
+        refset_id: SctId,
+        described_refset_id: SctId,
+    ) -> &[RefsetDescriptorRefsetMember] {
+        self.refset_descriptor_members
+            .get(&(refset_id, described_refset_id))
+            .map(Vec::as_slice)
+            .unwrap_or(&[])
+    }
+
+    /// Active DescriptionType members for `description_type_id` (e.g.
+    /// [`constants::SYNONYM`]) in `refset_id`.
+    pub fn description_type_members(
+        &self,
+        refset_id: SctId,
+        description_type_id: SctId,
+    ) -> &[DescriptionTypeRefsetMember] {
+        self.description_type_members
+            .get(&(refset_id, description_type_id))
+            .map(Vec::as_slice)
+            .unwrap_or(&[])
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use snomed_core::concrete_value::ConcreteValue;
     use snomed_core::sctid::ComponentType;
     use snomed_core::time::EffectiveTime;
 
@@ -741,5 +841,76 @@ mod tests {
             !store.is_member(ICD10_MAP, MI),
             "the later inactivation must win"
         );
+    }
+
+    #[test]
+    fn relationship_concrete_values_by_source() {
+        let mut b = SnapshotStore::builder();
+        let id = SctId::compose(1001, ComponentType::Relationship, None).unwrap();
+        b.add_relationship_concrete_value(RelationshipConcreteValue {
+            id,
+            effective_time: EffectiveTime::new_unchecked(20190731),
+            active: true,
+            module_id: constants::CORE_MODULE,
+            source_id: MI,
+            value: ConcreteValue::Number("500".to_string()),
+            relationship_group: 1,
+            type_id: constants::IS_A, // placeholder attribute type
+            characteristic_type_id: constants::INFERRED_RELATIONSHIP,
+            modifier_id: constants::EXISTENTIAL_MODIFIER,
+        });
+        let store = b.build();
+
+        assert_eq!(
+            store.relationship_concrete_value(id).unwrap().value,
+            ConcreteValue::Number("500".to_string())
+        );
+        let values: Vec<_> = store.relationship_concrete_values_of(MI).collect();
+        assert_eq!(values.len(), 1);
+        assert!(store.relationship_concrete_values_of(ROOT).next().is_none());
+    }
+
+    #[test]
+    fn refset_descriptor_and_description_type_members() {
+        let mut b = SnapshotStore::builder();
+        let descriptor_refset = SctId::compose(9002, ComponentType::Concept, None).unwrap();
+        b.add_refset_descriptor_member(RefsetDescriptorRefsetMember {
+            core: core(
+                "80000000-0000-4000-8000-000000000020",
+                20190731,
+                true,
+                descriptor_refset,
+                constants::US_ENGLISH_LANGUAGE_REFSET,
+            ),
+            attribute_description_id: constants::CASE_SENSITIVE, // placeholder valid SCTID
+            attribute_type_id: constants::FULLY_SPECIFIED_NAME,
+            attribute_order: 0,
+        });
+        b.add_description_type_member(DescriptionTypeRefsetMember {
+            core: core(
+                "80000000-0000-4000-8000-000000000021",
+                20190731,
+                true,
+                descriptor_refset,
+                constants::SYNONYM,
+            ),
+            description_format_id: constants::FULLY_SPECIFIED_NAME, // placeholder
+            description_length: 255,
+        });
+        let store = b.build();
+
+        let refset_descriptors = store
+            .refset_descriptor_members(descriptor_refset, constants::US_ENGLISH_LANGUAGE_REFSET);
+        assert_eq!(refset_descriptors.len(), 1);
+        assert_eq!(refset_descriptors[0].attribute_order, 0);
+
+        let description_types =
+            store.description_type_members(descriptor_refset, constants::SYNONYM);
+        assert_eq!(description_types.len(), 1);
+        assert_eq!(description_types[0].description_length, 255);
+
+        assert!(store
+            .description_type_members(descriptor_refset, constants::TEXT_DEFINITION)
+            .is_empty());
     }
 }

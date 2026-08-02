@@ -6,15 +6,16 @@ use std::fs::{self, File};
 use std::io::BufReader;
 use std::path::{Path, PathBuf};
 
-use snomed_core::components::{Concept, Description, Relationship};
+use snomed_core::components::{Concept, Description, Relationship, RelationshipConcreteValue};
 use snomed_rf2::error::Rf2Error;
 use snomed_rf2::filename::{FileNameError, ReleaseFileName};
 use snomed_rf2::reader::Rf2Reader;
 use snomed_rf2::record::Rf2Record;
 use snomed_rf2::refset::{
-    AssociationRefsetMember, AttributeValueRefsetMember, ExtendedMapRefsetMember,
-    LanguageRefsetMember, ModuleDependencyRefsetMember, OwlExpressionRefsetMember,
-    SimpleMapRefsetMember, SimpleRefsetMember,
+    AssociationRefsetMember, AttributeValueRefsetMember, DescriptionTypeRefsetMember,
+    ExtendedMapRefsetMember, LanguageRefsetMember, ModuleDependencyRefsetMember,
+    OwlExpressionRefsetMember, RefsetDescriptorRefsetMember, SimpleMapRefsetMember,
+    SimpleRefsetMember,
 };
 use snomed_rf2::release_type::ReleaseType;
 
@@ -162,6 +163,11 @@ fn dispatch(
                 builder.add_relationship(r);
             })?;
         }
+        ("RelationshipConcreteValues", _) => {
+            load_rows::<RelationshipConcreteValue, _>(path, |r| {
+                builder.add_relationship_concrete_value(r);
+            })?;
+        }
         ("Refset", _) => {
             load_rows::<SimpleRefsetMember, _>(path, |r| {
                 builder.add_simple_member(r);
@@ -205,6 +211,16 @@ fn dispatch(
         ("ssRefset", "ModuleDependency") => {
             load_rows::<ModuleDependencyRefsetMember, _>(path, |r| {
                 builder.add_module_dependency_member(r);
+            })?;
+        }
+        ("cciRefset", "RefsetDescriptor") => {
+            load_rows::<RefsetDescriptorRefsetMember, _>(path, |r| {
+                builder.add_refset_descriptor_member(r);
+            })?;
+        }
+        ("ciRefset", "DescriptionType") => {
+            load_rows::<DescriptionTypeRefsetMember, _>(path, |r| {
+                builder.add_description_type_member(r);
             })?;
         }
         (content_type, summary) => {
@@ -343,12 +359,20 @@ mod tests {
             ),
         );
 
-        // Recognized name, no record type implemented for it yet (spec/08):
-        // should be skipped, not erred.
+        // A RefsetDescriptor file: content type "cciRefset" now dispatches.
         write(
             root,
             "Snapshot/Refset/Metadata/der2_cciRefset_RefsetDescriptorSnapshot_INT_20190731.txt",
             "id\teffectiveTime\tactive\tmoduleId\trefsetId\treferencedComponentId\tattributeDescription\tattributeType\tattributeOrder\n",
+        );
+
+        // Recognized name, no record type implemented for it yet (spec/08
+        // still lists ordered/annotation variants as not yet implemented):
+        // should be skipped, not erred.
+        write(
+            root,
+            "Snapshot/Refset/Ordered/der2_cRefset_OrderedComponentSnapshot_INT_20190731.txt",
+            "id\teffectiveTime\tactive\tmoduleId\trefsetId\treferencedComponentId\torderId\n",
         );
 
         // Not a release file name at all: should be skipped, not erred.
@@ -366,7 +390,7 @@ mod tests {
             .load_release_dir(root, ReleaseType::Snapshot)
             .unwrap();
 
-        assert_eq!(report.loaded.len(), 5, "{:?}", report.loaded);
+        assert_eq!(report.loaded.len(), 6, "{:?}", report.loaded);
         assert_eq!(report.skipped.len(), 2, "{:?}", report.skipped);
 
         let store = builder.build();
