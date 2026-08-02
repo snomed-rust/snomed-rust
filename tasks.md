@@ -31,13 +31,25 @@ current: check items off in the same change that completes them.
       Spec rules added to `spec/02-release-types.md`. Tests cover a
       synthetic multi-file release tree and a malformed-row error case.
 
+## Done (2026-08-02, continued further)
+
+- [x] `SnapshotStoreBuilder` storage + `load_release_dir` dispatch for the
+      remaining 7 refset types (Simple, Association, AttributeValue,
+      SimpleMap, ExtendedMap, OWLExpression, ModuleDependency): each keyed
+      by member UUID with latest-effectiveTime-wins upsert (via a
+      `refset_member_methods!` macro), grouped at `build()` time by
+      `(refsetId, referencedComponentId)` for O(1) lookup. New
+      `SnapshotStore` queries: `is_member`, `association_members`,
+      `attribute_value_members`, `simple_map_members`,
+      `extended_map_members`, `owl_expression_members`,
+      `module_dependency_members`. Association/AttributeValue dispatch
+      matches by substring on the file name summary since exact SNOMED
+      International naming isn't pinned down in spec/08 — documented in
+      `load.rs`. `cciRefset`/`ciRefset` (no record type yet) still
+      skip-and-report correctly. 46 tests passing.
+
 ## Next up (Phase 4 — real releases)
 
-- [ ] Extend `load_release_dir` dispatch (and `SnapshotStoreBuilder`
-      storage) to the remaining refset types already parseable by
-      `snomed-rf2` (Simple, Association, AttributeValue, SimpleMap,
-      ExtendedMap, OWLExpression, ModuleDependency) — currently
-      recognized-but-skipped.
 - [ ] Add refset descriptor (`cciRefset`) and description type (`ciRefset`)
       member records per spec/08.
 - [ ] Add `RelationshipConcreteValues` record (value column variant) and

@@ -11,7 +11,11 @@ use snomed_rf2::error::Rf2Error;
 use snomed_rf2::filename::{FileNameError, ReleaseFileName};
 use snomed_rf2::reader::Rf2Reader;
 use snomed_rf2::record::Rf2Record;
-use snomed_rf2::refset::LanguageRefsetMember;
+use snomed_rf2::refset::{
+    AssociationRefsetMember, AttributeValueRefsetMember, ExtendedMapRefsetMember,
+    LanguageRefsetMember, ModuleDependencyRefsetMember, OwlExpressionRefsetMember,
+    SimpleMapRefsetMember, SimpleRefsetMember,
+};
 use snomed_rf2::release_type::ReleaseType;
 
 use crate::store::SnapshotStoreBuilder;
@@ -158,9 +162,49 @@ fn dispatch(
                 builder.add_relationship(r);
             })?;
         }
+        ("Refset", _) => {
+            load_rows::<SimpleRefsetMember, _>(path, |r| {
+                builder.add_simple_member(r);
+            })?;
+        }
         ("cRefset", "Language") => {
             load_rows::<LanguageRefsetMember, _>(path, |r| {
                 builder.add_language_member(r);
+            })?;
+        }
+        // Real releases name specific association/attribute-value refsets
+        // variously (e.g. "HistoricalAssociation", "AttributeValue"); match
+        // by substring rather than pinning an exact summary. A name that
+        // doesn't match either falls through to skip-and-report, never to
+        // an error, so this heuristic can only under- not over-recognize.
+        ("cRefset", summary) if summary.contains("Association") => {
+            load_rows::<AssociationRefsetMember, _>(path, |r| {
+                builder.add_association_member(r);
+            })?;
+        }
+        ("cRefset", summary) if summary.contains("AttributeValue") => {
+            load_rows::<AttributeValueRefsetMember, _>(path, |r| {
+                builder.add_attribute_value_member(r);
+            })?;
+        }
+        ("sRefset", "SimpleMap") => {
+            load_rows::<SimpleMapRefsetMember, _>(path, |r| {
+                builder.add_simple_map_member(r);
+            })?;
+        }
+        ("sRefset", "OWLExpression") => {
+            load_rows::<OwlExpressionRefsetMember, _>(path, |r| {
+                builder.add_owl_expression_member(r);
+            })?;
+        }
+        ("iisssccRefset", _) => {
+            load_rows::<ExtendedMapRefsetMember, _>(path, |r| {
+                builder.add_extended_map_member(r);
+            })?;
+        }
+        ("ssRefset", "ModuleDependency") => {
+            load_rows::<ModuleDependencyRefsetMember, _>(path, |r| {
+                builder.add_module_dependency_member(r);
             })?;
         }
         (content_type, summary) => {
@@ -287,11 +331,24 @@ mod tests {
             ),
         );
 
-        // Recognized name, unsupported content type: should be skipped, not erred.
+        // A Simple refset file: content type "Refset" now dispatches.
+        let fake_refset = SctId::compose(9001, ComponentType::Concept, None).unwrap();
         write(
             root,
-            "Snapshot/Refset/Map/der2_sRefset_SimpleMapSnapshot_INT_20190731.txt",
-            "id\teffectiveTime\tactive\tmoduleId\trefsetId\treferencedComponentId\tmapTarget\n",
+            "Snapshot/Refset/Simple/der2_Refset_SimpleSnapshot_INT_20190731.txt",
+            &format!(
+                "id\teffectiveTime\tactive\tmoduleId\trefsetId\treferencedComponentId\n\
+                 80000000-0000-4000-8000-000000000002\t20190731\t1\t{}\t{fake_refset}\t{FINDING}\n",
+                constants::CORE_MODULE,
+            ),
+        );
+
+        // Recognized name, no record type implemented for it yet (spec/08):
+        // should be skipped, not erred.
+        write(
+            root,
+            "Snapshot/Refset/Metadata/der2_cciRefset_RefsetDescriptorSnapshot_INT_20190731.txt",
+            "id\teffectiveTime\tactive\tmoduleId\trefsetId\treferencedComponentId\tattributeDescription\tattributeType\tattributeOrder\n",
         );
 
         // Not a release file name at all: should be skipped, not erred.
@@ -309,7 +366,7 @@ mod tests {
             .load_release_dir(root, ReleaseType::Snapshot)
             .unwrap();
 
-        assert_eq!(report.loaded.len(), 4, "{:?}", report.loaded);
+        assert_eq!(report.loaded.len(), 5, "{:?}", report.loaded);
         assert_eq!(report.skipped.len(), 2, "{:?}", report.skipped);
 
         let store = builder.build();
@@ -326,6 +383,7 @@ mod tests {
                 .map(|_| ()),
             None, // the FSN isn't a synonym, so preferred_term legitimately finds none here
         );
+        assert!(store.is_member(fake_refset, FINDING));
     }
 
     #[test]

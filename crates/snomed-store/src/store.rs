@@ -5,7 +5,11 @@ use std::collections::{HashMap, HashSet, VecDeque};
 use snomed_core::components::{Concept, Description, Relationship};
 use snomed_core::constants;
 use snomed_core::sctid::SctId;
-use snomed_rf2::refset::LanguageRefsetMember;
+use snomed_rf2::refset::{
+    AssociationRefsetMember, AttributeValueRefsetMember, ExtendedMapRefsetMember,
+    LanguageRefsetMember, ModuleDependencyRefsetMember, OwlExpressionRefsetMember,
+    RefsetMemberCore, SimpleMapRefsetMember, SimpleRefsetMember,
+};
 
 /// Accumulates RF2 rows (from any mix of Full, Snapshot, and Delta files)
 /// and resolves each component to its latest version, per
@@ -16,8 +20,16 @@ pub struct SnapshotStoreBuilder {
     concepts: HashMap<SctId, Concept>,
     descriptions: HashMap<SctId, Description>,
     relationships: HashMap<SctId, Relationship>,
-    /// Language refset members keyed by member UUID.
+    // Refset members, all keyed by member UUID (spec/08: versioning is
+    // identical to components, keyed by the member UUID).
+    simple_members: HashMap<String, SimpleRefsetMember>,
     language_members: HashMap<String, LanguageRefsetMember>,
+    association_members: HashMap<String, AssociationRefsetMember>,
+    attribute_value_members: HashMap<String, AttributeValueRefsetMember>,
+    simple_map_members: HashMap<String, SimpleMapRefsetMember>,
+    extended_map_members: HashMap<String, ExtendedMapRefsetMember>,
+    owl_expression_members: HashMap<String, OwlExpressionRefsetMember>,
+    module_dependency_members: HashMap<String, ModuleDependencyRefsetMember>,
 }
 
 fn upsert<K: std::hash::Hash + Eq, V, F: Fn(&V) -> u32>(
@@ -36,6 +48,49 @@ fn upsert<K: std::hash::Hash + Eq, V, F: Fn(&V) -> u32>(
             }
         }
     }
+}
+
+/// Generates a pair of `add_x`/`add_xs` methods for a refset member type
+/// whose rows embed a `core: RefsetMemberCore` field, upserting by member
+/// UUID per `spec/08-refset-files.md`.
+macro_rules! refset_member_methods {
+    ($add_one:ident, $add_many:ident, $field:ident, $ty:ty) => {
+        pub fn $add_one(&mut self, row: $ty) -> &mut Self {
+            upsert(&mut self.$field, row.core.id.clone(), row, |m| {
+                m.core.effective_time.as_u32()
+            });
+            self
+        }
+
+        pub fn $add_many(&mut self, rows: impl IntoIterator<Item = $ty>) -> &mut Self {
+            rows.into_iter().for_each(|r| {
+                self.$add_one(r);
+            });
+            self
+        }
+    };
+}
+
+/// Groups active refset members by `(refsetId, referencedComponentId)`,
+/// consuming the builder's member map. Order within a group is unspecified.
+fn group_by_refset_and_component<T>(
+    members: HashMap<String, T>,
+    core_of: impl Fn(&T) -> &RefsetMemberCore,
+) -> HashMap<(SctId, SctId), Vec<T>> {
+    let mut grouped: HashMap<(SctId, SctId), Vec<T>> = HashMap::new();
+    for (_, member) in members {
+        let (refset_id, referenced_component_id, active) = {
+            let core = core_of(&member);
+            (core.refset_id, core.referenced_component_id, core.active)
+        };
+        if active {
+            grouped
+                .entry((refset_id, referenced_component_id))
+                .or_default()
+                .push(member);
+        }
+    }
+    grouped
 }
 
 impl SnapshotStoreBuilder {
@@ -64,12 +119,54 @@ impl SnapshotStoreBuilder {
         self
     }
 
-    pub fn add_language_member(&mut self, row: LanguageRefsetMember) -> &mut Self {
-        upsert(&mut self.language_members, row.core.id.clone(), row, |m| {
-            m.core.effective_time.as_u32()
-        });
-        self
-    }
+    refset_member_methods!(
+        add_simple_member,
+        add_simple_members,
+        simple_members,
+        SimpleRefsetMember
+    );
+    refset_member_methods!(
+        add_language_member,
+        add_language_members,
+        language_members,
+        LanguageRefsetMember
+    );
+    refset_member_methods!(
+        add_association_member,
+        add_association_members,
+        association_members,
+        AssociationRefsetMember
+    );
+    refset_member_methods!(
+        add_attribute_value_member,
+        add_attribute_value_members,
+        attribute_value_members,
+        AttributeValueRefsetMember
+    );
+    refset_member_methods!(
+        add_simple_map_member,
+        add_simple_map_members,
+        simple_map_members,
+        SimpleMapRefsetMember
+    );
+    refset_member_methods!(
+        add_extended_map_member,
+        add_extended_map_members,
+        extended_map_members,
+        ExtendedMapRefsetMember
+    );
+    refset_member_methods!(
+        add_owl_expression_member,
+        add_owl_expression_members,
+        owl_expression_members,
+        OwlExpressionRefsetMember
+    );
+    refset_member_methods!(
+        add_module_dependency_member,
+        add_module_dependency_members,
+        module_dependency_members,
+        ModuleDependencyRefsetMember
+    );
 
     pub fn add_concepts(&mut self, rows: impl IntoIterator<Item = Concept>) -> &mut Self {
         rows.into_iter().for_each(|r| {
@@ -88,16 +185,6 @@ impl SnapshotStoreBuilder {
     pub fn add_relationships(&mut self, rows: impl IntoIterator<Item = Relationship>) -> &mut Self {
         rows.into_iter().for_each(|r| {
             self.add_relationship(r);
-        });
-        self
-    }
-
-    pub fn add_language_members(
-        &mut self,
-        rows: impl IntoIterator<Item = LanguageRefsetMember>,
-    ) -> &mut Self {
-        rows.into_iter().for_each(|r| {
-            self.add_language_member(r);
         });
         self
     }
@@ -153,6 +240,13 @@ impl SnapshotStoreBuilder {
             }
         }
 
+        let simple_members: HashSet<(SctId, SctId)> = self
+            .simple_members
+            .into_values()
+            .filter(|m| m.core.active)
+            .map(|m| (m.core.refset_id, m.core.referenced_component_id))
+            .collect();
+
         SnapshotStore {
             concepts: self.concepts,
             descriptions: self.descriptions,
@@ -162,6 +256,26 @@ impl SnapshotStoreBuilder {
             parents,
             children,
             acceptability,
+            simple_members,
+            association_members: group_by_refset_and_component(self.association_members, |m| {
+                &m.core
+            }),
+            attribute_value_members: group_by_refset_and_component(
+                self.attribute_value_members,
+                |m| &m.core,
+            ),
+            simple_map_members: group_by_refset_and_component(self.simple_map_members, |m| &m.core),
+            extended_map_members: group_by_refset_and_component(self.extended_map_members, |m| {
+                &m.core
+            }),
+            owl_expression_members: group_by_refset_and_component(
+                self.owl_expression_members,
+                |m| &m.core,
+            ),
+            module_dependency_members: group_by_refset_and_component(
+                self.module_dependency_members,
+                |m| &m.core,
+            ),
         }
     }
 }
@@ -180,6 +294,14 @@ pub struct SnapshotStore {
     children: HashMap<SctId, Vec<SctId>>,
     /// (language refset id, description id) -> acceptability id.
     acceptability: HashMap<(SctId, SctId), SctId>,
+    /// Active Simple refset memberships: (refsetId, referencedComponentId).
+    simple_members: HashSet<(SctId, SctId)>,
+    association_members: HashMap<(SctId, SctId), Vec<AssociationRefsetMember>>,
+    attribute_value_members: HashMap<(SctId, SctId), Vec<AttributeValueRefsetMember>>,
+    simple_map_members: HashMap<(SctId, SctId), Vec<SimpleMapRefsetMember>>,
+    extended_map_members: HashMap<(SctId, SctId), Vec<ExtendedMapRefsetMember>>,
+    owl_expression_members: HashMap<(SctId, SctId), Vec<OwlExpressionRefsetMember>>,
+    module_dependency_members: HashMap<(SctId, SctId), Vec<ModuleDependencyRefsetMember>>,
 }
 
 impl SnapshotStore {
@@ -319,6 +441,91 @@ impl SnapshotStore {
         }
         out
     }
+
+    // -- Reference sets (spec/08-refset-files.md) --------------------------
+
+    /// True when `component_id` has an active membership in the Simple
+    /// refset `refset_id`.
+    pub fn is_member(&self, refset_id: SctId, component_id: SctId) -> bool {
+        self.simple_members.contains(&(refset_id, component_id))
+    }
+
+    /// Active Association refset members for `component_id` in `refset_id`
+    /// (e.g. historical SAME AS / REPLACED BY associations).
+    pub fn association_members(
+        &self,
+        refset_id: SctId,
+        component_id: SctId,
+    ) -> &[AssociationRefsetMember] {
+        self.association_members
+            .get(&(refset_id, component_id))
+            .map(Vec::as_slice)
+            .unwrap_or(&[])
+    }
+
+    /// Active AttributeValue refset members for `component_id` in
+    /// `refset_id` (e.g. inactivation reasons).
+    pub fn attribute_value_members(
+        &self,
+        refset_id: SctId,
+        component_id: SctId,
+    ) -> &[AttributeValueRefsetMember] {
+        self.attribute_value_members
+            .get(&(refset_id, component_id))
+            .map(Vec::as_slice)
+            .unwrap_or(&[])
+    }
+
+    /// Active SimpleMap refset members for `component_id` in `refset_id`.
+    pub fn simple_map_members(
+        &self,
+        refset_id: SctId,
+        component_id: SctId,
+    ) -> &[SimpleMapRefsetMember] {
+        self.simple_map_members
+            .get(&(refset_id, component_id))
+            .map(Vec::as_slice)
+            .unwrap_or(&[])
+    }
+
+    /// Active ExtendedMap refset members for `component_id` in `refset_id`
+    /// (e.g. the ICD-10 map).
+    pub fn extended_map_members(
+        &self,
+        refset_id: SctId,
+        component_id: SctId,
+    ) -> &[ExtendedMapRefsetMember] {
+        self.extended_map_members
+            .get(&(refset_id, component_id))
+            .map(Vec::as_slice)
+            .unwrap_or(&[])
+    }
+
+    /// Active OWLExpression refset members for `component_id` in
+    /// `refset_id` (the stated axioms, since the 2019 releases).
+    pub fn owl_expression_members(
+        &self,
+        refset_id: SctId,
+        component_id: SctId,
+    ) -> &[OwlExpressionRefsetMember] {
+        self.owl_expression_members
+            .get(&(refset_id, component_id))
+            .map(Vec::as_slice)
+            .unwrap_or(&[])
+    }
+
+    /// Active ModuleDependency refset members for `module_id` in
+    /// `refset_id`.
+    pub fn module_dependency_members(
+        &self,
+        refset_id: SctId,
+        module_id: SctId,
+    ) -> &[ModuleDependencyRefsetMember] {
+        self.module_dependency_members
+            .get(&(refset_id, module_id))
+            .map(Vec::as_slice)
+            .unwrap_or(&[])
+    }
 }
 
 #[cfg(test)]
@@ -427,5 +634,112 @@ mod tests {
         // A cycle is data corruption per spec/07, but queries must not hang.
         assert_eq!(store.ancestors(FINDING), HashSet::from([DISEASE]));
         assert!(store.is_ancestor_of(DISEASE, FINDING));
+    }
+
+    fn core(
+        uuid: &str,
+        time: u32,
+        active: bool,
+        refset_id: SctId,
+        component_id: SctId,
+    ) -> RefsetMemberCore {
+        RefsetMemberCore {
+            id: uuid.to_string(),
+            effective_time: EffectiveTime::new_unchecked(time),
+            active,
+            module_id: constants::CORE_MODULE,
+            refset_id,
+            referenced_component_id: component_id,
+        }
+    }
+
+    const ICD10_MAP: SctId = constants::ICD10_EXTENDED_MAP_REFSET;
+
+    #[test]
+    fn simple_refset_membership() {
+        let mut b = SnapshotStore::builder();
+        b.add_simple_member(SimpleRefsetMember {
+            core: core(
+                "80000000-0000-4000-8000-000000000010",
+                20190731,
+                true,
+                ICD10_MAP,
+                MI,
+            ),
+        });
+        let store = b.build();
+        assert!(store.is_member(ICD10_MAP, MI));
+        assert!(!store.is_member(ICD10_MAP, ROOT));
+        assert!(!store.is_member(constants::MODULE_DEPENDENCY_REFSET, MI));
+    }
+
+    #[test]
+    fn extended_map_members_group_by_refset_and_component() {
+        let mut b = SnapshotStore::builder();
+        b.add_extended_map_member(ExtendedMapRefsetMember {
+            core: core(
+                "80000000-0000-4000-8000-000000000011",
+                20190731,
+                true,
+                ICD10_MAP,
+                MI,
+            ),
+            map_group: 1,
+            map_priority: 1,
+            map_rule: String::new(),
+            map_advice: String::new(),
+            map_target: "I21.9".to_string(),
+            correlation_id: constants::CORE_MODULE, // placeholder valid SCTID
+            map_category_id: constants::CORE_MODULE,
+        });
+        let store = b.build();
+        let members = store.extended_map_members(ICD10_MAP, MI);
+        assert_eq!(members.len(), 1);
+        assert_eq!(members[0].map_target, "I21.9");
+        assert!(store.extended_map_members(ICD10_MAP, ROOT).is_empty());
+    }
+
+    #[test]
+    fn inactive_refset_members_are_excluded() {
+        let mut b = SnapshotStore::builder();
+        b.add_simple_member(SimpleRefsetMember {
+            core: core(
+                "80000000-0000-4000-8000-000000000012",
+                20190731,
+                false,
+                ICD10_MAP,
+                MI,
+            ),
+        });
+        let store = b.build();
+        assert!(!store.is_member(ICD10_MAP, MI));
+    }
+
+    #[test]
+    fn latest_version_wins_for_refset_members_too() {
+        let mut b = SnapshotStore::builder();
+        b.add_simple_member(SimpleRefsetMember {
+            core: core(
+                "80000000-0000-4000-8000-000000000013",
+                20190731,
+                true,
+                ICD10_MAP,
+                MI,
+            ),
+        });
+        b.add_simple_member(SimpleRefsetMember {
+            core: core(
+                "80000000-0000-4000-8000-000000000013",
+                20200131,
+                false,
+                ICD10_MAP,
+                MI,
+            ),
+        });
+        let store = b.build();
+        assert!(
+            !store.is_member(ICD10_MAP, MI),
+            "the later inactivation must win"
+        );
     }
 }
