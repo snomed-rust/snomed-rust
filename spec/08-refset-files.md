@@ -29,10 +29,11 @@ Versioning semantics are identical to components, keyed by the member UUID.
 | Extended map | `iisssccRefset` | `mapGroup`, `mapPriority`, `mapRule`, `mapAdvice`, `mapTarget`, `correlationId`, `mapCategoryId` (used by the ICD-10 map) |
 | OWL expression | `sRefset` | `owlExpression` (OWL 2 functional syntax; carries stated axioms since 2019) |
 | Module dependency | `ssRefset` | `sourceEffectiveTime`, `targetEffectiveTime` |
+| Refset descriptor | `cciRefset` | `attributeDescription`, `attributeType`, `attributeOrder` (metadata describing another refset's extra columns; `referencedComponentId` is the *described* refset's SCTID) |
+| Description type | `ciRefset` | `descriptionFormat`, `descriptionLength` (declares display format and max length for a description type; `referencedComponentId` is a **description type** concept, e.g. `900000000000013009` \|Synonym\|) |
 
-Also defined by RF2 (not yet implemented, tracked in `tasks.md`): refset
-descriptor (`cciRefset`), description type (`ciRefset`), ordered/annotation
-variants, MRCM refsets.
+Also defined by RF2 (not yet implemented, tracked in `tasks.md`):
+ordered/annotation refset variants, MRCM refsets.
 
 ## Well-known refset SCTIDs
 

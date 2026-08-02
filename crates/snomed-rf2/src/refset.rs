@@ -228,6 +228,54 @@ impl Rf2Record for ModuleDependencyRefsetMember {
     }
 }
 
+/// Refset descriptor refset (`der2_cciRefset_RefsetDescriptor*`): metadata
+/// describing another refset's extra columns. `referencedComponentId` is
+/// the SCTID of the *described* refset.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct RefsetDescriptorRefsetMember {
+    pub core: RefsetMemberCore,
+    pub attribute_description_id: SctId,
+    pub attribute_type_id: SctId,
+    pub attribute_order: u32,
+}
+
+impl Rf2Record for RefsetDescriptorRefsetMember {
+    const HEADER: &'static [&'static str] =
+        common_then!("attributeDescription", "attributeType", "attributeOrder");
+
+    fn parse_fields(f: &[&str]) -> Result<Self, FieldError> {
+        Ok(RefsetDescriptorRefsetMember {
+            core: RefsetMemberCore::parse(f)?,
+            attribute_description_id: parse_sctid(f[6], "attributeDescription")?,
+            attribute_type_id: parse_sctid(f[7], "attributeType")?,
+            attribute_order: parse_u32(f[8], "attributeOrder")?,
+        })
+    }
+}
+
+/// Description type refset (`der2_ciRefset_DescriptionType*`): declares the
+/// display format and max length for a description type.
+/// `referencedComponentId` is a description type concept, e.g.
+/// `900000000000013009` |Synonym|.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DescriptionTypeRefsetMember {
+    pub core: RefsetMemberCore,
+    pub description_format_id: SctId,
+    pub description_length: u32,
+}
+
+impl Rf2Record for DescriptionTypeRefsetMember {
+    const HEADER: &'static [&'static str] = common_then!("descriptionFormat", "descriptionLength");
+
+    fn parse_fields(f: &[&str]) -> Result<Self, FieldError> {
+        Ok(DescriptionTypeRefsetMember {
+            core: RefsetMemberCore::parse(f)?,
+            description_format_id: parse_sctid(f[6], "descriptionFormat")?,
+            description_length: parse_u32(f[7], "descriptionLength")?,
+        })
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -255,5 +303,32 @@ mod tests {
         let members: Vec<ExtendedMapRefsetMember> = read_all(data.as_bytes()).unwrap();
         assert_eq!(members[0].map_target, "I21.9");
         assert_eq!(members[0].map_rule, "");
+    }
+
+    #[test]
+    fn parses_refset_descriptor_rows() {
+        let data = "id\teffectiveTime\tactive\tmoduleId\trefsetId\treferencedComponentId\t\
+            attributeDescription\tattributeType\tattributeOrder\n\
+            80000000-0000-4000-8000-000000000003\t20190731\t1\t900000000000207008\t900000000000534007\t\
+            900000000000509007\t900000000000017005\t900000000000003001\t0\n";
+        let members: Vec<RefsetDescriptorRefsetMember> = read_all(data.as_bytes()).unwrap();
+        assert_eq!(members.len(), 1);
+        assert_eq!(members[0].attribute_order, 0);
+        assert_eq!(
+            members[0].core.referenced_component_id,
+            constants::US_ENGLISH_LANGUAGE_REFSET
+        );
+    }
+
+    #[test]
+    fn parses_description_type_rows() {
+        let data = "id\teffectiveTime\tactive\tmoduleId\trefsetId\treferencedComponentId\t\
+            descriptionFormat\tdescriptionLength\n\
+            80000000-0000-4000-8000-000000000004\t20190731\t1\t900000000000207008\t447562003\t\
+            900000000000013009\t900000000000003001\t255\n";
+        let members: Vec<DescriptionTypeRefsetMember> = read_all(data.as_bytes()).unwrap();
+        assert_eq!(members.len(), 1);
+        assert_eq!(members[0].description_length, 255);
+        assert_eq!(members[0].core.referenced_component_id, constants::SYNONYM);
     }
 }

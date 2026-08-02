@@ -23,16 +23,20 @@ pub use snomed_store as store;
 
 /// The commonly needed names in one import.
 pub mod prelude {
-    pub use snomed_core::components::{Concept, Description, Relationship};
+    pub use snomed_core::components::{
+        Concept, Description, Relationship, RelationshipConcreteValue,
+    };
+    pub use snomed_core::concrete_value::{ConcreteValue, ConcreteValueError};
     pub use snomed_core::constants;
     pub use snomed_core::sctid::{ComponentType, SctId, SctIdError};
     pub use snomed_core::time::EffectiveTime;
     pub use snomed_rf2::filename::ReleaseFileName;
     pub use snomed_rf2::reader::{read_all, Rf2Reader};
     pub use snomed_rf2::refset::{
-        AssociationRefsetMember, AttributeValueRefsetMember, ExtendedMapRefsetMember,
-        LanguageRefsetMember, ModuleDependencyRefsetMember, OwlExpressionRefsetMember,
-        SimpleMapRefsetMember, SimpleRefsetMember,
+        AssociationRefsetMember, AttributeValueRefsetMember, DescriptionTypeRefsetMember,
+        ExtendedMapRefsetMember, LanguageRefsetMember, ModuleDependencyRefsetMember,
+        OwlExpressionRefsetMember, RefsetDescriptorRefsetMember, SimpleMapRefsetMember,
+        SimpleRefsetMember,
     };
     pub use snomed_rf2::release_type::ReleaseType;
     pub use snomed_store::{LoadError, LoadReport, SnapshotStore, SnapshotStoreBuilder};

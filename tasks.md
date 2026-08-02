@@ -48,12 +48,31 @@ current: check items off in the same change that completes them.
       `load.rs`. `cciRefset`/`ciRefset` (no record type yet) still
       skip-and-report correctly. 46 tests passing.
 
+## Done (2026-08-02, continued further still)
+
+- [x] `RefsetDescriptorRefsetMember` (`cciRefset`: attributeDescription,
+      attributeType, attributeOrder) and `DescriptionTypeRefsetMember`
+      (`ciRefset`: descriptionFormat, descriptionLength) added to
+      `snomed-rf2::refset`, with spec/08 promoted from "not yet
+      implemented" to full column tables.
+- [x] `RelationshipConcreteValue` added to `snomed-core::components`, with
+      a new `ConcreteValue`/`ConcreteValueError` type in
+      `snomed-core::concrete_value` parsing the RF2 `#<number>` /
+      `"<string>"` wire form. `Rf2Record` impl in `snomed-rf2::records`.
+      spec/07 documents the column table and value encoding rules.
+      50 tests passing.
+- [ ] Not yet done: wire these three new record types into
+      `SnapshotStoreBuilder`/`load_release_dir` (they're currently
+      parseable but not stored — `cciRefset`/`ciRefset` files still
+      skip-and-report; `RelationshipConcreteValues` files aren't
+      dispatched at all yet, tracked below).
+
 ## Next up (Phase 4 — real releases)
 
-- [ ] Add refset descriptor (`cciRefset`) and description type (`ciRefset`)
-      member records per spec/08.
-- [ ] Add `RelationshipConcreteValues` record (value column variant) and
-      spec section for it.
+- [ ] Wire `RefsetDescriptorRefsetMember`, `DescriptionTypeRefsetMember`,
+      and `RelationshipConcreteValue` into `SnapshotStoreBuilder` storage
+      and `load_release_dir` dispatch, matching the pattern used for the
+      other 8 refset types.
 - [ ] Benchmark loading a real International Edition snapshot; record
       numbers in plan.md.
 - [ ] Decide on precomputed transitive closure (memory vs. query cost).

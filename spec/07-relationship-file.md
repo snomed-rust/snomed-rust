@@ -25,6 +25,24 @@ Files:
 | 9 | `characteristicTypeId` | SCTID | see below |
 | 10 | `modifierId` | SCTID | always `900000000000451002 \|existential\|` in practice |
 
+## Columns (RelationshipConcreteValues)
+
+Identical to Relationship/StatedRelationship except column 6:
+
+| # | column | type | notes |
+|---|---|---|---|
+| 6 | `value` | concrete value | see below, in place of `destinationId` |
+
+### `value` wire format
+
+- A decimal number: prefixed with `#`, e.g. `#500`, `#12.5`, `#-3`. The
+  digits after `#` MUST form a valid decimal literal (optional leading `-`,
+  digits, at most one `.`).
+- A string: wrapped in double quotes, e.g. `"250mg"`. The value is everything
+  between the first and last `"` character.
+- Used for concrete domains — e.g. numeric drug strengths that don't warrant
+  their own concept.
+
 ## characteristicTypeId values
 
 - `900000000000011006` — inferred relationship (Relationship file).

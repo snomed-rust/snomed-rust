@@ -7,11 +7,13 @@
 //! This crate has no dependencies outside the Rust standard library.
 
 pub mod components;
+pub mod concrete_value;
 pub mod constants;
 pub mod sctid;
 pub mod time;
 pub mod verhoeff;
 
-pub use components::{Concept, Description, Relationship};
+pub use components::{Concept, Description, Relationship, RelationshipConcreteValue};
+pub use concrete_value::{ConcreteValue, ConcreteValueError};
 pub use sctid::{ComponentType, SctId, SctIdError};
 pub use time::{EffectiveTime, EffectiveTimeError};

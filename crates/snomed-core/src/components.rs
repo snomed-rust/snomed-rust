@@ -3,6 +3,7 @@
 //! Field names mirror the RF2 column names (snake_cased). Each struct is one
 //! *version* of a component — see `spec/09-versioning.md`.
 
+use crate::concrete_value::ConcreteValue;
 use crate::sctid::SctId;
 use crate::time::EffectiveTime;
 
@@ -89,6 +90,32 @@ impl Relationship {
         self.type_id == crate::constants::IS_A
     }
 
+    /// True when `characteristicTypeId` is |Inferred relationship|.
+    pub fn is_inferred(&self) -> bool {
+        self.characteristic_type_id == crate::constants::INFERRED_RELATIONSHIP
+    }
+}
+
+/// One version of a concrete-value relationship
+/// (`sct2_RelationshipConcreteValues_*`), per
+/// `spec/07-relationship-file.md`. Structurally identical to
+/// [`Relationship`] except `destinationId` is replaced by a literal
+/// [`ConcreteValue`] (e.g. a drug strength).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct RelationshipConcreteValue {
+    pub id: SctId,
+    pub effective_time: EffectiveTime,
+    pub active: bool,
+    pub module_id: SctId,
+    pub source_id: SctId,
+    pub value: ConcreteValue,
+    pub relationship_group: u32,
+    pub type_id: SctId,
+    pub characteristic_type_id: SctId,
+    pub modifier_id: SctId,
+}
+
+impl RelationshipConcreteValue {
     /// True when `characteristicTypeId` is |Inferred relationship|.
     pub fn is_inferred(&self) -> bool {
         self.characteristic_type_id == crate::constants::INFERRED_RELATIONSHIP

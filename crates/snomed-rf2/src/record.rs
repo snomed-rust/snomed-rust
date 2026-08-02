@@ -1,6 +1,7 @@
 //! The [`Rf2Record`] trait: any row type parseable from an RF2 file, plus
 //! field-parsing helpers shared by component and refset records.
 
+use snomed_core::concrete_value::ConcreteValue;
 use snomed_core::sctid::SctId;
 use snomed_core::time::EffectiveTime;
 
@@ -55,6 +56,13 @@ pub fn parse_nonempty(value: &str, column: &'static str) -> Result<String, Field
     } else {
         Ok(value.to_string())
     }
+}
+
+pub fn parse_concrete_value(
+    value: &str,
+    column: &'static str,
+) -> Result<ConcreteValue, FieldError> {
+    ConcreteValue::parse(value).map_err(|e| FieldError::new(column, e.to_string()))
 }
 
 /// Validates and normalizes a refset member UUID (8-4-4-4-12 hex,
