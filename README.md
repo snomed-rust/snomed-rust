@@ -3,8 +3,9 @@
 A local-first Rust workspace for working with [SNOMED CT](https://www.snomed.org/),
 the international clinical terminology used in electronic health records:
 parse official **RF2 release files**, validate **SCTIDs**, build an in-memory
-**snapshot store**, and run **hierarchy/subsumption queries** — with zero
-external dependencies.
+**snapshot store**, run **hierarchy/subsumption queries**, and evaluate
+**ECL** (Expression Constraint Language) queries — with zero external
+dependencies.
 
 > **License note:** this repository contains *code only*. SNOMED CT content
 > (RF2 release files) is licensed material distributed by SNOMED International
@@ -29,6 +30,7 @@ or analytics pipelines.
 | [`crates/snomed-core`](crates/snomed-core) | SCTID parse/validate/compose (Verhoeff check digit), `EffectiveTime`, `Concept`/`Description`/`Relationship`, well-known constants |
 | [`crates/snomed-rf2`](crates/snomed-rf2) | RF2 file name parsing, Full/Snapshot/Delta types, streaming typed reader, reference set members |
 | [`crates/snomed-store`](crates/snomed-store) | Snapshot builder (latest version wins, order-independent), IS-A hierarchy, ancestors/descendants/subsumption |
+| [`crates/snomed-ecl`](crates/snomed-ecl) | Expression Constraint Language: lexer, parser, evaluator for simple expression constraints |
 
 Supporting documents:
 
@@ -67,6 +69,10 @@ let mi = SctId::parse("22298006")?;
 let fsn = store.fsn(mi);
 let preferred = store.preferred_term(mi, constants::US_ENGLISH_LANGUAGE_REFSET);
 let is_finding = store.subsumes(SctId::parse("404684003")?, mi);
+
+// ECL: everything under Clinical finding, minus everything under Disease (spec/10).
+let expr = parse_ecl("<< 404684003 MINUS << 64572001")?;
+let matches = evaluate_ecl(&expr, &store);
 ```
 
 ## Development
@@ -79,8 +85,8 @@ cargo fmt
 
 Development is **specification-driven**: behavior is written in `spec/*.md`
 first, code cites the spec it implements, and tests enforce the spec's
-normative rules. See `plan.md` for what's next (release-directory loader,
-ECL, CLI, FHIR building blocks).
+normative rules. See `plan.md` for what's next (ECL refinements, CLI, FHIR
+building blocks).
 
 ## License
 

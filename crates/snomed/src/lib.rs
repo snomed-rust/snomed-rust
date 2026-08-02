@@ -4,7 +4,9 @@
 //!
 //! - [`core`] ([`snomed_core`]) — SCTIDs, components, constants;
 //! - [`rf2`] ([`snomed_rf2`]) — RF2 release file parsing;
-//! - [`store`] ([`snomed_store`]) — snapshot store and hierarchy queries.
+//! - [`store`] ([`snomed_store`]) — snapshot store and hierarchy queries;
+//! - [`ecl`] ([`snomed_ecl`]) — Expression Constraint Language (simple
+//!   constraints subset).
 //!
 //! ```
 //! use snomed::prelude::*;
@@ -18,6 +20,7 @@
 //! ```
 
 pub use snomed_core as core;
+pub use snomed_ecl as ecl;
 pub use snomed_rf2 as rf2;
 pub use snomed_store as store;
 
@@ -40,4 +43,9 @@ pub mod prelude {
     };
     pub use snomed_rf2::release_type::ReleaseType;
     pub use snomed_store::{LoadError, LoadReport, SnapshotStore, SnapshotStoreBuilder};
+
+    pub use snomed_ecl::{
+        evaluate as evaluate_ecl, parse as parse_ecl, EclError, ExpressionConstraint, FocusConcept,
+        HierarchyOp, SimpleExpressionConstraint,
+    };
 }

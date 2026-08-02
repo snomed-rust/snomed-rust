@@ -98,9 +98,45 @@ current: check items off in the same change that completes them.
       if/when one is available, to sanity-check the synthetic numbers
       (real poly-hierarchy likely raises ancestors-per-concept).
 
-## Later (Phases 5–6)
+## Done (2026-08-03, Phase 5 started)
 
-- [ ] `snomed-ecl` crate: grammar, parser, evaluator over `SnapshotStore`.
+- [x] `snomed-store`: generalized `is_member` to span every refset type
+      (was Simple-only — a real bug, found while scoping ECL's `^`
+      operator); added `refset_members(refset_id)` enumeration. spec/08
+      rule 4 documents the clarified semantics. New cross-type test.
+      55 tests passing.
+- [x] `snomed-ecl` crate: lexer (pull-based — see `lexer.rs` docs for why
+      eager tokenization would have produced worse error messages for
+      unsupported syntax), recursive-descent parser, AST, and set-based
+      evaluator for ECL **simple expression constraints**: all 8 hierarchy
+      operators, `^` memberOf, `*` wildcard, `AND`/`OR`/`MINUS` (parens
+      required to mix operator kinds), pipe-delimited terms. spec/10-ecl.md
+      is the normative spec, researched from
+      docs.snomed.org/.../snomed-ct-expression-constraint-language.
+      Wired into the `snomed` facade's prelude
+      (`parse_ecl`/`evaluate_ecl`/…). 78 tests passing across the
+      workspace, clippy clean.
+- [x] Refinements, concrete value comparisons, `{{ }}` filters, `^ *`,
+      hierarchy-prefixed wildcards (`< *`), history supplement, cardinality,
+      reverse attributes, alternate identifiers: explicitly rejected with a
+      `NotYetImplemented` parse error naming the feature — never silently
+      wrong. Full list in spec/10-ecl.md.
+
+## Next up (Phase 5 — query layer)
+
+- [ ] ECL refinements: `:` attribute-value constraints (the biggest
+      remaining ECL feature — likely its own sub-phase: single attribute
+      `=`, conjunction/disjunction of attribute constraints, nested
+      refinements, attribute groups, cardinality).
+- [ ] Confirm the real ECL operator-precedence/associativity rules (the
+      research pass in this session couldn't reach them) and relax
+      spec/10 rule 5 if the parenthesization requirement turns out to be
+      stricter than the real grammar.
+- [ ] History/audit queries over Full-view data (component version
+      timelines) — not started.
+
+## Later (Phase 6)
+
 - [ ] `snomed-cli` crate: rf2-to-NDJSON export, release validation, lookup.
 - [ ] `snomed-fhir` crate decision + design doc.
 - [ ] OWL expression parsing (axioms from the OWL refset).

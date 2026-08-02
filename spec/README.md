@@ -12,6 +12,8 @@ Official sources:
 - SNOMED CT Release File Specification —
   <https://docs.snomed.org/snomed-ct-specifications/snomed-ct-release-file-specification>
 - SNOMED CT Glossary — <https://docs.snomed.org/snomed-ct-glossary>
+- SNOMED CT Expression Constraint Language — Specification and Guide —
+  <https://docs.snomed.org/snomed-ct-specifications/snomed-ct-expression-constraint-language>
 
 ## Index
 
@@ -26,6 +28,7 @@ Official sources:
 | [07-relationship-file.md](07-relationship-file.md) | Relationship files | `snomed-core`, `snomed-rf2` |
 | [08-refset-files.md](08-refset-files.md) | Reference set file patterns | `snomed-rf2::refset` |
 | [09-versioning.md](09-versioning.md) | effectiveTime, active, moduleId, snapshot semantics | `snomed-store` |
+| [10-ecl.md](10-ecl.md) | Expression Constraint Language (simple constraints subset) | `snomed-ecl` |
 
 ## Conventions used in these specs
 
