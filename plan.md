@@ -42,15 +42,34 @@ the spec's normative rules. Day-to-day execution items live in `tasks.md`.
 - Queries: FSN, preferred term by language refset, parents/children,
   ancestors/descendants, subsumption; cycle-safe traversal.
 
-## Phase 4 — Loading real releases (next)
+## Phase 4 — Loading real releases ✅
 
 - Directory walker: given an unzipped release, route each file via
   `ReleaseFileName` to the right record type and load a full snapshot.
-- Benchmark against a real International Edition snapshot (~370k active
-  concepts); tune hashing and memory layout if needed.
-- Precomputed transitive closure option for large-scale subsumption.
-- Remaining refset patterns: refset descriptor (`cciRefset`), description
-  type (`ciRefset`), MRCM refsets; `RelationshipConcreteValues` file.
+  `SnapshotStoreBuilder::load_release_dir` (spec/02).
+- All 11 RF2 record types this workspace parses (3 core components, 8
+  refset types) are wired into both parsing (`snomed-rf2`) and storage
+  (`snomed-store`) — see `tasks.md` for the incremental history.
+- Benchmarked with a synthetic, structurally-representative release
+  (`crates/snomed-store/examples/benchmark_synthetic_release.rs` — real
+  RF2 file names/columns/SCTIDs, fictional content, since real release
+  content is licensed and unavailable here). At 370,000 concepts (matching
+  the International Edition's active-concept count), on the dev machine
+  used for this run:
+  - `load_release_dir`: ~800ms for ~1.85M rows (~2.3M rows/sec).
+  - `build()` (derived indexes): ~170ms.
+  - `ancestors()`/`descendants()`/`subsumes()`: ~2µs average per call
+    over 2000 random concepts (this synthetic hierarchy's random-tree
+    shape gives ~13 ancestors/concept on average — real SNOMED's
+    poly-hierarchy likely yields more per concept, but even two orders of
+    magnitude more ancestors stays well under 1ms).
+  - `is_active()`/`fsn()`/`preferred_term()`: sub-microsecond.
+  - **Decision: no precomputed transitive closure for now.** On-demand BFS
+    is already 3+ orders of magnitude faster than would matter for typical
+    interactive or batch use; revisit only if a real-release run (or a
+    profiled downstream consumer) shows otherwise.
+- Remaining refset patterns *not yet implemented* (tracked, not urgent):
+  ordered/annotation refset variants, MRCM refsets (spec/08).
 
 ## Phase 5 — Query layer
 

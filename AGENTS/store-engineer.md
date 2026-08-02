@@ -22,6 +22,14 @@ queries.
   ~1.5M descriptions, ~3M relationships) loads and queries comfortably in
   memory. Prefer algorithmic wins (precomputed closure, interning) over
   dependencies. Measure before optimizing; record numbers in `plan.md`.
+- Benchmark with `cargo run --release --example benchmark_synthetic_release
+  -p snomed-store` (`SNOMED_BENCH_CONCEPTS` overrides the size). It generates
+  a synthetic-but-RF2-shaped release rather than using real content, since
+  real releases are licensed and unavailable in this repo — see the example
+  file's doc comment before extending it. Current numbers (370k concepts):
+  ~800ms/~2.3M rows/sec to load, ~2µs avg for ancestors/descendants/subsumes.
+  No precomputed transitive closure — on-demand BFS has large headroom.
+  Re-benchmark and update `plan.md` if you change indexing strategy.
 
 ## When adding query APIs
 

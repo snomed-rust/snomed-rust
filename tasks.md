@@ -77,11 +77,26 @@ current: check items off in the same change that completes them.
       parses is now also loadable into a queryable snapshot. 54 tests
       passing, clippy clean.
 
-## Next up (Phase 4 — real releases)
+## Done (2026-08-02, Phase 4 closed)
 
-- [ ] Benchmark loading a real International Edition snapshot; record
-      numbers in plan.md.
-- [ ] Decide on precomputed transitive closure (memory vs. query cost).
+- [x] Benchmark: no real licensed release is available here, so built
+      `crates/snomed-store/examples/benchmark_synthetic_release.rs` — a
+      synthetic but structurally real (real file names, columns, Verhoeff
+      SCTIDs) release generator sized to match the International Edition's
+      ~370k active concepts, loaded through the real
+      `load_release_dir` path and timed. Run via
+      `cargo run --release --example benchmark_synthetic_release -p
+      snomed-store` (override size with `SNOMED_BENCH_CONCEPTS`). Numbers
+      recorded in `plan.md` Phase 4: ~800ms / ~2.3M rows/sec to load
+      ~1.85M rows, ~170ms to build indexes, ~2µs average for
+      ancestors/descendants/subsumes over a 2000-concept sample.
+- [x] Decided: no precomputed transitive closure for now — on-demand BFS
+      has enormous headroom versus any plausible query budget. Revisit if
+      a real-release run or a downstream consumer's profile says
+      otherwise. Rationale and numbers in `plan.md`.
+- [ ] Re-run the benchmark against a real International Edition Snapshot
+      if/when one is available, to sanity-check the synthetic numbers
+      (real poly-hierarchy likely raises ancestors-per-concept).
 
 ## Later (Phases 5–6)
 
