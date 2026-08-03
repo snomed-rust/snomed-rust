@@ -1,0 +1,17 @@
+[package]
+name = "snomed-cli"
+description = "Command-line toolkit for SNOMED CT RF2: SCTID validation, release loading, concept lookup, ECL queries"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+keywords.workspace = true
+categories.workspace = true
+authors.workspace = true
+
+[dependencies]
+snomed-core.workspace = true
+snomed-ecl.workspace = true
+snomed-rf2.workspace = true
+snomed-store.workspace = true

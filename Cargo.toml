@@ -2,6 +2,7 @@
 resolver = "2"
 members = [
     "crates/snomed",
+    "crates/snomed-cli",
     "crates/snomed-core",
     "crates/snomed-ecl",
     "crates/snomed-rf2",

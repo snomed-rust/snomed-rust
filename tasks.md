@@ -200,10 +200,32 @@ current: check items off in the same change that completes them.
 This closes Phase 5 (`snomed-ecl` simple constraints + basic refinements,
 `snomed-store::history`) per `plan.md`.
 
-## Later (Phase 6)
+## Done (2026-08-03, Phase 6 started — snomed-cli)
 
-- [ ] `snomed-cli` crate: rf2-to-NDJSON export, release validation, lookup.
+- [x] New `snomed-cli` binary crate: `sctid`, `load`, `lookup`, `ecl`
+      subcommands. `src/lib.rs::run(args) -> Result<String, Box<dyn Error>>`
+      holds all the logic and is directly unit/integration-testable (no
+      subprocess spawning); `src/main.rs` is a ~10-line wrapper that prints
+      the result and sets the exit code. Hand-rolled argument parsing —
+      no `clap`, matching the workspace's zero-external-dependency stance
+      (documented as deliberate in `AGENTS/cli-engineer.md`, not revisit-
+      on-a-whim). New `AGENTS/cli-engineer.md` playbook: the load-bearing
+      rule is "stays a thin presentation layer — new domain logic belongs
+      in the library crate it's about". 115 tests passing (11 new),
+      clippy clean.
+
+## Next up (Phase 6 — interop & tooling)
+
+- [ ] `snomed-cli export` subcommand: RF2 → NDJSON conversion (hand-rolled
+      JSON serialization to keep zero dependencies — flat structs, no
+      nesting beyond what RF2 rows already have, should be straightforward).
+- [ ] `snomed-cli load`/deeper release validation: beyond "did it load
+      without error" — dangling `conceptId`/`sourceId`/`destinationId`
+      references, surfaced cyclic hierarchy (spec/07 already prevents
+      hangs via cycle-safe BFS, but doesn't currently *report* a cycle as
+      a validation finding).
 - [ ] `snomed-fhir` crate decision + design doc.
 - [ ] OWL expression parsing (axioms from the OWL refset).
 - [ ] Add LICENSE-APACHE / LICENSE-MIT files before any publish.
-- [ ] CI: fmt + clippy + test on push (GitHub Actions) once repo is on git.
+- [ ] CI: fmt + clippy + test on push (GitHub Actions) — repo is on git
+      now, this is unblocked whenever a GitHub remote exists.
