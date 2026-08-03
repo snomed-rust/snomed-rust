@@ -38,14 +38,14 @@ pub enum LoadError {
 }
 
 impl LoadError {
-    fn io(path: impl Into<PathBuf>, source: std::io::Error) -> Self {
+    pub(crate) fn io(path: impl Into<PathBuf>, source: std::io::Error) -> Self {
         LoadError::Io {
             path: path.into(),
             source,
         }
     }
 
-    fn rf2(path: impl Into<PathBuf>, source: Rf2Error) -> Self {
+    pub(crate) fn rf2(path: impl Into<PathBuf>, source: Rf2Error) -> Self {
         LoadError::Rf2 {
             path: path.into(),
             source,
@@ -126,7 +126,9 @@ impl SnapshotStoreBuilder {
     }
 }
 
-fn collect_txt_files(dir: &Path, out: &mut Vec<PathBuf>) -> Result<(), LoadError> {
+/// Recursively lists every `.txt` file under `dir`. Shared with
+/// `history::HistoryStoreBuilder::load_release_dir`.
+pub(crate) fn collect_txt_files(dir: &Path, out: &mut Vec<PathBuf>) -> Result<(), LoadError> {
     for entry in fs::read_dir(dir).map_err(|e| LoadError::io(dir, e))? {
         let entry = entry.map_err(|e| LoadError::io(dir, e))?;
         let path = entry.path();
@@ -232,7 +234,9 @@ fn dispatch(
     Ok(None)
 }
 
-fn load_rows<T, F>(path: &Path, mut add: F) -> Result<(), LoadError>
+/// Streams and applies every row of one RF2 file. Shared with
+/// `history::HistoryStoreBuilder::load_release_dir`.
+pub(crate) fn load_rows<T, F>(path: &Path, mut add: F) -> Result<(), LoadError>
 where
     T: Rf2Record,
     F: FnMut(T),

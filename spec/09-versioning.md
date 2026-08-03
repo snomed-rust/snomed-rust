@@ -46,3 +46,34 @@ After loading, `snomed-store` builds:
   `typeId = 116680003` rows ([07-relationship-file.md](07-relationship-file.md));
 - transitive closure queries (`ancestors`, `descendants`, `subsumes`) computed
   by breadth-first traversal on demand.
+
+## History construction (normative for `snomed-store::history`)
+
+`SnapshotStore` deliberately discards every version but the latest — that's
+what makes it fast and what most consumers want. `HistoryStore` is the
+complementary, smaller-scope sibling for the audit-trail questions a
+Snapshot can't answer ("what did this concept look like a year ago",
+"when did this description's case significance change"):
+
+1. `HistoryStore` retains **every** version of a component, keyed by
+   component id, not just the latest.
+2. Its input MUST be Full-view rows ([02-release-types.md](02-release-types.md)
+   — Full is "the only view from which any historical point-in-time
+   snapshot can be reconstructed"). Loading Snapshot or Delta rows into a
+   `HistoryStoreBuilder` produces an incomplete history silently — this is
+   a precondition on the *input*, not something the builder can detect from
+   the rows themselves (a Snapshot row is indistinguishable in shape from
+   a single Full row for the same id), so callers are responsible for
+   pointing `load_release_dir` at Full-view files.
+3. Per-id version lists are exposed sorted ascending by `effectiveTime`.
+4. Point-in-time reconstruction (`component_at(id, time)`): the version
+   with the greatest `effectiveTime` that is `<= time`, or `None` if the
+   component's first version postdates `time` (it didn't exist yet) or the
+   id has no history at all. This is exactly spec/02's "any two releases"
+   Delta-derivation idea, generalized to an arbitrary date instead of just
+   the two dates a real Delta file would span.
+5. Scope for the current version: Concept, Description (incl.
+   TextDefinition), and Relationship (incl. StatedRelationship) history
+   only. Refset member history is a documented gap (`tasks.md`) — the
+   `RefsetMemberCore` types would need the same treatment, not implemented
+   yet.

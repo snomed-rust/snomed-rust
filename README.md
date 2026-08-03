@@ -29,7 +29,7 @@ or analytics pipelines.
 | [`crates/snomed`](crates/snomed) | Facade: re-exports everything, `prelude`, end-to-end tests |
 | [`crates/snomed-core`](crates/snomed-core) | SCTID parse/validate/compose (Verhoeff check digit), `EffectiveTime`, `Concept`/`Description`/`Relationship`, well-known constants |
 | [`crates/snomed-rf2`](crates/snomed-rf2) | RF2 file name parsing, Full/Snapshot/Delta types, streaming typed reader, reference set members |
-| [`crates/snomed-store`](crates/snomed-store) | Snapshot builder (latest version wins, order-independent), IS-A hierarchy, ancestors/descendants/subsumption |
+| [`crates/snomed-store`](crates/snomed-store) | Snapshot builder (latest version wins, order-independent), IS-A hierarchy, ancestors/descendants/subsumption, and a `HistoryStore` for full version history / point-in-time queries |
 | [`crates/snomed-ecl`](crates/snomed-ecl) | Expression Constraint Language: lexer, parser, evaluator for simple expression constraints |
 
 Supporting documents:
@@ -85,8 +85,7 @@ cargo fmt
 
 Development is **specification-driven**: behavior is written in `spec/*.md`
 first, code cites the spec it implements, and tests enforce the spec's
-normative rules. See `plan.md` for what's next (ECL refinements, CLI, FHIR
-building blocks).
+normative rules. See `plan.md` for what's next (CLI, FHIR building blocks).
 
 ## License
 

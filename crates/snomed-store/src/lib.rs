@@ -3,9 +3,17 @@
 //! Implements the snapshot-construction rules of `spec/09-versioning.md`
 //! (latest `effectiveTime` wins, insertion order irrelevant) and the
 //! IS-A hierarchy rules of `spec/07-relationship-file.md`.
+//!
+//! [`SnapshotStore`] answers "what does the terminology look like now"
+//! (collapses to the latest version per component); [`HistoryStore`]
+//! answers "what did it look like at some point in time" (keeps every
+//! version, built from Full-view rows — spec/09's History construction
+//! section).
 
+mod history;
 mod load;
 mod store;
 
+pub use history::{HistoryStore, HistoryStoreBuilder};
 pub use load::{LoadError, LoadReport};
 pub use store::{SnapshotStore, SnapshotStoreBuilder};

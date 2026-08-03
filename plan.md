@@ -71,7 +71,7 @@ the spec's normative rules. Day-to-day execution items live in `tasks.md`.
 - Remaining refset patterns *not yet implemented* (tracked, not urgent):
   ordered/annotation refset variants, MRCM refsets (spec/08).
 
-## Phase 5 — Query layer (in progress)
+## Phase 5 — Query layer ✅
 
 - New crate `snomed-ecl` ✅: Expression Constraint Language parser and
   evaluator against `SnapshotStore`, scoped to **simple expression
@@ -106,8 +106,19 @@ the spec's normative rules. Day-to-day execution items live in `tasks.md`.
   comparisons, and non-plain-concept attribute names remain **not yet
   implemented** — explicitly rejected with a clear error, never silently
   ignored (spec/10's "Not yet implemented" section + `tasks.md`).
-- History/audit queries over Full-view data (component version timelines):
-  not started.
+- History/audit queries over Full-view data ✅: `snomed-store::HistoryStore`
+  keeps every version of a Concept/Description/Relationship (spec/09's new
+  "History construction" section), built from Full-view files only —
+  `SnapshotStore` collapses to the latest version by design, so this is a
+  genuinely separate structure, not a mode switch on the same one.
+  Point-in-time reconstruction (`concept_at(id, time)`, etc.) answers "what
+  did this look like on date X" directly from the sorted per-id version
+  list. Refset member history isn't implemented — a documented gap, not an
+  oversight.
+
+**Phase 5 is closed.** All three planned pieces landed: `snomed-ecl` (simple
+expression constraints + basic refinements), the `is_member` correctness
+fix it surfaced, and `HistoryStore`.
 
 ## Phase 6 — Interop & tooling
 

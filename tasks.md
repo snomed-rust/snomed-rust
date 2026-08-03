@@ -181,10 +181,24 @@ current: check items off in the same change that completes them.
       memberOf attribute names — tracked as the next ECL increment(s) if
       needed; grammar already in hand (spec/10-ecl.md sources note).
 
-## Next up (Phase 5 — query layer)
+## Done (2026-08-03, history/audit queries — Phase 5 closed)
 
-- [ ] History/audit queries over Full-view data (component version
-      timelines) — not started.
+- [x] `snomed-store::history`: `HistoryStore`/`HistoryStoreBuilder`, the
+      Full-view sibling to `SnapshotStore` — keeps every version of a
+      Concept/Description/Relationship (not just the latest), sorted
+      ascending by `effectiveTime`, with `*_history(id) -> &[T]` and
+      point-in-time reconstruction `*_at(id, time) -> Option<&T>` ("what
+      did this look like on date X" — last version with
+      `effectiveTime <= time`). `load_release_dir(dir)` filters to
+      Full-view files only (no `release_type` param — history only makes
+      sense from Full, spec/09 rule 2) and shares `load.rs`'s directory
+      walker/row-streaming helpers (`pub(crate)`) rather than duplicating
+      them. Refset member history is a documented gap, not attempted.
+      spec/09 gained a "History construction" section (rules 1-5).
+      104 tests passing, clippy clean.
+
+This closes Phase 5 (`snomed-ecl` simple constraints + basic refinements,
+`snomed-store::history`) per `plan.md`.
 
 ## Later (Phase 6)
 
