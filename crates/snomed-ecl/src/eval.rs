@@ -6,7 +6,10 @@ use std::collections::HashSet;
 use snomed_core::sctid::SctId;
 use snomed_store::SnapshotStore;
 
-use crate::ast::{ExpressionConstraint, FocusConcept, HierarchyOp, SimpleExpressionConstraint};
+use crate::ast::{
+    AttributeConstraint, ExpressionConstraint, FocusConcept, HierarchyOp, RefinementConstraint,
+    SimpleExpressionConstraint,
+};
 
 /// Evaluates `expr` against `store`, returning the matching concept ids.
 ///
@@ -42,6 +45,45 @@ pub fn evaluate(expr: &ExpressionConstraint, store: &SnapshotStore) -> HashSet<S
             let r = evaluate(right, store);
             l.difference(&r).copied().collect()
         }
+        ExpressionConstraint::Refined { focus, refinement } => evaluate(focus, store)
+            .into_iter()
+            .filter(|&c| evaluate_refinement(refinement, c, store))
+            .collect(),
+    }
+}
+
+fn evaluate_refinement(r: &RefinementConstraint, concept: SctId, store: &SnapshotStore) -> bool {
+    match r {
+        RefinementConstraint::Attribute(a) => evaluate_attribute_constraint(a, concept, store),
+        RefinementConstraint::And(items) => {
+            items.iter().all(|i| evaluate_refinement(i, concept, store))
+        }
+        RefinementConstraint::Or(items) => {
+            items.iter().any(|i| evaluate_refinement(i, concept, store))
+        }
+    }
+}
+
+/// `concept` satisfies `attribute_id (= | !=) value` when it has (or, for
+/// `!=`, lacks) an active **inferred** relationship of that type whose
+/// destination is in `value`'s evaluated set — mirroring spec/10 rule 4's
+/// "hierarchy uses the inferred view" principle, extended to attributes.
+fn evaluate_attribute_constraint(
+    a: &AttributeConstraint,
+    concept: SctId,
+    store: &SnapshotStore,
+) -> bool {
+    let value_set = evaluate(&a.value, store);
+    let has_match = store.relationships_of(concept).any(|r| {
+        r.active
+            && r.is_inferred()
+            && r.type_id == a.attribute_id
+            && value_set.contains(&r.destination_id)
+    });
+    if a.negated {
+        !has_match
+    } else {
+        has_match
     }
 }
 
@@ -280,5 +322,79 @@ mod tests {
 
         let expr = format!("^ {}", constants::US_ENGLISH_LANGUAGE_REFSET);
         assert_eq!(eval(&expr, &store), HashSet::from([fsn_id]));
+    }
+
+    fn refinement_store() -> (SnapshotStore, SctId, SctId, SctId) {
+        let attr_type = SctId::compose(9001, ComponentType::Concept, None).unwrap();
+        let value_a = SctId::compose(9002, ComponentType::Concept, None).unwrap();
+        let value_b = SctId::compose(9003, ComponentType::Concept, None).unwrap();
+
+        let mut b = SnapshotStore::builder();
+        for c in [ROOT, FINDING, DISEASE, MI, value_a, value_b] {
+            b.add_concept(concept(c));
+        }
+        b.add_relationship(is_a(1, FINDING, ROOT));
+        b.add_relationship(is_a(2, DISEASE, FINDING));
+        b.add_relationship(is_a(3, MI, DISEASE));
+        // DISEASE has attr_type = value_a; MI has attr_type = value_b.
+        b.add_relationship(Relationship {
+            id: SctId::compose(2001, ComponentType::Relationship, None).unwrap(),
+            effective_time: EffectiveTime::new_unchecked(20190731),
+            active: true,
+            module_id: constants::CORE_MODULE,
+            source_id: DISEASE,
+            destination_id: value_a,
+            relationship_group: 0,
+            type_id: attr_type,
+            characteristic_type_id: constants::INFERRED_RELATIONSHIP,
+            modifier_id: constants::EXISTENTIAL_MODIFIER,
+        });
+        b.add_relationship(Relationship {
+            id: SctId::compose(2002, ComponentType::Relationship, None).unwrap(),
+            effective_time: EffectiveTime::new_unchecked(20190731),
+            active: true,
+            module_id: constants::CORE_MODULE,
+            source_id: MI,
+            destination_id: value_b,
+            relationship_group: 0,
+            type_id: attr_type,
+            characteristic_type_id: constants::INFERRED_RELATIONSHIP,
+            modifier_id: constants::EXISTENTIAL_MODIFIER,
+        });
+        (b.build(), attr_type, value_a, value_b)
+    }
+
+    #[test]
+    fn attribute_refinement_filters_by_relationship() {
+        let (store, attr_type, value_a, value_b) = refinement_store();
+        let expr = format!("<< {DISEASE} : {attr_type} = {value_a}");
+        assert_eq!(eval(&expr, &store), HashSet::from([DISEASE]));
+
+        let expr = format!("<< {DISEASE} : {attr_type} = {value_b}");
+        assert_eq!(eval(&expr, &store), HashSet::from([MI]));
+
+        // A hierarchy-prefixed value: descendantOrSelfOf(value_a) is just
+        // {value_a} here (leaf, no children), so behaves like `= value_a`.
+        let expr = format!("<< {DISEASE} : {attr_type} = << {value_a}");
+        assert_eq!(eval(&expr, &store), HashSet::from([DISEASE]));
+    }
+
+    #[test]
+    fn negated_attribute_refinement() {
+        let (store, attr_type, value_a, _value_b) = refinement_store();
+        // Within {DISEASE, MI}: DISEASE has attr_type=value_a, so `!=` keeps
+        // only MI.
+        let expr = format!("<< {DISEASE} : {attr_type} != {value_a}");
+        assert_eq!(eval(&expr, &store), HashSet::from([MI]));
+    }
+
+    #[test]
+    fn and_or_refinement_evaluation() {
+        let (store, attr_type, value_a, value_b) = refinement_store();
+        let expr = format!("<< {DISEASE} : {attr_type} = {value_a} OR {attr_type} = {value_b}");
+        assert_eq!(eval(&expr, &store), HashSet::from([DISEASE, MI]));
+
+        let expr = format!("<< {DISEASE} : {attr_type} = {value_a} AND {attr_type} = {value_b}");
+        assert_eq!(eval(&expr, &store), HashSet::new());
     }
 }

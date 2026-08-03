@@ -60,7 +60,38 @@ fn ecl_hierarchy_operators_through_the_facade() {
 }
 
 #[test]
+fn ecl_attribute_refinement_through_the_facade() {
+    let mut b = SnapshotStore::builder();
+    for c in [ROOT, FINDING, DISEASE, MI] {
+        b.add_concept(concept(c));
+    }
+    b.add_relationship(is_a(1, FINDING, ROOT));
+    b.add_relationship(is_a(2, DISEASE, FINDING));
+    b.add_relationship(is_a(3, MI, DISEASE));
+
+    let morphology = SctId::compose(9001, ComponentType::Concept, None).unwrap();
+    let necrosis = SctId::compose(9002, ComponentType::Concept, None).unwrap();
+    b.add_concept(concept(necrosis));
+    b.add_relationship(Relationship {
+        id: SctId::compose(9003, ComponentType::Relationship, None).unwrap(),
+        effective_time: EffectiveTime::new_unchecked(20190731),
+        active: true,
+        module_id: constants::CORE_MODULE,
+        source_id: MI,
+        destination_id: necrosis,
+        relationship_group: 0,
+        type_id: morphology,
+        characteristic_type_id: constants::INFERRED_RELATIONSHIP,
+        modifier_id: constants::EXISTENTIAL_MODIFIER,
+    });
+    let store = b.build();
+
+    let expr = parse_ecl(&format!("<< {DISEASE} : {morphology} = {necrosis}")).unwrap();
+    assert_eq!(evaluate_ecl(&expr, &store), [MI].into_iter().collect());
+}
+
+#[test]
 fn ecl_reports_unsupported_syntax_instead_of_a_wrong_result() {
-    let err = parse_ecl("< 404684003 : 116676008 = 79654002").unwrap_err();
+    let err = parse_ecl("404684003 {{ term = \"x\" }}").unwrap_err();
     assert!(matches!(err, EclError::NotYetImplemented { .. }), "{err}");
 }

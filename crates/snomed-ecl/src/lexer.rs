@@ -2,10 +2,9 @@
 //!
 //! [`Lexer`] pulls one token at a time rather than tokenizing the whole
 //! input upfront. This matters for error quality: the parser stops asking
-//! for tokens as soon as it hits unsupported syntax (e.g. the `:` that
-//! starts a refinement), so it never lexes — and never chokes on — the
-//! unsupported content past that point (e.g. `=` in an attribute
-//! constraint, which isn't a recognized character in this subset).
+//! for tokens as soon as it hits unsupported syntax (e.g. `[` starting a
+//! cardinality, which this version doesn't parse further), so it never
+//! lexes — and never chokes on — the unsupported content past that point.
 
 use crate::error::EclError;
 
@@ -26,11 +25,18 @@ pub enum TokenKind {
     And,
     Or,
     Minus,
-    /// `:` — lexed (not skipped) so the parser can name refinements in a
-    /// clear "not yet implemented" error rather than a generic one.
+    /// `:` — starts a refinement.
     Colon,
-    /// `{{` — likewise, for description/concept/member filters.
+    /// `{{` — description/concept/member filters (not yet implemented).
     LBrace2,
+    /// `{` alone — starts an attribute group (not yet implemented).
+    LBrace,
+    /// `[` — starts a cardinality (not yet implemented).
+    LBracket,
+    /// `=` — attribute-value comparison.
+    Eq,
+    /// `!=` — negated attribute-value comparison.
+    NotEq,
     Digits(String),
     /// The text between a pair of `|`, exclusive.
     Term(String),
@@ -64,6 +70,10 @@ pub fn describe(kind: &TokenKind) -> String {
         TokenKind::Minus => "MINUS".to_string(),
         TokenKind::Colon => "`:`".to_string(),
         TokenKind::LBrace2 => "`{{`".to_string(),
+        TokenKind::LBrace => "`{`".to_string(),
+        TokenKind::LBracket => "`[`".to_string(),
+        TokenKind::Eq => "`=`".to_string(),
+        TokenKind::NotEq => "`!=`".to_string(),
         TokenKind::Digits(d) => format!("`{d}`"),
         TokenKind::Term(t) => format!("`|{t}|`"),
         TokenKind::Eof => "end of input".to_string(),
@@ -145,6 +155,22 @@ impl Lexer {
             '{' if self.chars.get(self.pos + 1) == Some(&'{') => {
                 self.pos += 2;
                 TokenKind::LBrace2
+            }
+            '{' => {
+                self.pos += 1;
+                TokenKind::LBrace
+            }
+            '[' => {
+                self.pos += 1;
+                TokenKind::LBracket
+            }
+            '=' => {
+                self.pos += 1;
+                TokenKind::Eq
+            }
+            '!' if self.chars.get(self.pos + 1) == Some(&'=') => {
+                self.pos += 2;
+                TokenKind::NotEq
             }
             '<' => {
                 if self.chars.get(self.pos + 1) == Some(&'<')
@@ -331,6 +357,22 @@ mod tests {
                 TokenKind::Digits("1".to_string()),
                 TokenKind::And,
                 TokenKind::Digits("2".to_string()),
+                TokenKind::Eof,
+            ]
+        );
+    }
+
+    #[test]
+    fn lexes_refinement_tokens() {
+        assert_eq!(
+            kinds(": = != [ { {{"),
+            vec![
+                TokenKind::Colon,
+                TokenKind::Eq,
+                TokenKind::NotEq,
+                TokenKind::LBracket,
+                TokenKind::LBrace,
+                TokenKind::LBrace2,
                 TokenKind::Eof,
             ]
         );

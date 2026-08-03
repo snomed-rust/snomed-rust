@@ -45,7 +45,8 @@ pub mod prelude {
     pub use snomed_store::{LoadError, LoadReport, SnapshotStore, SnapshotStoreBuilder};
 
     pub use snomed_ecl::{
-        evaluate as evaluate_ecl, parse as parse_ecl, EclError, ExpressionConstraint, FocusConcept,
-        HierarchyOp, SimpleExpressionConstraint,
+        evaluate as evaluate_ecl, parse as parse_ecl, AttributeConstraint, EclError,
+        ExpressionConstraint, FocusConcept, HierarchyOp, RefinementConstraint,
+        SimpleExpressionConstraint,
     };
 }

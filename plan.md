@@ -97,11 +97,15 @@ the spec's normative rules. Day-to-day execution items live in `tasks.md`.
   invisible to it — RF2 membership is refsetId+referencedComponentId+active
   regardless of refset type (spec/08 rule 4). Generalized before writing
   `snomed-ecl`, not worked around inside it.
-- Refinements (`:` attribute-value constraints), concrete value
-  comparisons, `{{ }}` filters, history supplement, cardinality, reverse
-  attributes, alternate identifiers: **not yet implemented** — explicitly
-  rejected with a clear error, never silently ignored (spec/10's
-  "Not yet implemented" section + `tasks.md`).
+- Refinements ✅ (basic subset): `focus : attributeId (= | !=) value`, with
+  `AND`/`OR` chains and parenthesized groups at refinement level (no
+  `MINUS` there — the grammar doesn't define one). `value` may itself be
+  any hierarchy-prefixed expression. Evaluates against active **inferred**
+  relationships (spec/07's convention, extended to attributes).
+  Cardinality, the reverse flag, attribute groups, concrete value
+  comparisons, and non-plain-concept attribute names remain **not yet
+  implemented** — explicitly rejected with a clear error, never silently
+  ignored (spec/10's "Not yet implemented" section + `tasks.md`).
 - History/audit queries over Full-view data (component version timelines):
   not started.
 

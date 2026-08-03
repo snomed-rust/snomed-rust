@@ -1,9 +1,11 @@
 //! SNOMED CT Expression Constraint Language (ECL) — simple expression
-//! constraints subset, per `spec/10-ecl.md`.
+//! constraints subset plus a basic attribute-refinement subset, per
+//! `spec/10-ecl.md`.
 //!
-//! Refinements, concrete value comparisons, and `{{ }}` filters are not yet
-//! implemented; see `spec/10-ecl.md#not-yet-implemented`. Encountering one
-//! is a parse error, never a silently incomplete result.
+//! Attribute cardinality, attribute groups, concrete value comparisons, and
+//! `{{ }}` filters are not yet implemented; see
+//! `spec/10-ecl.md#not-yet-implemented`. Encountering one is a parse error,
+//! never a silently incomplete result.
 //!
 //! ```
 //! use snomed_ecl::{evaluate, parse};
@@ -32,7 +34,10 @@ pub mod eval;
 pub mod lexer;
 pub mod parser;
 
-pub use ast::{ExpressionConstraint, FocusConcept, HierarchyOp, SimpleExpressionConstraint};
+pub use ast::{
+    AttributeConstraint, ExpressionConstraint, FocusConcept, HierarchyOp, RefinementConstraint,
+    SimpleExpressionConstraint,
+};
 pub use error::EclError;
 pub use eval::evaluate;
 pub use parser::parse;

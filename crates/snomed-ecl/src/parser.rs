@@ -2,7 +2,10 @@
 
 use snomed_core::sctid::SctId;
 
-use crate::ast::{ExpressionConstraint, FocusConcept, HierarchyOp, SimpleExpressionConstraint};
+use crate::ast::{
+    AttributeConstraint, ExpressionConstraint, FocusConcept, HierarchyOp, RefinementConstraint,
+    SimpleExpressionConstraint,
+};
 use crate::error::EclError;
 use crate::lexer::{describe, Lexer, Token, TokenKind};
 
@@ -148,9 +151,11 @@ impl Parser {
             _ => {
                 let simple = self.parse_simple_expression_constraint()?;
                 if matches!(self.peek().kind, TokenKind::Colon) {
-                    return Err(EclError::NotYetImplemented {
-                        pos: self.peek().pos,
-                        feature: "refinements (`:`)",
+                    self.advance()?;
+                    let refinement = self.parse_refinement()?;
+                    return Ok(ExpressionConstraint::Refined {
+                        focus: Box::new(ExpressionConstraint::Simple(simple)),
+                        refinement,
                     });
                 }
                 if matches!(self.peek().kind, TokenKind::LBrace2) {
@@ -162,6 +167,104 @@ impl Parser {
                 Ok(ExpressionConstraint::Simple(simple))
             }
         }
+    }
+
+    /// `subRefinement (("AND" | "OR") subRefinement)*` — only AND or only
+    /// OR at one level (no `MINUS` at refinement level; the official
+    /// grammar's `eclRefinement` doesn't define one — spec/10).
+    fn parse_refinement(&mut self) -> Result<RefinementConstraint, EclError> {
+        let first = self.parse_sub_refinement()?;
+
+        match &self.peek().kind {
+            TokenKind::And => {
+                let mut items = vec![first];
+                while matches!(self.peek().kind, TokenKind::And) {
+                    self.advance()?;
+                    items.push(self.parse_sub_refinement()?);
+                }
+                self.reject_trailing_refinement_operator("AND")?;
+                Ok(RefinementConstraint::And(items))
+            }
+            TokenKind::Or => {
+                let mut items = vec![first];
+                while matches!(self.peek().kind, TokenKind::Or) {
+                    self.advance()?;
+                    items.push(self.parse_sub_refinement()?);
+                }
+                self.reject_trailing_refinement_operator("OR")?;
+                Ok(RefinementConstraint::Or(items))
+            }
+            _ => Ok(first),
+        }
+    }
+
+    fn reject_trailing_refinement_operator(&self, first_op: &'static str) -> Result<(), EclError> {
+        let found = match &self.peek().kind {
+            TokenKind::And => "AND",
+            TokenKind::Or => "OR",
+            _ => return Ok(()),
+        };
+        Err(EclError::MixedOperators {
+            pos: self.peek().pos,
+            first: first_op,
+            found,
+        })
+    }
+
+    fn parse_sub_refinement(&mut self) -> Result<RefinementConstraint, EclError> {
+        if matches!(self.peek().kind, TokenKind::LParen) {
+            self.advance()?;
+            let inner = self.parse_refinement()?;
+            self.expect(TokenKind::RParen, "`)`")?;
+            return Ok(inner);
+        }
+        if matches!(self.peek().kind, TokenKind::LBrace) {
+            return Err(EclError::NotYetImplemented {
+                pos: self.peek().pos,
+                feature: "attribute groups (`{ }`)",
+            });
+        }
+        Ok(RefinementConstraint::Attribute(
+            self.parse_attribute_constraint()?,
+        ))
+    }
+
+    /// `[cardinality] [reverseFlag] attributeName ("=" | "!=") value`.
+    /// Cardinality and the reverse flag are not yet implemented; the
+    /// attribute name is restricted to a plain concept reference (spec/10).
+    fn parse_attribute_constraint(&mut self) -> Result<AttributeConstraint, EclError> {
+        if matches!(self.peek().kind, TokenKind::LBracket) {
+            return Err(EclError::NotYetImplemented {
+                pos: self.peek().pos,
+                feature: "attribute cardinality (`[min..max]`)",
+            });
+        }
+        let (attribute_id, attribute_term) = self.parse_concept_reference()?;
+        let negated = match &self.peek().kind {
+            TokenKind::Eq => {
+                self.advance()?;
+                false
+            }
+            TokenKind::NotEq => {
+                self.advance()?;
+                true
+            }
+            _ => {
+                let tok = self.peek().clone();
+                return Err(EclError::UnexpectedToken {
+                    pos: tok.pos,
+                    found: describe(&tok.kind),
+                    expected: "`=` or `!=`",
+                });
+            }
+        };
+        let value = self.parse_sub_expression_constraint()?;
+        Ok(AttributeConstraint {
+            attribute_id,
+            attribute_term,
+            negated,
+            value: Box::new(value),
+        })
     }
 
     fn parse_simple_expression_constraint(
@@ -416,14 +519,7 @@ mod tests {
     }
 
     #[test]
-    fn rejects_refinements_and_filters_and_member_of_wildcard() {
-        assert!(matches!(
-            parse("< 404684003 : 116676008 = 79654002"),
-            Err(EclError::NotYetImplemented {
-                feature: "refinements (`:`)",
-                ..
-            })
-        ));
+    fn rejects_filters_and_member_of_wildcard() {
         assert!(matches!(
             parse("404684003 {{ term = \"x\" }}"),
             Err(EclError::NotYetImplemented { .. })
@@ -432,6 +528,141 @@ mod tests {
             parse("^ *"),
             Err(EclError::NotYetImplemented {
                 feature: "`^ *` (member of any refset)",
+                ..
+            })
+        ));
+    }
+
+    #[test]
+    fn parses_a_single_attribute_refinement() {
+        let expr = parse("< 404684003 : 116676008 = 79654002").unwrap();
+        match expr {
+            EC::Refined { focus, refinement } => {
+                assert_eq!(
+                    *focus,
+                    EC::Simple(SimpleExpressionConstraint {
+                        op: HierarchyOp::DescendantOf,
+                        focus: FocusConcept::Concept {
+                            id: concept("404684003"),
+                            term: None
+                        },
+                    })
+                );
+                match refinement {
+                    crate::ast::RefinementConstraint::Attribute(a) => {
+                        assert_eq!(a.attribute_id, concept("116676008"));
+                        assert!(!a.negated);
+                        assert_eq!(
+                            *a.value,
+                            EC::Simple(SimpleExpressionConstraint {
+                                op: HierarchyOp::SelfOnly,
+                                focus: FocusConcept::Concept {
+                                    id: concept("79654002"),
+                                    term: None
+                                },
+                            })
+                        );
+                    }
+                    other => panic!("expected Attribute, got {other:?}"),
+                }
+            }
+            other => panic!("expected Refined, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn parses_negated_attribute_refinement() {
+        let expr = parse("404684003 : 116676008 != 79654002").unwrap();
+        match expr {
+            EC::Refined {
+                refinement: crate::ast::RefinementConstraint::Attribute(a),
+                ..
+            } => {
+                assert!(a.negated);
+            }
+            other => panic!("expected a negated Attribute refinement, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn parses_and_or_refinement_chains() {
+        assert!(matches!(
+            parse("404684003 : 116676008 = 79654002 AND 363698007 = 39057004").unwrap(),
+            EC::Refined { refinement: crate::ast::RefinementConstraint::And(v), .. } if v.len() == 2
+        ));
+        assert!(matches!(
+            parse("404684003 : 116676008 = 79654002 OR 116676008 = 4147007").unwrap(),
+            EC::Refined { refinement: crate::ast::RefinementConstraint::Or(v), .. } if v.len() == 2
+        ));
+    }
+
+    #[test]
+    fn parses_hierarchy_prefixed_attribute_value() {
+        let expr = parse("404684003 : 116676008 = << 79654002").unwrap();
+        match expr {
+            EC::Refined {
+                refinement: crate::ast::RefinementConstraint::Attribute(a),
+                ..
+            } => {
+                assert_eq!(
+                    *a.value,
+                    EC::Simple(SimpleExpressionConstraint {
+                        op: HierarchyOp::DescendantOrSelfOf,
+                        focus: FocusConcept::Concept {
+                            id: concept("79654002"),
+                            term: None
+                        },
+                    })
+                );
+            }
+            other => panic!("expected an Attribute refinement, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn parenthesized_refinement_groups() {
+        let expr = parse(
+            "404684003 : (116676008 = 79654002 OR 116676008 = 4147007) AND 363698007 = 39057004",
+        )
+        .unwrap();
+        assert!(matches!(
+            expr,
+            EC::Refined { refinement: crate::ast::RefinementConstraint::And(v), .. } if v.len() == 2
+        ));
+    }
+
+    #[test]
+    fn rejects_mixed_refinement_operators_without_parens() {
+        let err = parse(
+            "404684003 : 116676008 = 79654002 AND 363698007 = 39057004 OR 116676008 = 4147007",
+        )
+        .unwrap_err();
+        assert!(
+            matches!(
+                err,
+                EclError::MixedOperators {
+                    first: "AND",
+                    found: "OR",
+                    ..
+                }
+            ),
+            "{err}"
+        );
+    }
+
+    #[test]
+    fn rejects_refinement_extras_not_yet_implemented() {
+        assert!(matches!(
+            parse("404684003 : [0..1] 116676008 = 79654002"),
+            Err(EclError::NotYetImplemented {
+                feature: "attribute cardinality (`[min..max]`)",
+                ..
+            })
+        ));
+        assert!(matches!(
+            parse("404684003 : { 116676008 = 79654002 }"),
+            Err(EclError::NotYetImplemented {
+                feature: "attribute groups (`{ }`)",
                 ..
             })
         ));

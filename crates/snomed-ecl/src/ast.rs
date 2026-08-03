@@ -68,4 +68,37 @@ pub enum ExpressionConstraint {
     /// `A MINUS B MINUS C` is a parse error; parenthesize:
     /// `(A MINUS B) MINUS C`.
     Minus(Box<ExpressionConstraint>, Box<ExpressionConstraint>),
+    /// `focus : refinement` — the members of `focus` that additionally
+    /// satisfy `refinement` (spec/10's refinements subset).
+    Refined {
+        focus: Box<ExpressionConstraint>,
+        refinement: RefinementConstraint,
+    },
+}
+
+/// `attributeName (= | !=) value` — spec/10's refinement subset.
+///
+/// `attribute_name` is restricted to a plain concept reference in this
+/// version (the official grammar allows any `subExpressionConstraint`
+/// there, e.g. a hierarchy-prefixed attribute name — not yet implemented,
+/// see spec/10).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AttributeConstraint {
+    pub attribute_id: SctId,
+    pub attribute_term: Option<String>,
+    /// `true` for `!=`: the concept must NOT have a matching relationship.
+    pub negated: bool,
+    pub value: Box<ExpressionConstraint>,
+}
+
+/// An `eclRefinement`, restricted to attribute constraints (no attribute
+/// groups, cardinality, or reverse flag yet — spec/10).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum RefinementConstraint {
+    Attribute(AttributeConstraint),
+    /// `AND`-joined attribute constraints; flat, mirroring
+    /// [`ExpressionConstraint::And`]'s reasoning.
+    And(Vec<RefinementConstraint>),
+    /// `OR`-joined attribute constraints.
+    Or(Vec<RefinementConstraint>),
 }

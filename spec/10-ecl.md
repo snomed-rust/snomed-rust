@@ -1,4 +1,4 @@
-# 10 — Expression Constraint Language (ECL) — simple constraints subset
+# 10 — Expression Constraint Language (ECL) — simple constraints + basic refinements
 
 Official sources:
 - [SNOMED CT Expression Constraint Language — Specification and
@@ -21,22 +21,26 @@ ECL is SNOMED's query language for defining bounded sets of concepts — the
 language behind refset/value-set definitions, MRCM range constraints, and
 `$expand`/`$validate-code` in FHIR terminology servers.
 
-`snomed-ecl` implements **simple expression constraints**: hierarchy
-operators, `memberOf`, wildcard, and the boolean set operators, evaluated
-against a [`SnapshotStore`]. **Refinements** (`:` attribute-value
-constraints), concrete value comparisons, description/concept/member filters
-(`{{ }}`), the history supplement, reverse attributes, cardinality, and
+`snomed-ecl` implements **simple expression constraints** (hierarchy
+operators, `memberOf`, wildcard, boolean set operators) plus a **basic
+refinements subset** (`:` attribute-value constraints, `=`/`!=`, `AND`/`OR`),
+evaluated against a [`SnapshotStore`]. Attribute cardinality (`[min..max]`),
+the reverse flag (`R`), attribute groups (`{ }`), concrete value comparisons,
+description/concept/member filters (`{{ }}`), the history supplement, and
 alternate identifiers are **out of scope for this version** — see
 [Not yet implemented](#not-yet-implemented).
 
 ## Grammar (this subset only, derived from `syntax/abnf-brief.txt`)
 
 ```
-expressionConstraint  := subExpressionConstraint
+expressionConstraint  := refinedExpressionConstraint
+                       | subExpressionConstraint
                        | conjunctionExpressionConstraint
                        | disjunctionExpressionConstraint
                        | exclusionExpressionConstraint
                        | "(" expressionConstraint ")"
+refinedExpressionConstraint
+                      := subExpressionConstraint ":" eclRefinement
 conjunctionExpressionConstraint
                       := subExpressionConstraint 1*("AND" subExpressionConstraint)
 disjunctionExpressionConstraint
@@ -56,6 +60,15 @@ focusConcept          := conceptReference | "*"
 conceptReference      := sctid [term]
 term                  := "|" <any text except "|"> "|"
 sctid                 := digit+                         -- validated as an SctId (spec/04)
+
+eclRefinement         := subRefinement 1*(("AND" | "OR") subRefinement)
+                        -- one level only: every operator at one level must
+                        -- be the same kind (rule 5, same as top-level)
+subRefinement         := attributeConstraint | "(" eclRefinement ")"
+attributeConstraint   := conceptReference ("=" | "!=") subExpressionConstraint
+                        -- attributeName restricted to a plain conceptReference
+                        -- in this version; the official grammar allows any
+                        -- subExpressionConstraint there (not yet implemented)
 ```
 
 Whitespace (space, tab, CR, LF) is insignificant between tokens. `/* ... */`
@@ -151,6 +164,43 @@ A hierarchy prefix combined with wildcard (`eclFocusConcept` includes
 - `>`/`>!` with `*`: every concept with at least one child, by the same
   reasoning.
 
+## Refinements (`:` attribute-value constraints) — basic subset
+
+`focus : attributeId = value` restricts `focus`'s evaluated set to
+concepts that additionally have a matching attribute. Per the official
+grammar, `refinedExpressionConstraint` is a distinct top-level alternative
+of `expressionConstraint` — a refinement isn't "just another operator" at
+the same level as `AND`/`OR`/`MINUS`.
+
+- `attributeId` is a plain concept reference in this version (not a full
+  `subExpressionConstraint` — see Not yet implemented).
+- `=` : the concept MUST have an active **inferred** relationship (spec/07's
+  hierarchy-view convention, extended here) of type `attributeId` whose
+  destination is in `value`'s evaluated set.
+- `!=` : the concept MUST NOT have such a relationship.
+- `value` is any `subExpressionConstraint` — including hierarchy-prefixed
+  expressions, e.g. `116676008 |Associated morphology| = << 409774005`.
+- `AND`/`OR` chain attribute constraints at the refinement level, following
+  the same rule-5 pattern as the top level: a homogeneous run needs no
+  parens, mixing `AND` and `OR` at one level does. There is **no `MINUS` at
+  refinement level** — the official grammar's `eclRefinement` doesn't define
+  one.
+- Parenthesized groups of attribute constraints (`subRefinement`'s
+  `"(" eclRefinement ")"` alternative) are supported, e.g.
+  `focus : (a = x OR a = y) AND b = z`.
+
+Deliberate leniency versus the strict grammar: this implementation allows
+an *unparenthesized* refined expression to be combined with top-level
+`AND`/`OR`/`MINUS` (e.g. `focus : a = x AND otherExpr`, read as
+`(focus : a = x) AND otherExpr`), where the strict grammar would require
+explicit parentheses around the refined part. This is unambiguous in
+practice — the refinement-level `AND`/`OR` loop only ever accepts attribute
+constraints as operands, so it can never accidentally swallow a top-level
+operand that isn't one — and never produces a different (let alone wrong)
+parse from what the parenthesized form would. If you rely on strict
+grammar conformance, parenthesize anyway; both spellings parse identically
+here.
+
 ## Concept reference terms
 
 `73211009 |Diabetes mellitus|` — the pipe-delimited term is a
@@ -162,12 +212,15 @@ never consulted during evaluation; only the SCTID is evaluated).
 Tracked in `tasks.md`. Encountering any of these in input MUST produce a
 clear parse error naming the missing feature, never a silently wrong result:
 
-- Refinements: `:` attribute-value constraints, nested/grouped refinements,
-  cardinality (`[min..max]`), the reverse flag (`R`), dot notation (`.`).
-  The full grammar for these already exists in `syntax/abnf-brief.txt` — see
-  the sources note above.
-- Concrete value comparisons (numeric/string operators on relationship
-  concrete values).
+- Attribute cardinality (`[min..max]`), the reverse flag (`R`), attribute
+  groups (`{ }`), and dot notation (`.`). The full grammar for these already
+  exists in `syntax/abnf-brief.txt` — see the sources note above.
+- Attribute names that are anything other than a plain concept reference
+  (the official grammar allows any `subExpressionConstraint` as
+  `eclAttributeName`, e.g. a hierarchy-prefixed attribute name).
+- Concrete value comparisons (numeric/string/boolean operators on
+  relationship concrete values — `attributeConstraint` here only supports
+  the expression-comparison form, `subExpressionConstraint` as the value).
 - `{{ }}` description, concept, and member filters; the history supplement
   (`{{+HISTORY}}`).
 - `!!>` / `!!<` (`top`/`bottom` — part of `constraintOperator`, see above).
@@ -196,4 +249,8 @@ clear parse error naming the missing feature, never a silently wrong result:
 5. Compound expressions (AND/OR/MINUS) MUST reject mixing operator kinds at
    the same nesting level without parentheses, and MUST reject a `MINUS`
    with more than two operands at the same level — both per the confirmed
-   grammar above, not a guess.
+   grammar above, not a guess. The same "no mixing without parens" rule
+   applies independently at refinement level (AND/OR only, no MINUS).
+6. Attribute constraint evaluation MUST use active **inferred**
+   relationships only (mirroring rule 4's hierarchy convention) — never
+   stated relationships, which live in the OWL refset (spec/07).

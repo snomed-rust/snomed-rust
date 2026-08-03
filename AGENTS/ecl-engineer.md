@@ -6,11 +6,13 @@ AST, and evaluator.
 ## Read this first
 
 `spec/10-ecl.md` is normative. It documents exactly which grammar subset is
-implemented ("simple expression constraints": hierarchy operators, memberOf,
-wildcard, AND/OR/MINUS) and lists what is explicitly **not yet implemented**
-(refinements, `{{ }}` filters, concrete value comparisons, `^ *`, `!!>`/
-`!!<`, history supplement, cardinality, reverse attributes, alternate
-identifiers, a hierarchy prefix combined with `^`).
+implemented ("simple expression constraints" — hierarchy operators,
+memberOf, wildcard, AND/OR/MINUS — plus a basic refinements subset:
+`attributeId (= | !=) value`, AND/OR, parenthesized groups) and lists what
+is explicitly **not yet implemented** (attribute cardinality, the reverse
+flag, attribute groups, non-plain-concept-reference attribute names,
+concrete value comparisons, `{{ }}` filters, `^ *`, `!!>`/`!!<`, history
+supplement, alternate identifiers, a hierarchy prefix combined with `^`).
 
 **The authoritative grammar is the ABNF at
 <https://github.com/IHTSDO/snomed-expression-constraint-language>,

@@ -158,16 +158,31 @@ current: check items off in the same change that completes them.
       contains the full refinement grammar — save re-deriving it later).
       87 tests passing, clippy clean.
 
+## Done (2026-08-03, ECL refinements — basic subset)
+
+- [x] `focus : attributeId (= | !=) value` implemented: `ExpressionConstraint::Refined`,
+      `RefinementConstraint::{Attribute,And,Or}`, `AttributeConstraint`.
+      AND/OR chains and parenthesized groups at refinement level, following
+      the same rule-5 pattern as the top level (homogeneous per level, no
+      `MINUS` at refinement level — the grammar doesn't define one).
+      `attributeId` is a plain concept reference; `value` is any
+      `subExpressionConstraint` (including hierarchy-prefixed, e.g.
+      `= << 409774005`). Evaluates against active **inferred**
+      relationships only (spec/07 convention, extended). New lexer tokens
+      `=`, `!=`, `[`, lone `{` (for clear cardinality/attribute-group
+      "not yet implemented" errors). spec/10-ecl.md documents the subset,
+      a deliberate leniency (unparenthesized refined expressions may
+      combine with top-level AND/OR/MINUS — provably unambiguous, see
+      spec), and the narrowed "Not yet implemented" list (cardinality,
+      reverse flag, attribute groups, non-plain-concept attribute names,
+      concrete value comparisons). 99 tests passing, clippy clean.
+- [ ] Attribute cardinality (`[min..max]`), reverse flag (`R`), attribute
+      groups (`{ }`), concrete value comparisons, hierarchy-prefixed/
+      memberOf attribute names — tracked as the next ECL increment(s) if
+      needed; grammar already in hand (spec/10-ecl.md sources note).
+
 ## Next up (Phase 5 — query layer)
 
-- [ ] ECL refinements: `:` attribute-value constraints (the biggest
-      remaining ECL feature — likely its own sub-phase: single attribute
-      `=`, conjunction/disjunction of attribute constraints, nested
-      refinements, attribute groups, cardinality). The grammar is already
-      in hand — see spec/10-ecl.md's sources note — read
-      `syntax/abnf-brief.txt`'s `eclRefinement`/`eclAttributeSet`/
-      `eclAttributeGroup`/`eclAttribute` rules directly rather than
-      re-deriving from examples.
 - [ ] History/audit queries over Full-view data (component version
       timelines) — not started.
 
