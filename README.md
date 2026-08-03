@@ -31,7 +31,7 @@ or analytics pipelines.
 | [`crates/snomed-rf2`](crates/snomed-rf2) | RF2 file name parsing, Full/Snapshot/Delta types, streaming typed reader, reference set members |
 | [`crates/snomed-store`](crates/snomed-store) | Snapshot builder (latest version wins, order-independent), IS-A hierarchy, ancestors/descendants/subsumption, and a `HistoryStore` for full version history / point-in-time queries |
 | [`crates/snomed-ecl`](crates/snomed-ecl) | Expression Constraint Language: lexer, parser, evaluator for simple expression constraints + basic refinements |
-| [`crates/snomed-cli`](crates/snomed-cli) | `snomed-cli` binary: `sctid`, `load`, `lookup`, `ecl` subcommands over an unzipped release directory |
+| [`crates/snomed-cli`](crates/snomed-cli) | `snomed-cli` binary: `sctid`, `load`, `lookup`, `ecl`, `export` subcommands |
 
 Supporting documents:
 
@@ -83,6 +83,7 @@ cargo run -p snomed-cli -- sctid 22298006
 cargo run -p snomed-cli -- load ./SnomedCT_InternationalRF2_PRODUCTION_20250801/Snapshot
 cargo run -p snomed-cli -- lookup ./SnomedCT_InternationalRF2_PRODUCTION_20250801/Snapshot 22298006
 cargo run -p snomed-cli -- ecl ./SnomedCT_InternationalRF2_PRODUCTION_20250801/Snapshot "<< 404684003"
+cargo run -p snomed-cli -- export sct2_Concept_Snapshot_INT_20250801.txt concepts.ndjson
 ```
 
 ## Development
@@ -95,8 +96,8 @@ cargo fmt
 
 Development is **specification-driven**: behavior is written in `spec/*.md`
 first, code cites the spec it implements, and tests enforce the spec's
-normative rules. See `plan.md` for what's next (NDJSON export, FHIR building
-blocks).
+normative rules. See `plan.md` for what's next (deeper release validation,
+FHIR building blocks).
 
 ## License
 

@@ -122,17 +122,19 @@ fix it surfaced, and `HistoryStore`.
 
 ## Phase 6 — Interop & tooling
 
-- New crate `snomed-cli` ✅ (initial subcommands): `sctid` (validate/
-  inspect), `load` (read a release directory, print a summary — Snapshot
-  by default, `--full` for the Full view), `lookup` (FSN/synonyms/parents/
-  children for a concept), `ecl` (evaluate an expression against a loaded
-  release). Deliberately thin — `src/lib.rs`'s `run(args) -> Result<String,
+- New crate `snomed-cli` ✅: `sctid` (validate/inspect), `load` (read a
+  release directory, print a summary — Snapshot by default, `--full` for
+  the Full view), `lookup` (FSN/synonyms/parents/children for a concept),
+  `ecl` (evaluate an expression against a loaded release), `export`
+  (RF2 → NDJSON, one file at a time, all 14 record types this workspace
+  parses). Deliberately thin — `src/lib.rs`'s `run(args) -> Result<String,
   _>` does all the work and is directly testable without spawning the
-  binary; `src/main.rs` is ~10 lines. Hand-rolled argument parsing, no
-  `clap` — a deliberate continuation of the zero-dependency stance, not an
-  oversight (see `AGENTS/cli-engineer.md`). NDJSON export and deeper
-  release-consistency validation (dangling references, etc.) beyond "did
-  it load without error" are **not yet implemented** — tracked in
+  binary; `src/main.rs` is ~10 lines. Hand-rolled argument parsing *and*
+  hand-rolled JSON serialization, no `clap`/`serde` — a deliberate
+  continuation of the zero-dependency stance, not an oversight (see
+  `AGENTS/cli-engineer.md`). Deeper release-consistency validation
+  (dangling references, etc.) beyond "did it load without error", and
+  whole-directory `export`, are **not yet implemented** — tracked in
   `tasks.md`.
 - New crate `snomed-fhir` (candidate): CodeSystem/ValueSet `$lookup`,
   `$subsumes`, `$expand` building blocks for FHIR terminology servers.

@@ -26,6 +26,7 @@ snomed-cli sctid <id>                       validate an SCTID and show its struc
 snomed-cli load <release-dir> [--full]      load a release directory, print a summary
 snomed-cli lookup <release-dir> <id>        look up a concept: FSN, synonyms, parents, children
 snomed-cli ecl <release-dir> <expression>   evaluate an ECL expression (quote it)
+snomed-cli export <rf2-file> [output-file]  convert one RF2 file to NDJSON (stdout if no output file)
 ```
 
 `<release-dir>` is an unzipped RF2 release directory (i.e. the folder
@@ -88,12 +89,40 @@ contents depend on the loaded release.)
 
 ```sh
 $ snomed-cli ecl ./Snapshot "<< 404684003 MINUS << 64572001"
-128412 match(es)
+<N> match(es)
 404684003  Clinical finding (finding)
 ...
 ```
 
 Pass the expression as a single (shell-quoted) argument.
+
+### `export`
+
+```sh
+$ snomed-cli export sct2_Concept_Snapshot_INT_20250801.txt
+{"id":"138875005","effectiveTime":"20190731","active":true,"moduleId":"900000000000207008","definitionStatusId":"900000000000074008"}
+{"id":"404684003","effectiveTime":"20190731","active":true,"moduleId":"900000000000207008","definitionStatusId":"900000000000074008"}
+...
+
+$ snomed-cli export sct2_Concept_Snapshot_INT_20250801.txt concepts.ndjson
+wrote 361763 line(s) to concepts.ndjson
+```
+
+(The two JSON lines above are real output, verified by running `export`
+against a tiny hand-written two-row Concept file; the file name and the
+`wrote N line(s)` count in these examples are illustrative.)
+
+Operates on **one RF2 file at a time** (composable with shell globbing —
+`for f in Snapshot/**/*.txt; do snomed-cli export "$f" "${f%.txt}.ndjson";
+done`), auto-detecting the record type from the file name the same way
+`load` does internally. Every RF2 record type this workspace can parse is
+exportable — the three core component types, `RelationshipConcreteValue`,
+and all ten refset types. SCTIDs, UUIDs, and `effectiveTime` are always
+rendered as JSON **strings**, never numbers — SCTIDs can reach 18 digits,
+well past where JSON numbers keep exact precision in common consumers
+(JavaScript's `JSON.parse`, `jq` in some modes). Only genuinely small
+bounded integers (`relationshipGroup`, `mapGroup`, `mapPriority`,
+`attributeOrder`, `descriptionLength`) come through as JSON numbers.
 
 ## Design
 
@@ -113,7 +142,8 @@ dependency.
 
 ## Known gaps
 
-Tracked in the root `tasks.md`: no `export`/NDJSON subcommand yet, no
-deeper release-consistency validation beyond "did it load without error",
-and ECL expressions must be passed as one pre-quoted argument (no
-multi-argument reassembly).
+Tracked in the root `tasks.md`: no deeper release-consistency validation
+beyond "did it load without error" (dangling references, reported cycles,
+etc.), `export` operates on one file at a time rather than a whole release
+directory in one invocation, and ECL expressions must be passed as one
+pre-quoted argument (no multi-argument reassembly).

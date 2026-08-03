@@ -230,11 +230,29 @@ This closes Phase 5 (`snomed-ecl` simple constraints + basic refinements,
       but framed for a reader who just wants to use the crate, not
       necessarily modify it.
 
+## Done (2026-08-03, snomed-cli export)
+
+- [x] `snomed-cli export <rf2-file> [output-file]`: RF2 → NDJSON
+      conversion, one file at a time, auto-detecting the record type from
+      the file name via the same dispatch pattern `load.rs` uses. Hand-rolled
+      JSON serialization in the new `crates/snomed-cli/src/json.rs` (no
+      serde) — every RF2 record type this workspace parses is exportable
+      (3 core component types, `RelationshipConcreteValue`, all 10 refset
+      types). SCTIDs/UUIDs/`effectiveTime` always render as JSON *strings*
+      (never numbers — SCTIDs reach 18 digits, past where JSON numbers keep
+      exact precision in common consumers like JS's `JSON.parse`); only
+      genuinely small bounded integers (`relationshipGroup`, `mapGroup`,
+      `mapPriority`, `attributeOrder`, `descriptionLength`) are numbers.
+      Manually verified real output is valid JSON (piped through Python's
+      `json.loads`), not just asserted via substring checks. 123 tests
+      passing (8 new), clippy clean.
+
 ## Next up (Phase 6 — interop & tooling)
 
-- [ ] `snomed-cli export` subcommand: RF2 → NDJSON conversion (hand-rolled
-      JSON serialization to keep zero dependencies — flat structs, no
-      nesting beyond what RF2 rows already have, should be straightforward).
+- [ ] `snomed-cli export`: whole-release-directory export in one
+      invocation (currently one file per invocation — composable via shell
+      globbing already, but a `--release-dir` mode would be more
+      convenient for bulk conversion).
 - [ ] `snomed-cli load`/deeper release validation: beyond "did it load
       without error" — dangling `conceptId`/`sourceId`/`destinationId`
       references, surfaced cyclic hierarchy (spec/07 already prevents

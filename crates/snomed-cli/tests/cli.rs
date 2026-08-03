@@ -159,3 +159,86 @@ fn ecl_rejects_malformed_expression() {
     .unwrap_err();
     assert!(!err.to_string().is_empty());
 }
+
+#[test]
+fn export_writes_ndjson_to_stdout() {
+    let tmp = TempDir::new("export-stdout");
+    write_synthetic_release(tmp.path());
+    let concept_file = tmp
+        .path()
+        .join("Snapshot/Terminology/sct2_Concept_Snapshot_INT_20190731.txt");
+
+    let out = snomed_cli::run(&[
+        "export".to_string(),
+        concept_file.to_str().unwrap().to_string(),
+    ])
+    .unwrap();
+
+    let lines: Vec<&str> = out.lines().collect();
+    assert_eq!(lines.len(), 3, "{out}");
+    assert!(lines[0].contains("\"id\":\"138875005\""), "{out}");
+    assert!(lines[0].contains("\"active\":true"), "{out}");
+    assert!(
+        lines[0].contains("\"definitionStatusId\":\"900000000000074008\""),
+        "{out}"
+    );
+}
+
+#[test]
+fn export_writes_ndjson_to_an_output_file() {
+    let tmp = TempDir::new("export-file");
+    write_synthetic_release(tmp.path());
+    let concept_file = tmp
+        .path()
+        .join("Snapshot/Terminology/sct2_Concept_Snapshot_INT_20190731.txt");
+    let out_file = tmp.path().join("concepts.ndjson");
+
+    let summary = snomed_cli::run(&[
+        "export".to_string(),
+        concept_file.to_str().unwrap().to_string(),
+        out_file.to_str().unwrap().to_string(),
+    ])
+    .unwrap();
+
+    assert!(summary.contains("wrote 3 line(s)"), "{summary}");
+    let written = fs::read_to_string(&out_file).unwrap();
+    assert_eq!(written.lines().count(), 3);
+    assert!(written.contains("\"id\":\"404684003\""));
+}
+
+#[test]
+fn export_language_refset_includes_acceptability() {
+    let tmp = TempDir::new("export-refset");
+    write_synthetic_release(tmp.path());
+    let language_file = tmp
+        .path()
+        .join("Snapshot/Terminology/sct2_Description_Snapshot-en_INT_20190731.txt");
+
+    // Descriptions export too, via the same dispatch as Concept.
+    let out = snomed_cli::run(&[
+        "export".to_string(),
+        language_file.to_str().unwrap().to_string(),
+    ])
+    .unwrap();
+    assert!(out.contains("\"typeId\":\"900000000000003001\""), "{out}");
+    assert!(
+        out.contains("\"term\":\"Clinical finding (finding)\""),
+        "{out}"
+    );
+}
+
+#[test]
+fn export_rejects_unrecognized_file_name() {
+    let tmp = TempDir::new("export-bad-name");
+    write(tmp.path(), "not-an-rf2-file.txt", "hello\n");
+    let err = snomed_cli::run(&[
+        "export".to_string(),
+        tmp.path()
+            .join("not-an-rf2-file.txt")
+            .to_str()
+            .unwrap()
+            .to_string(),
+    ])
+    .unwrap_err();
+    assert!(!err.to_string().is_empty());
+}

@@ -52,7 +52,10 @@ a `plan.md` decision explicitly — don't just add the dependency.
 
 ## Known gaps (tracked in `tasks.md`)
 
-- No `export`/NDJSON subcommand yet (RF2 file → NDJSON conversion).
+- `export` converts one RF2 file at a time (`src/json.rs` has the
+  hand-rolled serializer, one `*_to_json` fn per record type — extend it
+  the same way `load.rs`'s dispatch gets extended when a new record type
+  is added). No whole-release-directory export in a single invocation yet.
 - `load`'s "validation" is "did it load without error" — no deeper
   consistency checks (dangling `conceptId` references, cyclic hierarchy
   detection surfaced as a report rather than just not-hanging, etc.).
