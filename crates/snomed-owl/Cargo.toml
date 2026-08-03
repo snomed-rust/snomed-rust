@@ -1,6 +1,6 @@
 [package]
-name = "snomed"
-description = "SNOMED CT for Rust: RF2 parsing, SCTID validation, snapshot store, hierarchy queries"
+name = "snomed-owl"
+description = "Parser for the OWL 2 functional-syntax subset used in SNOMED CT's OWL Expression reference set"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -12,8 +12,3 @@ authors.workspace = true
 
 [dependencies]
 snomed-core.workspace = true
-snomed-ecl.workspace = true
-snomed-fhir.workspace = true
-snomed-owl.workspace = true
-snomed-rf2.workspace = true
-snomed-store.workspace = true

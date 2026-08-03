@@ -6,6 +6,7 @@ members = [
     "crates/snomed-core",
     "crates/snomed-ecl",
     "crates/snomed-fhir",
+    "crates/snomed-owl",
     "crates/snomed-rf2",
     "crates/snomed-store",
 ]
@@ -24,5 +25,6 @@ authors = ["Joel Parker Henderson <joel@joelparkerhenderson.com>"]
 snomed-core = { path = "crates/snomed-core", version = "0.1.0" }
 snomed-ecl = { path = "crates/snomed-ecl", version = "0.1.0" }
 snomed-fhir = { path = "crates/snomed-fhir", version = "0.1.0" }
+snomed-owl = { path = "crates/snomed-owl", version = "0.1.0" }
 snomed-rf2 = { path = "crates/snomed-rf2", version = "0.1.0" }
 snomed-store = { path = "crates/snomed-store", version = "0.1.0" }

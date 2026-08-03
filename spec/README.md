@@ -18,6 +18,12 @@ Official sources:
   FHIR bindings — <https://www.hl7.org/fhir/codesystem-operations.html>,
   <https://www.hl7.org/fhir/valueset-operation-expand.html>,
   <https://www.hl7.org/fhir/R4/snomedct.html>
+- OWL 2 Functional-Style Syntax (W3C) —
+  <https://www.w3.org/TR/owl2-syntax/#Functional-Style_Syntax> — and
+  [snomed-owl-toolkit](https://github.com/IHTSDO/snomed-owl-toolkit),
+  SNOMED International's reference RF2-to-OWL/classification
+  implementation, for which OWL constructs SNOMED CT actually uses (not
+  stated in docs.snomed.org's prose).
 
 ## Index
 
@@ -34,6 +40,7 @@ Official sources:
 | [09-versioning.md](09-versioning.md) | effectiveTime, active, moduleId, snapshot semantics | `snomed-store` |
 | [10-ecl.md](10-ecl.md) | Expression Constraint Language (simple constraints + basic refinements) | `snomed-ecl` |
 | [11-fhir.md](11-fhir.md) | FHIR terminology service building blocks: `$lookup`, `$subsumes`, `$expand` | `snomed-fhir` |
+| [12-owl.md](12-owl.md) | OWL Expression reference set: parsing axioms in OWL 2 functional syntax | `snomed-owl` |
 
 ## Conventions used in these specs
 

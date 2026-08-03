@@ -8,8 +8,9 @@ A Rust cargo workspace implementing SNOMED CT tooling: RF2 release file
 parsing (`snomed-rf2`), core identifier/component types (`snomed-core`), an
 in-memory snapshot store with hierarchy queries (`snomed-store`), an
 Expression Constraint Language parser/evaluator (`snomed-ecl`), FHIR
-terminology service building blocks (`snomed-fhir`), a command-line binary
-(`snomed-cli`), and a facade crate (`snomed`).
+terminology service building blocks (`snomed-fhir`), an OWL axiom parser
+(`snomed-owl`), a command-line binary (`snomed-cli`), and a facade crate
+(`snomed`).
 
 ## Ground rules
 
@@ -37,6 +38,7 @@ Specialized instructions live in `AGENTS/`:
 - `AGENTS/ecl-engineer.md` — extending the ECL lexer/parser/evaluator.
 - `AGENTS/fhir-engineer.md` — extending `snomed-fhir`'s terminology
   operations.
+- `AGENTS/owl-engineer.md` — extending the OWL axiom lexer/parser.
 - `AGENTS/cli-engineer.md` — extending the `snomed-cli` binary.
 - `AGENTS/qa-reviewer.md` — review and verification checklist.
 

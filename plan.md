@@ -198,8 +198,32 @@ fix it surfaced, and `HistoryStore`.
   for `is_member`/`refset_members`. All five implicit value set forms and
   all three operations spec/11 scoped are now implemented; wired into the
   `snomed` facade's prelude alongside the other query-layer crates.
-- OWL expression refset parsing into axioms (candidate `snomed-owl`) —
-  still just a candidate, not started.
+- New crate `snomed-owl` ✅: a hand-written lexer + recursive-descent
+  parser for the OWL 2 functional-syntax subset SNOMED CT actually uses
+  in its OWL Expression reference set — six axiom types (`SubClassOf`,
+  `EquivalentClasses`, `SubObjectPropertyOf` including
+  `ObjectPropertyChain`, `SubDataPropertyOf`, `TransitiveObjectProperty`,
+  `ReflexiveObjectProperty`) and four class expressions
+  (`ObjectIntersectionOf`, `ObjectSomeValuesFrom`, `DataHasValue`, plain
+  concept references). docs.snomed.org's OWL glossary entries don't say
+  *which* OWL constructs SNOMED CT uses — that had to come from
+  [`snomed-owl-toolkit`](https://github.com/IHTSDO/snomed-owl-toolkit),
+  SNOMED International's own reference RF2-to-OWL/classification
+  implementation, whose test fixtures supplied every real example axiom
+  in `spec/12-owl.md` and the test suite (a couple of that toolkit's own
+  test-fixture concept ids turned out not to be genuine SCTIDs —
+  check-digit-invalid placeholders — caught by running the tests, fixed
+  by swapping to `SctId::compose`, same convention as elsewhere). General
+  concept inclusion (GCI) axioms needed no special-case handling — they
+  fall out for free once `SubClassOf`'s `sub` field is typed as the
+  general `ClassExpression` rather than a plain concept reference.
+  **A parser, not a reasoner**: classification/inference is explicitly
+  out of scope (a DL reasoner is a large undertaking the zero-dependency
+  stance can't absorb). Eager (whole-string) tokenization, unlike
+  `snomed-ecl`'s pull-based lexer — OWL's fully bracketed grammar doesn't
+  have the context-sensitive-error-masking problem that motivated ECL's
+  design, so there was no reason to match it. Wired into the `snomed`
+  facade's prelude (`parse_owl`).
 
 ## Non-goals (for now)
 

@@ -415,6 +415,64 @@ This closes Phase 5 (`snomed-ecl` simple constraints + basic refinements,
       question before assuming new storage is required). 168 tests passing
       (3 new), clippy clean.
 
-## Next up (Phase 6 — interop & tooling)
+## Done (2026-08-03, snomed-owl — OWL Expression refset axiom parsing)
 
-- [ ] OWL expression parsing (axioms from the OWL refset).
+- [x] Researched *which* OWL 2 functional-syntax constructs SNOMED CT
+      actually uses — docs.snomed.org's OWL glossary entries confirm the
+      refset holds OWL 2 functional-syntax axioms but don't say which
+      subset. Found it in [`snomed-owl-toolkit`]
+      (https://github.com/IHTSDO/snomed-owl-toolkit), SNOMED
+      International's own RF2-to-OWL/classification reference
+      implementation: `src/test/resources/*` RF2 fixtures and
+      `AxiomRelationshipConversionServiceTest.java` (fetched via `gh api
+      repos/IHTSDO/snomed-owl-toolkit/contents/<path>` — its README is
+      `readme.md` lowercase, a plain `raw.githubusercontent.com` guess at
+      `README.md` 404s). Confirmed six axiom types and four class
+      expressions in real use (see `spec/12-owl.md`'s grammar), including
+      role groups (`ObjectSomeValuesFrom` on `609096000 |Role group|`
+      with an `ObjectIntersectionOf` filler), GCI axioms, concrete values
+      (`DataHasValue` with `xsd:integer`/`xsd:decimal`), and property
+      chains (`ObjectPropertyChain`, confirmed still real via `gh api
+      "search/code?q=ObjectPropertyChain+repo:..."`).
+- [x] New crate `snomed-owl` (depends on `snomed-core` only): hand-written
+      eager lexer (`lexer.rs`) + recursive-descent parser (`parser.rs`) +
+      AST (`ast.rs`) + errors (`error.rs`). `parse(&str) -> Result<Axiom,
+      OwlError>` is the entry point. Every unrecognized axiom/class-
+      expression/object-property keyword fails with
+      `OwlError::UnknownKeyword` naming the exact text — no hard-coded
+      allow/deny list, any identifier outside the grammar is handled
+      uniformly. GCI axioms need no special-case handling: `SubClassOf`'s
+      `sub` field is typed as the general `ClassExpression`, so a compound
+      sub-expression just works. Deliberately **eager** tokenization
+      (unlike `snomed-ecl`'s pull-based lexer) — documented in both the
+      module doc and `AGENTS/owl-engineer.md` why that's correct here and
+      not an inconsistency to fix (OWL's fully bracketed grammar doesn't
+      have ECL's context-sensitive-error-masking problem).
+- [x] Tests use **real** axiom strings copied verbatim from
+      `snomed-owl-toolkit`'s fixtures, not invented syntax. Two of that
+      toolkit's own test-fixture concept ids (`100000001001`,
+      `1234567891011`) turned out to fail Verhoeff validation — caught by
+      running the tests, not assumed — and were swapped for
+      `SctId::compose(...)`-generated ids while keeping the rest of each
+      axiom's real shape (root `CLAUDE.md` convention). 25 tests (lexer +
+      parser + a doctest).
+- [x] `spec/12-owl.md` written (grammar, real examples, GCI note, "not
+      yet implemented" list: any other OWL 2 axiom/class-expression
+      keyword, classification/reasoning, the separate OWL Ontology
+      refset, string literal escape sequences). New `AGENTS/
+      owl-engineer.md` playbook. Wired into the `snomed` facade's prelude
+      (`parse_owl`, `Axiom`, `ClassExpression`, `ObjectPropertyExpression`,
+      `OwlLiteral`, `OwlError`). Root `AGENTS.md`/`README.md` updated.
+      193 tests passing workspace-wide (25 new), clippy clean.
+
+This closes every item originally scoped in `plan.md` Phase 6.
+
+## Next up
+
+- [ ] Nothing currently scoped. Candidate future work (not yet
+      decided/planned): a real classifier/reasoner layer for `snomed-owl`
+      (large, likely its own `plan.md` phase if ever pursued); a
+      `snomed-fhir` HTTP server crate; MRCM refset support in
+      `snomed-rf2`/`snomed-store`; re-running the Phase 4 benchmark
+      against a real International Edition release if one becomes
+      available.

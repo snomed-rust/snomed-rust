@@ -32,6 +32,7 @@ or analytics pipelines.
 | [`crates/snomed-store`](crates/snomed-store) | Snapshot builder (latest version wins, order-independent), IS-A hierarchy, ancestors/descendants/subsumption, and a `HistoryStore` for full version history / point-in-time queries |
 | [`crates/snomed-ecl`](crates/snomed-ecl) | Expression Constraint Language: lexer, parser, evaluator for simple expression constraints + basic refinements |
 | [`crates/snomed-fhir`](crates/snomed-fhir) | FHIR terminology service building blocks: `$subsumes`, `$lookup`, `$expand` |
+| [`crates/snomed-owl`](crates/snomed-owl) | Parser for the OWL 2 functional-syntax subset used in the OWL Expression reference set |
 | [`crates/snomed-cli`](crates/snomed-cli) | `snomed-cli` binary: `sctid`, `load`, `lookup`, `ecl`, `export`, `validate` subcommands |
 
 Supporting documents:
@@ -79,6 +80,9 @@ let matches = evaluate_ecl(&expr, &store);
 // FHIR CodeSystem/$subsumes (spec/11).
 let outcome = subsumes(&store, SNOMED_CT_SYSTEM, SctId::parse("404684003")?, mi)?;
 assert_eq!(outcome.as_fhir_code(), "subsumes");
+
+// Parse an OWL axiom from the OWL Expression refset (spec/12).
+let axiom = parse_owl("SubClassOf(:404684003 :138875005)")?;
 ```
 
 Or from the terminal, once you have an unzipped RF2 release directory:

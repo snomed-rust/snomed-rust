@@ -9,7 +9,9 @@
 //! - [`ecl`] ([`snomed_ecl`]) — Expression Constraint Language (simple
 //!   constraints + basic refinements);
 //! - [`fhir`] ([`snomed_fhir`]) — FHIR terminology service building blocks:
-//!   `$subsumes`, `$lookup`, `$expand`.
+//!   `$subsumes`, `$lookup`, `$expand`;
+//! - [`owl`] ([`snomed_owl`]) — parser for the OWL 2 functional-syntax
+//!   subset used in the OWL Expression reference set.
 //!
 //! ```
 //! use snomed::prelude::*;
@@ -25,6 +27,7 @@
 pub use snomed_core as core;
 pub use snomed_ecl as ecl;
 pub use snomed_fhir as fhir;
+pub use snomed_owl as owl;
 pub use snomed_rf2 as rf2;
 pub use snomed_store as store;
 
@@ -61,5 +64,10 @@ pub mod prelude {
         expand, lookup, parse_implicit_value_set, subsumes, Designation, DesignationUse,
         ExpandOptions, Expansion, ExpansionContains, FhirError, ImplicitValueSet, LookupProperty,
         LookupResult, SubsumeOutcome, SNOMED_CT_SYSTEM,
+    };
+
+    pub use snomed_owl::{
+        parse as parse_owl, Axiom, ClassExpression, Literal as OwlLiteral,
+        ObjectPropertyExpression, OwlError,
     };
 }
