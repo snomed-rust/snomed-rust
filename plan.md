@@ -76,13 +76,22 @@ the spec's normative rules. Day-to-day execution items live in `tasks.md`.
 - New crate `snomed-ecl` ✅: Expression Constraint Language parser and
   evaluator against `SnapshotStore`, scoped to **simple expression
   constraints** (spec/10-ecl.md): all eight hierarchy operators
-  (`<`/`<<`/`<!`/`<<!`/`>`/`>>`/`>!`/`>>!`), `^` memberOf, `*` wildcard,
-  `AND`/`OR`/`MINUS` (parenthesization required to mix operator kinds — the
-  exact official precedence rules weren't reachable during research; see
-  spec/10's NOTE), and pipe-delimited terms. Hand-written lexer (pull-based,
-  not eager — see `snomed-ecl::lexer` docs for why) + recursive-descent
-  parser + set-based evaluator, all in terms of `SnapshotStore`'s existing
-  hierarchy primitives.
+  (`<`/`<<`/`<!`/`<<!`/`>`/`>>`/`>!`/`>>!`, plus hierarchy-prefixed
+  wildcards like `< *`), `^` memberOf, `*` wildcard, `AND`/`OR`/`MINUS`
+  (grammar-confirmed rules — `AND`/`OR` chain freely, `MINUS` is exactly
+  two operands, mixing kinds needs parens, keywords are case-insensitive,
+  `,` is an alternate spelling for `AND`), and pipe-delimited terms.
+  Hand-written lexer (pull-based, not eager — see `snomed-ecl::lexer` docs
+  for why) + recursive-descent parser + set-based evaluator, all in terms
+  of `SnapshotStore`'s existing hierarchy primitives. The exact grammar was
+  initially uncertain (docs.snomed.org's prose pages don't state
+  precedence/arity) but was resolved by fetching the official ABNF from
+  `github.com/IHTSDO/snomed-expression-constraint-language` — see spec/10's
+  sources note — which caught three real bugs against first-pass
+  assumptions (MINUS was wrongly chainable, keywords were wrongly
+  case-sensitive, hierarchy-prefixed wildcards were wrongly rejected as
+  unimplemented). Fixed before building refinements on top of a shaky
+  foundation, not after.
 - Found and fixed a real correctness gap while scoping `^`: `is_member` only
   ever indexed Simple-refset rows, so e.g. language-refset membership was
   invisible to it — RF2 membership is refsetId+referencedComponentId+active

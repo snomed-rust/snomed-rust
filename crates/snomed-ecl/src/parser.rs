@@ -61,41 +61,68 @@ impl Parser {
         }
     }
 
-    /// `subExpressionConstraint (compoundOp subExpressionConstraint)*`,
-    /// enforcing spec/10 rule 5 (no mixing AND/OR/MINUS without parens).
+    /// The official grammar (`compoundExpressionConstraint`) is one of
+    /// three shapes, not a single precedence-climbing rule: a chain of one
+    /// or more `AND`s, a chain of one or more `OR`s, or exactly one
+    /// `MINUS` pair — never a free mix, and `MINUS` never chains (spec/10
+    /// rule 5). `,` lexes as `AND` (an alternate spelling in the official
+    /// grammar).
     fn parse_expression_constraint(&mut self) -> Result<ExpressionConstraint, EclError> {
         let first = self.parse_sub_expression_constraint()?;
-        let mut op: Option<&'static str> = None;
-        let mut items = vec![first];
 
-        loop {
-            let this_op = match &self.peek().kind {
-                TokenKind::And => "AND",
-                TokenKind::Or => "OR",
-                TokenKind::Minus => "MINUS",
-                _ => break,
-            };
-            match op {
-                None => op = Some(this_op),
-                Some(o) if o == this_op => {}
-                Some(o) => {
-                    return Err(EclError::MixedOperators {
-                        pos: self.peek().pos,
-                        first: o,
-                        found: this_op,
-                    })
+        match &self.peek().kind {
+            TokenKind::And => {
+                let mut items = vec![first];
+                while matches!(self.peek().kind, TokenKind::And) {
+                    self.advance()?;
+                    items.push(self.parse_sub_expression_constraint()?);
                 }
+                self.reject_trailing_compound_operator("AND")?;
+                Ok(ExpressionConstraint::And(items))
             }
-            self.advance()?;
-            items.push(self.parse_sub_expression_constraint()?);
+            TokenKind::Or => {
+                let mut items = vec![first];
+                while matches!(self.peek().kind, TokenKind::Or) {
+                    self.advance()?;
+                    items.push(self.parse_sub_expression_constraint()?);
+                }
+                self.reject_trailing_compound_operator("OR")?;
+                Ok(ExpressionConstraint::Or(items))
+            }
+            TokenKind::Minus => {
+                self.advance()?;
+                let second = self.parse_sub_expression_constraint()?;
+                if matches!(
+                    self.peek().kind,
+                    TokenKind::And | TokenKind::Or | TokenKind::Minus
+                ) {
+                    return Err(EclError::ExclusionTakesTwoOperands {
+                        pos: self.peek().pos,
+                    });
+                }
+                Ok(ExpressionConstraint::Minus(
+                    Box::new(first),
+                    Box::new(second),
+                ))
+            }
+            _ => Ok(first),
         }
+    }
 
-        Ok(match op {
-            None => items.pop().expect("at least one item was parsed"),
-            Some("AND") => ExpressionConstraint::And(items),
-            Some("OR") => ExpressionConstraint::Or(items),
-            Some("MINUS") => ExpressionConstraint::Minus(items),
-            Some(_) => unreachable!("op is only ever set to AND/OR/MINUS"),
+    /// After an `AND`/`OR` chain ends, a *different* compound operator
+    /// immediately following needs parentheses to disambiguate (spec/10
+    /// rule 5) — e.g. `A AND B OR C`.
+    fn reject_trailing_compound_operator(&self, first_op: &'static str) -> Result<(), EclError> {
+        let found = match &self.peek().kind {
+            TokenKind::And => "AND",
+            TokenKind::Or => "OR",
+            TokenKind::Minus => "MINUS",
+            _ => return Ok(()),
+        };
+        Err(EclError::MixedOperators {
+            pos: self.peek().pos,
+            first: first_op,
+            found,
         })
     }
 
@@ -177,16 +204,23 @@ impl Parser {
         };
 
         if matches!(self.peek().kind, TokenKind::Star) {
-            let pos = self.advance()?.pos;
-            if op != HierarchyOp::SelfOnly {
-                return Err(EclError::NotYetImplemented {
-                    pos,
-                    feature: "a hierarchy-prefixed wildcard (e.g. `< *`)",
-                });
-            }
+            // `< *`, `<< *`, etc. are valid per the official grammar
+            // (`eclFocusConcept` includes `wildCard` alongside a concept
+            // reference) — evaluated in eval.rs.
+            self.advance()?;
             return Ok(SimpleExpressionConstraint {
                 op,
                 focus: FocusConcept::Wildcard,
+            });
+        }
+
+        if matches!(self.peek().kind, TokenKind::Caret) {
+            // Grammatically valid (a hierarchy prefix can wrap a memberOf
+            // per `subExpressionConstraint`'s official definition, e.g.
+            // `< ^ 447562003`) but not yet evaluated here.
+            return Err(EclError::NotYetImplemented {
+                pos: self.peek().pos,
+                feature: "a hierarchy prefix combined with `^` (memberOf)",
             });
         }
 
@@ -307,14 +341,50 @@ mod tests {
     }
 
     #[test]
-    fn parses_uniform_and_or_minus_chains() {
+    fn parses_uniform_and_or_chains() {
         assert!(
             matches!(parse("404684003 AND 64572001 AND 22298006").unwrap(), EC::And(v) if v.len() == 3)
         );
         assert!(matches!(parse("404684003 OR 64572001").unwrap(), EC::Or(v) if v.len() == 2));
-        assert!(
-            matches!(parse("404684003 MINUS 64572001 MINUS 22298006").unwrap(), EC::Minus(v) if v.len() == 3)
+    }
+
+    #[test]
+    fn parses_minus_as_exactly_two_operands() {
+        assert!(matches!(
+            parse("404684003 MINUS 64572001").unwrap(),
+            EC::Minus(..)
+        ));
+    }
+
+    #[test]
+    fn comma_is_an_alternate_spelling_for_and() {
+        assert_eq!(
+            parse("404684003, 64572001").unwrap(),
+            parse("404684003 AND 64572001").unwrap()
         );
+    }
+
+    #[test]
+    fn keywords_are_case_insensitive() {
+        assert_eq!(
+            parse("404684003 and 64572001").unwrap(),
+            parse("404684003 AND 64572001").unwrap()
+        );
+        assert_eq!(
+            parse("404684003 minus 64572001").unwrap(),
+            parse("404684003 MINUS 64572001").unwrap()
+        );
+    }
+
+    #[test]
+    fn rejects_minus_chain_without_parens() {
+        let err = parse("404684003 MINUS 64572001 MINUS 22298006").unwrap_err();
+        assert!(
+            matches!(err, EclError::ExclusionTakesTwoOperands { .. }),
+            "{err}"
+        );
+        // Parenthesizing fixes it.
+        assert!(parse("(404684003 MINUS 64572001) MINUS 22298006").is_ok());
     }
 
     #[test]
@@ -346,7 +416,7 @@ mod tests {
     }
 
     #[test]
-    fn rejects_refinements_and_filters_and_wildcard_edge_cases() {
+    fn rejects_refinements_and_filters_and_member_of_wildcard() {
         assert!(matches!(
             parse("< 404684003 : 116676008 = 79654002"),
             Err(EclError::NotYetImplemented {
@@ -365,10 +435,24 @@ mod tests {
                 ..
             })
         ));
-        assert!(matches!(
-            parse("< *"),
-            Err(EclError::NotYetImplemented { .. })
-        ));
+    }
+
+    #[test]
+    fn parses_hierarchy_prefixed_wildcard() {
+        // `< *` is valid per the official grammar; see eval.rs for semantics.
+        assert_eq!(
+            parse("< *").unwrap(),
+            EC::Simple(SimpleExpressionConstraint {
+                op: HierarchyOp::DescendantOf,
+                focus: FocusConcept::Wildcard,
+            })
+        );
+    }
+
+    #[test]
+    fn rejects_hierarchy_prefix_combined_with_member_of() {
+        let err = parse("< ^ 447562003").unwrap_err();
+        assert!(matches!(err, EclError::NotYetImplemented { .. }), "{err}");
     }
 
     #[test]

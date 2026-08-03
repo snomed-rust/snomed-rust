@@ -37,9 +37,16 @@ pub enum EclError {
         first: &'static str,
         found: &'static str,
     },
+    /// `MINUS` takes exactly two operands per the official grammar (unlike
+    /// `AND`/`OR`, which chain) — a further compound operator at the same
+    /// level needs parentheses (spec/10 rule 5).
+    ExclusionTakesTwoOperands {
+        pos: usize,
+    },
     /// A grammar construct spec/10 documents but this version doesn't
-    /// evaluate (refinements, `^ *`, hierarchy-prefixed wildcards, …).
-    /// Surfaced as a parse error rather than a silently incomplete result.
+    /// evaluate (refinements, `^ *`, `!!>`/`!!<`, a hierarchy prefix
+    /// combined with `^`, …). Surfaced as a parse error rather than a
+    /// silently incomplete result.
     NotYetImplemented {
         pos: usize,
         feature: &'static str,
@@ -87,6 +94,12 @@ impl fmt::Display for EclError {
                 write!(
                     f,
                     "cannot mix `{first}` and `{found}` at the same level (position {pos}) without parentheses"
+                )
+            }
+            EclError::ExclusionTakesTwoOperands { pos } => {
+                write!(
+                    f,
+                    "MINUS takes exactly two operands (position {pos}); parenthesize to chain further, e.g. `(A MINUS B) MINUS C`"
                 )
             }
             EclError::NotYetImplemented { pos, feature } => {

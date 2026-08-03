@@ -37,30 +37,52 @@ pub fn evaluate(expr: &ExpressionConstraint, store: &SnapshotStore) -> HashSet<S
             }
             acc
         }
-        ExpressionConstraint::Minus(items) => {
-            let mut iter = items.iter();
-            let Some(first) = iter.next() else {
-                return HashSet::new();
-            };
-            let mut acc = evaluate(first, store);
-            for e in iter {
-                let s = evaluate(e, store);
-                acc = acc.difference(&s).copied().collect();
-            }
-            acc
+        ExpressionConstraint::Minus(left, right) => {
+            let l = evaluate(left, store);
+            let r = evaluate(right, store);
+            l.difference(&r).copied().collect()
         }
     }
 }
 
 fn evaluate_simple(s: &SimpleExpressionConstraint, store: &SnapshotStore) -> HashSet<SctId> {
-    let id = match &s.focus {
-        // Only HierarchyOp::SelfOnly reaches here with a wildcard focus;
-        // the parser rejects every other combination (spec/10).
-        FocusConcept::Wildcard => return store.concepts().map(|c| c.id).collect(),
-        FocusConcept::Concept { id, .. } => *id,
-    };
+    match &s.focus {
+        FocusConcept::Wildcard => evaluate_wildcard(s.op, store),
+        FocusConcept::Concept { id, .. } => evaluate_concept(s.op, *id, store),
+    }
+}
 
-    let mut result: HashSet<SctId> = match s.op {
+/// A hierarchy operator applied to `*` unions over every concept in the
+/// store (spec/10). This collapses to simple, cheap-to-compute sets:
+///
+/// - the `*OrSelfOf` variants are trivially "every concept" (each concept
+///   is a descendant/ancestor-or-self of itself);
+/// - `<`/`<!` (strict/direct descendant) both reduce to "has at least one
+///   parent" — if a concept has *any* ancestor it has a direct parent, and
+///   vice versa, so the two operators produce the identical set here;
+/// - `>`/`>!` symmetrically reduce to "has at least one child".
+fn evaluate_wildcard(op: HierarchyOp, store: &SnapshotStore) -> HashSet<SctId> {
+    match op {
+        HierarchyOp::SelfOnly
+        | HierarchyOp::DescendantOrSelfOf
+        | HierarchyOp::ChildOrSelfOf
+        | HierarchyOp::AncestorOrSelfOf
+        | HierarchyOp::ParentOrSelfOf => store.concepts().map(|c| c.id).collect(),
+        HierarchyOp::DescendantOf | HierarchyOp::ChildOf => store
+            .concepts()
+            .filter(|c| !store.parents(c.id).is_empty())
+            .map(|c| c.id)
+            .collect(),
+        HierarchyOp::AncestorOf | HierarchyOp::ParentOf => store
+            .concepts()
+            .filter(|c| !store.children(c.id).is_empty())
+            .map(|c| c.id)
+            .collect(),
+    }
+}
+
+fn evaluate_concept(op: HierarchyOp, id: SctId, store: &SnapshotStore) -> HashSet<SctId> {
+    let mut result: HashSet<SctId> = match op {
         HierarchyOp::SelfOnly => HashSet::new(),
         HierarchyOp::DescendantOf | HierarchyOp::DescendantOrSelfOf => store.descendants(id),
         HierarchyOp::ChildOf | HierarchyOp::ChildOrSelfOf => {
@@ -73,7 +95,7 @@ fn evaluate_simple(s: &SimpleExpressionConstraint, store: &SnapshotStore) -> Has
     };
 
     let includes_self = matches!(
-        s.op,
+        op,
         HierarchyOp::SelfOnly
             | HierarchyOp::DescendantOrSelfOf
             | HierarchyOp::ChildOrSelfOf
@@ -173,6 +195,26 @@ mod tests {
         assert_eq!(
             eval("*", &store),
             HashSet::from([ROOT, FINDING, DISEASE, MI])
+        );
+    }
+
+    #[test]
+    fn hierarchy_prefixed_wildcard() {
+        let store = hierarchy_store();
+        let all = HashSet::from([ROOT, FINDING, DISEASE, MI]);
+        // *OrSelfOf variants are trivially "every concept".
+        assert_eq!(eval("<< *", &store), all);
+        assert_eq!(eval(">> *", &store), all);
+        assert_eq!(eval("<<! *", &store), all);
+        assert_eq!(eval(">>! *", &store), all);
+        // < * / <! * = "has at least one parent" = everyone but ROOT.
+        assert_eq!(eval("< *", &store), HashSet::from([FINDING, DISEASE, MI]));
+        assert_eq!(eval("<! *", &store), HashSet::from([FINDING, DISEASE, MI]));
+        // > * / >! * = "has at least one child" = everyone but MI (the leaf).
+        assert_eq!(eval("> *", &store), HashSet::from([ROOT, FINDING, DISEASE]));
+        assert_eq!(
+            eval(">! *", &store),
+            HashSet::from([ROOT, FINDING, DISEASE])
         );
     }
 

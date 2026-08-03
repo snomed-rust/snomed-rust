@@ -136,6 +136,12 @@ impl Lexer {
                 self.pos += 1;
                 TokenKind::Colon
             }
+            // `,` is an alternate spelling for `AND` (the official grammar's
+            // `conjunction` rule: `("and" mws) / ","`).
+            ',' => {
+                self.pos += 1;
+                TokenKind::And
+            }
             '{' if self.chars.get(self.pos + 1) == Some(&'{') => {
                 self.pos += 2;
                 TokenKind::LBrace2
@@ -198,13 +204,17 @@ impl Lexer {
                 }
                 TokenKind::Digits(s)
             }
-            'A'..='Z' => {
+            // Keywords are case-insensitive per the official grammar (each
+            // letter of `conjunction`/`disjunction`/`exclusion` is an
+            // upper/lower alternation, e.g. `("a"/"A")` for the first
+            // letter of AND) — "and", "AND", and "And" all lex the same.
+            'A'..='Z' | 'a'..='z' => {
                 let mut s = String::new();
-                while self.pos < self.chars.len() && self.chars[self.pos].is_ascii_uppercase() {
+                while self.pos < self.chars.len() && self.chars[self.pos].is_ascii_alphabetic() {
                     s.push(self.chars[self.pos]);
                     self.pos += 1;
                 }
-                match s.as_str() {
+                match s.to_ascii_uppercase().as_str() {
                     "AND" => TokenKind::And,
                     "OR" => TokenKind::Or,
                     "MINUS" => TokenKind::Minus,
@@ -311,6 +321,37 @@ mod tests {
                 TokenKind::Eof,
             ]
         );
+    }
+
+    #[test]
+    fn comma_lexes_as_and() {
+        assert_eq!(
+            kinds("1, 2"),
+            vec![
+                TokenKind::Digits("1".to_string()),
+                TokenKind::And,
+                TokenKind::Digits("2".to_string()),
+                TokenKind::Eof,
+            ]
+        );
+    }
+
+    #[test]
+    fn keywords_are_case_insensitive() {
+        for text in ["AND", "and", "And", "aNd"] {
+            assert_eq!(
+                kinds(text),
+                vec![TokenKind::And, TokenKind::Eof],
+                "for `{text}`"
+            );
+        }
+        for text in ["MINUS", "minus", "Minus"] {
+            assert_eq!(
+                kinds(text),
+                vec![TokenKind::Minus, TokenKind::Eof],
+                "for `{text}`"
+            );
+        }
     }
 
     #[test]

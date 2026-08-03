@@ -8,9 +8,23 @@ AST, and evaluator.
 `spec/10-ecl.md` is normative. It documents exactly which grammar subset is
 implemented ("simple expression constraints": hierarchy operators, memberOf,
 wildcard, AND/OR/MINUS) and lists what is explicitly **not yet implemented**
-(refinements, `{{ }}` filters, concrete value comparisons, `^ *`,
-hierarchy-prefixed wildcards, history supplement, cardinality, reverse
-attributes, alternate identifiers).
+(refinements, `{{ }}` filters, concrete value comparisons, `^ *`, `!!>`/
+`!!<`, history supplement, cardinality, reverse attributes, alternate
+identifiers, a hierarchy prefix combined with `^`).
+
+**The authoritative grammar is the ABNF at
+<https://github.com/IHTSDO/snomed-expression-constraint-language>,
+`syntax/abnf-brief.txt` — not the docs.snomed.org prose pages.** The prose
+guide doesn't state precedence, arity, or case-sensitivity; the ABNF does,
+unambiguously. Fetch it (`gh api
+repos/IHTSDO/snomed-expression-constraint-language/contents/syntax/abnf-brief.txt
+--jq '.content' | base64 -d`, since the raw.githubusercontent.com URL 404s
+under WebFetch for this repo's default branch — use `gh api`) before
+implementing anything grammar-shaped, rather than guessing or trusting
+memory. `syntax/abnf-brief.txt` already contains the full refinement grammar
+too (`eclRefinement`, `eclAttributeSet`, `eclAttributeGroup`, `eclAttribute`,
+…) — read it directly when starting the refinements task instead of
+re-deriving from scattered examples.
 
 ## The one rule that matters most
 
@@ -37,9 +51,8 @@ change.
 
 ## Extending the grammar
 
-1. Confirm the exact operator/keyword against the official spec
-   (<https://docs.snomed.org/snomed-ct-specifications/snomed-ct-expression-constraint-language>,
-   Appendix D for the quick reference) — don't guess from memory. Update
+1. Confirm the exact operator/keyword against the ABNF grammar (see above)
+   — don't guess from memory or from prose examples alone. Update
    spec/10-ecl.md's grammar and operator table first.
 2. Add the token(s) to `lexer.rs` (`TokenKind` + the `next_token` match +
    `describe`).
@@ -57,11 +70,13 @@ change.
    malformed case), evaluator (against a small hand-built `SnapshotStore`,
    same fixture style as `snomed-store`'s own tests).
 
-## Rule 5 (parenthesization) is a deliberate, documented gap-fill
+## Rule 5 (parenthesization) is confirmed, not a guess
 
-The official docs were unreachable for the exact AND/OR/MINUS precedence
-rules during initial research (see spec/10's NOTE). The current
-implementation requires parentheses whenever more than one kind of boolean
-operator appears at the same nesting level, rather than guessing a
-precedence order. If you find the real grammar, update spec/10 and relax
-the parser accordingly — but don't relax it on a guess.
+`compoundExpressionConstraint` in the official ABNF is an ordered choice of
+three distinct shapes — a 1+ `AND` chain, a 1+ `OR` chain, or exactly one
+`MINUS` pair — not a single precedence-climbing rule. That's why mixing
+operator kinds needs parens (`MixedOperators`) *and* why `MINUS` can't chain
+even with itself (`ExclusionTakesTwoOperands`): the grammar literally has no
+production for either. See spec/10's "Boolean set operators" section for the
+citation. Don't "simplify" `MINUS` back into an `AND`/`OR`-style chain —
+`A MINUS B MINUS C` really is invalid ECL without parentheses.

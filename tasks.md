@@ -122,16 +122,52 @@ current: check items off in the same change that completes them.
       `NotYetImplemented` parse error naming the feature — never silently
       wrong. Full list in spec/10-ecl.md.
 
+## Done (2026-08-03, ECL grammar corrected against the official ABNF)
+
+- [x] Found and fetched the authoritative formal grammar — docs.snomed.org's
+      prose pages don't state precedence/arity; the ABNF at
+      `github.com/IHTSDO/snomed-expression-constraint-language`
+      (`syntax/abnf-brief.txt`) does. (`raw.githubusercontent.com` 404s for
+      this repo under WebFetch; used `gh api .../contents/... --jq
+      '.content' | base64 -d` instead.) This resolved rule 5's prior
+      uncertainty and surfaced three real corrections against what was
+      shipped:
+      - **`MINUS` doesn't chain** — `exclusionExpressionConstraint` is
+        exactly `sub MINUS sub`, unlike `AND`/`OR`'s `1*(...)`. Was
+        implemented as an N-ary chain; now a 2-operand
+        `Minus(Box, Box)`, with a specific `ExclusionTakesTwoOperands`
+        error (clearer than a generic mixed-operator message) when a
+        further compound operator follows without parens.
+      - **Keywords are case-insensitive** (`("a"/"A")` per letter in the
+        ABNF) and **`,` is an alternate spelling for `AND`**. Lexer fixed
+        to match both.
+      - **Hierarchy-prefixed wildcards (`< *`, `<< *`, …) are valid
+        grammar**, not unimplemented — was rejected with
+        `NotYetImplemented`; now evaluated correctly (reduces to "has a
+        parent"/"has a child"/"every concept" depending on the operator;
+        reasoning and a worked example in spec/10-ecl.md's Wildcard
+        section).
+      - Also gave a specific error (rather than a generic "expected an
+        SCTID") for the still-unimplemented hierarchy-prefix + `^`
+        combination (`< ^ 447562003`), and corrected spec/10's
+        categorization of `!!>`/`!!<` (they're `constraintOperator`
+        variants, i.e. hierarchy-prefix-like, not a filter construct as
+        previously miscategorized).
+      spec/10-ecl.md and `AGENTS/ecl-engineer.md` rewritten with the
+      confirmed grammar and a pointer to the ABNF source (which already
+      contains the full refinement grammar — save re-deriving it later).
+      87 tests passing, clippy clean.
+
 ## Next up (Phase 5 — query layer)
 
 - [ ] ECL refinements: `:` attribute-value constraints (the biggest
       remaining ECL feature — likely its own sub-phase: single attribute
       `=`, conjunction/disjunction of attribute constraints, nested
-      refinements, attribute groups, cardinality).
-- [ ] Confirm the real ECL operator-precedence/associativity rules (the
-      research pass in this session couldn't reach them) and relax
-      spec/10 rule 5 if the parenthesization requirement turns out to be
-      stricter than the real grammar.
+      refinements, attribute groups, cardinality). The grammar is already
+      in hand — see spec/10-ecl.md's sources note — read
+      `syntax/abnf-brief.txt`'s `eclRefinement`/`eclAttributeSet`/
+      `eclAttributeGroup`/`eclAttribute` rules directly rather than
+      re-deriving from examples.
 - [ ] History/audit queries over Full-view data (component version
       timelines) — not started.
 
