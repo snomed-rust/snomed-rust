@@ -86,6 +86,18 @@ pub const MRCM_ATTRIBUTE_DOMAIN_REFERENCE_SET: SctId = SctId::new_unchecked(7235
 pub const MRCM_ATTRIBUTE_RANGE_REFERENCE_SET: SctId = SctId::new_unchecked(723562003);
 /// `723563008 |MRCM module scope reference set|` (spec/08).
 pub const MRCM_MODULE_SCOPE_REFERENCE_SET: SctId = SctId::new_unchecked(723563008);
+/// `733619002 |Ordered component type reference set|` (spec/08) — the
+/// non-deprecated successor to the old "Ordered Reference Set" pattern.
+pub const ORDERED_COMPONENT_TYPE_REFSET: SctId = SctId::new_unchecked(733619002);
+/// `733618005 |Ordered association type reference set|` (spec/08).
+pub const ORDERED_ASSOCIATION_TYPE_REFSET: SctId = SctId::new_unchecked(733618005);
+/// `1292992004 |Component annotation with string value reference set|`
+/// (spec/08) — the non-deprecated successor to the old "Annotation
+/// Reference Set" pattern.
+pub const COMPONENT_ANNOTATION_REFSET: SctId = SctId::new_unchecked(1292992004);
+/// `1292995002 |Member annotation with string value reference set|`
+/// (spec/08).
+pub const MEMBER_ANNOTATION_REFSET: SctId = SctId::new_unchecked(1292995002);
 
 #[cfg(test)]
 mod tests {
@@ -121,6 +133,10 @@ mod tests {
             MRCM_ATTRIBUTE_DOMAIN_REFERENCE_SET,
             MRCM_ATTRIBUTE_RANGE_REFERENCE_SET,
             MRCM_MODULE_SCOPE_REFERENCE_SET,
+            ORDERED_COMPONENT_TYPE_REFSET,
+            ORDERED_ASSOCIATION_TYPE_REFSET,
+            COMPONENT_ANNOTATION_REFSET,
+            MEMBER_ANNOTATION_REFSET,
         ];
         for id in all {
             let parsed = SctId::parse(&id.to_string()).expect("constant must be a valid SCTID");

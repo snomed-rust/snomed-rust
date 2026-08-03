@@ -10,11 +10,12 @@ use snomed_core::components::{Concept, Description, Relationship, RelationshipCo
 use snomed_core::constants;
 use snomed_core::sctid::SctId;
 use snomed_rf2::refset::{
-    AssociationRefsetMember, AttributeValueRefsetMember, DescriptionTypeRefsetMember,
-    ExtendedMapRefsetMember, LanguageRefsetMember, ModuleDependencyRefsetMember,
-    MrcmAttributeDomainRefsetMember, MrcmAttributeRangeRefsetMember, MrcmDomainRefsetMember,
-    MrcmModuleScopeRefsetMember, OwlExpressionRefsetMember, RefsetDescriptorRefsetMember,
-    RefsetMemberCore, SimpleMapRefsetMember, SimpleRefsetMember,
+    AssociationRefsetMember, AttributeValueRefsetMember, ComponentAnnotationRefsetMember,
+    DescriptionTypeRefsetMember, ExtendedMapRefsetMember, LanguageRefsetMember,
+    MemberAnnotationRefsetMember, ModuleDependencyRefsetMember, MrcmAttributeDomainRefsetMember,
+    MrcmAttributeRangeRefsetMember, MrcmDomainRefsetMember, MrcmModuleScopeRefsetMember,
+    OrderedAssociationRefsetMember, OrderedComponentRefsetMember, OwlExpressionRefsetMember,
+    RefsetDescriptorRefsetMember, RefsetMemberCore, SimpleMapRefsetMember, SimpleRefsetMember,
 };
 
 /// Accumulates RF2 rows (from any mix of Full, Snapshot, and Delta files)
@@ -43,6 +44,10 @@ pub struct SnapshotStoreBuilder {
     mrcm_attribute_domain_members: HashMap<String, MrcmAttributeDomainRefsetMember>,
     mrcm_attribute_range_members: HashMap<String, MrcmAttributeRangeRefsetMember>,
     mrcm_module_scope_members: HashMap<String, MrcmModuleScopeRefsetMember>,
+    ordered_component_members: HashMap<String, OrderedComponentRefsetMember>,
+    ordered_association_members: HashMap<String, OrderedAssociationRefsetMember>,
+    component_annotation_members: HashMap<String, ComponentAnnotationRefsetMember>,
+    member_annotation_members: HashMap<String, MemberAnnotationRefsetMember>,
 }
 
 fn upsert<K: std::hash::Hash + Eq, V, F: Fn(&V) -> u32>(
@@ -223,6 +228,30 @@ impl SnapshotStoreBuilder {
         mrcm_module_scope_members,
         MrcmModuleScopeRefsetMember
     );
+    refset_member_methods!(
+        add_ordered_component_member,
+        add_ordered_component_members,
+        ordered_component_members,
+        OrderedComponentRefsetMember
+    );
+    refset_member_methods!(
+        add_ordered_association_member,
+        add_ordered_association_members,
+        ordered_association_members,
+        OrderedAssociationRefsetMember
+    );
+    refset_member_methods!(
+        add_component_annotation_member,
+        add_component_annotation_members,
+        component_annotation_members,
+        ComponentAnnotationRefsetMember
+    );
+    refset_member_methods!(
+        add_member_annotation_member,
+        add_member_annotation_members,
+        member_annotation_members,
+        MemberAnnotationRefsetMember
+    );
 
     pub fn add_concepts(&mut self, rows: impl IntoIterator<Item = Concept>) -> &mut Self {
         rows.into_iter().for_each(|r| {
@@ -345,6 +374,14 @@ impl SnapshotStoreBuilder {
             group_by_refset_and_component(self.mrcm_attribute_range_members, |m| &m.core);
         let mrcm_module_scope_members =
             group_by_refset_and_component(self.mrcm_module_scope_members, |m| &m.core);
+        let ordered_component_members =
+            group_by_refset_and_component(self.ordered_component_members, |m| &m.core);
+        let ordered_association_members =
+            group_by_refset_and_component(self.ordered_association_members, |m| &m.core);
+        let component_annotation_members =
+            group_by_refset_and_component(self.component_annotation_members, |m| &m.core);
+        let member_annotation_members =
+            group_by_refset_and_component(self.member_annotation_members, |m| &m.core);
 
         // Unified (refsetId -> referencedComponentIds) membership, spanning
         // every refset type: RF2 "membership" is refsetId +
@@ -367,6 +404,10 @@ impl SnapshotStoreBuilder {
             .chain(mrcm_attribute_domain_members.keys())
             .chain(mrcm_attribute_range_members.keys())
             .chain(mrcm_module_scope_members.keys())
+            .chain(ordered_component_members.keys())
+            .chain(ordered_association_members.keys())
+            .chain(component_annotation_members.keys())
+            .chain(member_annotation_members.keys())
             .chain(acceptability.keys())
         {
             refset_memberships
@@ -399,6 +440,10 @@ impl SnapshotStoreBuilder {
             mrcm_attribute_domain_members,
             mrcm_attribute_range_members,
             mrcm_module_scope_members,
+            ordered_component_members,
+            ordered_association_members,
+            component_annotation_members,
+            member_annotation_members,
         }
     }
 }
@@ -435,6 +480,10 @@ pub struct SnapshotStore {
     mrcm_attribute_domain_members: HashMap<(SctId, SctId), Vec<MrcmAttributeDomainRefsetMember>>,
     mrcm_attribute_range_members: HashMap<(SctId, SctId), Vec<MrcmAttributeRangeRefsetMember>>,
     mrcm_module_scope_members: HashMap<(SctId, SctId), Vec<MrcmModuleScopeRefsetMember>>,
+    ordered_component_members: HashMap<(SctId, SctId), Vec<OrderedComponentRefsetMember>>,
+    ordered_association_members: HashMap<(SctId, SctId), Vec<OrderedAssociationRefsetMember>>,
+    component_annotation_members: HashMap<(SctId, SctId), Vec<ComponentAnnotationRefsetMember>>,
+    member_annotation_members: HashMap<(SctId, SctId), Vec<MemberAnnotationRefsetMember>>,
 }
 
 impl SnapshotStore {
@@ -791,6 +840,61 @@ impl SnapshotStore {
     ) -> &[MrcmModuleScopeRefsetMember] {
         self.mrcm_module_scope_members
             .get(&(refset_id, module_id))
+            .map(Vec::as_slice)
+            .unwrap_or(&[])
+    }
+
+    /// Active Ordered Component members for `component_id` in `refset_id`
+    /// (e.g. [`constants::ORDERED_COMPONENT_TYPE_REFSET`]'s descendants).
+    pub fn ordered_component_members(
+        &self,
+        refset_id: SctId,
+        component_id: SctId,
+    ) -> &[OrderedComponentRefsetMember] {
+        self.ordered_component_members
+            .get(&(refset_id, component_id))
+            .map(Vec::as_slice)
+            .unwrap_or(&[])
+    }
+
+    /// Active Ordered Association members for `component_id` in
+    /// `refset_id` (e.g.
+    /// [`constants::ORDERED_ASSOCIATION_TYPE_REFSET`]'s descendants).
+    pub fn ordered_association_members(
+        &self,
+        refset_id: SctId,
+        component_id: SctId,
+    ) -> &[OrderedAssociationRefsetMember] {
+        self.ordered_association_members
+            .get(&(refset_id, component_id))
+            .map(Vec::as_slice)
+            .unwrap_or(&[])
+    }
+
+    /// Active Component Annotation members annotating `component_id` in
+    /// `refset_id` (e.g. [`constants::COMPONENT_ANNOTATION_REFSET`]'s
+    /// descendants).
+    pub fn component_annotation_members(
+        &self,
+        refset_id: SctId,
+        component_id: SctId,
+    ) -> &[ComponentAnnotationRefsetMember] {
+        self.component_annotation_members
+            .get(&(refset_id, component_id))
+            .map(Vec::as_slice)
+            .unwrap_or(&[])
+    }
+
+    /// Active Member Annotation members annotating `component_id` in
+    /// `refset_id` (e.g. [`constants::MEMBER_ANNOTATION_REFSET`]'s
+    /// descendants).
+    pub fn member_annotation_members(
+        &self,
+        refset_id: SctId,
+        component_id: SctId,
+    ) -> &[MemberAnnotationRefsetMember] {
+        self.member_annotation_members
+            .get(&(refset_id, component_id))
             .map(Vec::as_slice)
             .unwrap_or(&[])
     }
@@ -1296,5 +1400,88 @@ mod tests {
             constants::MRCM_MODULE_SCOPE_REFERENCE_SET,
             constants::CORE_MODULE
         ));
+    }
+
+    #[test]
+    fn ordered_and_annotation_refset_members_are_queryable_and_span_membership() {
+        let thumb = SctId::new_unchecked(127053016); // |Thumb|
+        let all_fingers = SctId::new_unchecked(70327001); // |All fingers|
+
+        let mut b = SnapshotStore::builder();
+        b.add_ordered_component_member(OrderedComponentRefsetMember {
+            core: core(
+                "80000000-0000-4000-8000-000000000026",
+                20190731,
+                true,
+                constants::ORDERED_COMPONENT_TYPE_REFSET,
+                thumb,
+            ),
+            order: 1,
+        });
+        b.add_ordered_association_member(OrderedAssociationRefsetMember {
+            core: core(
+                "80000000-0000-4000-8000-000000000027",
+                20190731,
+                true,
+                constants::ORDERED_ASSOCIATION_TYPE_REFSET,
+                thumb,
+            ),
+            target_component_id: all_fingers,
+            order: 1,
+        });
+        b.add_component_annotation_member(ComponentAnnotationRefsetMember {
+            core: core(
+                "80000000-0000-4000-8000-000000000028",
+                20190731,
+                true,
+                constants::COMPONENT_ANNOTATION_REFSET,
+                MI,
+            ),
+            language_dialect_code: "en".to_string(),
+            type_id: constants::CORE_MODULE, // placeholder valid SCTID
+            value: "Inserm Orphanet".to_string(),
+        });
+        b.add_member_annotation_member(MemberAnnotationRefsetMember {
+            core: core(
+                "80000000-0000-4000-8000-000000000029",
+                20190731,
+                true,
+                constants::MEMBER_ANNOTATION_REFSET,
+                MI,
+            ),
+            referenced_member_id: "3ddfb6d2-0874-4916-8767-8d48c781d435".to_string(),
+            language_dialect_code: "en".to_string(),
+            type_id: constants::CORE_MODULE, // placeholder valid SCTID
+            value: "annotation text".to_string(),
+        });
+        let store = b.build();
+
+        let ordered =
+            store.ordered_component_members(constants::ORDERED_COMPONENT_TYPE_REFSET, thumb);
+        assert_eq!(ordered.len(), 1);
+        assert_eq!(ordered[0].order, 1);
+
+        let associations =
+            store.ordered_association_members(constants::ORDERED_ASSOCIATION_TYPE_REFSET, thumb);
+        assert_eq!(associations.len(), 1);
+        assert_eq!(associations[0].target_component_id, all_fingers);
+
+        let component_annotations =
+            store.component_annotation_members(constants::COMPONENT_ANNOTATION_REFSET, MI);
+        assert_eq!(component_annotations.len(), 1);
+        assert_eq!(component_annotations[0].value, "Inserm Orphanet");
+
+        let member_annotations =
+            store.member_annotation_members(constants::MEMBER_ANNOTATION_REFSET, MI);
+        assert_eq!(member_annotations.len(), 1);
+        assert_eq!(
+            member_annotations[0].referenced_member_id,
+            "3ddfb6d2-0874-4916-8767-8d48c781d435"
+        );
+
+        assert!(store.is_member(constants::ORDERED_COMPONENT_TYPE_REFSET, thumb));
+        assert!(store.is_member(constants::ORDERED_ASSOCIATION_TYPE_REFSET, thumb));
+        assert!(store.is_member(constants::COMPONENT_ANNOTATION_REFSET, MI));
+        assert!(store.is_member(constants::MEMBER_ANNOTATION_REFSET, MI));
     }
 }

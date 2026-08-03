@@ -12,11 +12,12 @@ use snomed_rf2::filename::{FileNameError, ReleaseFileName};
 use snomed_rf2::reader::Rf2Reader;
 use snomed_rf2::record::Rf2Record;
 use snomed_rf2::refset::{
-    AssociationRefsetMember, AttributeValueRefsetMember, DescriptionTypeRefsetMember,
-    ExtendedMapRefsetMember, LanguageRefsetMember, ModuleDependencyRefsetMember,
-    MrcmAttributeDomainRefsetMember, MrcmAttributeRangeRefsetMember, MrcmDomainRefsetMember,
-    MrcmModuleScopeRefsetMember, OwlExpressionRefsetMember, RefsetDescriptorRefsetMember,
-    SimpleMapRefsetMember, SimpleRefsetMember,
+    AssociationRefsetMember, AttributeValueRefsetMember, ComponentAnnotationRefsetMember,
+    DescriptionTypeRefsetMember, ExtendedMapRefsetMember, LanguageRefsetMember,
+    MemberAnnotationRefsetMember, ModuleDependencyRefsetMember, MrcmAttributeDomainRefsetMember,
+    MrcmAttributeRangeRefsetMember, MrcmDomainRefsetMember, MrcmModuleScopeRefsetMember,
+    OrderedAssociationRefsetMember, OrderedComponentRefsetMember, OwlExpressionRefsetMember,
+    RefsetDescriptorRefsetMember, SimpleMapRefsetMember, SimpleRefsetMember,
 };
 use snomed_rf2::release_type::ReleaseType;
 
@@ -277,6 +278,26 @@ fn dispatch(
         ("ssccRefset", "MRCMAttributeRange") => {
             load_rows::<MrcmAttributeRangeRefsetMember, _>(path, |r| {
                 builder.add_mrcm_attribute_range_member(r);
+            })?;
+        }
+        ("iRefset", "OrderedComponent") => {
+            load_rows::<OrderedComponentRefsetMember, _>(path, |r| {
+                builder.add_ordered_component_member(r);
+            })?;
+        }
+        ("ciRefset", "OrderedAssociation") => {
+            load_rows::<OrderedAssociationRefsetMember, _>(path, |r| {
+                builder.add_ordered_association_member(r);
+            })?;
+        }
+        ("scsRefset", "ComponentAnnotationStringValue") => {
+            load_rows::<ComponentAnnotationRefsetMember, _>(path, |r| {
+                builder.add_component_annotation_member(r);
+            })?;
+        }
+        ("sscsRefset", "MemberAnnotationStringValue") => {
+            load_rows::<MemberAnnotationRefsetMember, _>(path, |r| {
+                builder.add_member_annotation_member(r);
             })?;
         }
         (content_type, summary) => {
@@ -546,6 +567,77 @@ mod tests {
             constants::MRCM_MODULE_SCOPE_REFERENCE_SET,
             constants::CORE_MODULE
         ));
+    }
+
+    #[test]
+    fn loads_ordered_and_annotation_refset_files() {
+        let tmp = TempDir::new("load-ordered-annotation");
+        let root = tmp.path();
+        let thumb = SctId::new_unchecked(127053016); // |Thumb|
+        let all_fingers = SctId::new_unchecked(70327001); // |All fingers|
+
+        write(
+            root,
+            "Snapshot/Refset/Metadata/der2_iRefset_OrderedComponentSnapshot_INT_20190731.txt",
+            &format!(
+                "id\teffectiveTime\tactive\tmoduleId\trefsetId\treferencedComponentId\torder\n\
+                 80000000-0000-4000-8000-000000000034\t20190731\t1\t{}\t{}\t{thumb}\t1\n",
+                constants::CORE_MODULE,
+                constants::ORDERED_COMPONENT_TYPE_REFSET,
+            ),
+        );
+        write(
+            root,
+            "Snapshot/Refset/Metadata/der2_ciRefset_OrderedAssociationSnapshot_INT_20190731.txt",
+            &format!(
+                "id\teffectiveTime\tactive\tmoduleId\trefsetId\treferencedComponentId\t\
+                 targetComponentId\torder\n\
+                 80000000-0000-4000-8000-000000000035\t20190731\t1\t{}\t{}\t{thumb}\t\
+                 {all_fingers}\t1\n",
+                constants::CORE_MODULE,
+                constants::ORDERED_ASSOCIATION_TYPE_REFSET,
+            ),
+        );
+        write(
+            root,
+            "Snapshot/Refset/Metadata/der2_scsRefset_ComponentAnnotationStringValueSnapshot_INT_20190731.txt",
+            &format!(
+                "id\teffectiveTime\tactive\tmoduleId\trefsetId\treferencedComponentId\t\
+                 languageDialectCode\ttypeId\tvalue\n\
+                 80000000-0000-4000-8000-000000000036\t20190731\t1\t{}\t{}\t{}\ten\t{}\tsome text\n",
+                constants::CORE_MODULE,
+                constants::COMPONENT_ANNOTATION_REFSET,
+                FINDING,
+                constants::CORE_MODULE,
+            ),
+        );
+        write(
+            root,
+            "Snapshot/Refset/Metadata/der2_sscsRefset_MemberAnnotationStringValueSnapshot_INT_20190731.txt",
+            &format!(
+                "id\teffectiveTime\tactive\tmoduleId\trefsetId\treferencedComponentId\t\
+                 referencedMemberId\tlanguageDialectCode\ttypeId\tvalue\n\
+                 80000000-0000-4000-8000-000000000037\t20190731\t1\t{}\t{}\t{}\t\
+                 3ddfb6d2-0874-4916-8767-8d48c781d435\ten\t{}\tsome text\n",
+                constants::CORE_MODULE,
+                constants::MEMBER_ANNOTATION_REFSET,
+                FINDING,
+                constants::CORE_MODULE,
+            ),
+        );
+
+        let mut builder = SnapshotStoreBuilder::new();
+        let report = builder
+            .load_release_dir(root, ReleaseType::Snapshot)
+            .unwrap();
+        assert_eq!(report.loaded.len(), 4, "{:?}", report.loaded);
+        assert!(report.skipped.is_empty(), "{:?}", report.skipped);
+
+        let store = builder.build();
+        assert!(store.is_member(constants::ORDERED_COMPONENT_TYPE_REFSET, thumb));
+        assert!(store.is_member(constants::ORDERED_ASSOCIATION_TYPE_REFSET, thumb));
+        assert!(store.is_member(constants::COMPONENT_ANNOTATION_REFSET, FINDING));
+        assert!(store.is_member(constants::MEMBER_ANNOTATION_REFSET, FINDING));
     }
 
     #[test]

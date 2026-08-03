@@ -506,11 +506,58 @@ This closes every item originally scoped in `plan.md` Phase 6.
       ordered/annotation refset variants remain, still not scoped).
       199 tests passing workspace-wide (6 new), clippy clean.
 
+## Done (2026-08-03, ordered/annotation refset variants — last tracked refset gap)
+
+- [x] Found the authoritative spec source:
+      [SNOMED-Documents/snomed-release-file-specification](https://github.com/SNOMED-Documents/snomed-release-file-specification)
+      (the official spec's own source repo — docs.snomed.org's rendered
+      site doesn't surface these particular pages through normal
+      browsing/search; located by searching GitHub broadly for the
+      `scsRefset` pattern letters instead). Discovered along the way that
+      both the general "Ordered Reference Set" and the old "Annotation
+      Reference Set" patterns are marked **deprecated** in the spec
+      itself, each replaced by two more specific successor patterns.
+      Implemented the current replacements, not the deprecated combined
+      ones: Ordered Component / Ordered Association (replacing "Ordered
+      Reference Set", which had a `linkedToId` field neither successor
+      keeps in the same form) and Component/Member Annotation String
+      Value (replacing "Annotation Reference Set").
+- [x] Four new `snomed-rf2::refset` types (`OrderedComponentRefsetMember`,
+      `OrderedAssociationRefsetMember`, `ComponentAnnotationRefsetMember`,
+      `MemberAnnotationRefsetMember`) with tests using real verified data
+      from the spec's own worked examples (Verhoeff-checked before use;
+      the Ordered Association example's illustrative moduleId/refsetId
+      placeholders don't validate, so those two columns use synthetic
+      ids instead, same convention as elsewhere). Four new
+      `snomed_core::constants`. Full `snomed-store` wiring — builder
+      methods, `build()` grouping, unified `refset_memberships`
+      participation, per-type accessors, `load_release_dir` dispatch
+      (`iRefset`/"OrderedComponent", `ciRefset`/"OrderedAssociation",
+      `scsRefset`/"ComponentAnnotationStringValue",
+      `sscsRefset`/"MemberAnnotationStringValue") — the same shape as
+      every prior refset-type addition.
+- [x] One honest caveat, flagged in spec/08 and the `snomed-rf2` README:
+      the Ordered types' file-name pattern letters (`iRefset`/`ciRefset`)
+      aren't literally shown on the spec pages (unlike the Annotation
+      types', which explicitly state
+      `der2_scsRefset_ComponentAnnotationStringValue...`/
+      `der2_sscsRefset_MemberAnnotationStringValue...`) — they're a
+      mechanical derivation from the documented column types, using this
+      workspace's own already-verified `i`(nteger)/`c`(oncept)/
+      `s`(tring-or-anything-else) pattern-letter convention (confirmed
+      via `ExtendedMapRefsetMember`'s real `iisssccRefset` and
+      `RefsetDescriptorRefsetMember`'s real `cciRefset`), not a literal
+      real-file citation like everything else added this session.
+- [x] This closes **every refset pattern this workspace tracks** — no
+      further gaps are currently known in `snomed-rf2`/`snomed-store`'s
+      refset coverage. spec/08, both crates' READMEs, `plan.md` updated.
+      205 tests passing workspace-wide (6 new), clippy clean.
+
 ## Next up
 
 - [ ] Nothing currently scoped. Candidate future work (not yet
       decided/planned): a real classifier/reasoner layer for `snomed-owl`
       (large, likely its own `plan.md` phase if ever pursued); a
-      `snomed-fhir` HTTP server crate; ordered/annotation refset variants
-      (spec/08); re-running the Phase 4 benchmark against a real
-      International Edition release if one becomes available.
+      `snomed-fhir` HTTP server crate; re-running the Phase 4 benchmark
+      against a real International Edition release if one becomes
+      available.

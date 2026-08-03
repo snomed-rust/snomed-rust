@@ -241,6 +241,26 @@ fix it surfaced, and `HistoryStore`.
   accessors, `load_release_dir` dispatch) — the same shape every prior
   refset-type addition followed, extended by four more rows in the
   macro-generated method list rather than anything structurally new.
+- Ordered/annotation refset variants ✅ — the last tracked refset gap.
+  Found the authoritative source: [SNOMED-Documents/
+  snomed-release-file-specification](https://github.com/SNOMED-Documents/snomed-release-file-specification),
+  the official spec's own source repo (located by searching GitHub
+  broadly for the `scsRefset` pattern letters, since docs.snomed.org's
+  rendered site doesn't surface these pages through normal
+  browsing/search). Discovered along the way that both the general
+  "Ordered Reference Set" and the old "Annotation Reference Set"
+  patterns are **deprecated**, each replaced by two more specific
+  patterns — implemented the current replacements (Ordered
+  Component/Ordered Association; Component/Member Annotation String
+  Value), not the deprecated combined ones. Four new `snomed-rf2::refset`
+  types, four new `snomed_core::constants`, full `snomed-store` wiring —
+  same shape as every prior refset-type addition. One honest caveat,
+  flagged in spec/08: the Ordered types' file-name pattern letters
+  (`iRefset`/`ciRefset`) aren't literally shown on the spec pages (unlike
+  the Annotation types', which are) — they're a mechanical derivation
+  from documented column types using this workspace's own
+  already-verified `i`/`c`/`s` convention, not a literal citation.
+  This closes every refset pattern this workspace tracks.
 
 ## Non-goals (for now)
 

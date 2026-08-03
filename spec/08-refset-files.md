@@ -35,9 +35,41 @@ Versioning semantics are identical to components, keyed by the member UUID.
 | MRCM Attribute Domain | `cissccRefset` | `domainId`, `grouped` (must this attribute, for this domain, appear inside a relationship group), `attributeCardinality`, `attributeInGroupCardinality`, `ruleStrengthId`, `contentTypeId`; `referencedComponentId` is the **attribute** concept |
 | MRCM Attribute Range | `ssccRefset` | `rangeConstraint`, `attributeRule` (both free text/ECL), `ruleStrengthId`, `contentTypeId`; `referencedComponentId` is the **attribute** concept |
 | MRCM Module Scope | `cRefset` | `mrcmRuleRefsetId` — the SCTID of whichever of the three MRCM refsets above applies to this module; `referencedComponentId` is the **module** concept |
+| Ordered Component | `iRefset` | `order` (ascending sort key; 1 = highest priority). The non-deprecated successor to the old "Ordered Reference Set" pattern (see below) |
+| Ordered Association | `ciRefset` | `targetComponentId`, `order` — like Ordered Component, but `targetComponentId` groups members into subgroups/hierarchy nodes for alternative navigation hierarchies |
+| Component Annotation (String Value) | `scsRefset` | `languageDialectCode`, `typeId`, `value` — a free-text annotation on any SNOMED CT component (`referencedComponentId`). The non-deprecated successor to the old "Annotation Reference Set" pattern |
+| Member Annotation (String Value) | `sscsRefset` | `referencedMemberId` (UUID), `languageDialectCode`, `typeId`, `value` — a free-text annotation on a *member* of another refset, not a core component; `referencedComponentId` is the component that member itself refers to, `referencedMemberId` is that member's own UUID |
 
-Also defined by RF2 (not yet implemented, tracked in `tasks.md`):
-ordered/annotation refset variants.
+This closes out RF2's refset patterns this workspace tracks — no further
+gaps are currently known (ordered/annotation variants, previously listed
+here as not yet implemented, are the ones above).
+
+### Ordered and Annotation refset sources — deprecated patterns, current replacements
+
+The **general "Ordered Reference Set" pattern is deprecated**, replaced
+by the two specific patterns above (Ordered Component / Ordered
+Association) — implementing the deprecated combined pattern (which had a
+`linkedToId` field neither successor keeps in the same form) would mean
+building something SNOMED International itself no longer recommends.
+Likewise the old **"Annotation Reference Set" is deprecated**, replaced
+by the two String Value patterns above. Confirmed via the official spec
+source repository,
+[SNOMED-Documents/snomed-release-file-specification](https://github.com/SNOMED-Documents/snomed-release-file-specification)
+— found by searching GitHub broadly for the `scsRefset` pattern letters,
+since docs.snomed.org's rendered site didn't surface these pages through
+normal browsing/search. The Ordered Component/Association *file name
+patterns* (`iRefset`/`ciRefset`) are not literally shown on those pages
+(unlike the Annotation refsets, which explicitly state
+`der2_scsRefset_ComponentAnnotationStringValue...`/
+`der2_sscsRefset_MemberAnnotationStringValue...`) — they're derived from
+the documented column types/order using this workspace's own
+already-verified pattern-letter convention (`i`=Integer, `c`=SCTID,
+`s`=anything else including String/Time/UUID — confirmed by
+`ExtendedMapRefsetMember`'s real `iisssccRefset` and
+`RefsetDescriptorRefsetMember`'s real `cciRefset`), not a literal
+real-file citation. Flagged here as a slightly lower-confidence inference
+than the rest of this table, though a mechanical one from confirmed
+inputs, not a guess.
 
 ### MRCM refset sources
 
@@ -70,6 +102,10 @@ directly).
 | `723561005` | MRCM Attribute Domain international reference set |
 | `723562003` | MRCM Attribute Range international reference set |
 | `723563008` | MRCM Module Scope reference set |
+| `733619002` | Ordered component type reference set |
+| `733618005` | Ordered association type reference set |
+| `1292992004` | Component annotation with string value reference set |
+| `1292995002` | Member annotation with string value reference set |
 
 ## Rules
 

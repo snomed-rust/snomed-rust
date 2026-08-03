@@ -89,16 +89,28 @@ layout), and `Relationship`'s by both `sct2_Relationship_*` and
 | `MrcmAttributeDomainRefsetMember` | `domainId`, `grouped`, `attributeCardinality`, `attributeInGroupCardinality`, `ruleStrengthId`, `contentTypeId` |
 | `MrcmAttributeRangeRefsetMember` | `rangeConstraint`, `attributeRule`, `ruleStrengthId`, `contentTypeId` |
 | `MrcmModuleScopeRefsetMember` | `mrcmRuleRefsetId` |
+| `OrderedComponentRefsetMember` | `order` |
+| `OrderedAssociationRefsetMember` | `targetComponentId`, `order` |
+| `ComponentAnnotationRefsetMember` | `languageDialectCode`, `typeId`, `value` |
+| `MemberAnnotationRefsetMember` | `referencedMemberId`, `languageDialectCode`, `typeId`, `value` |
 
 The four MRCM (Machine Readable Concept Model) types' exact columns came
 from real RF2 test fixtures in SNOMED International's own
 [`snomed-owl-toolkit`](https://github.com/IHTSDO/snomed-owl-toolkit) and
 [`snowstorm`](https://github.com/IHTSDO/snowstorm) — docs.snomed.org's
 MRCM glossary entry states each refset's purpose but not its column
-shape (spec/08).
+shape (spec/08). The Ordered/Annotation types implement the **current,
+non-deprecated** refset patterns (the old combined "Ordered Reference
+Set" and "Annotation Reference Set" patterns are both deprecated in favor
+of these more specific ones) — see spec/08's sources note for where the
+official spec pages for these actually live (a repo GitHub's own site
+search doesn't surface well) and for the one honest caveat: the Ordered
+types' file-name pattern *letters* (`iRefset`/`ciRefset`) are a
+mechanical derivation from documented column types, not a literal
+real-file citation like everything else in this table.
 
-Not yet implemented (tracked in the root `tasks.md`): ordered/annotation
-refset variants.
+Every refset pattern this workspace tracks is now implemented; no further
+gaps are currently known.
 
 ## Extending this crate
 

@@ -412,11 +412,125 @@ impl Rf2Record for MrcmModuleScopeRefsetMember {
     }
 }
 
+/// Ordered Component refset (`der2_iRefset_OrderedComponent*`): a
+/// prioritized/ordered list of components — the current, non-deprecated
+/// successor (along with [`OrderedAssociationRefsetMember`]) to the
+/// deprecated "Ordered Reference Set" pattern (spec/08).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct OrderedComponentRefsetMember {
+    pub core: RefsetMemberCore,
+    /// Ascending sort order; 1 is highest priority. `0` is invalid per
+    /// spec, but not rejected here — RF2 parsing validates shape, not
+    /// every semantic constraint (consistent with e.g.
+    /// `relationshipGroup` not being range-checked either).
+    pub order: u32,
+}
+
+impl Rf2Record for OrderedComponentRefsetMember {
+    const HEADER: &'static [&'static str] = common_then!("order");
+
+    fn parse_fields(f: &[&str]) -> Result<Self, FieldError> {
+        Ok(OrderedComponentRefsetMember {
+            core: RefsetMemberCore::parse(f)?,
+            order: parse_u32(f[6], "order")?,
+        })
+    }
+}
+
+/// Ordered Association refset (`der2_ciRefset_OrderedAssociation*`):
+/// ordered associations between components, enabling alternative
+/// navigation hierarchies (spec/08). `targetComponentId` groups members
+/// into subgroups/hierarchy nodes; `order` sorts within a group.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct OrderedAssociationRefsetMember {
+    pub core: RefsetMemberCore,
+    pub target_component_id: SctId,
+    pub order: u32,
+}
+
+impl Rf2Record for OrderedAssociationRefsetMember {
+    const HEADER: &'static [&'static str] = common_then!("targetComponentId", "order");
+
+    fn parse_fields(f: &[&str]) -> Result<Self, FieldError> {
+        Ok(OrderedAssociationRefsetMember {
+            core: RefsetMemberCore::parse(f)?,
+            target_component_id: parse_sctid(f[6], "targetComponentId")?,
+            order: parse_u32(f[7], "order")?,
+        })
+    }
+}
+
+/// Component Annotation String Value refset
+/// (`der2_scsRefset_ComponentAnnotationStringValue*`): a free-text
+/// annotation on any SNOMED CT component. Supersedes the deprecated
+/// "Annotation Reference Set" pattern (spec/08).
+/// `referencedComponentId` is the annotated component.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ComponentAnnotationRefsetMember {
+    pub core: RefsetMemberCore,
+    /// ISO 639-1 language code (optionally with an RFC 5646 dialect
+    /// suffix). Blank when not applicable — never absent as a column,
+    /// but MAY be an empty string (spec).
+    pub language_dialect_code: String,
+    /// A descendant of `1295447006` |Annotation attribute|.
+    pub type_id: SctId,
+    /// The annotation text itself (up to 32KB, UTF-8).
+    pub value: String,
+}
+
+impl Rf2Record for ComponentAnnotationRefsetMember {
+    const HEADER: &'static [&'static str] = common_then!("languageDialectCode", "typeId", "value");
+
+    fn parse_fields(f: &[&str]) -> Result<Self, FieldError> {
+        Ok(ComponentAnnotationRefsetMember {
+            core: RefsetMemberCore::parse(f)?,
+            language_dialect_code: f[6].to_string(),
+            type_id: parse_sctid(f[7], "typeId")?,
+            value: parse_nonempty(f[8], "value")?,
+        })
+    }
+}
+
+/// Member Annotation String Value refset
+/// (`der2_sscsRefset_MemberAnnotationStringValue*`): a free-text
+/// annotation on a member of *another* reference set, rather than on a
+/// core component directly (spec/08). `referencedComponentId` is the
+/// SNOMED CT component the annotated member itself refers to;
+/// `referenced_member_id` is the UUID of that specific member.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct MemberAnnotationRefsetMember {
+    pub core: RefsetMemberCore,
+    pub referenced_member_id: String,
+    pub language_dialect_code: String,
+    pub type_id: SctId,
+    pub value: String,
+}
+
+impl Rf2Record for MemberAnnotationRefsetMember {
+    const HEADER: &'static [&'static str] = common_then!(
+        "referencedMemberId",
+        "languageDialectCode",
+        "typeId",
+        "value"
+    );
+
+    fn parse_fields(f: &[&str]) -> Result<Self, FieldError> {
+        Ok(MemberAnnotationRefsetMember {
+            core: RefsetMemberCore::parse(f)?,
+            referenced_member_id: parse_uuid(f[6], "referencedMemberId")?,
+            language_dialect_code: f[7].to_string(),
+            type_id: parse_sctid(f[8], "typeId")?,
+            value: parse_nonempty(f[9], "value")?,
+        })
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::reader::read_all;
     use snomed_core::constants;
+    use snomed_core::sctid::ComponentType;
 
     #[test]
     fn parses_language_refset_rows() {
@@ -543,6 +657,92 @@ mod tests {
         assert_eq!(
             members[0].mrcm_rule_refset_id,
             SctId::new_unchecked(723562003) // |MRCM attribute range international reference set|
+        );
+    }
+
+    // The rows below use real, verified SCTIDs from
+    // SNOMED-Documents/snomed-release-file-specification's worked
+    // examples (Verhoeff-validated before use — not every id shown in an
+    // example table has a numeric value or a valid check digit, e.g. the
+    // Ordered Association example's illustrative moduleId/refsetId are
+    // placeholders, so those two columns use synthetic ids instead).
+
+    #[test]
+    fn parses_ordered_component_rows() {
+        // |Fingers ordered component reference set| example: |Thumb| is
+        // the first finger in priority order.
+        let data = "id\teffectiveTime\tactive\tmoduleId\trefsetId\treferencedComponentId\torder\n\
+            80000000-0000-4000-8000-000000000006\t20190731\t1\t900000000000207008\t733619002\t\
+            127053016\t1\n";
+        let members: Vec<OrderedComponentRefsetMember> = read_all(data.as_bytes()).unwrap();
+        assert_eq!(members.len(), 1);
+        assert_eq!(members[0].order, 1);
+        assert_eq!(
+            members[0].core.referenced_component_id,
+            SctId::new_unchecked(127053016) // |Thumb|
+        );
+    }
+
+    #[test]
+    fn parses_ordered_association_rows() {
+        // Navigation hierarchy example: |Thumb| grouped under |All
+        // fingers|, order 1 within that group.
+        let data = "id\teffectiveTime\tactive\tmoduleId\trefsetId\treferencedComponentId\t\
+            targetComponentId\torder\n\
+            80000000-0000-4000-8000-000000000007\t20160731\t1\t900000000000207008\t733618005\t\
+            127053016\t70327001\t1\n";
+        let members: Vec<OrderedAssociationRefsetMember> = read_all(data.as_bytes()).unwrap();
+        assert_eq!(members.len(), 1);
+        assert_eq!(
+            members[0].target_component_id,
+            SctId::new_unchecked(70327001) // |All fingers|
+        );
+        assert_eq!(members[0].order, 1);
+    }
+
+    #[test]
+    fn parses_component_annotation_rows() {
+        // Real example from the spec (attribution note on a disorder
+        // concept); the annotation attribute type id itself wasn't given
+        // numerically in the source example, so it's synthesized.
+        let attribution = SctId::compose(1001, ComponentType::Concept, None).unwrap();
+        let data = format!(
+            "id\teffectiveTime\tactive\tmoduleId\trefsetId\treferencedComponentId\t\
+             languageDialectCode\ttypeId\tvalue\n\
+             00000000-1111-2222-3333-444444444444\t20240131\t1\t900000000000012004\t1292992004\t\
+             784371009\ten\t{attribution}\tInserm Orphanet\n"
+        );
+        let members: Vec<ComponentAnnotationRefsetMember> = read_all(data.as_bytes()).unwrap();
+        assert_eq!(members.len(), 1);
+        assert_eq!(members[0].language_dialect_code, "en");
+        assert_eq!(members[0].value, "Inserm Orphanet");
+        assert_eq!(
+            members[0].core.referenced_component_id,
+            SctId::new_unchecked(784371009) // |Huntington disease-like 1 (disorder)|
+        );
+    }
+
+    #[test]
+    fn parses_member_annotation_rows() {
+        // Real example: an annotation on an OWL axiom member, keyed by
+        // that member's own UUID via referencedMemberId.
+        let attribute = SctId::compose(1002, ComponentType::Concept, None).unwrap();
+        let data = format!(
+            "id\teffectiveTime\tactive\tmoduleId\trefsetId\treferencedComponentId\t\
+             referencedMemberId\tlanguageDialectCode\ttypeId\tvalue\n\
+             00000000-1111-2222-3333-444444444444\t20240131\t1\t900000000000012004\t1292995002\t\
+             91302008\t3ddfb6d2-0874-4916-8767-8d48c781d435\ten\t{attribute}\t\
+             In the third International Consensus Definitions for Sepsis\n"
+        );
+        let members: Vec<MemberAnnotationRefsetMember> = read_all(data.as_bytes()).unwrap();
+        assert_eq!(members.len(), 1);
+        assert_eq!(
+            members[0].referenced_member_id,
+            "3ddfb6d2-0874-4916-8767-8d48c781d435"
+        );
+        assert_eq!(
+            members[0].core.referenced_component_id,
+            SctId::new_unchecked(91302008) // |Sepsis (disorder)|
         );
     }
 }
