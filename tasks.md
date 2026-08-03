@@ -553,11 +553,91 @@ This closes every item originally scoped in `plan.md` Phase 6.
       refset coverage. spec/08, both crates' READMEs, `plan.md` updated.
       205 tests passing workspace-wide (6 new), clippy clean.
 
+## Done (2026-08-03, snomed-classify — EL subsumption classifier, Phase 7)
+
+- [x] User-requested: "create snomed-owl reasoner/classifier". Scoped as
+      a **new crate**, `snomed-classify`, rather than growing
+      `snomed-owl` into both a parser and a reasoner — `snomed-owl`'s own
+      docs/`AGENTS.md` had already flagged classification as needing "a
+      `plan.md` decision, not an incremental addition" to that crate.
+      Implemented the standard **EL-profile completion algorithm**
+      (Baader/Brandt/Lutz IJCAI-05, extended with EL+'s role-hierarchy/
+      composition rules for property chains and transitive attributes)
+      from scratch — the same family of algorithm SNOMED CT's real
+      reasoners (ELK, CEL) implement, chosen because SNOMED CT's logic
+      profile is *by design* OWL 2 EL specifically so that subsumption
+      stays polynomial-time tractable.
+- [x] New `spec/13-classification.md`: the normal-form (NF1–NF3, role
+      hierarchy, role composition) and completion-rule (CR1–CR5) tables,
+      how `snomed_owl::Axiom`/`ClassExpression` map onto them, and exact
+      scope (in: `SubClassOf` incl. GCIs, `EquivalentClasses`,
+      `ObjectIntersectionOf`, `ObjectSomeValuesFrom`,
+      `SubObjectPropertyOf` incl. `ObjectPropertyChain`,
+      `TransitiveObjectProperty`; out, but reported via
+      `ClassificationReport::skipped` rather than silently dropped:
+      `ReflexiveObjectProperty`, `SubDataPropertyOf`, `DataHasValue`; also
+      out: the "necessary normal form" RF2-relationship-generation
+      pipeline, a distinct downstream problem from subsumption itself).
+- [x] Normalization (`normalize.rs`) introduces fresh concept/role names
+      for nested sub-expressions via structural transformation, with one
+      deliberate optimization over the textbook approach: a top-level
+      GCI's compound left side is flattened directly into NF1's conjunct
+      list rather than routed through an unnecessary fresh name — worth
+      doing because that's the single most common real SNOMED axiom
+      shape (every `EquivalentClasses` expansion produces one).
+      Completion (`complete.rs`) is a worklist/event algorithm with
+      precomputed indices, not naive repeated passes.
+- [x] **Found and fixed a real quadratic-time bug via honest
+      benchmarking.** An early version's event loop used `.cloned()` on
+      growing subsumer/successor/predecessor collections to sidestep
+      borrow-checker conflicts; a first synthetic-benchmark attempt using
+      a 20k-concept `SubClassOf` *chain* didn't finish in two minutes.
+      Root-caused to two compounding issues: (1) the `.cloned()` calls
+      really were pathological — cloning a concept's entire accumulated
+      subsumer set on every event that merely touched it; (2) a
+      chain-shaped ontology has O(N²) *inherent* subsumption pairs
+      regardless of algorithm quality, which isn't representative of
+      SNOMED CT's actual shallow/wide hierarchy and would have made a
+      "slow but not buggy" chain benchmark impossible to distinguish from
+      a genuinely quadratic implementation. Fixed both: restructured the
+      event loop into a strict two-phase (collect deltas from borrowed
+      state, then apply mutably) shape everywhere, eliminating every
+      clone; switched the benchmark to a random tree (same generation
+      shape as `snomed-store`'s own synthetic benchmark). Real, measured
+      result after the fix: **~1.7s** for a synthetic 370,000-concept
+      random-tree ontology (International Edition's active-concept
+      count), ~13.5 entailed superclasses/concept on average — see
+      `examples/benchmark_synthetic_ontology.rs`, runnable directly
+      (`cargo run --release --example benchmark_synthetic_ontology -p
+      snomed-classify`).
+- [x] Tests target each completion rule with a case that's *wrong*
+      without it, not just happy-path smoke tests: plain transitivity;
+      existential propagation across a role successor (the core EL
+      feature — classifying a GCI that no single axiom mentions the
+      classified concept in); role hierarchy propagation; two-hop
+      transitive-role composition; a genuine property chain (SNOMED's
+      real "active ingredient" pattern, spec/12); `EquivalentClasses`
+      mutual subsumption; and that skipped constructs are reported
+      without dropping the rest of the axiom they appeared in.
+- [x] New `AGENTS/classify-engineer.md` playbook (the two-phase-loop and
+      random-tree-benchmark lessons above are its load-bearing rules, so
+      they don't get "simplified away" later). `AGENTS/owl-engineer.md`
+      and spec/12-owl.md updated to point to this crate instead of
+      describing classification as purely hypothetical. Wired into the
+      `snomed` facade. 215 tests passing workspace-wide (10 new), clippy
+      clean.
+
+This closes Phase 7 (see `plan.md`).
+
 ## Next up
 
 - [ ] Nothing currently scoped. Candidate future work (not yet
-      decided/planned): a real classifier/reasoner layer for `snomed-owl`
-      (large, likely its own `plan.md` phase if ever pursued); a
-      `snomed-fhir` HTTP server crate; re-running the Phase 4 benchmark
-      against a real International Edition release if one becomes
-      available.
+      decided/planned): the "necessary normal form" RF2-relationship-
+      generation pipeline on top of `snomed-classify` (role-group-aware
+      redundancy elimination — a distinct, harder problem than
+      subsumption classification itself); a `snomed-cli classify`
+      subcommand wiring a loaded release's OWL Expression refset through
+      `snomed-owl`/`snomed-classify`; a `snomed-fhir` HTTP server crate;
+      re-running the Phase 4 `snomed-store` benchmark (and now the
+      Phase 7 `snomed-classify` one) against a real International
+      Edition release if one becomes available.

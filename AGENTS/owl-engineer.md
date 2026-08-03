@@ -36,11 +36,15 @@ keeping the rest of the real shape intact (root `CLAUDE.md` convention).
 ## The one rule that matters most
 
 **This crate parses; it does not reason.** No classification, no
-inferred-hierarchy computation, no DL reasoner. If a task starts to look
-like "given these axioms, compute the necessary normal form" — that's a
-different, much larger project (`snomed-owl-toolkit` wraps the full OWL
-API plus ELK for this) and needs a `plan.md` decision, not an incremental
-addition here.
+inferred-hierarchy computation, no DL reasoner — that's
+[`snomed-classify`](../crates/snomed-classify)'s job now (spec/13,
+`AGENTS/classify-engineer.md`), a separate crate that consumes this
+one's `Axiom` output. If a task starts to look like "given these axioms,
+compute the *necessary normal form*" (RF2 relationship generation with
+role-group-aware redundancy elimination on top of a classification) —
+that's a distinct, harder problem `snomed-classify` doesn't attempt
+either (see its README); it would need its own `plan.md` decision, not
+folding into either existing crate.
 
 ## Never let an unsupported construct silently misparse
 

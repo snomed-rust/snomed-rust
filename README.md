@@ -33,6 +33,7 @@ or analytics pipelines.
 | [`crates/snomed-ecl`](crates/snomed-ecl) | Expression Constraint Language: lexer, parser, evaluator for simple expression constraints + basic refinements |
 | [`crates/snomed-fhir`](crates/snomed-fhir) | FHIR terminology service building blocks: `$subsumes`, `$lookup`, `$expand` |
 | [`crates/snomed-owl`](crates/snomed-owl) | Parser for the OWL 2 functional-syntax subset used in the OWL Expression reference set |
+| [`crates/snomed-classify`](crates/snomed-classify) | EL-profile subsumption classifier (completion algorithm) over OWL axioms |
 | [`crates/snomed-cli`](crates/snomed-cli) | `snomed-cli` binary: `sctid`, `load`, `lookup`, `ecl`, `export`, `validate` subcommands |
 
 Supporting documents:
@@ -83,6 +84,12 @@ assert_eq!(outcome.as_fhir_code(), "subsumes");
 
 // Parse an OWL axiom from the OWL Expression refset (spec/12).
 let axiom = parse_owl("SubClassOf(:404684003 :138875005)")?;
+
+// Classify a set of axioms: compute entailed subsumption (spec/13).
+let report = classify(&[axiom]);
+let entailed = report
+    .classification
+    .is_subsumed_by(SctId::parse("404684003")?, constants::ROOT_CONCEPT);
 ```
 
 Or from the terminal, once you have an unzipped RF2 release directory:

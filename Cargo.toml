@@ -2,6 +2,7 @@
 resolver = "2"
 members = [
     "crates/snomed",
+    "crates/snomed-classify",
     "crates/snomed-cli",
     "crates/snomed-core",
     "crates/snomed-ecl",
@@ -22,6 +23,7 @@ categories = ["science", "parser-implementations"]
 authors = ["Joel Parker Henderson <joel@joelparkerhenderson.com>"]
 
 [workspace.dependencies]
+snomed-classify = { path = "crates/snomed-classify", version = "0.1.0" }
 snomed-core = { path = "crates/snomed-core", version = "0.1.0" }
 snomed-ecl = { path = "crates/snomed-ecl", version = "0.1.0" }
 snomed-fhir = { path = "crates/snomed-fhir", version = "0.1.0" }

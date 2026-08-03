@@ -9,8 +9,8 @@ parsing (`snomed-rf2`), core identifier/component types (`snomed-core`), an
 in-memory snapshot store with hierarchy queries (`snomed-store`), an
 Expression Constraint Language parser/evaluator (`snomed-ecl`), FHIR
 terminology service building blocks (`snomed-fhir`), an OWL axiom parser
-(`snomed-owl`), a command-line binary (`snomed-cli`), and a facade crate
-(`snomed`).
+(`snomed-owl`), an EL-profile subsumption classifier (`snomed-classify`),
+a command-line binary (`snomed-cli`), and a facade crate (`snomed`).
 
 ## Ground rules
 
@@ -39,6 +39,8 @@ Specialized instructions live in `AGENTS/`:
 - `AGENTS/fhir-engineer.md` — extending `snomed-fhir`'s terminology
   operations.
 - `AGENTS/owl-engineer.md` — extending the OWL axiom lexer/parser.
+- `AGENTS/classify-engineer.md` — extending the EL subsumption
+  classifier.
 - `AGENTS/cli-engineer.md` — extending the `snomed-cli` binary.
 - `AGENTS/qa-reviewer.md` — review and verification checklist.
 

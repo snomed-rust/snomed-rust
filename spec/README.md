@@ -24,6 +24,11 @@ Official sources:
   SNOMED International's reference RF2-to-OWL/classification
   implementation, for which OWL constructs SNOMED CT actually uses (not
   stated in docs.snomed.org's prose).
+- Baader/Brandt/Lutz, "Pushing the EL Envelope" (IJCAI 2005), and the EL+
+  role-hierarchy/composition extension (Baader/Lutz/Suntisrivaraporn) —
+  the EL-profile completion algorithm SNOMED CT's own reasoners (ELK,
+  CEL) implement, and this workspace's `snomed-classify` implements from
+  scratch.
 
 ## Index
 
@@ -41,6 +46,7 @@ Official sources:
 | [10-ecl.md](10-ecl.md) | Expression Constraint Language (simple constraints + basic refinements) | `snomed-ecl` |
 | [11-fhir.md](11-fhir.md) | FHIR terminology service building blocks: `$lookup`, `$subsumes`, `$expand` | `snomed-fhir` |
 | [12-owl.md](12-owl.md) | OWL Expression reference set: parsing axioms in OWL 2 functional syntax | `snomed-owl` |
+| [13-classification.md](13-classification.md) | EL-profile subsumption classification (completion algorithm) | `snomed-classify` |
 
 ## Conventions used in these specs
 

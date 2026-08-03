@@ -11,7 +11,9 @@
 //! - [`fhir`] ([`snomed_fhir`]) — FHIR terminology service building blocks:
 //!   `$subsumes`, `$lookup`, `$expand`;
 //! - [`owl`] ([`snomed_owl`]) — parser for the OWL 2 functional-syntax
-//!   subset used in the OWL Expression reference set.
+//!   subset used in the OWL Expression reference set;
+//! - [`classify`] ([`snomed_classify`]) — EL-profile subsumption
+//!   classifier over `snomed_owl::Axiom`s.
 //!
 //! ```
 //! use snomed::prelude::*;
@@ -24,6 +26,7 @@
 //! assert!(store.is_active(constants::ROOT_CONCEPT));
 //! ```
 
+pub use snomed_classify as classify;
 pub use snomed_core as core;
 pub use snomed_ecl as ecl;
 pub use snomed_fhir as fhir;
@@ -70,4 +73,6 @@ pub mod prelude {
         parse as parse_owl, Axiom, ClassExpression, Literal as OwlLiteral,
         ObjectPropertyExpression, OwlError,
     };
+
+    pub use snomed_classify::{classify, Classification, ClassificationReport, SkippedConstruct};
 }

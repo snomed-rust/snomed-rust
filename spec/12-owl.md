@@ -23,10 +23,11 @@ Official sources:
 `snomed-owl` parses one `owlExpression` column value (from
 `snomed_rf2::refset::OwlExpressionRefsetMember`, spec/08) into a structured
 [`Axiom`]. It is **a parser, not a reasoner** — it does not classify,
-infer a hierarchy, or otherwise reason over axioms. Building a real DL
-classifier is a large undertaking (`snomed-owl-toolkit` itself wraps the
-full OWL API plus the ELK reasoner) and is explicitly out of scope for
-this zero-dependency workspace; see root `README.md`'s "where this fits".
+infer a hierarchy, or otherwise reason over axioms; that's
+[`snomed-classify`](../crates/snomed-classify)'s job (spec/13), consuming
+this crate's `Axiom` output as its input. Keeping parsing and reasoning in
+separate crates (rather than growing this one into both) is deliberate —
+see `AGENTS/owl-engineer.md`.
 
 ## Grammar (this subset only)
 
@@ -126,7 +127,8 @@ unrecognized construct — never silently misparsed or dropped:
 
 Also out of scope, not merely unimplemented:
 - **Classification / reasoning.** Turning axioms into an inferred
-  hierarchy needs a DL reasoner; this crate stops at parsing.
+  hierarchy needs a DL reasoner; this crate stops at parsing. See
+  `snomed-classify` (spec/13) for the reasoning half.
 - **The OWL Ontology reference set** (header/prefix/ontology-IRI
   declarations, a separate, singular-per-module refset from the OWL
   Expression member rows this crate parses) — not read at all.

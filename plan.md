@@ -262,6 +262,64 @@ fix it surfaced, and `HistoryStore`.
   already-verified `i`/`c`/`s` convention, not a literal citation.
   This closes every refset pattern this workspace tracks.
 
+**Phase 6 is closed.**
+
+## Phase 7 — Reasoning (`snomed-classify`) ✅
+
+- New crate `snomed-classify` ✅: an EL-profile subsumption classifier
+  over `snomed_owl::Axiom`s — the completion (saturation) algorithm from
+  Baader/Brandt/Lutz, ["Pushing the EL
+  Envelope"](https://www.ijcai.org/Proceedings/05/Papers/0372.pdf)
+  (IJCAI 2005), extended with the EL+ role-hierarchy/composition rules
+  (Baader/Lutz/Suntisrivaraporn) for property chains and transitive
+  attributes SNOMED CT actually uses. Implemented from scratch — no DL
+  reasoner dependency, consistent with the zero-external-dependency
+  stance. `snomed-owl` parses syntax; this crate reasons over the
+  result — deliberately kept as separate crates (see
+  `AGENTS/owl-engineer.md` and `AGENTS/classify-engineer.md`).
+- Scope: `SubClassOf` (general concept inclusion falls out for free, same
+  as `snomed-owl`'s parser — no special-case needed once the normal
+  forms are right), `EquivalentClasses`, `ObjectIntersectionOf`,
+  `ObjectSomeValuesFrom`, `SubObjectPropertyOf` (role hierarchy +
+  `ObjectPropertyChain` composition), `TransitiveObjectProperty`.
+  `ReflexiveObjectProperty`/`SubDataPropertyOf`/`DataHasValue` are
+  recognized but not modeled (concrete-value reasoning is a different
+  problem than EL's qualitative completion; reflexivity is real but rare
+  in practice) — every occurrence is reported via
+  `ClassificationReport::skipped`, never silently dropped. Answers
+  **subsumption only** — not SNOMED's "necessary normal form" (RF2
+  relationship generation with role-group-aware redundancy elimination
+  on top of a classification, per `snomed-owl-toolkit`'s own
+  documentation of that step) — a distinct, harder downstream problem,
+  out of scope here.
+- Tests cover each completion rule with a case that's *wrong* without
+  it — plain transitivity, existential propagation across a role
+  successor (the core EL feature — a GCI classified via combining three
+  axioms, none of which mention the classified concept directly), role
+  hierarchy propagation, two-hop transitive-role composition, and a
+  genuine property chain (SNOMED's real "active ingredient" pattern) —
+  not just happy-path smoke tests.
+- **A real quadratic-time bug found via honest benchmarking, not
+  fabricated numbers**: an early version of the completion loop used
+  `.cloned()` on growing subsumer/successor/predecessor collections to
+  sidestep borrow-checker conflicts, which took *minutes* on a synthetic
+  20k-concept ontology. Caught because the benchmark used a **random
+  tree** (matching SNOMED CT's actual shallow, wide hierarchy shape, and
+  `snomed-store`'s own synthetic-benchmark convention) rather than a
+  `SubClassOf` chain — a chain has O(N²) *inherent* subsumption pairs
+  regardless of algorithm quality, which would have hidden the bug
+  behind "well, chains are just slow". Fixed by restructuring the event
+  loop into a strict two-phase (collect deltas from borrowed state, then
+  apply mutably) shape throughout, eliminating the clones. Real,
+  measured result after the fix: **~1.7s** to classify a synthetic
+  370,000-concept random-tree ontology (International Edition's
+  active-concept count) on the dev machine used for this run, ~13.5
+  entailed superclasses per concept on average — see
+  `examples/benchmark_synthetic_ontology.rs`.
+- Wired into the `snomed` facade (`snomed::classify` module,
+  `classify`/`Classification`/`ClassificationReport`/`SkippedConstruct`
+  in the prelude).
+
 ## Non-goals (for now)
 
 - Authoring/extension management workflows (Snow Owl territory).
