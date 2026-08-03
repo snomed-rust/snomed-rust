@@ -111,29 +111,26 @@ let result = expand(
 # Ok(()) }
 ```
 
-Four of SNOMED CT's five implicit value set forms are implemented,
-mapped onto existing primitives rather than reimplemented:
-`?fhir_vs` (every concept), `?fhir_vs=isa/[sctid]` (self + descendants,
-via `SnapshotStore::descendants` — mirrors `snomed-ecl`'s `<<` exactly),
-`?fhir_vs=refset/[sctid]` (`SnapshotStore::refset_members`), and
+All five of SNOMED CT's implicit value set forms are implemented, mapped
+onto existing primitives rather than reimplemented: `?fhir_vs` (every
+concept), `?fhir_vs=isa/[sctid]` (self + descendants, via
+`SnapshotStore::descendants` — mirrors `snomed-ecl`'s `<<` exactly),
+`?fhir_vs=refset/[sctid]` (`SnapshotStore::refset_members`),
 `?fhir_vs=ecl/[ecl]` (`snomed_ecl::parse`/`evaluate` directly, so an
 invalid ECL expression comes back as `FhirError::InvalidEcl`, never a
-panic). `activeOnly`/`count`/`offset`/`includeDesignations` are supported;
-`filter` does a case-insensitive substring match against active
-description terms — a deliberate simplification, not full-text search.
-`total` always reflects the *pre-paging* match count, so a caller can
-tell "3 total, showing 1" apart from "1 total".
-
-The bare `?fhir_vs=refset` form (every concept that is itself a refset
-identifier) needs a `SnapshotStore` index of distinct `refsetId`s this
-workspace doesn't build yet — rejected via `FhirError::UnsupportedValueSet`
-rather than silently returning nothing.
+panic), and the bare `?fhir_vs=refset` (`SnapshotStore::refset_ids` — the
+key set of the same unified refset-membership index `refset_members`/
+`is_member` already use; no new index was needed). `activeOnly`/`count`/
+`offset`/`includeDesignations` are supported; `filter` does a
+case-insensitive substring match against active description terms — a
+deliberate simplification, not full-text search. `total` always reflects
+the *pre-paging* match count, so a caller can tell "3 total, showing 1"
+apart from "1 total".
 
 ## What's not implemented yet
 
 Scoped in `spec/11-fhir.md`, not yet built (see the root `tasks.md`):
 
-- The bare `?fhir_vs=refset` implicit value set (above).
 - `$expand`'s `context`-based expansion and inline `valueSet` expansion
   (a `ValueSet` resource body given directly in the request rather than
   referenced by `url`).

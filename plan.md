@@ -191,12 +191,13 @@ fix it surfaced, and `HistoryStore`.
   `pub(crate)` helpers rather than duplicated. `snomed-ecl` became a real
   dependency of `snomed-fhir` at this point (deliberately not one before —
   `$subsumes`/`$lookup` didn't need it). The bare `?fhir_vs=refset` form
-  (every concept that's itself a refset identifier) remains not yet
-  implemented — needs a `SnapshotStore` index this workspace doesn't
-  build yet, rejected via `FhirError::UnsupportedValueSet` rather than
-  silently returning nothing. All three operations spec/11 scoped are now
-  implemented; wired into the `snomed` facade's prelude alongside the
-  other query-layer crates.
+  (every concept that's itself a refset identifier) ✅ too — turned out to
+  need **no new index**: a new `SnapshotStore::refset_ids()` accessor just
+  exposes `refset_memberships`'s existing key set, since that map was
+  already unified across every refset type by `refsetId` (spec/08 rule 4)
+  for `is_member`/`refset_members`. All five implicit value set forms and
+  all three operations spec/11 scoped are now implemented; wired into the
+  `snomed` facade's prelude alongside the other query-layer crates.
 - OWL expression refset parsing into axioms (candidate `snomed-owl`) —
   still just a candidate, not started.
 

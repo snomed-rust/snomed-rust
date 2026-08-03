@@ -578,6 +578,16 @@ impl SnapshotStore {
             .copied()
     }
 
+    /// Every distinct `refsetId` with at least one active membership row,
+    /// of any refset type — i.e. every concept that is itself a refset
+    /// identifier with active content. Order is unspecified. This is
+    /// `refset_memberships`'s key set, already unified across every
+    /// refset type at `build()` time (spec/08 rule 4) — no separate index
+    /// needed.
+    pub fn refset_ids(&self) -> impl Iterator<Item = SctId> + '_ {
+        self.refset_memberships.keys().copied()
+    }
+
     /// Active Association refset members for `component_id` in `refset_id`
     /// (e.g. historical SAME AS / REPLACED BY associations).
     pub fn association_members(
@@ -926,6 +936,50 @@ mod tests {
             .collect();
         assert_eq!(members, vec![fsn_id]);
         assert!(store.refset_members(ICD10_MAP).next().is_none());
+    }
+
+    #[test]
+    fn refset_ids_lists_every_refset_with_active_content() {
+        let fsn_id = SctId::compose(1002, ComponentType::Description, None).unwrap();
+        let mut b = SnapshotStore::builder();
+        b.add_language_member(LanguageRefsetMember {
+            core: core(
+                "80000000-0000-4000-8000-000000000017",
+                20190731,
+                true,
+                constants::US_ENGLISH_LANGUAGE_REFSET,
+                fsn_id,
+            ),
+            acceptability_id: constants::PREFERRED,
+        });
+        b.add_simple_member(SimpleRefsetMember {
+            core: core(
+                "80000000-0000-4000-8000-000000000018",
+                20190731,
+                true,
+                ICD10_MAP,
+                MI,
+            ),
+        });
+        // Inactive membership only: this refset's id must not appear.
+        let never_active_refset = SctId::compose(9997, ComponentType::Concept, None).unwrap();
+        b.add_simple_member(SimpleRefsetMember {
+            core: core(
+                "80000000-0000-4000-8000-000000000019",
+                20190731,
+                false,
+                never_active_refset,
+                MI,
+            ),
+        });
+        let store = b.build();
+
+        let mut ids: Vec<SctId> = store.refset_ids().collect();
+        ids.sort();
+        let mut expected = vec![constants::US_ENGLISH_LANGUAGE_REFSET, ICD10_MAP];
+        expected.sort();
+        assert_eq!(ids, expected);
+        assert!(!ids.contains(&never_active_refset));
     }
 
     #[test]

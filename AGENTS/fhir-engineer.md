@@ -72,7 +72,7 @@ of those three (including `normalForm`/`normalFormTerse`) is rejected via
 `FhirError::UnsupportedProperty` — don't special-case those two names,
 the catch-all arm already covers every unsupported property uniformly.
 
-## `$expand` is implemented (`src/expand.rs`) — four of five forms
+## `$expand` is implemented (`src/expand.rs`) — all five forms
 
 `parse_implicit_value_set(url)` classifies the `url` into
 `ImplicitValueSet` (public — useful to a hosting server on its own, e.g.
@@ -86,7 +86,7 @@ or a bespoke ECL evaluator:
 | `?fhir_vs=isa/[sctid]` | `store.descendants(id)` plus `id` itself iff `store.concept(id).is_some()` — mirrors `snomed-ecl`'s `<<` (`DescendantOrSelfOf`) exactly; see `eval.rs`'s `evaluate_concept` if you need to re-verify the equivalence |
 | `?fhir_vs=refset/[sctid]` | `SnapshotStore::refset_members` |
 | `?fhir_vs=ecl/[ecl]` | `snomed_ecl::{parse, evaluate}` directly on the given ECL text — a parse failure becomes `FhirError::InvalidEcl`, never a panic |
-| `?fhir_vs=refset` (bare) | still not possible — needs a new `SnapshotStore` index of distinct `refsetId`s seen while loading; that index belongs in `snomed-store` (see `AGENTS/store-engineer.md`), not reimplemented here. `parse_implicit_value_set` returns `FhirError::UnsupportedValueSet` for it today |
+| `?fhir_vs=refset` (bare) | `SnapshotStore::refset_ids()` — turned out to need **no new index**: `refset_memberships` was already keyed by `refsetId` (spec/08 rule 4's unification), so its key set *is* "every refsetId with active content". Don't assume a gap needs new storage before checking whether an existing index's keys already answer it. |
 
 `snomed-ecl` is a real dependency of this crate now (added when this
 landed — it deliberately wasn't one before, since `$subsumes`/`$lookup`

@@ -392,8 +392,29 @@ This closes Phase 5 (`snomed-ecl` simple constraints + basic refinements,
       are now implemented. Wired into the `snomed` facade's prelude.
       165 tests passing (13 new), clippy clean.
 
+## Done (2026-08-03, bare ?fhir_vs=refset implicit value set)
+
+- [x] Turned out to need **no new `snomed-store` index**, contrary to the
+      earlier assumption recorded above: `refset_memberships` (the
+      `refsetId -> active members` map backing `is_member`/
+      `refset_members`) was already unified across every refset type at
+      `build()` time (spec/08 rule 4), so its key set already *is* "every
+      refsetId with active content". Added `SnapshotStore::refset_ids()`
+      as a one-line accessor over that existing key set, plus a unit test
+      (asserts a refset with only an *inactive* member is correctly
+      excluded).
+- [x] `snomed-fhir`: `parse_implicit_value_set` now returns
+      `ImplicitValueSet::AllRefsets` for the bare `?fhir_vs=refset` form
+      instead of `FhirError::UnsupportedValueSet`; `expand`'s evaluator
+      handles it via `store.refset_ids()`. All five implicit value set
+      forms spec/11 documents, and all three FHIR operations it scopes,
+      are now implemented. spec/11-fhir.md, the crate README, and
+      `AGENTS/fhir-engineer.md`/`AGENTS/store-engineer.md`-adjacent docs
+      updated — the fhir-engineer note explicitly flags the lesson (check
+      whether an existing index's keys already answer a "need enumeration"
+      question before assuming new storage is required). 168 tests passing
+      (3 new), clippy clean.
+
 ## Next up (Phase 6 — interop & tooling)
 
-- [ ] `snomed-fhir`: bare `?fhir_vs=refset` implicit value set — needs a
-      new `snomed-store` index of distinct `refsetId`s seen while loading.
 - [ ] OWL expression parsing (axioms from the OWL refset).

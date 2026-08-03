@@ -72,6 +72,7 @@ store.descendants(mi);                      // -> HashSet<SctId>  (transitive)
 store.subsumes(finding, mi);                // -> bool  (reflexive: finding == mi or finding is an ancestor)
 store.is_member(snomed_core::constants::ICD10_EXTENDED_MAP_REFSET, mi); // -> bool, any refset type
 store.refset_members(snomed_core::constants::US_ENGLISH_LANGUAGE_REFSET); // -> impl Iterator<Item = SctId>
+store.refset_ids(); // -> impl Iterator<Item = SctId>, every refsetId with active content
 # }
 ```
 
@@ -151,7 +152,9 @@ implemented (documented gap, root `tasks.md`).
   from *any* refset a component appears in — a description's Language
   refset membership and a concept's ICD-10 map membership are both just
   "membership", not special-cased by which extra columns that refset type
-  happens to carry (spec/08 rule 4).
+  happens to carry (spec/08 rule 4). `refset_ids` is the same unified
+  index's key set — "every refsetId with active content" falls out for
+  free once membership itself is unified, no separate index needed.
 - **No precomputed transitive closure.** Benchmarked at International
   Edition scale (`crates/snomed-store/examples/benchmark_synthetic_release.rs`)
   — on-demand breadth-first search is µs-scale even at ~370k concepts, with

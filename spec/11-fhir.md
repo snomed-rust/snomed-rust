@@ -101,7 +101,7 @@ system than the subsumption system) are explicitly out of scope — this
 crate only ever compares two SNOMED CT codes against the SNOMED CT
 hierarchy, per the single-system scope above.
 
-## `$expand` ✅ (four of five implicit value set forms)
+## `$expand` ✅ (all five implicit value set forms)
 
 FHIR's five SNOMED CT **implicit value sets**
 ([R4 SNOMED CT page](https://www.hl7.org/fhir/R4/snomedct.html)) map onto
@@ -118,7 +118,7 @@ one just for this, so the query portion (in particular the ECL text after
 | `http://snomed.info/sct?fhir_vs=isa/[sctid]` | `[sctid]` and its descendants | ECL `<< [sctid]` |
 | `http://snomed.info/sct?fhir_vs=refset/[sctid]` | members of refset `[sctid]` | `store.refset_members([sctid])` (ECL `^ [sctid]`) |
 | `http://snomed.info/sct?fhir_vs=ecl/[ecl]` | an arbitrary ECL expression | `snomed_ecl::parse`/`evaluate` directly |
-| `http://snomed.info/sct?fhir_vs=refset` | every concept that is itself a refset identifier | **not yet implemented** — needs enumerating distinct `refsetId` values seen while loading, which no current `SnapshotStore` index tracks (tracked in `tasks.md`) |
+| `http://snomed.info/sct?fhir_vs=refset` | every concept that is itself a refset identifier with active content | `store.refset_ids()` — the key set of the same unified `refsetId -> members` index `refset_members`/`is_member` already use (spec/08 rule 4); no separate index was needed |
 
 `activeOnly` maps to `store.is_active`; `count`/`offset` are a plain
 slice of the (sorted, for determinism) result set; `includeDesignations`
@@ -129,10 +129,9 @@ active description terms — a deliberate simplification versus FHIR's
 such, not claimed to be feature-complete text search.
 
 **Not yet implemented**: `context`-based expansion (resolving an implicit
-value set from a `context` rather than an explicit `url`), `valueSet`
+value set from a `context` rather than an explicit `url`) and `valueSet`
 inline expansion (expanding a `ValueSet` resource body given directly in
-the request rather than referenced by `url`), and the `refset` (no
-`[sctid]`) implicit value set above.
+the request rather than referenced by `url`).
 
 ## Rules (normative for `snomed-fhir`)
 

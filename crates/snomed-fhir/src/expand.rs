@@ -27,6 +27,9 @@ pub enum ImplicitValueSet {
     /// `snomed-ecl`. Holds the raw (already percent-decoded — this crate
     /// does no URL decoding of its own, see [`expand`]'s docs) ECL text.
     Ecl(String),
+    /// `?fhir_vs=refset` (bare, no `[sctid]`) — every concept that is
+    /// itself a refset identifier with at least one active member.
+    AllRefsets,
 }
 
 /// Options for [`expand`], mirroring `$expand`'s optional input
@@ -81,12 +84,11 @@ pub struct Expansion {
 }
 
 /// Parses a `$expand` `url` into the [`ImplicitValueSet`] form it
-/// describes, per spec/11's five-row table. Returns
-/// [`FhirError::UnsupportedSystem`] when the URL's base isn't
+/// describes, per spec/11's five-row table — all five are recognized.
+/// Returns [`FhirError::UnsupportedSystem`] when the URL's base isn't
 /// [`SNOMED_CT_SYSTEM`], and [`FhirError::UnsupportedValueSet`] for any
-/// query shape other than the four implemented forms (including the
-/// bare `?fhir_vs=refset` form, documented as not yet implemented rather
-/// than treated as malformed input).
+/// query shape that isn't one of the five (or an `isa/`/`refset/` id
+/// that isn't a syntactically valid SCTID).
 ///
 /// **No percent-decoding**: this crate has no URL/percent-decoding
 /// parser (zero external dependencies) and doesn't add one just for this.
@@ -106,6 +108,9 @@ pub fn parse_implicit_value_set(url: &str) -> Result<ImplicitValueSet, FhirError
     let Some(value) = query.strip_prefix("fhir_vs=") else {
         return Err(FhirError::UnsupportedValueSet(url.to_string()));
     };
+    if value == "refset" {
+        return Ok(ImplicitValueSet::AllRefsets);
+    }
     if let Some(id) = value.strip_prefix("isa/") {
         return SctId::parse(id)
             .map(ImplicitValueSet::IsA)
@@ -119,9 +124,6 @@ pub fn parse_implicit_value_set(url: &str) -> Result<ImplicitValueSet, FhirError
     if let Some(ecl) = value.strip_prefix("ecl/") {
         return Ok(ImplicitValueSet::Ecl(ecl.to_string()));
     }
-    // Covers the bare `refset` form (spec/11: not yet implemented — needs
-    // a SnapshotStore index of distinct refsetIds this workspace doesn't
-    // build yet) and any other unrecognized query shape, uniformly.
     Err(FhirError::UnsupportedValueSet(url.to_string()))
 }
 
@@ -199,6 +201,7 @@ fn evaluate(
             let expr = snomed_ecl::parse(text).map_err(|e| FhirError::InvalidEcl(e.to_string()))?;
             snomed_ecl::evaluate(&expr, store)
         }
+        ImplicitValueSet::AllRefsets => store.refset_ids().collect(),
     })
 }
 
@@ -293,7 +296,15 @@ mod tests {
             parse_implicit_value_set("http://snomed.info/sct?fhir_vs=ecl/<< 404684003").unwrap(),
             ImplicitValueSet::Ecl("<< 404684003".to_string())
         );
-        let err = parse_implicit_value_set("http://snomed.info/sct?fhir_vs=refset").unwrap_err();
+        assert_eq!(
+            parse_implicit_value_set("http://snomed.info/sct?fhir_vs=refset").unwrap(),
+            ImplicitValueSet::AllRefsets
+        );
+    }
+
+    #[test]
+    fn rejects_a_genuinely_unrecognized_query_shape() {
+        let err = parse_implicit_value_set("http://snomed.info/sct?fhir_vs=nonsense").unwrap_err();
         assert!(matches!(err, FhirError::UnsupportedValueSet(_)));
     }
 
@@ -461,5 +472,36 @@ mod tests {
         )
         .unwrap();
         assert!(result.contains.iter().all(|c| c.designation.is_empty()));
+    }
+
+    #[test]
+    fn bare_refset_form_expands_every_refset_identifier() {
+        use snomed_rf2::refset::{RefsetMemberCore, SimpleRefsetMember};
+
+        let mut b = SnapshotStore::builder();
+        b.add_concept(concept(FINDING, true));
+        b.add_concept(concept(DISEASE, true));
+        // DISEASE is used as a refset identifier (has one active member);
+        // FINDING is a plain concept, never a refset identifier.
+        b.add_simple_member(SimpleRefsetMember {
+            core: RefsetMemberCore {
+                id: "80000000-0000-4000-8000-000000000031".to_string(),
+                effective_time: EffectiveTime::new_unchecked(20190731),
+                active: true,
+                module_id: constants::CORE_MODULE,
+                refset_id: DISEASE,
+                referenced_component_id: FINDING,
+            },
+        });
+        let store = b.build();
+
+        let result = expand(
+            &store,
+            "http://snomed.info/sct?fhir_vs=refset",
+            &ExpandOptions::default(),
+        )
+        .unwrap();
+        let codes: Vec<SctId> = result.contains.iter().map(|c| c.code).collect();
+        assert_eq!(codes, vec![DISEASE]);
     }
 }
