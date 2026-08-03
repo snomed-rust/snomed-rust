@@ -43,7 +43,7 @@ code systems is expected to dispatch by `system` *before* calling in here.
   that need one — it's the one piece of context only the embedding server
   has (it knows which directory it loaded).
 
-## `$lookup`
+## `$lookup` ✅
 
 Input, from the operation definition: `code` + `system` (or `coding`),
 `version`, `displayLanguage`, `property` (0..*, which properties to
@@ -64,22 +64,26 @@ Output, mapped onto what a `SnapshotStore` can answer:
 |---|---|
 | `name` | constant `"SNOMED CT"` |
 | `version` | passed through from the caller-supplied version, if given |
-| `display` | preferred term for `language_refset` if given and found, else the active FSN, else `None` (code not found) |
+| `display` | preferred term for `language_refset` if given and found, else the active FSN, else `None` if the concept exists but has no locatable description at all (distinct from the code not resolving at all, which is an `Err(FhirError::UnknownCode)` from `lookup` itself, not a `None` inside a successful result) |
 | `definition` | active `TextDefinition` description term, if one is loaded (spec/06) |
-| `designation` | every active description for the concept, with `use` = Preferred/Acceptable read off the matching language refset member's `acceptabilityId` when the description is in `language_refset`, `Unspecified` otherwise |
-| `property` — `inactive` | `!store.is_active(id)` |
+| `designation` | every active FSN/synonym description (`TextDefinition` rows are excluded — already covered by `definition`), with `use` = Preferred/Acceptable read off the matching language refset member's `acceptabilityId` when the description is in `language_refset`, `Unspecified` otherwise |
+| `property` — `inactive` | `!Concept::active` |
 | `property` — `moduleId` | `Concept::module_id` |
 | `property` — `sufficientlyDefined` | `Concept::is_sufficiently_defined()` |
 
-**Not yet implemented** (rejected with a clear error naming the property,
-never silently omitted): `normalForm`/`normalFormTerse` (require full DL
-classification of the concept's defining relationships — no classifier in
-this workspace) and SNOMED concept-model-attribute properties (e.g.
-`272741003 |Laterality|` surfaced as its own property code — needs
-attribute-group-aware traversal of the OWL/relationship data this
-workspace doesn't do yet).
+An empty `property` request returns this crate's default set (`inactive`,
+`moduleId`, `sufficientlyDefined`) rather than nothing, mirroring "if no
+properties are specified, the server chooses what to return".
 
-## `$subsumes`
+**Not yet implemented** (rejected with `FhirError::UnsupportedProperty`
+naming the property, never silently omitted): `normalForm`/
+`normalFormTerse` (require full DL classification of the concept's
+defining relationships — no classifier in this workspace) and SNOMED
+concept-model-attribute properties (e.g. `272741003 |Laterality|`
+surfaced as its own property code — needs attribute-group-aware traversal
+of the OWL/relationship data this workspace doesn't do yet).
+
+## `$subsumes` ✅
 
 Directly answerable from `SnapshotStore::subsumes`/`is_ancestor_of`
 (spec/09's reflexive-subsumption primitive already IS this operation) —

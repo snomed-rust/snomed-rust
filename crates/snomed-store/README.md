@@ -59,11 +59,12 @@ methods, which do a cycle-safe breadth-first search):
 ```rust
 # use snomed_store::SnapshotStore;
 # use snomed_core::sctid::SctId;
-# fn f(store: &SnapshotStore, mi: SctId, finding: SctId) {
+# fn f(store: &SnapshotStore, mi: SctId, finding: SctId, description_id: SctId) {
 store.concept(mi);                          // -> Option<&Concept>
 store.is_active(mi);                        // -> bool
 store.fsn(mi);                              // -> Option<&Description>
 store.preferred_term(mi, snomed_core::constants::US_ENGLISH_LANGUAGE_REFSET);
+store.acceptability(snomed_core::constants::US_ENGLISH_LANGUAGE_REFSET, description_id); // -> Option<SctId>, Preferred/Acceptable
 store.parents(mi);                          // -> &[SctId]  (direct)
 store.children(mi);                         // -> &[SctId]  (direct)
 store.ancestors(mi);                        // -> HashSet<SctId>  (transitive)

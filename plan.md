@@ -166,12 +166,20 @@ fix it surfaced, and `HistoryStore`.
   exactly what each operation maps onto existing `SnapshotStore`/
   `snomed-ecl` primitives, with a "not yet implemented" section for what
   doesn't (SNOMED classification-dependent properties, `context`-based
-  expansion, the bare `?fhir_vs=refset` implicit value set). `$subsumes`
-  implemented this increment — a thin, direct wrapper around
-  `SnapshotStore::subsumes` (spec/09's reflexive subsumption primitive
-  already *is* this operation). `$lookup`/`$expand` are scoped but not yet
-  built — see `tasks.md`. Wired into the `snomed` facade's prelude
-  alongside the other query-layer crates.
+  expansion, the bare `?fhir_vs=refset` implicit value set). `$subsumes` ✅
+  — a thin, direct wrapper around `SnapshotStore::subsumes` (spec/09's
+  reflexive subsumption primitive already *is* this operation). `$lookup`
+  ✅ — `display`/`designation`/`definition` from descriptions and language
+  refset acceptability (surfaced through a new public
+  `SnapshotStore::acceptability` accessor, exposing an index
+  `preferred_term` already built internally rather than adding a new one),
+  `property` for `inactive`/`moduleId`/`sufficientlyDefined` with an
+  explicit default set when none are requested and a hard
+  `FhirError::UnsupportedProperty` for anything else (`normalForm`,
+  concept-model-attribute properties, typos — all rejected uniformly, not
+  special-cased). `$expand` is scoped but not yet built — see `tasks.md`.
+  Wired into the `snomed` facade's prelude alongside the other query-layer
+  crates.
 - OWL expression refset parsing into axioms (candidate `snomed-owl`) —
   still just a candidate, not started.
 

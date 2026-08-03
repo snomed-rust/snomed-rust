@@ -48,15 +48,41 @@ hierarchy walk, so subsumption semantics stay in exactly one place in the
 workspace. Errors (`FhirError`) for an unsupported `system` or a code
 absent from the store — never a panic.
 
+### `$lookup`
+
+```rust
+use snomed_fhir::{lookup, SNOMED_CT_SYSTEM};
+# use snomed_store::SnapshotStore;
+# use snomed_core::{constants, sctid::SctId};
+# fn f(store: &SnapshotStore, mi: SctId) -> Result<(), snomed_fhir::FhirError> {
+
+let result = lookup(
+    store,
+    SNOMED_CT_SYSTEM,
+    mi,
+    None,                                                   // version: caller-supplied, not tracked by SnapshotStore
+    Some(constants::US_ENGLISH_LANGUAGE_REFSET),             // stands in for FHIR's displayLanguage
+    &[],                                                     // empty = this crate's default property set
+)?;
+result.display;      // -> Option<String>: preferred term in the given refset, else the FSN
+result.designation;  // -> Vec<Designation>: every active FSN/synonym, each with its Preferred/Acceptable/Unspecified use
+result.property;     // -> Vec<LookupProperty>: inactive / moduleId / sufficientlyDefined by default
+# Ok(()) }
+```
+
+`display`/`designation` read descriptions and language refset
+acceptability (`SnapshotStore::preferred_term`/`fsn`/`acceptability`);
+`definition` reads the active `TextDefinition` row if one is loaded.
+Requesting a `property` this crate can't compute (`normalForm`,
+`normalFormTerse`, or anything else) returns
+`FhirError::UnsupportedProperty` naming it, rather than silently omitting
+it — SNOMED concept-model-attribute properties and normal forms need a
+classifier this workspace doesn't have.
+
 ## What's not implemented yet
 
 Scoped in `spec/11-fhir.md`, not yet built (see the root `tasks.md`):
 
-- **`$lookup`** — `display`/`designation`/`definition` from descriptions
-  and language refset acceptability, `property` for `inactive`/
-  `moduleId`/`sufficientlyDefined`. `normalForm`/`normalFormTerse` and
-  SNOMED concept-model-attribute properties are explicitly out of scope
-  (need a classifier this workspace doesn't have).
 - **`$expand`** — SNOMED CT's implicit value sets (`?fhir_vs`,
   `?fhir_vs=isa/[sctid]`, `?fhir_vs=refset/[sctid]`, `?fhir_vs=ecl/[ecl]`)
   mapped onto `snomed-ecl`/`SnapshotStore` primitives, plus `activeOnly`/
@@ -74,5 +100,5 @@ Scoped in `spec/11-fhir.md`, not yet built (see the root `tasks.md`):
 - **Dialect instead of `displayLanguage`.** FHIR's `displayLanguage` is a
   BCP-47 tag; SNOMED CT expresses preference via language reference sets
   keyed by SCTID. Mapping one to the other is a deployment policy decision
-  this crate can't make, so `$lookup` (once implemented) takes a language
-  refset SCTID directly rather than guessing a BCP-47-to-refset mapping.
+  this crate can't make, so `$lookup` takes a language refset SCTID
+  directly rather than guessing a BCP-47-to-refset mapping.

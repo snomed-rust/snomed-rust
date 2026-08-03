@@ -460,6 +460,19 @@ impl SnapshotStore {
         })
     }
 
+    /// The `acceptabilityId` (e.g. [`constants::PREFERRED`] /
+    /// [`constants::ACCEPTABLE`]) of `description_id` in
+    /// `language_refset_id`, or `None` if that description isn't an
+    /// active member of that language refset. Exposes the same index
+    /// `preferred_term` uses internally, for callers (e.g. `snomed-fhir`'s
+    /// `$lookup`) that need acceptability for *every* description of a
+    /// concept, not just which one is preferred.
+    pub fn acceptability(&self, language_refset_id: SctId, description_id: SctId) -> Option<SctId> {
+        self.acceptability
+            .get(&(language_refset_id, description_id))
+            .copied()
+    }
+
     // -- Relationships ---------------------------------------------------
 
     /// All (latest-version) relationships whose source is this concept.
@@ -913,6 +926,47 @@ mod tests {
             .collect();
         assert_eq!(members, vec![fsn_id]);
         assert!(store.refset_members(ICD10_MAP).next().is_none());
+    }
+
+    #[test]
+    fn acceptability_exposes_the_index_preferred_term_uses_internally() {
+        let fsn_id = SctId::compose(1001, ComponentType::Description, None).unwrap();
+        let syn_id = SctId::compose(1002, ComponentType::Description, None).unwrap();
+        let mut b = SnapshotStore::builder();
+        b.add_language_member(LanguageRefsetMember {
+            core: core(
+                "80000000-0000-4000-8000-000000000015",
+                20190731,
+                true,
+                constants::US_ENGLISH_LANGUAGE_REFSET,
+                fsn_id,
+            ),
+            acceptability_id: constants::ACCEPTABLE,
+        });
+        b.add_language_member(LanguageRefsetMember {
+            core: core(
+                "80000000-0000-4000-8000-000000000016",
+                20190731,
+                true,
+                constants::US_ENGLISH_LANGUAGE_REFSET,
+                syn_id,
+            ),
+            acceptability_id: constants::PREFERRED,
+        });
+        let store = b.build();
+
+        assert_eq!(
+            store.acceptability(constants::US_ENGLISH_LANGUAGE_REFSET, fsn_id),
+            Some(constants::ACCEPTABLE)
+        );
+        assert_eq!(
+            store.acceptability(constants::US_ENGLISH_LANGUAGE_REFSET, syn_id),
+            Some(constants::PREFERRED)
+        );
+        assert_eq!(
+            store.acceptability(constants::GB_ENGLISH_LANGUAGE_REFSET, fsn_id),
+            None
+        );
     }
 
     #[test]

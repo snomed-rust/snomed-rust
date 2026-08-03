@@ -331,11 +331,35 @@ This closes Phase 5 (`snomed-ecl` simple constraints + basic refinements,
       concrete next-step notes for `$lookup`/`$expand`. Wired into the
       `snomed` facade's prelude. 141 tests passing (6 new), clippy clean.
 
+## Done (2026-08-03, snomed-fhir $lookup)
+
+- [x] `SnapshotStore::acceptability(language_refset_id, description_id) ->
+      Option<SctId>` — a new public accessor exposing the same
+      `(language refset, description) -> acceptabilityId` index
+      `preferred_term` already built internally, so `$lookup` (or any
+      other caller needing acceptability for *every* description of a
+      concept, not just the preferred one) doesn't need its own copy.
+      New `snomed-store` unit test.
+- [x] `snomed-fhir::lookup`: `display` (preferred term in a given language
+      refset, else the active FSN, else `None` for a description-less
+      concept — distinct from `Err(UnknownCode)` for a code that doesn't
+      resolve at all), `definition` (active `TextDefinition` row),
+      `designation` (every active FSN/synonym — `TextDefinition` excluded,
+      already covered by `definition` — each with its Preferred/
+      Acceptable/Unspecified use), and `property` (`inactive`/`moduleId`/
+      `sufficientlyDefined`, defaulting to all three when none are
+      requested, `FhirError::UnsupportedProperty` for anything else —
+      `normalForm`/`normalFormTerse`/concept-model-attribute properties
+      included, rejected uniformly by the same catch-all rather than
+      special-cased). spec/11-fhir.md's `$lookup` section marked ✅ and
+      tightened to match the implemented `display`-vs-`UnknownCode`
+      semantics precisely. `crates/snomed-fhir/README.md` and
+      `AGENTS/fhir-engineer.md` updated; the latter's "implementing next"
+      section rewritten into an "as-implemented" reference for future
+      extension. 152 tests passing (11 new), clippy clean.
+
 ## Next up (Phase 6 — interop & tooling)
 
-- [ ] `snomed-fhir`: `$lookup` (display/designation/definition from
-      descriptions + language refset acceptability; `inactive`/
-      `moduleId`/`sufficientlyDefined` properties).
 - [ ] `snomed-fhir`: `$expand` (SNOMED CT implicit value sets mapped onto
       `snomed-ecl`; needs a new `snomed-store` index of distinct
       `refsetId`s for the bare `?fhir_vs=refset` form).

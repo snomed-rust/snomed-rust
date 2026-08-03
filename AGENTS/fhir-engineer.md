@@ -53,18 +53,24 @@ be rejected with `FhirError::UnsupportedProperty`, never silently dropped
 from the response. A caller asking for something and getting a
 quietly-incomplete answer is worse than a clear error.
 
-## Implementing `$lookup` next
+## `$lookup` is implemented (`src/lookup.rs`)
 
-When you pick this up: `display`/`designation` need per-language-refset
-acceptability, which comes from `LanguageRefsetMember::acceptability_id`
-via `SnapshotStore`'s language refset indexes (see
-`AGENTS/store-engineer.md` and `snomed-store`'s `is_member`/
-`refset_members`) — don't add a new acceptability index here if the store
-already exposes one. `definition` reads the active `TextDefinition`
-description (spec/06) if present. Take `language_refset: Option<SctId>`
-instead of trying to map a BCP-47 `displayLanguage` tag — see spec/11's
-"Dialect instead of `displayLanguage`" note for why that mapping isn't
-this crate's call to make.
+`display`/`designation` need per-language-refset acceptability, which
+comes from `SnapshotStore::acceptability` (a public accessor added to
+`snomed-store` for this — it exposes the same `(language_refset_id,
+description_id) -> acceptabilityId` index `preferred_term` already used
+internally, rather than duplicating it here; see
+`AGENTS/store-engineer.md`). `definition` reads the active
+`TextDefinition` description (spec/06) if present; `designation`
+deliberately excludes `TextDefinition` rows since `definition` already
+covers them. Takes `language_refset: Option<SctId>` instead of trying to
+map a BCP-47 `displayLanguage` tag — see spec/11's "Dialect instead of
+`displayLanguage`" note for why that mapping isn't this crate's call to
+make. An empty `properties` slice returns the default set (`inactive`,
+`moduleId`, `sufficientlyDefined`); anything else requested that isn't one
+of those three (including `normalForm`/`normalFormTerse`) is rejected via
+`FhirError::UnsupportedProperty` — don't special-case those two names,
+the catch-all arm already covers every unsupported property uniformly.
 
 ## Implementing `$expand` next
 

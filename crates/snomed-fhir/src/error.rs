@@ -16,8 +16,10 @@ pub enum FhirError {
     /// store (spec/11 rule 3 — not a panic, a normal "not found" outcome).
     UnknownCode(SctId),
     /// A `$lookup` `property` this crate cannot compute yet (spec/11
-    /// rule 4 — rejected by name, never silently dropped).
-    UnsupportedProperty(&'static str),
+    /// rule 4 — rejected by name, never silently dropped). Owned rather
+    /// than `&'static str` since the rejected name comes from caller
+    /// input, not a fixed set this crate controls.
+    UnsupportedProperty(String),
 }
 
 impl fmt::Display for FhirError {

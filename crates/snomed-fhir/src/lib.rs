@@ -11,13 +11,15 @@
 //! (spec/11 rule 1) — this crate has no concept of other terminologies to
 //! delegate to.
 //!
-//! Implemented so far: [`subsumes`]. `$lookup` and `$expand` are scoped in
+//! Implemented so far: [`subsumes`] and [`lookup`]. `$expand` is scoped in
 //! spec/11-fhir.md but not yet implemented — see the root `tasks.md`.
 
 mod error;
+mod lookup;
 mod subsumes;
 
 pub use error::FhirError;
+pub use lookup::{lookup, Designation, DesignationUse, LookupProperty, LookupResult};
 pub use subsumes::{subsumes, SubsumeOutcome};
 
 /// The canonical FHIR `system` URI for SNOMED CT
