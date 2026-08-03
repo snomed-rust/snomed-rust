@@ -247,16 +247,40 @@ This closes Phase 5 (`snomed-ecl` simple constraints + basic refinements,
       `json.loads`), not just asserted via substring checks. 123 tests
       passing (8 new), clippy clean.
 
+## Done (2026-08-03, deeper release validation)
+
+- [x] `SnapshotStore::validate() -> ValidationReport`
+      (`crates/snomed-store/src/store/validate.rs`, a submodule of `store`
+      since it needs the private component maps): reports descriptions
+      whose `conceptId` doesn't resolve, relationships whose `sourceId`/
+      `destinationId` don't resolve, and every concept id sitting on a
+      cycle in the active inferred IS-A graph. Cycle detection is a
+      from-scratch iterative (non-recursive) DFS with white/gray/black
+      coloring over the same `parents` adjacency map traversal uses —
+      deliberately not reusing `ancestors`/`descendants`, since those
+      intentionally don't distinguish "cyclic" from "has many ancestors".
+      On a back edge, only the true cycle segment of the current DFS stack
+      is reported, not the whole root-to-node path (verified with a
+      dedicated "leads into but isn't on a cycle" test, plus a two-node
+      cycle and a self-loop case). spec/06 rule 2 and spec/07 rules 3/5
+      updated to name this as the verification step they'd anticipated.
+      Refset `referencedComponentId` dangling checks are explicitly out of
+      scope — too type-ambiguous without per-refset-type plumbing this
+      check doesn't have (documented in `crates/snomed-store/README.md`
+      and `AGENTS/store-engineer.md`, not silently skipped).
+- [x] `snomed-cli validate <release-dir> [--full]`: reuses the existing
+      `load`/`parse_load_args` helpers, prints "no issues found (<N>
+      concepts checked)" or an itemized per-category breakdown. New
+      integration tests cover both the clean case and a dangling
+      relationship-source case, with real (not fabricated) verified CLI
+      output captured in `crates/snomed-cli/README.md`.
+      131 tests passing (8 new), clippy clean.
+
 ## Next up (Phase 6 — interop & tooling)
 
 - [ ] `snomed-cli export`: whole-release-directory export in one
       invocation (currently one file per invocation — composable via shell
       globbing already, but a `--release-dir` mode would be more
       convenient for bulk conversion).
-- [ ] `snomed-cli load`/deeper release validation: beyond "did it load
-      without error" — dangling `conceptId`/`sourceId`/`destinationId`
-      references, surfaced cyclic hierarchy (spec/07 already prevents
-      hangs via cycle-safe BFS, but doesn't currently *report* a cycle as
-      a validation finding).
 - [ ] `snomed-fhir` crate decision + design doc.
 - [ ] OWL expression parsing (axioms from the OWL refset).

@@ -56,8 +56,9 @@ a `plan.md` decision explicitly — don't just add the dependency.
   hand-rolled serializer, one `*_to_json` fn per record type — extend it
   the same way `load.rs`'s dispatch gets extended when a new record type
   is added). No whole-release-directory export in a single invocation yet.
-- `load`'s "validation" is "did it load without error" — no deeper
-  consistency checks (dangling `conceptId` references, cyclic hierarchy
-  detection surfaced as a report rather than just not-hanging, etc.).
+- `validate` (backed by `SnapshotStore::validate()`) checks dangling
+  description/relationship references and IS-A cycles, but not refset
+  `referencedComponentId` references — documented gap, see
+  `AGENTS/store-engineer.md`.
 - ECL expressions must be passed as a single (shell-quoted) argument; no
   multi-arg reassembly.

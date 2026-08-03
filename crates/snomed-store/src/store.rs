@@ -1,5 +1,9 @@
 //! Snapshot store and builder.
 
+mod validate;
+
+pub use validate::ValidationReport;
+
 use std::collections::{HashMap, HashSet, VecDeque};
 
 use snomed_core::components::{Concept, Description, Relationship, RelationshipConcreteValue};

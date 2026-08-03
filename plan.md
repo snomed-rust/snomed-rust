@@ -127,15 +127,29 @@ fix it surfaced, and `HistoryStore`.
   the Full view), `lookup` (FSN/synonyms/parents/children for a concept),
   `ecl` (evaluate an expression against a loaded release), `export`
   (RF2 → NDJSON, one file at a time, all 14 record types this workspace
-  parses). Deliberately thin — `src/lib.rs`'s `run(args) -> Result<String,
+  parses), `validate` (referential integrity + IS-A acyclicity — see
+  below). Deliberately thin — `src/lib.rs`'s `run(args) -> Result<String,
   _>` does all the work and is directly testable without spawning the
   binary; `src/main.rs` is ~10 lines. Hand-rolled argument parsing *and*
   hand-rolled JSON serialization, no `clap`/`serde` — a deliberate
   continuation of the zero-dependency stance, not an oversight (see
-  `AGENTS/cli-engineer.md`). Deeper release-consistency validation
-  (dangling references, etc.) beyond "did it load without error", and
-  whole-directory `export`, are **not yet implemented** — tracked in
-  `tasks.md`.
+  `AGENTS/cli-engineer.md`). Whole-directory `export` in one invocation is
+  **not yet implemented** — tracked in `tasks.md`.
+- Deeper release validation ✅: `SnapshotStore::validate()` (new
+  `crates/snomed-store/src/store/validate.rs`) reports dangling
+  `conceptId`/`sourceId`/`destinationId` references and IS-A hierarchy
+  cycles as a structured `ValidationReport`, going beyond "did it load
+  without error" (spec/06 rule 2, spec/07 rules 3 and 5, both updated).
+  Cycle detection is a from-scratch iterative (non-recursive) DFS with
+  white/gray/black coloring over the same `parents` adjacency map
+  traversal uses, reporting only concepts genuinely *on* a cycle — not
+  concepts that merely lead into one — verified with a dedicated test.
+  Wired into `snomed-cli validate <release-dir> [--full]`, reusing the
+  existing `load`/`parse_load_args` helpers. Deliberately out of scope:
+  refset `referencedComponentId` dangling checks — too type-ambiguous to
+  validate generically without per-refset-type plumbing this check doesn't
+  have (documented gap, `crates/snomed-store/README.md` and
+  `AGENTS/store-engineer.md`).
 - New crate `snomed-fhir` (candidate): CodeSystem/ValueSet `$lookup`,
   `$subsumes`, `$expand` building blocks for FHIR terminology servers.
 - OWL expression refset parsing into axioms (candidate `snomed-owl`).

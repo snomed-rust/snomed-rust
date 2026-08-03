@@ -27,6 +27,7 @@ snomed-cli load <release-dir> [--full]      load a release directory, print a su
 snomed-cli lookup <release-dir> <id>        look up a concept: FSN, synonyms, parents, children
 snomed-cli ecl <release-dir> <expression>   evaluate an ECL expression (quote it)
 snomed-cli export <rf2-file> [output-file]  convert one RF2 file to NDJSON (stdout if no output file)
+snomed-cli validate <release-dir> [--full]  check referential integrity and IS-A acyclicity
 ```
 
 `<release-dir>` is an unzipped RF2 release directory (i.e. the folder
@@ -66,8 +67,8 @@ Phase 4 for real timing numbers at International-Edition scale.)
 Loads the directory through the same path a real consumer would use, and
 reports what got skipped and why — a quick way to sanity-check that a
 release directory is laid out as expected before writing code against it.
-This is "did it load cleanly", not deep semantic validation (dangling
-references, cycles, etc. — see the root `tasks.md` for that gap).
+This is "did it load cleanly", not deep semantic validation — for dangling
+references and cyclic hierarchy, see `validate` below.
 
 ### `lookup`
 
@@ -124,6 +125,35 @@ well past where JSON numbers keep exact precision in common consumers
 bounded integers (`relationshipGroup`, `mapGroup`, `mapPriority`,
 `attributeOrder`, `descriptionLength`) come through as JSON numbers.
 
+### `validate`
+
+```sh
+$ snomed-cli validate ./Snapshot
+loaded <N> file(s), skipped <M> in <elapsed>
+no issues found (<count> concepts checked)
+```
+
+Or, when it finds something:
+
+```sh
+$ snomed-cli validate ./Snapshot
+loaded 2 file(s), skipped 0 in 422.88µs
+1 issue(s) found:
+  dangling relationship source references (1):
+    2002021
+```
+
+(Both blocks above are real output, verified against tiny hand-written
+Concept/Relationship files — one clean, one with a relationship whose
+`sourceId` doesn't resolve to a loaded concept; only the file count/elapsed
+time in the first block are illustrative.) Checks referential integrity
+(every description's `conceptId`, every relationship's `sourceId`/
+`destinationId`, resolve to a loaded concept) and IS-A acyclicity (no
+concept sits on a cycle in the active inferred `116680003 |is a|` graph —
+spec/07 rule 3). Findings are grouped by category, each listing the ids of
+the offending components. Refset `referencedComponentId` dangling checks
+are out of scope for now — see `crates/snomed-store/README.md`.
+
 ## Design
 
 `src/lib.rs::run(args) -> Result<String, Box<dyn Error>>` holds all the
@@ -142,8 +172,9 @@ dependency.
 
 ## Known gaps
 
-Tracked in the root `tasks.md`: no deeper release-consistency validation
-beyond "did it load without error" (dangling references, reported cycles,
-etc.), `export` operates on one file at a time rather than a whole release
-directory in one invocation, and ECL expressions must be passed as one
-pre-quoted argument (no multi-argument reassembly).
+Tracked in the root `tasks.md`: `validate` doesn't check refset
+`referencedComponentId` dangling references (documented gap, see
+`crates/snomed-store/README.md`), `export` operates on one file at a time
+rather than a whole release directory in one invocation, and ECL
+expressions must be passed as one pre-quoted argument (no multi-argument
+reassembly).

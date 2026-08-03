@@ -46,6 +46,7 @@ pub fn run(args: &[String]) -> Result<String, Box<dyn Error>> {
         "lookup" => cmd_lookup(rest),
         "ecl" => cmd_ecl(rest),
         "export" => cmd_export(rest),
+        "validate" => cmd_validate(rest),
         "help" | "-h" | "--help" => Ok(usage()),
         other => Err(format!("unknown command `{other}` (try `snomed-cli help`)").into()),
     }
@@ -69,6 +70,10 @@ fn usage() -> String {
         (
             "export <rf2-file> [output-file]",
             "convert one RF2 file to NDJSON (stdout if no output file)",
+        ),
+        (
+            "validate <release-dir> [--full]",
+            "check referential integrity and IS-A acyclicity",
         ),
     ];
     let width = rows.iter().map(|(cmd, _)| cmd.len()).max().unwrap_or(0);
@@ -167,6 +172,55 @@ fn cmd_load(args: &[String]) -> Result<String, Box<dyn Error>> {
         store.active_concepts().count()
     )?;
     Ok(out)
+}
+
+fn cmd_validate(args: &[String]) -> Result<String, Box<dyn Error>> {
+    let (dir, release_type) = parse_load_args(args, "validate <release-dir> [--full]")?;
+    let (store, mut out) = load(dir, release_type)?;
+    let report = store.validate();
+
+    if report.is_clean() {
+        writeln!(
+            out,
+            "no issues found ({} concepts checked)",
+            store.concept_count()
+        )?;
+        return Ok(out);
+    }
+
+    writeln!(out, "{} issue(s) found:", report.issue_count())?;
+    write_ids(
+        &mut out,
+        "dangling description concept references",
+        &report.dangling_description_concepts,
+    )?;
+    write_ids(
+        &mut out,
+        "dangling relationship source references",
+        &report.dangling_relationship_sources,
+    )?;
+    write_ids(
+        &mut out,
+        "dangling relationship destination references",
+        &report.dangling_relationship_destinations,
+    )?;
+    write_ids(
+        &mut out,
+        "concepts on a cyclic IS-A path",
+        &report.cyclic_concepts,
+    )?;
+    Ok(out)
+}
+
+fn write_ids(out: &mut String, label: &str, ids: &[SctId]) -> Result<(), Box<dyn Error>> {
+    if ids.is_empty() {
+        return Ok(());
+    }
+    writeln!(out, "  {label} ({}):", ids.len())?;
+    for id in ids {
+        writeln!(out, "    {id}")?;
+    }
+    Ok(())
 }
 
 fn cmd_lookup(args: &[String]) -> Result<String, Box<dyn Error>> {

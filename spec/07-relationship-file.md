@@ -57,5 +57,17 @@ Identical to Relationship/StatedRelationship except column 6:
    `destinationId` the parent. Every active concept except the root
    `138875005` has at least one active IS-A row.
 3. The hierarchy MUST be acyclic; `snomed-store` treats a detected cycle as
-   data corruption and reports it rather than looping.
+   data corruption. Traversal (`ancestors`/`descendants`/`subsumes`) is
+   cycle-safe by construction (bounded BFS) so a cycle can never hang a
+   query, but that alone doesn't surface the corruption — `SnapshotStore::
+   validate()` does: it runs an iterative DFS over the same `sourceId ->
+   destinationId` IS-A edges and reports every concept id that sits on a
+   cycle (`ValidationReport::cyclic_concepts`), not just concepts that merely
+   lead into one.
 4. `relationshipGroup` numbers are only meaningful within one source concept.
+5. `sourceId` and `destinationId` MUST both resolve to a concept present in
+   the same release view. `SnapshotStore::validate()` reports any
+   relationship whose `sourceId` or `destinationId` doesn't resolve
+   (`dangling_relationship_sources` / `dangling_relationship_destinations`)
+   rather than treating a dangling reference as silently absent from
+   hierarchy/attribute queries.

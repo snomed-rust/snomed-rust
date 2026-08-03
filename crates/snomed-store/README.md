@@ -17,7 +17,7 @@ Snapshot, and Delta) and get the same result.
 | Spec | Covers |
 |---|---|
 | [`spec/02-release-types.md`](../../spec/02-release-types.md) | Directory-loading rules (`load_release_dir`) |
-| [`spec/07-relationship-file.md`](../../spec/07-relationship-file.md) | IS-A hierarchy = active + inferred + `typeId 116680003` rows, and only those |
+| [`spec/07-relationship-file.md`](../../spec/07-relationship-file.md) | IS-A hierarchy = active + inferred + `typeId 116680003` rows, and only those; acyclicity + referential integrity via `validate()` |
 | [`spec/08-refset-files.md`](../../spec/08-refset-files.md) | Refset membership = `refsetId` + `referencedComponentId` + active, uniform across every refset type |
 | [`spec/09-versioning.md`](../../spec/09-versioning.md) | Snapshot construction (latest wins) and History construction (keep every version) |
 
@@ -74,6 +74,36 @@ Plus per-refset-type accessors (`association_members`,
 full typed member rows rather than just a scalar, and
 `relationships_of`/`relationship_concrete_values_of` for the raw
 relationship data hierarchy queries are built on top of.
+
+### Validation
+
+`store.validate()` checks referential integrity and IS-A acyclicity and
+returns a `ValidationReport`:
+
+```rust
+# use snomed_store::SnapshotStore;
+# fn f(store: &SnapshotStore) {
+let report = store.validate();
+if !report.is_clean() {
+    for id in &report.cyclic_concepts { /* concept ids sitting on an IS-A cycle */ }
+    for id in &report.dangling_description_concepts { /* description ids whose conceptId doesn't resolve */ }
+    for id in &report.dangling_relationship_sources { /* relationship ids whose sourceId doesn't resolve */ }
+    for id in &report.dangling_relationship_destinations { /* ... destinationId ... */ }
+}
+# }
+```
+
+Every field lists the id of the *offending* component, not the missing
+target. Cycle detection is an iterative (non-recursive) DFS over the same
+`sourceId -> destinationId` IS-A edges hierarchy traversal uses, so it
+survives arbitrarily deep chains without blowing the stack — and, unlike
+plain traversal (which is already cycle-safe by construction and simply
+won't hang), it reports exactly which concepts are *on* the cycle, not
+concepts that merely lead into one. Refset `referencedComponentId` dangling
+checks are out of scope — a member can legitimately reference a concept,
+description, or other component depending on the refset's semantics, and
+validating that generically would need per-refset-type knowledge this check
+doesn't have (documented gap, root `tasks.md`).
 
 ## `HistoryStore`
 

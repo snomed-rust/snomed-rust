@@ -47,6 +47,9 @@ description id as preferred (`900000000000548007`) or acceptable
 
 1. `id` MUST carry a description partition identifier (01 or 11).
 2. An active description SHOULD reference an existing concept; a store MAY
-   accept forward references while loading and verify afterwards.
+   accept forward references while loading and verify afterwards —
+   `SnapshotStore::validate()` is that verification step, reporting any
+   description whose `conceptId` doesn't resolve
+   (`ValidationReport::dangling_description_concepts`).
 3. The semantic tag of a concept is derived from its active FSN's trailing
    parenthesized suffix.

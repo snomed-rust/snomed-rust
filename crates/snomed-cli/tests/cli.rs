@@ -228,6 +228,56 @@ fn export_language_refset_includes_acceptability() {
 }
 
 #[test]
+fn validate_reports_a_clean_release() {
+    let tmp = TempDir::new("validate-clean");
+    write_synthetic_release(tmp.path());
+
+    let out = snomed_cli::run(&[
+        "validate".to_string(),
+        tmp.path().to_str().unwrap().to_string(),
+    ])
+    .unwrap();
+
+    assert!(
+        out.contains("no issues found (3 concepts checked)"),
+        "{out}"
+    );
+}
+
+#[test]
+fn validate_detects_a_dangling_relationship_destination() {
+    let tmp = TempDir::new("validate-dangling");
+    write(
+        tmp.path(),
+        "Snapshot/Terminology/sct2_Concept_Snapshot_INT_20190731.txt",
+        "id\teffectiveTime\tactive\tmoduleId\tdefinitionStatusId\n\
+         404684003\t20190731\t1\t900000000000207008\t900000000000074008\n",
+    );
+    let rel = SctId::compose(3001, ComponentType::Relationship, None).unwrap();
+    write(
+        tmp.path(),
+        "Snapshot/Terminology/sct2_Relationship_Snapshot_INT_20190731.txt",
+        &format!(
+            "id\teffectiveTime\tactive\tmoduleId\tsourceId\tdestinationId\trelationshipGroup\ttypeId\tcharacteristicTypeId\tmodifierId\n\
+             {rel}\t20190731\t1\t900000000000207008\t404684003\t138875005\t0\t116680003\t900000000000011006\t900000000000451002\n",
+        ),
+    );
+
+    let out = snomed_cli::run(&[
+        "validate".to_string(),
+        tmp.path().to_str().unwrap().to_string(),
+    ])
+    .unwrap();
+
+    assert!(out.contains("1 issue(s) found"), "{out}");
+    assert!(
+        out.contains("dangling relationship destination references (1):"),
+        "{out}"
+    );
+    assert!(out.contains(&rel.to_string()), "{out}");
+}
+
+#[test]
 fn export_rejects_unrecognized_file_name() {
     let tmp = TempDir::new("export-bad-name");
     write(tmp.path(), "not-an-rf2-file.txt", "hello\n");

@@ -16,4 +16,4 @@ mod store;
 
 pub use history::{HistoryStore, HistoryStoreBuilder};
 pub use load::{LoadError, LoadReport};
-pub use store::{SnapshotStore, SnapshotStoreBuilder};
+pub use store::{SnapshotStore, SnapshotStoreBuilder, ValidationReport};

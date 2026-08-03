@@ -37,3 +37,22 @@ queries.
   like ECL `<<`, `is_ancestor_of` strict like `<`).
 - Return iterators or slices over owned copies where possible.
 - Every new query gets a unit test against the small in-module fixture store.
+
+## Validation (`store/validate.rs`)
+
+`SnapshotStore::validate() -> ValidationReport` is the one place cyclic
+hierarchy and dangling references get *surfaced* rather than merely
+survived. Keep the split clear: invariant 3 above (cycle-safe BFS) means
+traversal never hangs on corrupt data; `validate()` is the separate,
+explicit "tell me what's wrong" pass — don't fold reporting logic into the
+traversal methods themselves. `find_cyclic_concepts` is a private,
+from-scratch iterative DFS (white/gray/black coloring) over the same
+`parents` map traversal uses; it does not reuse `ancestors`/`descendants`
+because those intentionally don't distinguish "cyclic" from "has many
+ancestors". Scope is deliberately limited to concept/description/
+relationship referential integrity — refset `referencedComponentId`
+checking is out (a member can reference a concept, description, or other
+component depending on refset semantics, and validating that generically
+needs per-refset-type knowledge this check doesn't have); if you add that,
+it likely needs a `refset_descriptor_members`-driven approach, not a blind
+`contains_key` check.
