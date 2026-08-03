@@ -102,25 +102,14 @@ pub fn lookup(
     }
     let concept = store.concept(code).ok_or(FhirError::UnknownCode(code))?;
 
-    let display = language_refset
-        .and_then(|refset| store.preferred_term(code, refset))
-        .or_else(|| store.fsn(code))
-        .map(|d| d.term.clone());
+    let display = display_for(store, language_refset, code);
 
     let definition = store
         .descriptions_of(code)
         .find(|d| d.active && d.type_id == constants::TEXT_DEFINITION)
         .map(|d| d.term.clone());
 
-    let designation = store
-        .descriptions_of(code)
-        .filter(|d| d.active && d.type_id != constants::TEXT_DEFINITION)
-        .map(|d| Designation {
-            language_code: d.language_code.clone(),
-            value: d.term.clone(),
-            use_: designation_use(store, language_refset, d.id),
-        })
-        .collect();
+    let designation = designations_for(store, language_refset, code);
 
     let requested: &[&str] = if properties.is_empty() {
         &DEFAULT_PROPERTIES
@@ -147,6 +136,40 @@ pub fn lookup(
         designation,
         property,
     })
+}
+
+/// The preferred term in `language_refset` if one was given and found,
+/// else the active FSN, else `None`. Shared by `lookup`'s `display` and
+/// `expand`'s per-`contains`-entry display (spec/11).
+pub(crate) fn display_for(
+    store: &SnapshotStore,
+    language_refset: Option<SctId>,
+    concept_id: SctId,
+) -> Option<String> {
+    language_refset
+        .and_then(|refset| store.preferred_term(concept_id, refset))
+        .or_else(|| store.fsn(concept_id))
+        .map(|d| d.term.clone())
+}
+
+/// Every active FSN/synonym description of `concept_id` (`TextDefinition`
+/// rows excluded — `lookup`'s `definition` field covers those), each with
+/// its use in `language_refset`. Shared by `lookup` and `expand`'s
+/// `includeDesignations` (spec/11).
+pub(crate) fn designations_for(
+    store: &SnapshotStore,
+    language_refset: Option<SctId>,
+    concept_id: SctId,
+) -> Vec<Designation> {
+    store
+        .descriptions_of(concept_id)
+        .filter(|d| d.active && d.type_id != constants::TEXT_DEFINITION)
+        .map(|d| Designation {
+            language_code: d.language_code.clone(),
+            value: d.term.clone(),
+            use_: designation_use(store, language_refset, d.id),
+        })
+        .collect()
 }
 
 fn designation_use(

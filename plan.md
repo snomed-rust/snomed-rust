@@ -177,9 +177,26 @@ fix it surfaced, and `HistoryStore`.
   explicit default set when none are requested and a hard
   `FhirError::UnsupportedProperty` for anything else (`normalForm`,
   concept-model-attribute properties, typos — all rejected uniformly, not
-  special-cased). `$expand` is scoped but not yet built — see `tasks.md`.
-  Wired into the `snomed` facade's prelude alongside the other query-layer
-  crates.
+  special-cased). `$expand` ✅ — four of SNOMED CT's five implicit value
+  set forms (`?fhir_vs`, `?fhir_vs=isa/[sctid]`, `?fhir_vs=refset/[sctid]`,
+  `?fhir_vs=ecl/[ecl]`) parsed by a new public `parse_implicit_value_set`
+  and evaluated onto existing `SnapshotStore`/`snomed-ecl` primitives —
+  `isa/` mirrors `snomed-ecl`'s `<<` exactly (descendants plus self iff
+  the id is a known concept), `ecl/` goes straight through
+  `snomed_ecl::{parse, evaluate}` so a malformed expression surfaces as
+  `FhirError::InvalidEcl`, never a panic. `activeOnly`/`count`/`offset`/
+  `includeDesignations`/`filter` (case-insensitive substring match)
+  supported; `total` always reports the pre-paging match count. `display`/
+  `designation` construction is shared with `$lookup` via new
+  `pub(crate)` helpers rather than duplicated. `snomed-ecl` became a real
+  dependency of `snomed-fhir` at this point (deliberately not one before —
+  `$subsumes`/`$lookup` didn't need it). The bare `?fhir_vs=refset` form
+  (every concept that's itself a refset identifier) remains not yet
+  implemented — needs a `SnapshotStore` index this workspace doesn't
+  build yet, rejected via `FhirError::UnsupportedValueSet` rather than
+  silently returning nothing. All three operations spec/11 scoped are now
+  implemented; wired into the `snomed` facade's prelude alongside the
+  other query-layer crates.
 - OWL expression refset parsing into axioms (candidate `snomed-owl`) —
   still just a candidate, not started.
 

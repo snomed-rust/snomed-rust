@@ -101,11 +101,16 @@ system than the subsumption system) are explicitly out of scope — this
 crate only ever compares two SNOMED CT codes against the SNOMED CT
 hierarchy, per the single-system scope above.
 
-## `$expand`
+## `$expand` ✅ (four of five implicit value set forms)
 
 FHIR's five SNOMED CT **implicit value sets**
 ([R4 SNOMED CT page](https://www.hl7.org/fhir/R4/snomedct.html)) map onto
-existing `snomed-ecl`/`SnapshotStore` primitives:
+existing `snomed-ecl`/`SnapshotStore` primitives. `snomed-fhir` parses the
+`url` itself (`parse_implicit_value_set`) rather than requiring the caller
+to pre-classify it — but does **no percent-decoding**: this crate has no
+URL/percent-decoding parser (zero external dependencies) and doesn't add
+one just for this, so the query portion (in particular the ECL text after
+`ecl/`) must already be decoded by the caller.
 
 | Implicit value set URI | Meaning | Maps to |
 |---|---|---|

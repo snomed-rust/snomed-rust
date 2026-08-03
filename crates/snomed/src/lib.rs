@@ -8,9 +8,8 @@
 //!   and hierarchy queries;
 //! - [`ecl`] ([`snomed_ecl`]) — Expression Constraint Language (simple
 //!   constraints + basic refinements);
-//! - [`fhir`] ([`snomed_fhir`]) — FHIR terminology service building blocks
-//!   (`$subsumes` so far; `$lookup`/`$expand` are scoped but not yet
-//!   implemented).
+//! - [`fhir`] ([`snomed_fhir`]) — FHIR terminology service building blocks:
+//!   `$subsumes`, `$lookup`, `$expand`.
 //!
 //! ```
 //! use snomed::prelude::*;
@@ -58,5 +57,9 @@ pub mod prelude {
         SimpleExpressionConstraint,
     };
 
-    pub use snomed_fhir::{subsumes, FhirError, SubsumeOutcome, SNOMED_CT_SYSTEM};
+    pub use snomed_fhir::{
+        expand, lookup, parse_implicit_value_set, subsumes, Designation, DesignationUse,
+        ExpandOptions, Expansion, ExpansionContains, FhirError, ImplicitValueSet, LookupProperty,
+        LookupResult, SubsumeOutcome, SNOMED_CT_SYSTEM,
+    };
 }

@@ -358,9 +358,42 @@ This closes Phase 5 (`snomed-ecl` simple constraints + basic refinements,
       section rewritten into an "as-implemented" reference for future
       extension. 152 tests passing (11 new), clippy clean.
 
+## Done (2026-08-03, snomed-fhir $expand — four of five implicit value sets)
+
+- [x] New public `parse_implicit_value_set(url) -> Result<ImplicitValueSet,
+      FhirError>`: classifies a `$expand` `url` into SNOMED CT's implicit
+      value set forms per spec/11's table. `snomed-ecl` became a real
+      dependency of `snomed-fhir` here (deliberately not one before —
+      `$subsumes`/`$lookup` didn't need it, and this workspace doesn't add
+      dependencies before they're used).
+- [x] `snomed-fhir::expand`: `?fhir_vs` (`store.concepts()` directly — the
+      same set `snomed-ecl`'s own wildcard evaluator produces internally
+      for a self-inclusive op, no need to round-trip through ECL parsing
+      for it), `?fhir_vs=isa/[sctid]` (`store.descendants(id)` plus `id`
+      itself iff it's a known concept — mirrors `snomed-ecl`'s `<<`
+      exactly), `?fhir_vs=refset/[sctid]` (`SnapshotStore::refset_members`),
+      `?fhir_vs=ecl/[ecl]` (`snomed_ecl::{parse, evaluate}` directly, so a
+      malformed expression surfaces as `FhirError::InvalidEcl`, never a
+      panic). `activeOnly`/`count`/`offset`/`includeDesignations`/`filter`
+      (case-insensitive substring match against active description terms)
+      all supported; `total` always reports the match count *before*
+      `count`/`offset` paging, so a caller can tell "3 total, showing 1"
+      apart from "1 total, showing 1". `display`/`designation`
+      construction is shared with `$lookup` via new `pub(crate)`
+      `display_for`/`designations_for` helpers in `lookup.rs` rather than
+      duplicated. The bare `?fhir_vs=refset` form remains not yet
+      implemented (needs a new `snomed-store` index of distinct
+      `refsetId`s) — `parse_implicit_value_set` rejects it with
+      `FhirError::UnsupportedValueSet` rather than silently returning
+      nothing. This crate does **no URL percent-decoding** (zero
+      dependencies) — callers must pass an already-decoded query string,
+      documented in spec/11, the crate README, and `AGENTS/
+      fhir-engineer.md`. All three operations spec/11 originally scoped
+      are now implemented. Wired into the `snomed` facade's prelude.
+      165 tests passing (13 new), clippy clean.
+
 ## Next up (Phase 6 — interop & tooling)
 
-- [ ] `snomed-fhir`: `$expand` (SNOMED CT implicit value sets mapped onto
-      `snomed-ecl`; needs a new `snomed-store` index of distinct
-      `refsetId`s for the bare `?fhir_vs=refset` form).
+- [ ] `snomed-fhir`: bare `?fhir_vs=refset` implicit value set — needs a
+      new `snomed-store` index of distinct `refsetId`s seen while loading.
 - [ ] OWL expression parsing (axioms from the OWL refset).

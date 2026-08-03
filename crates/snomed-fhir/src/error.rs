@@ -20,6 +20,15 @@ pub enum FhirError {
     /// than `&'static str` since the rejected name comes from caller
     /// input, not a fixed set this crate controls.
     UnsupportedProperty(String),
+    /// A `$expand` `url` that isn't one of the implicit value set forms
+    /// spec/11 documents (or is the bare `?fhir_vs=refset` form, which is
+    /// a documented not-yet-implemented gap, not a malformed URL).
+    UnsupportedValueSet(String),
+    /// The `ecl/` form of an implicit value set failed to parse as ECL —
+    /// wraps `snomed_ecl::EclError`'s message rather than the error type
+    /// itself, so this crate's error type doesn't leak `snomed-ecl` as a
+    /// public dependency of its public API.
+    InvalidEcl(String),
 }
 
 impl fmt::Display for FhirError {
@@ -34,6 +43,12 @@ impl fmt::Display for FhirError {
             FhirError::UnknownCode(id) => write!(f, "unknown code `{id}`"),
             FhirError::UnsupportedProperty(property) => {
                 write!(f, "property `{property}` is not yet supported by $lookup")
+            }
+            FhirError::UnsupportedValueSet(url) => {
+                write!(f, "`{url}` is not a supported implicit value set")
+            }
+            FhirError::InvalidEcl(message) => {
+                write!(f, "invalid ECL in implicit value set: {message}")
             }
         }
     }

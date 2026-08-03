@@ -72,23 +72,38 @@ of those three (including `normalForm`/`normalFormTerse`) is rejected via
 `FhirError::UnsupportedProperty` — don't special-case those two names,
 the catch-all arm already covers every unsupported property uniformly.
 
-## Implementing `$expand` next
+## `$expand` is implemented (`src/expand.rs`) — four of five forms
 
-Map SNOMED CT's implicit value set URIs onto existing primitives — don't
-reimplement traversal or ECL evaluation:
+`parse_implicit_value_set(url)` classifies the `url` into
+`ImplicitValueSet` (public — useful to a hosting server on its own, e.g.
+for logging/caching, not just an `expand` implementation detail), then
+`expand` evaluates it onto existing primitives, never a fresh traversal
+or a bespoke ECL evaluator:
 
 | URI form | Implementation |
 |---|---|
-| `?fhir_vs` | ECL `*` via `snomed_ecl::{parse, evaluate}` |
-| `?fhir_vs=isa/[sctid]` | ECL `<< [sctid]` |
+| `?fhir_vs` | `store.concepts()` directly — this is exactly what `snomed-ecl`'s wildcard evaluator does internally for a self-inclusive hierarchy op, so there's no reason to round-trip through ECL parsing for it |
+| `?fhir_vs=isa/[sctid]` | `store.descendants(id)` plus `id` itself iff `store.concept(id).is_some()` — mirrors `snomed-ecl`'s `<<` (`DescendantOrSelfOf`) exactly; see `eval.rs`'s `evaluate_concept` if you need to re-verify the equivalence |
 | `?fhir_vs=refset/[sctid]` | `SnapshotStore::refset_members` |
-| `?fhir_vs=ecl/[ecl]` | `snomed_ecl::{parse, evaluate}` directly on the given ECL |
-| `?fhir_vs=refset` (bare) | not yet possible — needs a new `SnapshotStore` index of distinct `refsetId`s seen while loading; that index belongs in `snomed-store` (see `AGENTS/store-engineer.md`), not reimplemented here |
+| `?fhir_vs=ecl/[ecl]` | `snomed_ecl::{parse, evaluate}` directly on the given ECL text — a parse failure becomes `FhirError::InvalidEcl`, never a panic |
+| `?fhir_vs=refset` (bare) | still not possible — needs a new `SnapshotStore` index of distinct `refsetId`s seen while loading; that index belongs in `snomed-store` (see `AGENTS/store-engineer.md`), not reimplemented here. `parse_implicit_value_set` returns `FhirError::UnsupportedValueSet` for it today |
 
-This will need `snomed-ecl` as a dependency — add it to
-`crates/snomed-fhir/Cargo.toml` when you start (it's deliberately not a
-dependency yet, since `$subsumes` doesn't need it and this workspace
-doesn't add dependencies before they're used).
+`snomed-ecl` is a real dependency of this crate now (added when this
+landed — it deliberately wasn't one before, since `$subsumes`/`$lookup`
+didn't need it and this workspace doesn't add dependencies before
+they're used).
+
+`display`/`designation` construction for each `contains` entry is shared
+with `$lookup` via `pub(crate) fn display_for`/`designations_for` in
+`lookup.rs` — don't reimplement that logic in `expand.rs`; import it.
+
+**No percent-decoding.** `url` is matched/split as plain text (`split_once`,
+`strip_prefix`) — this crate doesn't parse percent-encoding (zero
+dependencies), so a caller must decode the query string (especially the
+`ecl/` form's ECL text, which may contain spaces) before calling in here.
+Don't add a decoder "just in case" — that's exactly the kind of
+convenience creep the zero-dependency stance exists to push back on (root
+`AGENTS.md` rule 3).
 
 ## Tests
 

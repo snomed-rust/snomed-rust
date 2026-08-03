@@ -11,14 +11,21 @@
 //! (spec/11 rule 1) — this crate has no concept of other terminologies to
 //! delegate to.
 //!
-//! Implemented so far: [`subsumes`] and [`lookup`]. `$expand` is scoped in
-//! spec/11-fhir.md but not yet implemented — see the root `tasks.md`.
+//! All three operations spec/11-fhir.md scopes are implemented:
+//! [`subsumes`], [`lookup`], [`expand`]. The bare `?fhir_vs=refset`
+//! implicit value set and `$expand`'s `context`/inline-`valueSet` inputs
+//! remain not yet implemented — see spec/11's "Not yet implemented"
+//! section and the root `tasks.md`.
 
 mod error;
+mod expand;
 mod lookup;
 mod subsumes;
 
 pub use error::FhirError;
+pub use expand::{
+    expand, parse_implicit_value_set, ExpandOptions, Expansion, ExpansionContains, ImplicitValueSet,
+};
 pub use lookup::{lookup, Designation, DesignationUse, LookupProperty, LookupResult};
 pub use subsumes::{subsumes, SubsumeOutcome};
 

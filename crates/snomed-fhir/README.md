@@ -13,7 +13,8 @@ bindings](https://www.hl7.org/fhir/R4/snomedct.html).
 `$subsumes`/`$expand` mean for a `SnapshotStore`" as plain Rust functions
 and structs — turning that into a FHIR `Parameters`/`ValueSet` JSON body,
 routing HTTP requests, and combining SNOMED CT with other code systems is a
-hosting server's job. Depends on `snomed-core` and `snomed-store` only.
+hosting server's job. Depends on `snomed-core`, `snomed-ecl`, and
+`snomed-store`.
 
 **Single-system, by design.** Every function takes a `system: &str` and
 rejects anything other than [`SNOMED_CT_SYSTEM`]
@@ -79,16 +80,63 @@ Requesting a `property` this crate can't compute (`normalForm`,
 it — SNOMED concept-model-attribute properties and normal forms need a
 classifier this workspace doesn't have.
 
+### `$expand`
+
+```rust
+use snomed_fhir::{expand, ExpandOptions};
+# use snomed_store::SnapshotStore;
+# use snomed_core::constants;
+# fn f(store: &SnapshotStore) -> Result<(), snomed_fhir::FhirError> {
+
+// Everything under Clinical finding (404684003), reflexive — same
+// concepts as ECL "<< 404684003".
+let result = expand(
+    store,
+    "http://snomed.info/sct?fhir_vs=isa/404684003",
+    &ExpandOptions {
+        active_only: true,
+        language_refset: Some(constants::US_ENGLISH_LANGUAGE_REFSET),
+        ..Default::default()
+    },
+)?;
+result.total;     // -> usize: matches before count/offset paging
+result.contains;  // -> Vec<ExpansionContains>: system/code/display (+ designation if requested)
+
+// An arbitrary ECL expression, via the `ecl/` implicit value set form.
+let result = expand(
+    store,
+    "http://snomed.info/sct?fhir_vs=ecl/<< 404684003 MINUS << 64572001",
+    &ExpandOptions::default(),
+)?;
+# Ok(()) }
+```
+
+Four of SNOMED CT's five implicit value set forms are implemented,
+mapped onto existing primitives rather than reimplemented:
+`?fhir_vs` (every concept), `?fhir_vs=isa/[sctid]` (self + descendants,
+via `SnapshotStore::descendants` — mirrors `snomed-ecl`'s `<<` exactly),
+`?fhir_vs=refset/[sctid]` (`SnapshotStore::refset_members`), and
+`?fhir_vs=ecl/[ecl]` (`snomed_ecl::parse`/`evaluate` directly, so an
+invalid ECL expression comes back as `FhirError::InvalidEcl`, never a
+panic). `activeOnly`/`count`/`offset`/`includeDesignations` are supported;
+`filter` does a case-insensitive substring match against active
+description terms — a deliberate simplification, not full-text search.
+`total` always reflects the *pre-paging* match count, so a caller can
+tell "3 total, showing 1" apart from "1 total".
+
+The bare `?fhir_vs=refset` form (every concept that is itself a refset
+identifier) needs a `SnapshotStore` index of distinct `refsetId`s this
+workspace doesn't build yet — rejected via `FhirError::UnsupportedValueSet`
+rather than silently returning nothing.
+
 ## What's not implemented yet
 
 Scoped in `spec/11-fhir.md`, not yet built (see the root `tasks.md`):
 
-- **`$expand`** — SNOMED CT's implicit value sets (`?fhir_vs`,
-  `?fhir_vs=isa/[sctid]`, `?fhir_vs=refset/[sctid]`, `?fhir_vs=ecl/[ecl]`)
-  mapped onto `snomed-ecl`/`SnapshotStore` primitives, plus `activeOnly`/
-  `count`/`offset`/`filter`. The no-`[sctid]` `?fhir_vs=refset` form (every
-  concept that is itself a refset identifier) needs a `SnapshotStore` index
-  this workspace doesn't build yet.
+- The bare `?fhir_vs=refset` implicit value set (above).
+- `$expand`'s `context`-based expansion and inline `valueSet` expansion
+  (a `ValueSet` resource body given directly in the request rather than
+  referenced by `url`).
 
 ## Design notes
 
@@ -100,5 +148,10 @@ Scoped in `spec/11-fhir.md`, not yet built (see the root `tasks.md`):
 - **Dialect instead of `displayLanguage`.** FHIR's `displayLanguage` is a
   BCP-47 tag; SNOMED CT expresses preference via language reference sets
   keyed by SCTID. Mapping one to the other is a deployment policy decision
-  this crate can't make, so `$lookup` takes a language refset SCTID
-  directly rather than guessing a BCP-47-to-refset mapping.
+  this crate can't make, so `$lookup`/`$expand` take a language refset
+  SCTID directly rather than guessing a BCP-47-to-refset mapping.
+- **No URL percent-decoding.** `expand`'s `url` argument is matched and
+  split as plain text; this crate has no percent-decoding parser (zero
+  external dependencies) and doesn't add one just for this. A hosting
+  server decodes the query string before calling in here — this matters
+  most for the `ecl/` form, whose ECL text may contain spaces.
