@@ -300,7 +300,43 @@ This closes Phase 5 (`snomed-ecl` simple constraints + basic refinements,
       domain-logic duplication `AGENTS/cli-engineer.md` warns against).
       135 tests passing (4 new), clippy clean.
 
+## Done (2026-08-03, snomed-fhir crate decision + $subsumes)
+
+- [x] Decision: build `snomed-fhir` now, scoped as semantic building
+      blocks over `SnapshotStore` for `$lookup`/`$subsumes`/`$expand` —
+      explicitly not an HTTP server or FHIR resource (de)serializer, and
+      single-system (rejects any `system` other than
+      `http://snomed.info/sct`). Researched the authoritative sources
+      directly (`WebFetch` on the top-level
+      `hl7.org/fhir/codesystem-operations.html` only returns operation
+      *titles*; had to fetch `codesystem-operation-lookup.html`,
+      `-subsumes.html`, `valueset-operation-expand.html`, and — after a
+      redirect chain through `terminology.hl7.org/SNOMEDCT.html`, itself
+      index-only — `hl7.org/fhir/R4/snomedct.html` for the SNOMED-specific
+      binding: system/version URI format, the five implicit value set
+      forms, standard properties). Written up as `spec/11-fhir.md`
+      (normative, same rules-numbered style as spec/10), with an explicit
+      "not yet implemented" section (SNOMED classification-dependent
+      `$lookup` properties, `context`-based `$expand`, bare
+      `?fhir_vs=refset`) rather than silently under-scoping.
+- [x] New crate `snomed-fhir` (depends on `snomed-core` + `snomed-store`
+      only — `snomed-ecl` will be added when `$expand` starts, not before
+      it's used). `$subsumes` implemented: a thin, direct wrapper around
+      `SnapshotStore::subsumes` (spec/09's reflexive subsumption primitive
+      already *is* this operation) — `equivalent`/`subsumes`/
+      `subsumed-by`/`not-subsumed`, with `SubsumeOutcome::as_fhir_code()`
+      giving the exact wire value. `FhirError` rejects an unsupported
+      `system` or an unknown code, never panics. New `AGENTS/
+      fhir-engineer.md` playbook records the fetch gotchas above plus
+      concrete next-step notes for `$lookup`/`$expand`. Wired into the
+      `snomed` facade's prelude. 141 tests passing (6 new), clippy clean.
+
 ## Next up (Phase 6 — interop & tooling)
 
-- [ ] `snomed-fhir` crate decision + design doc.
+- [ ] `snomed-fhir`: `$lookup` (display/designation/definition from
+      descriptions + language refset acceptability; `inactive`/
+      `moduleId`/`sufficientlyDefined` properties).
+- [ ] `snomed-fhir`: `$expand` (SNOMED CT implicit value sets mapped onto
+      `snomed-ecl`; needs a new `snomed-store` index of distinct
+      `refsetId`s for the bare `?fhir_vs=refset` form).
 - [ ] OWL expression parsing (axioms from the OWL refset).

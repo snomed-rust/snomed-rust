@@ -1,6 +1,6 @@
 [package]
-name = "snomed"
-description = "SNOMED CT for Rust: RF2 parsing, SCTID validation, snapshot store, hierarchy queries"
+name = "snomed-fhir"
+description = "Semantic building blocks for FHIR terminology service operations ($lookup, $subsumes, $expand) over a SNOMED CT SnapshotStore"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -12,7 +12,4 @@ authors.workspace = true
 
 [dependencies]
 snomed-core.workspace = true
-snomed-ecl.workspace = true
-snomed-fhir.workspace = true
-snomed-rf2.workspace = true
 snomed-store.workspace = true

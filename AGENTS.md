@@ -7,8 +7,9 @@ Guidance for AI coding agents working in this repository.
 A Rust cargo workspace implementing SNOMED CT tooling: RF2 release file
 parsing (`snomed-rf2`), core identifier/component types (`snomed-core`), an
 in-memory snapshot store with hierarchy queries (`snomed-store`), an
-Expression Constraint Language parser/evaluator (`snomed-ecl`), a command-line
-binary (`snomed-cli`), and a facade crate (`snomed`).
+Expression Constraint Language parser/evaluator (`snomed-ecl`), FHIR
+terminology service building blocks (`snomed-fhir`), a command-line binary
+(`snomed-cli`), and a facade crate (`snomed`).
 
 ## Ground rules
 
@@ -34,6 +35,8 @@ Specialized instructions live in `AGENTS/`:
 - `AGENTS/rf2-engineer.md` — extending parsers and record types.
 - `AGENTS/store-engineer.md` — snapshot/hierarchy/query work.
 - `AGENTS/ecl-engineer.md` — extending the ECL lexer/parser/evaluator.
+- `AGENTS/fhir-engineer.md` — extending `snomed-fhir`'s terminology
+  operations.
 - `AGENTS/cli-engineer.md` — extending the `snomed-cli` binary.
 - `AGENTS/qa-reviewer.md` — review and verification checklist.
 

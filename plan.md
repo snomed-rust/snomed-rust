@@ -154,9 +154,26 @@ fix it surfaced, and `HistoryStore`.
   validate generically without per-refset-type plumbing this check doesn't
   have (documented gap, `crates/snomed-store/README.md` and
   `AGENTS/store-engineer.md`).
-- New crate `snomed-fhir` (candidate): CodeSystem/ValueSet `$lookup`,
-  `$subsumes`, `$expand` building blocks for FHIR terminology servers.
-- OWL expression refset parsing into axioms (candidate `snomed-owl`).
+- New crate `snomed-fhir` ✅ (decision made: build it): semantic building
+  blocks for FHIR terminology service operations over a `SnapshotStore` —
+  explicitly *not* an HTTP server or FHIR resource (de)serializer (that's
+  a hosting server's job), single-system by design (rejects anything but
+  `http://snomed.info/sct`). `spec/11-fhir.md` distills the three relevant
+  official sources (`CodeSystem` `$lookup`/`$subsumes`, `ValueSet`
+  `$expand`, and — the one that ties them to *this* terminology — [SNOMED
+  CT in FHIR](https://www.hl7.org/fhir/R4/snomedct.html): system/version
+  URIs, the five implicit value set forms, standard properties) and scopes
+  exactly what each operation maps onto existing `SnapshotStore`/
+  `snomed-ecl` primitives, with a "not yet implemented" section for what
+  doesn't (SNOMED classification-dependent properties, `context`-based
+  expansion, the bare `?fhir_vs=refset` implicit value set). `$subsumes`
+  implemented this increment — a thin, direct wrapper around
+  `SnapshotStore::subsumes` (spec/09's reflexive subsumption primitive
+  already *is* this operation). `$lookup`/`$expand` are scoped but not yet
+  built — see `tasks.md`. Wired into the `snomed` facade's prelude
+  alongside the other query-layer crates.
+- OWL expression refset parsing into axioms (candidate `snomed-owl`) —
+  still just a candidate, not started.
 
 ## Non-goals (for now)
 

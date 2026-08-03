@@ -7,7 +7,10 @@
 //! - [`store`] ([`snomed_store`]) — snapshot store, history/audit queries,
 //!   and hierarchy queries;
 //! - [`ecl`] ([`snomed_ecl`]) — Expression Constraint Language (simple
-//!   constraints + basic refinements).
+//!   constraints + basic refinements);
+//! - [`fhir`] ([`snomed_fhir`]) — FHIR terminology service building blocks
+//!   (`$subsumes` so far; `$lookup`/`$expand` are scoped but not yet
+//!   implemented).
 //!
 //! ```
 //! use snomed::prelude::*;
@@ -22,6 +25,7 @@
 
 pub use snomed_core as core;
 pub use snomed_ecl as ecl;
+pub use snomed_fhir as fhir;
 pub use snomed_rf2 as rf2;
 pub use snomed_store as store;
 
@@ -53,4 +57,6 @@ pub mod prelude {
         ExpressionConstraint, FocusConcept, HierarchyOp, RefinementConstraint,
         SimpleExpressionConstraint,
     };
+
+    pub use snomed_fhir::{subsumes, FhirError, SubsumeOutcome, SNOMED_CT_SYSTEM};
 }

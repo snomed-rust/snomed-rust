@@ -14,6 +14,10 @@ Official sources:
 - SNOMED CT Glossary — <https://docs.snomed.org/snomed-ct-glossary>
 - SNOMED CT Expression Constraint Language — Specification and Guide —
   <https://docs.snomed.org/snomed-ct-specifications/snomed-ct-expression-constraint-language>
+- HL7 FHIR `CodeSystem`/`ValueSet` terminology operations, and SNOMED CT's
+  FHIR bindings — <https://www.hl7.org/fhir/codesystem-operations.html>,
+  <https://www.hl7.org/fhir/valueset-operation-expand.html>,
+  <https://www.hl7.org/fhir/R4/snomedct.html>
 
 ## Index
 
@@ -29,6 +33,7 @@ Official sources:
 | [08-refset-files.md](08-refset-files.md) | Reference set file patterns | `snomed-rf2::refset` |
 | [09-versioning.md](09-versioning.md) | effectiveTime, active, moduleId, snapshot semantics | `snomed-store` |
 | [10-ecl.md](10-ecl.md) | Expression Constraint Language (simple constraints + basic refinements) | `snomed-ecl` |
+| [11-fhir.md](11-fhir.md) | FHIR terminology service building blocks: `$lookup`, `$subsumes`, `$expand` | `snomed-fhir` |
 
 ## Conventions used in these specs
 

@@ -31,6 +31,7 @@ or analytics pipelines.
 | [`crates/snomed-rf2`](crates/snomed-rf2) | RF2 file name parsing, Full/Snapshot/Delta types, streaming typed reader, reference set members |
 | [`crates/snomed-store`](crates/snomed-store) | Snapshot builder (latest version wins, order-independent), IS-A hierarchy, ancestors/descendants/subsumption, and a `HistoryStore` for full version history / point-in-time queries |
 | [`crates/snomed-ecl`](crates/snomed-ecl) | Expression Constraint Language: lexer, parser, evaluator for simple expression constraints + basic refinements |
+| [`crates/snomed-fhir`](crates/snomed-fhir) | FHIR terminology service building blocks: `$subsumes` (`$lookup`/`$expand` scoped, not yet implemented) |
 | [`crates/snomed-cli`](crates/snomed-cli) | `snomed-cli` binary: `sctid`, `load`, `lookup`, `ecl`, `export`, `validate` subcommands |
 
 Supporting documents:
@@ -74,6 +75,10 @@ let is_finding = store.subsumes(SctId::parse("404684003")?, mi);
 // ECL: everything under Clinical finding, minus everything under Disease (spec/10).
 let expr = parse_ecl("<< 404684003 MINUS << 64572001")?;
 let matches = evaluate_ecl(&expr, &store);
+
+// FHIR CodeSystem/$subsumes (spec/11).
+let outcome = subsumes(&store, SNOMED_CT_SYSTEM, SctId::parse("404684003")?, mi)?;
+assert_eq!(outcome.as_fhir_code(), "subsumes");
 ```
 
 Or from the terminal, once you have an unzipped RF2 release directory:
