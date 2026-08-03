@@ -276,11 +276,31 @@ This closes Phase 5 (`snomed-ecl` simple constraints + basic refinements,
       output captured in `crates/snomed-cli/README.md`.
       131 tests passing (8 new), clippy clean.
 
+## Done (2026-08-03, whole-release-directory export)
+
+- [x] `snomed-store::list_release_files(dir, release_type)`: the
+      file-selection half of `load_release_dir` (recursive walk +
+      `ReleaseFileName` parse + release-view filter) exposed standalone,
+      returning `(PathBuf, ReleaseFileName)` pairs instead of loading
+      anything, for callers that want to route recognized files somewhere
+      other than a `SnapshotStoreBuilder`. Shares `collect_txt_files` with
+      `load_release_dir`, so file-selection rule changes apply to both.
+- [x] `snomed-cli export` gained a whole-release-directory mode: `export
+      <release-dir> <output-dir> [--full]`, auto-detected by whether the
+      first argument is a directory (`Path::is_dir()`), so the existing
+      single-file shape (`export <rf2-file> [output-file]`) needs no new
+      flag. `export_to_ndjson`'s signature changed from `Result<String,
+      _>` to `Result<Option<String>, _>` — `Ok(None)` means "not
+      exportable yet" (a skip, reported by name, same as `load`'s
+      `LoadReport`), `Err` stays reserved for genuine parse failure on a
+      recognized file (also matching `load`). One `<file-stem>.ndjson` is
+      written per exported file, flattened into the output directory.
+      Built on `list_release_files` rather than reimplementing directory
+      walking in the CLI crate (would have been exactly the kind of
+      domain-logic duplication `AGENTS/cli-engineer.md` warns against).
+      135 tests passing (4 new), clippy clean.
+
 ## Next up (Phase 6 — interop & tooling)
 
-- [ ] `snomed-cli export`: whole-release-directory export in one
-      invocation (currently one file per invocation — composable via shell
-      globbing already, but a `--release-dir` mode would be more
-      convenient for bulk conversion).
 - [ ] `snomed-fhir` crate decision + design doc.
 - [ ] OWL expression parsing (axioms from the OWL refset).

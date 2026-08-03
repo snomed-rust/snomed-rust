@@ -72,6 +72,10 @@ fn usage() -> String {
             "convert one RF2 file to NDJSON (stdout if no output file)",
         ),
         (
+            "export <release-dir> <output-dir> [--full]",
+            "convert every exportable file in a release directory to NDJSON",
+        ),
+        (
             "validate <release-dir> [--full]",
             "check referential integrity and IS-A acyclicity",
         ),
@@ -293,10 +297,25 @@ fn cmd_ecl(args: &[String]) -> Result<String, Box<dyn Error>> {
     Ok(out)
 }
 
+/// Dispatches to single-file mode (`export <rf2-file> [output-file]`) or
+/// whole-release-directory mode (`export <release-dir> <output-dir>
+/// [--full]`), auto-detected by whether the first argument is a directory —
+/// so the common single-file shape needs no extra flag.
+fn cmd_export(args: &[String]) -> Result<String, Box<dyn Error>> {
+    let usage =
+        "usage: export <rf2-file> [output-file] | export <release-dir> <output-dir> [--full]";
+    let first = args.first().ok_or(usage)?;
+    if Path::new(first).is_dir() {
+        cmd_export_dir(args)
+    } else {
+        cmd_export_file(args)
+    }
+}
+
 /// Converts one RF2 file to NDJSON, dispatching by (content type, summary)
 /// exactly like `SnapshotStoreBuilder::load_release_dir`'s internal
 /// dispatch — same content types, just serialized instead of stored.
-fn cmd_export(args: &[String]) -> Result<String, Box<dyn Error>> {
+fn cmd_export_file(args: &[String]) -> Result<String, Box<dyn Error>> {
     let (input, output) = match args {
         [input] => (input.as_str(), None),
         [input, output] => (input.as_str(), Some(output.as_str())),
@@ -309,7 +328,12 @@ fn cmd_export(args: &[String]) -> Result<String, Box<dyn Error>> {
         .and_then(|n| n.to_str())
         .ok_or("input file name is not valid UTF-8")?;
     let parsed = ReleaseFileName::parse(file_name)?;
-    let ndjson = export_to_ndjson(path, &parsed)?;
+    let ndjson = export_to_ndjson(path, &parsed)?.ok_or_else(|| {
+        format!(
+            "content type `{}` (summary `{}`) is not yet exportable",
+            parsed.content_type, parsed.summary
+        )
+    })?;
 
     match output {
         Some(out_path) => {
@@ -321,7 +345,72 @@ fn cmd_export(args: &[String]) -> Result<String, Box<dyn Error>> {
     }
 }
 
-fn export_to_ndjson(path: &Path, f: &ReleaseFileName) -> Result<String, Box<dyn Error>> {
+/// Exports every exportable RF2 file under a release directory in one
+/// invocation, mirroring `list_release_files` + per-file dispatch rather
+/// than duplicating directory-walking/release-view-filtering logic here —
+/// that's real domain logic and belongs in `snomed-store` (see
+/// `AGENTS/cli-engineer.md`). One `<file-stem>.ndjson` is written per
+/// exported file, flattened into `out_dir` (release file names are unique
+/// within one release view, so no collisions). Unsupported content types
+/// are skipped and reported, same as `load`; malformed data in a
+/// recognized file is a hard error, same as `load`.
+fn cmd_export_dir(args: &[String]) -> Result<String, Box<dyn Error>> {
+    let usage = "usage: export <release-dir> <output-dir> [--full]";
+    let mut positional = Vec::new();
+    let mut release_type = ReleaseType::Snapshot;
+    for a in args {
+        match a.as_str() {
+            "--full" => release_type = ReleaseType::Full,
+            other => positional.push(other),
+        }
+    }
+    let (dir, out_dir) = match positional.as_slice() {
+        [dir, out_dir] => (*dir, *out_dir),
+        _ => return Err(usage.into()),
+    };
+
+    let files = snomed_store::list_release_files(Path::new(dir), release_type)?;
+    fs::create_dir_all(out_dir)?;
+
+    let mut exported = 0usize;
+    let mut skipped: Vec<(std::path::PathBuf, String)> = Vec::new();
+    for (path, parsed) in &files {
+        match export_to_ndjson(path, parsed)? {
+            Some(ndjson) => {
+                let stem = path
+                    .file_stem()
+                    .and_then(|s| s.to_str())
+                    .ok_or("input file name is not valid UTF-8")?;
+                fs::write(Path::new(out_dir).join(format!("{stem}.ndjson")), &ndjson)?;
+                exported += 1;
+            }
+            None => skipped.push((
+                path.clone(),
+                format!(
+                    "content type `{}` (summary `{}`) is not yet exportable",
+                    parsed.content_type, parsed.summary
+                ),
+            )),
+        }
+    }
+
+    let mut out = String::new();
+    writeln!(
+        out,
+        "exported {exported} file(s), skipped {} to {out_dir}",
+        skipped.len()
+    )?;
+    for (path, reason) in &skipped {
+        writeln!(out, "  skipped {}: {reason}", path.display())?;
+    }
+    Ok(out)
+}
+
+/// `Ok(None)` means the (content type, summary) combination isn't wired up
+/// for export yet — a skip, not an error (mirrors `load.rs::dispatch`'s
+/// `Ok(Some(reason))` shape for the same distinction). `Err` is reserved
+/// for genuine I/O/RF2-parsing failure on a file this function recognized.
+fn export_to_ndjson(path: &Path, f: &ReleaseFileName) -> Result<Option<String>, Box<dyn Error>> {
     let mut out = String::new();
     match (f.content_type.as_str(), f.summary.as_str()) {
         ("Concept", _) => export_rows::<Concept, _>(path, &mut out, json::concept_to_json)?,
@@ -386,14 +475,9 @@ fn export_to_ndjson(path: &Path, f: &ReleaseFileName) -> Result<String, Box<dyn 
             &mut out,
             json::description_type_refset_to_json,
         )?,
-        (content_type, summary) => {
-            return Err(format!(
-                "content type `{content_type}` (summary `{summary}`) is not yet exportable"
-            )
-            .into())
-        }
+        (_, _) => return Ok(None),
     }
-    Ok(out)
+    Ok(Some(out))
 }
 
 fn export_rows<T, F>(path: &Path, out: &mut String, to_json: F) -> Result<(), Box<dyn Error>>

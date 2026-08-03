@@ -84,6 +84,7 @@ cargo run -p snomed-cli -- load ./SnomedCT_InternationalRF2_PRODUCTION_20250801/
 cargo run -p snomed-cli -- lookup ./SnomedCT_InternationalRF2_PRODUCTION_20250801/Snapshot 22298006
 cargo run -p snomed-cli -- ecl ./SnomedCT_InternationalRF2_PRODUCTION_20250801/Snapshot "<< 404684003"
 cargo run -p snomed-cli -- export sct2_Concept_Snapshot_INT_20250801.txt concepts.ndjson
+cargo run -p snomed-cli -- export ./SnomedCT_InternationalRF2_PRODUCTION_20250801/Snapshot ./ndjson-out
 cargo run -p snomed-cli -- validate ./SnomedCT_InternationalRF2_PRODUCTION_20250801/Snapshot
 ```
 

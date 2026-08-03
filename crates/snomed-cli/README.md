@@ -27,6 +27,7 @@ snomed-cli load <release-dir> [--full]      load a release directory, print a su
 snomed-cli lookup <release-dir> <id>        look up a concept: FSN, synonyms, parents, children
 snomed-cli ecl <release-dir> <expression>   evaluate an ECL expression (quote it)
 snomed-cli export <rf2-file> [output-file]  convert one RF2 file to NDJSON (stdout if no output file)
+snomed-cli export <release-dir> <output-dir> [--full]  convert every exportable file in a release directory to NDJSON
 snomed-cli validate <release-dir> [--full]  check referential integrity and IS-A acyclicity
 ```
 
@@ -113,17 +114,38 @@ wrote 361763 line(s) to concepts.ndjson
 against a tiny hand-written two-row Concept file; the file name and the
 `wrote N line(s)` count in these examples are illustrative.)
 
-Operates on **one RF2 file at a time** (composable with shell globbing —
-`for f in Snapshot/**/*.txt; do snomed-cli export "$f" "${f%.txt}.ndjson";
-done`), auto-detecting the record type from the file name the same way
-`load` does internally. Every RF2 record type this workspace can parse is
-exportable — the three core component types, `RelationshipConcreteValue`,
+Single-file mode auto-detects the record type from the file name the same
+way `load` does internally. Every RF2 record type this workspace can parse
+is exportable — the three core component types, `RelationshipConcreteValue`,
 and all ten refset types. SCTIDs, UUIDs, and `effectiveTime` are always
 rendered as JSON **strings**, never numbers — SCTIDs can reach 18 digits,
 well past where JSON numbers keep exact precision in common consumers
 (JavaScript's `JSON.parse`, `jq` in some modes). Only genuinely small
 bounded integers (`relationshipGroup`, `mapGroup`, `mapPriority`,
 `attributeOrder`, `descriptionLength`) come through as JSON numbers.
+
+`export` also has a **whole-release-directory** mode, auto-detected when
+the first argument is a directory rather than a file:
+
+```sh
+$ snomed-cli export ./Snapshot ./ndjson-out
+exported 2 file(s), skipped 0 to ./ndjson-out
+$ ls ./ndjson-out
+sct2_Concept_Snapshot_INT_20190731.ndjson
+sct2_Relationship_Snapshot_INT_20190731.ndjson
+```
+
+(Real output, verified against a tiny hand-written two-file Snapshot
+release.) Every exportable file under `<release-dir>` is converted and
+written as `<file-stem>.ndjson` flattened into `<output-dir>` (release file
+names are unique within one release view, so no collisions); `--full`
+switches to the Full view, same as `load`/`validate`. Content types with no
+exporter yet are skipped and reported by name, exactly like `load`'s
+`LoadReport`; malformed data inside a recognized file is a hard error, also
+like `load`. This mode is a thin wrapper around `snomed_store::
+list_release_files` plus the same per-file dispatch single-file mode uses —
+the directory-walking and release-view-filtering logic itself lives in
+`snomed-store`, not duplicated here (see `AGENTS/cli-engineer.md`).
 
 ### `validate`
 
@@ -174,7 +196,5 @@ dependency.
 
 Tracked in the root `tasks.md`: `validate` doesn't check refset
 `referencedComponentId` dangling references (documented gap, see
-`crates/snomed-store/README.md`), `export` operates on one file at a time
-rather than a whole release directory in one invocation, and ECL
-expressions must be passed as one pre-quoted argument (no multi-argument
-reassembly).
+`crates/snomed-store/README.md`), and ECL expressions must be passed as one
+pre-quoted argument (no multi-argument reassembly).

@@ -228,6 +228,89 @@ fn export_language_refset_includes_acceptability() {
 }
 
 #[test]
+fn export_dir_converts_every_file_in_a_release_directory() {
+    let tmp = TempDir::new("export-dir");
+    write_synthetic_release(tmp.path());
+    let out_dir = tmp.path().join("ndjson-out");
+
+    let summary = snomed_cli::run(&[
+        "export".to_string(),
+        tmp.path().to_str().unwrap().to_string(),
+        out_dir.to_str().unwrap().to_string(),
+    ])
+    .unwrap();
+
+    assert!(
+        summary.contains("exported 3 file(s), skipped 0"),
+        "{summary}"
+    );
+
+    let concepts =
+        fs::read_to_string(out_dir.join("sct2_Concept_Snapshot_INT_20190731.ndjson")).unwrap();
+    assert_eq!(concepts.lines().count(), 3, "{concepts}");
+    assert!(concepts.contains("\"id\":\"138875005\""));
+
+    let relationships =
+        fs::read_to_string(out_dir.join("sct2_Relationship_Snapshot_INT_20190731.ndjson")).unwrap();
+    assert_eq!(relationships.lines().count(), 2, "{relationships}");
+}
+
+#[test]
+fn export_dir_skips_content_it_cannot_export_and_reports_it() {
+    let tmp = TempDir::new("export-dir-skip");
+    write_synthetic_release(tmp.path());
+    // Recognized RF2 name, but content type "cRefset"/"OrderedComponent"
+    // has no exporter (same gap as `load`'s dispatch).
+    write(
+        tmp.path(),
+        "Snapshot/Refset/Ordered/der2_cRefset_OrderedComponentSnapshot_INT_20190731.txt",
+        "id\teffectiveTime\tactive\tmoduleId\trefsetId\treferencedComponentId\torderId\n",
+    );
+    let out_dir = tmp.path().join("ndjson-out");
+
+    let summary = snomed_cli::run(&[
+        "export".to_string(),
+        tmp.path().to_str().unwrap().to_string(),
+        out_dir.to_str().unwrap().to_string(),
+    ])
+    .unwrap();
+
+    assert!(
+        summary.contains("exported 3 file(s), skipped 1"),
+        "{summary}"
+    );
+    assert!(summary.contains("is not yet exportable"), "{summary}");
+}
+
+#[test]
+fn export_dir_reads_the_full_view_with_the_full_flag() {
+    let tmp = TempDir::new("export-dir-full");
+    write(
+        tmp.path(),
+        "Full/Terminology/sct2_Concept_Full_INT_20190731.txt",
+        "id\teffectiveTime\tactive\tmoduleId\tdefinitionStatusId\n\
+         138875005\t20190731\t1\t900000000000207008\t900000000000074008\n",
+    );
+    let out_dir = tmp.path().join("ndjson-out");
+
+    let summary = snomed_cli::run(&[
+        "export".to_string(),
+        tmp.path().to_str().unwrap().to_string(),
+        out_dir.to_str().unwrap().to_string(),
+        "--full".to_string(),
+    ])
+    .unwrap();
+
+    assert!(
+        summary.contains("exported 1 file(s), skipped 0"),
+        "{summary}"
+    );
+    assert!(out_dir
+        .join("sct2_Concept_Full_INT_20190731.ndjson")
+        .exists());
+}
+
+#[test]
 fn validate_reports_a_clean_release() {
     let tmp = TempDir::new("validate-clean");
     write_synthetic_release(tmp.path());

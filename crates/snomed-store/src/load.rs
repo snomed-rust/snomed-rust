@@ -126,6 +126,39 @@ impl SnapshotStoreBuilder {
     }
 }
 
+/// Recursively finds every RF2 release file under `dir` that parses as a
+/// release file name and belongs to `release_type`, paired with its parsed
+/// [`ReleaseFileName`]. This is the file-selection half of
+/// [`SnapshotStoreBuilder::load_release_dir`] (spec/02) exposed standalone,
+/// for callers that want to route each file somewhere other than a
+/// `SnapshotStoreBuilder` — e.g. `snomed-cli export`'s whole-directory mode.
+/// Files that aren't `.txt`, don't parse as an RF2 release name, or belong
+/// to a different release view are silently omitted (not an error — same
+/// as `load_release_dir`'s treatment of those cases).
+pub fn list_release_files(
+    dir: &Path,
+    release_type: ReleaseType,
+) -> Result<Vec<(PathBuf, ReleaseFileName)>, LoadError> {
+    let mut paths = Vec::new();
+    collect_txt_files(dir, &mut paths)?;
+    paths.sort();
+
+    let mut out = Vec::new();
+    for path in paths {
+        let Some(file_name) = path.file_name().and_then(|n| n.to_str()) else {
+            continue;
+        };
+        let Ok(parsed) = ReleaseFileName::parse(file_name) else {
+            continue;
+        };
+        if parsed.release_type != release_type {
+            continue;
+        }
+        out.push((path, parsed));
+    }
+    Ok(out)
+}
+
 /// Recursively lists every `.txt` file under `dir`. Shared with
 /// `history::HistoryStoreBuilder::load_release_dir`.
 pub(crate) fn collect_txt_files(dir: &Path, out: &mut Vec<PathBuf>) -> Result<(), LoadError> {
@@ -430,5 +463,31 @@ mod tests {
             .load_release_dir(root, ReleaseType::Snapshot)
             .unwrap_err();
         assert!(matches!(err, LoadError::Rf2 { .. }), "{err}");
+    }
+
+    #[test]
+    fn list_release_files_filters_by_release_type_and_parseable_names() {
+        let tmp = TempDir::new("list-release-files");
+        let root = tmp.path();
+        write(
+            root,
+            "Snapshot/Terminology/sct2_Concept_Snapshot_INT_20190731.txt",
+            "id\teffectiveTime\tactive\tmoduleId\tdefinitionStatusId\n",
+        );
+        write(root, "Snapshot/readme.txt", "not an RF2 file\n");
+        write(
+            root,
+            "Full/Terminology/sct2_Concept_Full_INT_20190731.txt",
+            "id\teffectiveTime\tactive\tmoduleId\tdefinitionStatusId\n",
+        );
+
+        let files = list_release_files(root, ReleaseType::Snapshot).unwrap();
+        assert_eq!(files.len(), 1, "{files:?}");
+        assert_eq!(files[0].1.content_type, "Concept");
+        assert_eq!(files[0].1.release_type, ReleaseType::Snapshot);
+
+        let full_files = list_release_files(root, ReleaseType::Full).unwrap();
+        assert_eq!(full_files.len(), 1, "{full_files:?}");
+        assert_eq!(full_files[0].1.release_type, ReleaseType::Full);
     }
 }

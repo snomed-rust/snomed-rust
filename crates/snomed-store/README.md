@@ -46,6 +46,13 @@ programmatically with `add_concept`/`add_concepts`,
 `add_description(s)`, `add_relationship(s)`, and one `add_x_member(s)`
 pair per refset type, then call `.build()`.
 
+The directory-walking/file-selection half of `load_release_dir` is also
+available standalone as `list_release_files(dir, release_type) ->
+Result<Vec<(PathBuf, ReleaseFileName)>, LoadError>`, for callers that want
+to route each recognized file somewhere other than a `SnapshotStoreBuilder`
+— `snomed-cli export`'s whole-release-directory mode uses it this way
+rather than duplicating the walk-and-filter logic.
+
 Query surface (all `O(1)` or index-backed except the transitive-closure
 methods, which do a cycle-safe breadth-first search):
 

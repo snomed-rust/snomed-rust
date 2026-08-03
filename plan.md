@@ -133,8 +133,12 @@ fix it surfaced, and `HistoryStore`.
   binary; `src/main.rs` is ~10 lines. Hand-rolled argument parsing *and*
   hand-rolled JSON serialization, no `clap`/`serde` — a deliberate
   continuation of the zero-dependency stance, not an oversight (see
-  `AGENTS/cli-engineer.md`). Whole-directory `export` in one invocation is
-  **not yet implemented** — tracked in `tasks.md`.
+  `AGENTS/cli-engineer.md`). `export` also has a whole-release-directory
+  mode (`export <release-dir> <output-dir> [--full]`, auto-detected by
+  whether the first argument is a directory), built on a new
+  `snomed_store::list_release_files` — the file-selection half of
+  `load_release_dir` exposed standalone — rather than duplicating
+  directory-walking logic in the CLI crate.
 - Deeper release validation ✅: `SnapshotStore::validate()` (new
   `crates/snomed-store/src/store/validate.rs`) reports dangling
   `conceptId`/`sourceId`/`destinationId` references and IS-A hierarchy

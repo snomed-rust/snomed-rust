@@ -52,13 +52,25 @@ a `plan.md` decision explicitly — don't just add the dependency.
 
 ## Known gaps (tracked in `tasks.md`)
 
-- `export` converts one RF2 file at a time (`src/json.rs` has the
-  hand-rolled serializer, one `*_to_json` fn per record type — extend it
-  the same way `load.rs`'s dispatch gets extended when a new record type
-  is added). No whole-release-directory export in a single invocation yet.
 - `validate` (backed by `SnapshotStore::validate()`) checks dangling
   description/relationship references and IS-A cycles, but not refset
   `referencedComponentId` references — documented gap, see
   `AGENTS/store-engineer.md`.
 - ECL expressions must be passed as a single (shell-quoted) argument; no
   multi-arg reassembly.
+
+## `export`'s two modes
+
+`export` auto-detects single-file vs. whole-release-directory mode by
+whether its first argument is a directory (`Path::is_dir()`) — no `--dir`
+flag needed for the common single-file shape. `src/json.rs` has the
+hand-rolled serializer (one `*_to_json` fn per record type — extend it the
+same way `load.rs`'s dispatch gets extended when a new record type is
+added); `export_to_ndjson` itself returns `Result<Option<String>,
+Box<dyn Error>>` where `Ok(None)` means "not exportable yet" (a skip, not
+an error) so directory mode can report it in a summary the same way
+`LoadReport` does, while `Err` stays reserved for genuine parse failure.
+Directory mode calls `snomed_store::list_release_files` for the
+walk-and-filter step rather than reimplementing it — that's real domain
+logic (see "the one rule that matters most" above) and already lives in
+`snomed-store`.
