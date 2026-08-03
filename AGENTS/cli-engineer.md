@@ -7,11 +7,12 @@ workspace.
 
 **`snomed-cli` stays a thin presentation layer.** Every subcommand should be
 a few lines of argument parsing plus calls into `snomed-core`, `snomed-rf2`,
-`snomed-store`, and `snomed-ecl`. If you find yourself writing real domain
-logic here (RF2 parsing rules, hierarchy semantics, ECL evaluation, refset
-handling) — stop, that belongs in the library crate it's about, with a
-spec/*.md citation, tests, and its own `AGENTS/*-engineer.md` rules. The CLI
-should never be the only place a piece of behavior exists.
+`snomed-store`, `snomed-ecl`, `snomed-owl`, and `snomed-classify`. If you
+find yourself writing real domain logic here (RF2 parsing rules, hierarchy
+semantics, ECL evaluation, refset handling, OWL parsing, EL completion) —
+stop, that belongs in the library crate it's about, with a spec/*.md
+citation, tests, and its own `AGENTS/*-engineer.md` rules. The CLI should
+never be the only place a piece of behavior exists.
 
 ## Structure
 
@@ -74,3 +75,18 @@ Directory mode calls `snomed_store::list_release_files` for the
 walk-and-filter step rather than reimplementing it — that's real domain
 logic (see "the one rule that matters most" above) and already lives in
 `snomed-store`.
+
+## `classify` composes three crates, owns none of their logic
+
+`cmd_classify` is the clearest example yet of "thin presentation layer":
+it collects axioms via `SnapshotStore::all_owl_expression_members()`
+(added to `snomed-store` specifically for this — there was no "give me
+every member of this refset type across the whole store" accessor
+before, only per-`(refsetId, componentId)` lookups), parses each via
+`snomed_owl::parse`, and feeds the result to `snomed_classify::classify`.
+All three "skip and report, don't hard-fail" decisions (a row that fails
+to parse; a construct `snomed-classify` doesn't model) reuse those
+crates' own reporting types (`OwlError`'s message, `SkippedConstruct`) —
+this file only formats them, via the shared `write_capped` helper (caps
+long lists at 5 entries + a "... and N more" tail, since a real release's
+parse-failure or skipped-construct list could be large).

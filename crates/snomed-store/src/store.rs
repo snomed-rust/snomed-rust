@@ -750,6 +750,15 @@ impl SnapshotStore {
             .unwrap_or(&[])
     }
 
+    /// Every active OWLExpression refset member in the store, across
+    /// every refset and component — the full stated-axiom content of a
+    /// loaded release, for callers (e.g. `snomed-cli classify`) that
+    /// want to feed all of it to `snomed-owl`/`snomed-classify` rather
+    /// than look up one `(refsetId, componentId)` pair at a time.
+    pub fn all_owl_expression_members(&self) -> impl Iterator<Item = &OwlExpressionRefsetMember> {
+        self.owl_expression_members.values().flatten()
+    }
+
     /// Active ModuleDependency refset members for `module_id` in
     /// `refset_id`.
     pub fn module_dependency_members(
@@ -1483,5 +1492,52 @@ mod tests {
         assert!(store.is_member(constants::ORDERED_ASSOCIATION_TYPE_REFSET, thumb));
         assert!(store.is_member(constants::COMPONENT_ANNOTATION_REFSET, MI));
         assert!(store.is_member(constants::MEMBER_ANNOTATION_REFSET, MI));
+    }
+
+    #[test]
+    fn all_owl_expression_members_spans_every_refset_and_component() {
+        let owl_refset = SctId::compose(9003, ComponentType::Concept, None).unwrap();
+        let mut b = SnapshotStore::builder();
+        b.add_owl_expression_member(OwlExpressionRefsetMember {
+            core: core(
+                "80000000-0000-4000-8000-000000000038",
+                20190731,
+                true,
+                owl_refset,
+                MI,
+            ),
+            owl_expression: "SubClassOf(:22298006 :64572001)".to_string(),
+        });
+        b.add_owl_expression_member(OwlExpressionRefsetMember {
+            core: core(
+                "80000000-0000-4000-8000-000000000039",
+                20190731,
+                true,
+                owl_refset,
+                FINDING,
+            ),
+            owl_expression: "SubClassOf(:404684003 :138875005)".to_string(),
+        });
+        // Inactive: must not appear.
+        b.add_owl_expression_member(OwlExpressionRefsetMember {
+            core: core(
+                "80000000-0000-4000-8000-000000000040",
+                20190731,
+                false,
+                owl_refset,
+                ROOT,
+            ),
+            owl_expression: "SubClassOf(:138875005 :138875005)".to_string(),
+        });
+        let store = b.build();
+
+        let members: Vec<_> = store.all_owl_expression_members().collect();
+        assert_eq!(members.len(), 2, "{members:?}");
+        assert!(members
+            .iter()
+            .any(|m| m.owl_expression.contains("22298006")));
+        assert!(members
+            .iter()
+            .any(|m| m.owl_expression.contains("404684003")));
     }
 }

@@ -311,6 +311,90 @@ fn export_dir_reads_the_full_view_with_the_full_flag() {
 }
 
 #[test]
+fn classify_summarizes_a_release_with_no_owl_axioms() {
+    let tmp = TempDir::new("classify-none");
+    write_synthetic_release(tmp.path());
+
+    let out = snomed_cli::run(&[
+        "classify".to_string(),
+        tmp.path().to_str().unwrap().to_string(),
+    ])
+    .unwrap();
+
+    assert!(
+        out.contains("OWL axioms: 0 parsed, 0 failed to parse"),
+        "{out}"
+    );
+    assert!(
+        out.contains("0 concept(s) classified, 0 entailed subsumption pair(s) total"),
+        "{out}"
+    );
+}
+
+#[test]
+fn classify_shows_entailed_supertypes_for_a_concept() {
+    let tmp = TempDir::new("classify-entailed");
+    write_synthetic_release(tmp.path());
+    // MI ⊑ Disease ⊑ Clinical finding, entirely via OWL axioms —
+    // independent of the release's RF2 Relationship-derived hierarchy —
+    // so seeing 404684003 in the output proves the completion algorithm
+    // actually ran, not just that it echoed a stated axiom.
+    write(
+        tmp.path(),
+        "Snapshot/Refset/OWL/der2_sRefset_OWLExpressionSnapshot_INT_20190731.txt",
+        "id\teffectiveTime\tactive\tmoduleId\trefsetId\treferencedComponentId\towlExpression\n\
+         80000000-0000-4000-8000-000000000041\t20190731\t1\t900000000000207008\t733073007\t22298006\tSubClassOf(:22298006 :64572001)\n\
+         80000000-0000-4000-8000-000000000042\t20190731\t1\t900000000000207008\t733073007\t64572001\tSubClassOf(:64572001 :404684003)\n",
+    );
+
+    let out = snomed_cli::run(&[
+        "classify".to_string(),
+        tmp.path().to_str().unwrap().to_string(),
+        "22298006".to_string(),
+    ])
+    .unwrap();
+
+    assert!(
+        out.contains("OWL axioms: 2 parsed, 0 failed to parse"),
+        "{out}"
+    );
+    assert!(
+        out.contains("22298006 is entailed to be subsumed by 2 concept(s):"),
+        "{out}"
+    );
+    assert!(out.contains("64572001  Disease (disorder)"), "{out}");
+    assert!(
+        out.contains("404684003  Clinical finding (finding)"),
+        "{out}"
+    );
+}
+
+#[test]
+fn classify_reports_parse_failures_without_aborting() {
+    let tmp = TempDir::new("classify-parse-failure");
+    write_synthetic_release(tmp.path());
+    write(
+        tmp.path(),
+        "Snapshot/Refset/OWL/der2_sRefset_OWLExpressionSnapshot_INT_20190731.txt",
+        "id\teffectiveTime\tactive\tmoduleId\trefsetId\treferencedComponentId\towlExpression\n\
+         80000000-0000-4000-8000-000000000043\t20190731\t1\t900000000000207008\t733073007\t22298006\tSubClassOf(:22298006 :64572001)\n\
+         80000000-0000-4000-8000-000000000044\t20190731\t1\t900000000000207008\t733073007\t64572001\tSubClassOf(:64572001 ObjectUnionOf(:404684003 :404684003))\n",
+    );
+
+    let out = snomed_cli::run(&[
+        "classify".to_string(),
+        tmp.path().to_str().unwrap().to_string(),
+    ])
+    .unwrap();
+
+    assert!(
+        out.contains("OWL axioms: 1 parsed, 1 failed to parse"),
+        "{out}"
+    );
+    assert!(out.contains("parse error on 64572001"), "{out}");
+}
+
+#[test]
 fn validate_reports_a_clean_release() {
     let tmp = TempDir::new("validate-clean");
     write_synthetic_release(tmp.path());

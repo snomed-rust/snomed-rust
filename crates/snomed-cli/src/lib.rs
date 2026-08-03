@@ -33,6 +33,8 @@ use snomed_rf2::refset::{
 use snomed_rf2::release_type::ReleaseType;
 use snomed_store::{SnapshotStore, SnapshotStoreBuilder};
 
+use snomed_owl::Axiom;
+
 /// Dispatches on `args[0]` (the subcommand name) and returns the formatted
 /// output. `args` excludes the program name (pass `std::env::args().skip(1)`
 /// collected into a `Vec`, or an equivalent slice in tests).
@@ -47,6 +49,7 @@ pub fn run(args: &[String]) -> Result<String, Box<dyn Error>> {
         "ecl" => cmd_ecl(rest),
         "export" => cmd_export(rest),
         "validate" => cmd_validate(rest),
+        "classify" => cmd_classify(rest),
         "help" | "-h" | "--help" => Ok(usage()),
         other => Err(format!("unknown command `{other}` (try `snomed-cli help`)").into()),
     }
@@ -78,6 +81,10 @@ fn usage() -> String {
         (
             "validate <release-dir> [--full]",
             "check referential integrity and IS-A acyclicity",
+        ),
+        (
+            "classify <release-dir> [concept-id] [--full]",
+            "classify the release's OWL axioms; show one concept's entailed supertypes, or a summary",
         ),
     ];
     let width = rows.iter().map(|(cmd, _)| cmd.len()).max().unwrap_or(0);
@@ -223,6 +230,109 @@ fn write_ids(out: &mut String, label: &str, ids: &[SctId]) -> Result<(), Box<dyn
     writeln!(out, "  {label} ({}):", ids.len())?;
     for id in ids {
         writeln!(out, "    {id}")?;
+    }
+    Ok(())
+}
+
+/// Parses every active OWLExpression refset member in the loaded release
+/// and runs `snomed-classify`'s EL completion over the result. With a
+/// `concept-id`, shows that concept's entailed supertypes (spec/13);
+/// without one, a summary. A row that fails to parse (an OWL construct
+/// `snomed-owl` doesn't support yet, spec/12) is skipped and reported —
+/// same "don't let one bad row block everything else" philosophy as
+/// `load`/`validate`, not a hard error.
+fn cmd_classify(args: &[String]) -> Result<String, Box<dyn Error>> {
+    let usage = "usage: classify <release-dir> [concept-id] [--full]";
+    let mut positional: Vec<&str> = Vec::new();
+    let mut release_type = ReleaseType::Snapshot;
+    for a in args {
+        match a.as_str() {
+            "--full" => release_type = ReleaseType::Full,
+            other => positional.push(other),
+        }
+    }
+    let (dir, concept_id) = match positional.as_slice() {
+        [dir] => (*dir, None),
+        [dir, id] => (*dir, Some(*id)),
+        _ => return Err(usage.into()),
+    };
+
+    let (store, mut out) = load(dir, release_type)?;
+
+    let mut axioms: Vec<Axiom> = Vec::new();
+    let mut parse_failures: Vec<(SctId, String)> = Vec::new();
+    for member in store.all_owl_expression_members() {
+        match snomed_owl::parse(&member.owl_expression) {
+            Ok(axiom) => axioms.push(axiom),
+            Err(e) => parse_failures.push((member.core.referenced_component_id, e.to_string())),
+        }
+    }
+    writeln!(
+        out,
+        "OWL axioms: {} parsed, {} failed to parse",
+        axioms.len(),
+        parse_failures.len()
+    )?;
+    write_capped(&mut out, &parse_failures, |out, (id, reason)| {
+        writeln!(out, "  parse error on {id}: {reason}")
+    })?;
+
+    let report = snomed_classify::classify(&axioms);
+    if !report.skipped.is_empty() {
+        writeln!(
+            out,
+            "{} construct(s) not modeled during classification:",
+            report.skipped.len()
+        )?;
+        write_capped(&mut out, &report.skipped, |out, s| writeln!(out, "  {s}"))?;
+    }
+
+    match concept_id {
+        Some(id_str) => {
+            let id = SctId::parse(id_str)?;
+            let mut supers: Vec<SctId> = report.classification.subsumers(id).collect();
+            supers.sort();
+            writeln!(
+                out,
+                "{id} is entailed to be subsumed by {} concept(s):",
+                supers.len()
+            )?;
+            for s in supers {
+                let name = store.fsn(s).map(|d| d.term.as_str()).unwrap_or("?");
+                writeln!(out, "  {s}  {name}")?;
+            }
+        }
+        None => {
+            let concepts: Vec<SctId> = report.classification.concepts().collect();
+            let total_pairs: usize = concepts
+                .iter()
+                .map(|&c| report.classification.subsumers(c).count())
+                .sum();
+            writeln!(
+                out,
+                "{} concept(s) classified, {total_pairs} entailed subsumption pair(s) total",
+                concepts.len()
+            )?;
+        }
+    }
+    Ok(out)
+}
+
+/// Writes at most the first 5 items via `write_one`, then a "... and N
+/// more" line if there were more — used for lists that could be large
+/// (parse failures, skipped constructs) where dumping every one would
+/// swamp the summary this subcommand is meant to give.
+fn write_capped<T>(
+    out: &mut String,
+    items: &[T],
+    mut write_one: impl FnMut(&mut String, &T) -> std::fmt::Result,
+) -> Result<(), Box<dyn Error>> {
+    const CAP: usize = 5;
+    for item in items.iter().take(CAP) {
+        write_one(out, item)?;
+    }
+    if items.len() > CAP {
+        writeln!(out, "  ... and {} more", items.len() - CAP)?;
     }
     Ok(())
 }

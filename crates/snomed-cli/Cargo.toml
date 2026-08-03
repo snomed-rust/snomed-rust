@@ -1,6 +1,6 @@
 [package]
 name = "snomed-cli"
-description = "Command-line toolkit for SNOMED CT RF2: SCTID validation, release loading, concept lookup, ECL queries"
+description = "Command-line toolkit for SNOMED CT RF2: SCTID validation, release loading, concept lookup, ECL queries, OWL classification"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -11,7 +11,9 @@ categories.workspace = true
 authors.workspace = true
 
 [dependencies]
+snomed-classify.workspace = true
 snomed-core.workspace = true
 snomed-ecl.workspace = true
+snomed-owl.workspace = true
 snomed-rf2.workspace = true
 snomed-store.workspace = true

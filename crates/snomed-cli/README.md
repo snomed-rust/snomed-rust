@@ -1,8 +1,9 @@
 # snomed-cli
 
 A command-line binary over the `snomed` workspace: validate an SCTID,
-sanity-check an RF2 release directory, look up a concept's neighborhood, or
-run an ECL query — all from the terminal, without writing Rust.
+sanity-check an RF2 release directory, look up a concept's neighborhood,
+run an ECL query, or classify a release's OWL axioms — all from the
+terminal, without writing Rust.
 
 ## Install / run
 
@@ -29,6 +30,7 @@ snomed-cli ecl <release-dir> <expression>   evaluate an ECL expression (quote it
 snomed-cli export <rf2-file> [output-file]  convert one RF2 file to NDJSON (stdout if no output file)
 snomed-cli export <release-dir> <output-dir> [--full]  convert every exportable file in a release directory to NDJSON
 snomed-cli validate <release-dir> [--full]  check referential integrity and IS-A acyclicity
+snomed-cli classify <release-dir> [concept-id] [--full]  classify the release's OWL axioms
 ```
 
 `<release-dir>` is an unzipped RF2 release directory (i.e. the folder
@@ -175,6 +177,44 @@ concept sits on a cycle in the active inferred `116680003 |is a|` graph —
 spec/07 rule 3). Findings are grouped by category, each listing the ids of
 the offending components. Refset `referencedComponentId` dangling checks
 are out of scope for now — see `crates/snomed-store/README.md`.
+
+### `classify`
+
+```sh
+$ snomed-cli classify ./Snapshot 22298006
+loaded 3 file(s), skipped 0 in 1.90ms
+OWL axioms: 2 parsed, 0 failed to parse
+22298006 is entailed to be subsumed by 2 concept(s):
+  64572001  Disease (disorder)
+  404684003  Clinical finding (finding)
+```
+
+(Real output, verified against a tiny hand-written release with two OWL
+axioms — `SubClassOf(:22298006 :64572001)` and
+`SubClassOf(:64572001 :404684003)` — where `404684003` is *not* stated
+directly on `22298006`; it only shows up because `snomed-classify`
+actually ran the completion algorithm, not because it echoed a stated
+axiom. Only the file count/elapsed time are illustrative.)
+
+Without a `concept-id`, prints a summary instead:
+
+```sh
+$ snomed-cli classify ./Snapshot
+loaded 3 file(s), skipped 0 in 1.41ms
+OWL axioms: 2 parsed, 0 failed to parse
+3 concept(s) classified, 3 entailed subsumption pair(s) total
+```
+
+Parses every active `OWLExpression` refset member in the loaded release
+(`snomed-owl`) and runs `snomed-classify`'s EL completion algorithm over
+the result (spec/13). A row that fails to parse (an OWL construct
+`snomed-owl` doesn't support yet) is skipped and reported by
+`referencedComponentId`, not a hard error — same philosophy as `load`:
+one bad row shouldn't block classifying everything else. Likewise, any
+construct `snomed-classify` recognizes but doesn't model
+(`ReflexiveObjectProperty`, `SubDataPropertyOf`, `DataHasValue`) is
+counted and reported, never silently dropped. Both failure lists cap at
+5 shown entries with a "... and N more" tail for large releases.
 
 ## Design
 

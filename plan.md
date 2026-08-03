@@ -319,6 +319,16 @@ fix it surfaced, and `HistoryStore`.
 - Wired into the `snomed` facade (`snomed::classify` module,
   `classify`/`Classification`/`ClassificationReport`/`SkippedConstruct`
   in the prelude).
+- Wired into `snomed-cli` as a `classify <release-dir> [concept-id]
+  [--full]` subcommand: collects every active OWL Expression refset
+  member via a new `SnapshotStore::all_owl_expression_members()`
+  accessor (the first "give me everything, regardless of refset/
+  component" escape hatch alongside the existing per-`(refsetId,
+  componentId)` lookups — see `AGENTS/store-engineer.md`), parses each
+  with `snomed-owl`, classifies the result, and reports both parse
+  failures and skipped constructs (capped at 5 + a "... and N more"
+  tail) rather than hard-failing on either. With a concept id, prints
+  its entailed supertypes (by FSN); without one, prints a summary count.
 
 ## Non-goals (for now)
 

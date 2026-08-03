@@ -78,6 +78,14 @@ impl Classification {
         self.subsumers(concept)
             .filter(move |&other| self.is_subsumed_by(other, concept))
     }
+
+    /// Every concept the input axioms said anything about — i.e. every
+    /// concept `subsumers`/`is_subsumed_by`/`equivalent_to` have a real
+    /// (possibly empty) answer for, not just concepts that happen to
+    /// appear somewhere as a filler. Order is unspecified.
+    pub fn concepts(&self) -> impl Iterator<Item = SctId> + '_ {
+        self.subsumers.keys().copied()
+    }
 }
 
 /// [`classify`]'s result: the classification, plus every input construct
@@ -346,5 +354,18 @@ mod tests {
         let unrelated = id(1082);
         assert!(!report.classification.is_subsumed_by(unrelated, a));
         assert!(report.classification.subsumers(unrelated).next().is_none());
+    }
+
+    #[test]
+    fn concepts_lists_exactly_what_the_axioms_named() {
+        let a = id(1090);
+        let b = id(1091);
+        let axioms = vec![ax(&format!("SubClassOf(:{a} :{b})"))];
+        let report = classify(&axioms);
+        let mut concepts: Vec<SctId> = report.classification.concepts().collect();
+        concepts.sort();
+        let mut expected = vec![a, b];
+        expected.sort();
+        assert_eq!(concepts, expected);
     }
 }

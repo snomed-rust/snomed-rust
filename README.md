@@ -34,7 +34,7 @@ or analytics pipelines.
 | [`crates/snomed-fhir`](crates/snomed-fhir) | FHIR terminology service building blocks: `$subsumes`, `$lookup`, `$expand` |
 | [`crates/snomed-owl`](crates/snomed-owl) | Parser for the OWL 2 functional-syntax subset used in the OWL Expression reference set |
 | [`crates/snomed-classify`](crates/snomed-classify) | EL-profile subsumption classifier (completion algorithm) over OWL axioms |
-| [`crates/snomed-cli`](crates/snomed-cli) | `snomed-cli` binary: `sctid`, `load`, `lookup`, `ecl`, `export`, `validate` subcommands |
+| [`crates/snomed-cli`](crates/snomed-cli) | `snomed-cli` binary: `sctid`, `load`, `lookup`, `ecl`, `export`, `validate`, `classify` subcommands |
 
 Supporting documents:
 
@@ -102,6 +102,7 @@ cargo run -p snomed-cli -- ecl ./SnomedCT_InternationalRF2_PRODUCTION_20250801/S
 cargo run -p snomed-cli -- export sct2_Concept_Snapshot_INT_20250801.txt concepts.ndjson
 cargo run -p snomed-cli -- export ./SnomedCT_InternationalRF2_PRODUCTION_20250801/Snapshot ./ndjson-out
 cargo run -p snomed-cli -- validate ./SnomedCT_InternationalRF2_PRODUCTION_20250801/Snapshot
+cargo run -p snomed-cli -- classify ./SnomedCT_InternationalRF2_PRODUCTION_20250801/Snapshot 22298006
 ```
 
 ## Development

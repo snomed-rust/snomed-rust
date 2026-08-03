@@ -629,15 +629,55 @@ This closes every item originally scoped in `plan.md` Phase 6.
 
 This closes Phase 7 (see `plan.md`).
 
+## Done (2026-08-03, snomed-cli classify subcommand)
+
+- [x] Wired `snomed-classify` into `snomed-cli` as `classify <release-dir>
+      [concept-id] [--full]`: loads the release, collects every active
+      OWL Expression refset member, parses each with `snomed-owl`, runs
+      `snomed-classify`'s completion algorithm, and either lists one
+      concept's entailed supertypes (by FSN, sorted) or prints a summary
+      count of concepts/subsumption pairs.
+- [x] Added `SnapshotStore::all_owl_expression_members()` — the first
+      "give me every active member of this refset type across the whole
+      store" accessor, alongside the existing per-`(refsetId,
+      componentId)`-keyed lookups. Documented the pattern in
+      `AGENTS/store-engineer.md` for future `all_x_members()` additions
+      rather than having callers reconstruct the shape externally.
+- [x] Added `Classification::concepts()` to enumerate exactly the
+      concept ids the classified axioms named (used for the no-arg
+      summary form).
+- [x] Both parse failures (a row `snomed-owl` can't parse) and skipped
+      constructs (a row `snomed-classify` recognizes but doesn't model)
+      are reported, never silently dropped — same "skip and report"
+      philosophy as `load`/`export`/`validate`. Both lists share a new
+      `write_capped` helper (caps at 5 shown entries + "... and N more").
+- [x] Tests: a no-OWL-axioms release (summary shows zero); a release
+      whose classify output only makes sense if the completion algorithm
+      actually ran (asserts entailment of a supertype that is neither
+      stated directly nor derivable from RF2 Relationships — only from
+      chaining two OWL `SubClassOf` axioms); a release with one valid and
+      one unsupported (`ObjectUnionOf`) axiom, asserting the valid one
+      still classifies and the failure is reported by
+      `referencedComponentId`.
+- [x] Docs: `snomed-cli` README gets a full `### classify` section with
+      two real captured output blocks; root README's crate table and
+      quick-start terminal block; `Cargo.toml` description field;
+      `AGENTS/cli-engineer.md` gets a "`classify` composes three crates,
+      owns none of their logic" section; `plan.md`'s Phase 7 entry
+      documents the wiring.
+- [x] 220 tests passing workspace-wide (5 new: 1 store, 1 snomed-classify,
+      3 snomed-cli integration), `cargo fmt --all -- --check` and
+      `cargo clippy --all-targets` both clean.
+
 ## Next up
 
 - [ ] Nothing currently scoped. Candidate future work (not yet
       decided/planned): the "necessary normal form" RF2-relationship-
       generation pipeline on top of `snomed-classify` (role-group-aware
       redundancy elimination — a distinct, harder problem than
-      subsumption classification itself); a `snomed-cli classify`
-      subcommand wiring a loaded release's OWL Expression refset through
-      `snomed-owl`/`snomed-classify`; a `snomed-fhir` HTTP server crate;
-      re-running the Phase 4 `snomed-store` benchmark (and now the
+      subsumption classification itself); a `snomed-fhir` HTTP server
+      crate (would need a new external dependency — needs explicit user
+      direction against the zero-dependency policy, not an autonomous
+      pick); re-running the Phase 4 `snomed-store` benchmark (and the
       Phase 7 `snomed-classify` one) against a real International
       Edition release if one becomes available.

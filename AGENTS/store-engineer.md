@@ -70,3 +70,18 @@ kind of domain-logic duplication `AGENTS/cli-engineer.md` warns against).
 If `load_release_dir`'s file-selection rules change, `list_release_files`
 must change with them; they share `collect_txt_files` so most of that is
 automatic.
+
+## Per-refset-type accessors need a "give me everything" escape hatch too
+
+Every per-refset-type accessor (`owl_expression_members`,
+`mrcm_domain_members`, etc.) is keyed by `(refsetId, componentId)` —
+correct for "look up this one thing", useless for a caller (e.g.
+`snomed-cli classify`) that wants *every* active member of a type across
+the whole store, regardless of which refset or component it belongs to.
+`all_owl_expression_members()` is the first of these: a one-line
+`.values().flatten()` over the same grouped map the keyed accessor already
+uses, not a new index. If another consumer needs the same shape for a
+different refset type, add its `all_x_members()` the same way rather than
+having the caller reconstruct it externally (which would mean either
+exposing the internal map or duplicating iteration logic outside this
+crate).
