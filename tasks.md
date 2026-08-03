@@ -214,6 +214,22 @@ This closes Phase 5 (`snomed-ecl` simple constraints + basic refinements,
       in the library crate it's about". 115 tests passing (11 new),
       clippy clean.
 
+## Done (2026-08-03, publish housekeeping + per-crate docs)
+
+- [x] `LICENSE-APACHE` and `LICENSE-MIT` added at the repo root, matching
+      the `license = "Apache-2.0 OR MIT"` already declared in
+      `Cargo.toml`'s `[workspace.package]`.
+- [x] `.github/workflows/ci.yml`: fmt-check + clippy (`-D warnings`) +
+      test on every push to `main` and every PR, with cargo registry/build
+      caching. Inert until a GitHub remote exists, but ready.
+- [x] Comprehensive `README.md` for every crate (`snomed`, `snomed-core`,
+      `snomed-rf2`, `snomed-store`, `snomed-ecl`, `snomed-cli`): what it
+      implements (with spec citations), full query/API surface, usage
+      examples, and (where relevant) the design notes a contributor needs
+      before extending it — same content that's in `AGENTS/*-engineer.md`
+      but framed for a reader who just wants to use the crate, not
+      necessarily modify it.
+
 ## Next up (Phase 6 — interop & tooling)
 
 - [ ] `snomed-cli export` subcommand: RF2 → NDJSON conversion (hand-rolled
@@ -226,6 +242,3 @@ This closes Phase 5 (`snomed-ecl` simple constraints + basic refinements,
       a validation finding).
 - [ ] `snomed-fhir` crate decision + design doc.
 - [ ] OWL expression parsing (axioms from the OWL refset).
-- [ ] Add LICENSE-APACHE / LICENSE-MIT files before any publish.
-- [ ] CI: fmt + clippy + test on push (GitHub Actions) — repo is on git
-      now, this is unblocked whenever a GitHub remote exists.

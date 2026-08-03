@@ -100,6 +100,7 @@ blocks).
 
 ## License
 
-Code: Apache-2.0 OR MIT (license files pending, tracked in `tasks.md`).
+Code: dual-licensed under [Apache-2.0](LICENSE-APACHE) or [MIT](LICENSE-MIT),
+at your option.
 SNOMED CT® is a registered trademark of SNOMED International; this project is
 not affiliated with or endorsed by SNOMED International.
