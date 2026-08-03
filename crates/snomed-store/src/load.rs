@@ -14,8 +14,9 @@ use snomed_rf2::record::Rf2Record;
 use snomed_rf2::refset::{
     AssociationRefsetMember, AttributeValueRefsetMember, DescriptionTypeRefsetMember,
     ExtendedMapRefsetMember, LanguageRefsetMember, ModuleDependencyRefsetMember,
-    OwlExpressionRefsetMember, RefsetDescriptorRefsetMember, SimpleMapRefsetMember,
-    SimpleRefsetMember,
+    MrcmAttributeDomainRefsetMember, MrcmAttributeRangeRefsetMember, MrcmDomainRefsetMember,
+    MrcmModuleScopeRefsetMember, OwlExpressionRefsetMember, RefsetDescriptorRefsetMember,
+    SimpleMapRefsetMember, SimpleRefsetMember,
 };
 use snomed_rf2::release_type::ReleaseType;
 
@@ -213,6 +214,11 @@ fn dispatch(
                 builder.add_language_member(r);
             })?;
         }
+        ("cRefset", "MRCMModuleScope") => {
+            load_rows::<MrcmModuleScopeRefsetMember, _>(path, |r| {
+                builder.add_mrcm_module_scope_member(r);
+            })?;
+        }
         // Real releases name specific association/attribute-value refsets
         // variously (e.g. "HistoricalAssociation", "AttributeValue"); match
         // by substring rather than pinning an exact summary. A name that
@@ -256,6 +262,21 @@ fn dispatch(
         ("ciRefset", "DescriptionType") => {
             load_rows::<DescriptionTypeRefsetMember, _>(path, |r| {
                 builder.add_description_type_member(r);
+            })?;
+        }
+        ("sssssssRefset", "MRCMDomain") => {
+            load_rows::<MrcmDomainRefsetMember, _>(path, |r| {
+                builder.add_mrcm_domain_member(r);
+            })?;
+        }
+        ("cissccRefset", "MRCMAttributeDomain") => {
+            load_rows::<MrcmAttributeDomainRefsetMember, _>(path, |r| {
+                builder.add_mrcm_attribute_domain_member(r);
+            })?;
+        }
+        ("ssccRefset", "MRCMAttributeRange") => {
+            load_rows::<MrcmAttributeRangeRefsetMember, _>(path, |r| {
+                builder.add_mrcm_attribute_range_member(r);
             })?;
         }
         (content_type, summary) => {
@@ -445,6 +466,86 @@ mod tests {
             None, // the FSN isn't a synonym, so preferred_term legitimately finds none here
         );
         assert!(store.is_member(fake_refset, FINDING));
+    }
+
+    #[test]
+    fn loads_all_four_mrcm_refset_files() {
+        let tmp = TempDir::new("load-mrcm");
+        let root = tmp.path();
+        let procedure = SctId::new_unchecked(71388002); // |Procedure|
+        let attribute = SctId::new_unchecked(405815000); // |Procedure device|
+
+        write(
+            root,
+            "Snapshot/Refset/Metadata/der2_sssssssRefset_MRCMDomainSnapshot_INT_20200731.txt",
+            &format!(
+                "id\teffectiveTime\tactive\tmoduleId\trefsetId\treferencedComponentId\t\
+                 domainConstraint\tparentDomain\tproximalPrimitiveConstraint\t\
+                 proximalPrimitiveRefinement\tdomainTemplateForPrecoordination\t\
+                 domainTemplateForPostcoordination\tguideURL\n\
+                 80000000-0000-4000-8000-000000000030\t20200731\t1\t{}\t{}\t{procedure}\t\
+                 << {procedure}\t\t\t\t\t\t\n",
+                constants::CORE_MODULE,
+                constants::MRCM_DOMAIN_REFERENCE_SET,
+            ),
+        );
+        write(
+            root,
+            "Snapshot/Refset/Metadata/der2_cissccRefset_MRCMAttributeDomainSnapshot_INT_20200731.txt",
+            &format!(
+                "id\teffectiveTime\tactive\tmoduleId\trefsetId\treferencedComponentId\t\
+                 domainId\tgrouped\tattributeCardinality\tattributeInGroupCardinality\t\
+                 ruleStrengthId\tcontentTypeId\n\
+                 80000000-0000-4000-8000-000000000031\t20200731\t1\t{}\t{}\t{attribute}\t\
+                 {procedure}\t1\t0..*\t0..*\t{}\t{}\n",
+                constants::CORE_MODULE,
+                constants::MRCM_ATTRIBUTE_DOMAIN_REFERENCE_SET,
+                constants::CORE_MODULE, // placeholder valid SCTID for ruleStrengthId
+                constants::CORE_MODULE, // placeholder valid SCTID for contentTypeId
+            ),
+        );
+        write(
+            root,
+            "Snapshot/Refset/Metadata/der2_ssccRefset_MRCMAttributeRangeSnapshot_INT_20200731.txt",
+            &format!(
+                "id\teffectiveTime\tactive\tmoduleId\trefsetId\treferencedComponentId\t\
+                 rangeConstraint\tattributeRule\truleStrengthId\tcontentTypeId\n\
+                 80000000-0000-4000-8000-000000000032\t20200731\t1\t{}\t{}\t{attribute}\t\
+                 << 49062001\t\t{}\t{}\n",
+                constants::CORE_MODULE,
+                constants::MRCM_ATTRIBUTE_RANGE_REFERENCE_SET,
+                constants::CORE_MODULE,
+                constants::CORE_MODULE,
+            ),
+        );
+        write(
+            root,
+            "Snapshot/Refset/Metadata/der2_cRefset_MRCMModuleScopeSnapshot_INT_20200731.txt",
+            &format!(
+                "id\teffectiveTime\tactive\tmoduleId\trefsetId\treferencedComponentId\tmrcmRuleRefsetId\n\
+                 80000000-0000-4000-8000-000000000033\t20200731\t1\t{}\t{}\t{}\t{}\n",
+                constants::CORE_MODULE,
+                constants::MRCM_MODULE_SCOPE_REFERENCE_SET,
+                constants::CORE_MODULE,
+                constants::MRCM_ATTRIBUTE_RANGE_REFERENCE_SET,
+            ),
+        );
+
+        let mut builder = SnapshotStoreBuilder::new();
+        let report = builder
+            .load_release_dir(root, ReleaseType::Snapshot)
+            .unwrap();
+        assert_eq!(report.loaded.len(), 4, "{:?}", report.loaded);
+        assert!(report.skipped.is_empty(), "{:?}", report.skipped);
+
+        let store = builder.build();
+        assert!(store.is_member(constants::MRCM_DOMAIN_REFERENCE_SET, procedure));
+        assert!(store.is_member(constants::MRCM_ATTRIBUTE_DOMAIN_REFERENCE_SET, attribute));
+        assert!(store.is_member(constants::MRCM_ATTRIBUTE_RANGE_REFERENCE_SET, attribute));
+        assert!(store.is_member(
+            constants::MRCM_MODULE_SCOPE_REFERENCE_SET,
+            constants::CORE_MODULE
+        ));
     }
 
     #[test]

@@ -31,9 +31,31 @@ Versioning semantics are identical to components, keyed by the member UUID.
 | Module dependency | `ssRefset` | `sourceEffectiveTime`, `targetEffectiveTime` |
 | Refset descriptor | `cciRefset` | `attributeDescription`, `attributeType`, `attributeOrder` (metadata describing another refset's extra columns; `referencedComponentId` is the *described* refset's SCTID) |
 | Description type | `ciRefset` | `descriptionFormat`, `descriptionLength` (declares display format and max length for a description type; `referencedComponentId` is a **description type** concept, e.g. `900000000000013009` \|Synonym\|) |
+| MRCM Domain | `sssssssRefset` | `domainConstraint`, `parentDomain`, `proximalPrimitiveConstraint`, `proximalPrimitiveRefinement`, `domainTemplateForPrecoordination`, `domainTemplateForPostcoordination`, `guideURL` (all free text — ECL constraints or expression templates; `parentDomain`/`proximalPrimitiveRefinement` are commonly empty; `referencedComponentId` is the **domain** concept) |
+| MRCM Attribute Domain | `cissccRefset` | `domainId`, `grouped` (must this attribute, for this domain, appear inside a relationship group), `attributeCardinality`, `attributeInGroupCardinality`, `ruleStrengthId`, `contentTypeId`; `referencedComponentId` is the **attribute** concept |
+| MRCM Attribute Range | `ssccRefset` | `rangeConstraint`, `attributeRule` (both free text/ECL), `ruleStrengthId`, `contentTypeId`; `referencedComponentId` is the **attribute** concept |
+| MRCM Module Scope | `cRefset` | `mrcmRuleRefsetId` — the SCTID of whichever of the three MRCM refsets above applies to this module; `referencedComponentId` is the **module** concept |
 
 Also defined by RF2 (not yet implemented, tracked in `tasks.md`):
-ordered/annotation refset variants, MRCM refsets.
+ordered/annotation refset variants.
+
+### MRCM refset sources
+
+docs.snomed.org's [MRCM reference set glossary
+entry](https://docs.snomed.org/snomed-ct-glossary/m/mrcm-reference-set.md)
+gives the purpose of each of the four MRCM refsets but not their exact
+columns. Those came from real RF2 test fixtures in two of SNOMED
+International's own open-source tools — not guessed:
+[`snomed-owl-toolkit`](https://github.com/IHTSDO/snomed-owl-toolkit)
+(`SnomedTaxonomyLoader.java` reads MRCM Attribute Domain's `grouped` and
+`contentTypeId` columns positionally, confirming their presence and
+order) and [`snowstorm`](https://github.com/IHTSDO/snowstorm)
+(`src/test/resources/dummy-snomed-content/*`, which has real RF2 rows —
+including header rows — for all four MRCM refsets, found via `gh api
+"search/code?q=repo:IHTSDO/snowstorm+filename:*MRCM...*"`; the Module
+Scope refset in particular needed a plain code search for its column
+name, `mrcmRuleRefsetId`, since no test fixture file for it turned up
+directly).
 
 ## Well-known refset SCTIDs
 
@@ -44,6 +66,10 @@ ordered/annotation refset variants, MRCM refsets.
 | `900000000000497000` | CTV3 simple map |
 | `447562003` | ICD-10 extended map |
 | `900000000000534007` | Module dependency |
+| `723560006` | MRCM Domain international reference set |
+| `723561005` | MRCM Attribute Domain international reference set |
+| `723562003` | MRCM Attribute Range international reference set |
+| `723563008` | MRCM Module Scope reference set |
 
 ## Rules
 

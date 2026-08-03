@@ -12,8 +12,9 @@ use snomed_core::sctid::SctId;
 use snomed_rf2::refset::{
     AssociationRefsetMember, AttributeValueRefsetMember, DescriptionTypeRefsetMember,
     ExtendedMapRefsetMember, LanguageRefsetMember, ModuleDependencyRefsetMember,
-    OwlExpressionRefsetMember, RefsetDescriptorRefsetMember, RefsetMemberCore,
-    SimpleMapRefsetMember, SimpleRefsetMember,
+    MrcmAttributeDomainRefsetMember, MrcmAttributeRangeRefsetMember, MrcmDomainRefsetMember,
+    MrcmModuleScopeRefsetMember, OwlExpressionRefsetMember, RefsetDescriptorRefsetMember,
+    RefsetMemberCore, SimpleMapRefsetMember, SimpleRefsetMember,
 };
 
 /// Accumulates RF2 rows (from any mix of Full, Snapshot, and Delta files)
@@ -38,6 +39,10 @@ pub struct SnapshotStoreBuilder {
     module_dependency_members: HashMap<String, ModuleDependencyRefsetMember>,
     refset_descriptor_members: HashMap<String, RefsetDescriptorRefsetMember>,
     description_type_members: HashMap<String, DescriptionTypeRefsetMember>,
+    mrcm_domain_members: HashMap<String, MrcmDomainRefsetMember>,
+    mrcm_attribute_domain_members: HashMap<String, MrcmAttributeDomainRefsetMember>,
+    mrcm_attribute_range_members: HashMap<String, MrcmAttributeRangeRefsetMember>,
+    mrcm_module_scope_members: HashMap<String, MrcmModuleScopeRefsetMember>,
 }
 
 fn upsert<K: std::hash::Hash + Eq, V, F: Fn(&V) -> u32>(
@@ -194,6 +199,30 @@ impl SnapshotStoreBuilder {
         description_type_members,
         DescriptionTypeRefsetMember
     );
+    refset_member_methods!(
+        add_mrcm_domain_member,
+        add_mrcm_domain_members,
+        mrcm_domain_members,
+        MrcmDomainRefsetMember
+    );
+    refset_member_methods!(
+        add_mrcm_attribute_domain_member,
+        add_mrcm_attribute_domain_members,
+        mrcm_attribute_domain_members,
+        MrcmAttributeDomainRefsetMember
+    );
+    refset_member_methods!(
+        add_mrcm_attribute_range_member,
+        add_mrcm_attribute_range_members,
+        mrcm_attribute_range_members,
+        MrcmAttributeRangeRefsetMember
+    );
+    refset_member_methods!(
+        add_mrcm_module_scope_member,
+        add_mrcm_module_scope_members,
+        mrcm_module_scope_members,
+        MrcmModuleScopeRefsetMember
+    );
 
     pub fn add_concepts(&mut self, rows: impl IntoIterator<Item = Concept>) -> &mut Self {
         rows.into_iter().for_each(|r| {
@@ -308,6 +337,14 @@ impl SnapshotStoreBuilder {
             group_by_refset_and_component(self.refset_descriptor_members, |m| &m.core);
         let description_type_members =
             group_by_refset_and_component(self.description_type_members, |m| &m.core);
+        let mrcm_domain_members =
+            group_by_refset_and_component(self.mrcm_domain_members, |m| &m.core);
+        let mrcm_attribute_domain_members =
+            group_by_refset_and_component(self.mrcm_attribute_domain_members, |m| &m.core);
+        let mrcm_attribute_range_members =
+            group_by_refset_and_component(self.mrcm_attribute_range_members, |m| &m.core);
+        let mrcm_module_scope_members =
+            group_by_refset_and_component(self.mrcm_module_scope_members, |m| &m.core);
 
         // Unified (refsetId -> referencedComponentIds) membership, spanning
         // every refset type: RF2 "membership" is refsetId +
@@ -326,6 +363,10 @@ impl SnapshotStoreBuilder {
             .chain(module_dependency_members.keys())
             .chain(refset_descriptor_members.keys())
             .chain(description_type_members.keys())
+            .chain(mrcm_domain_members.keys())
+            .chain(mrcm_attribute_domain_members.keys())
+            .chain(mrcm_attribute_range_members.keys())
+            .chain(mrcm_module_scope_members.keys())
             .chain(acceptability.keys())
         {
             refset_memberships
@@ -354,6 +395,10 @@ impl SnapshotStoreBuilder {
             module_dependency_members,
             refset_descriptor_members,
             description_type_members,
+            mrcm_domain_members,
+            mrcm_attribute_domain_members,
+            mrcm_attribute_range_members,
+            mrcm_module_scope_members,
         }
     }
 }
@@ -386,6 +431,10 @@ pub struct SnapshotStore {
     module_dependency_members: HashMap<(SctId, SctId), Vec<ModuleDependencyRefsetMember>>,
     refset_descriptor_members: HashMap<(SctId, SctId), Vec<RefsetDescriptorRefsetMember>>,
     description_type_members: HashMap<(SctId, SctId), Vec<DescriptionTypeRefsetMember>>,
+    mrcm_domain_members: HashMap<(SctId, SctId), Vec<MrcmDomainRefsetMember>>,
+    mrcm_attribute_domain_members: HashMap<(SctId, SctId), Vec<MrcmAttributeDomainRefsetMember>>,
+    mrcm_attribute_range_members: HashMap<(SctId, SctId), Vec<MrcmAttributeRangeRefsetMember>>,
+    mrcm_module_scope_members: HashMap<(SctId, SctId), Vec<MrcmModuleScopeRefsetMember>>,
 }
 
 impl SnapshotStore {
@@ -688,6 +737,60 @@ impl SnapshotStore {
     ) -> &[DescriptionTypeRefsetMember] {
         self.description_type_members
             .get(&(refset_id, description_type_id))
+            .map(Vec::as_slice)
+            .unwrap_or(&[])
+    }
+
+    /// Active MRCM Domain members for `domain_id` in `refset_id` (e.g.
+    /// [`constants::MRCM_DOMAIN_REFERENCE_SET`]).
+    pub fn mrcm_domain_members(
+        &self,
+        refset_id: SctId,
+        domain_id: SctId,
+    ) -> &[MrcmDomainRefsetMember] {
+        self.mrcm_domain_members
+            .get(&(refset_id, domain_id))
+            .map(Vec::as_slice)
+            .unwrap_or(&[])
+    }
+
+    /// Active MRCM Attribute Domain members for `attribute_id` in
+    /// `refset_id` (e.g.
+    /// [`constants::MRCM_ATTRIBUTE_DOMAIN_REFERENCE_SET`]).
+    pub fn mrcm_attribute_domain_members(
+        &self,
+        refset_id: SctId,
+        attribute_id: SctId,
+    ) -> &[MrcmAttributeDomainRefsetMember] {
+        self.mrcm_attribute_domain_members
+            .get(&(refset_id, attribute_id))
+            .map(Vec::as_slice)
+            .unwrap_or(&[])
+    }
+
+    /// Active MRCM Attribute Range members for `attribute_id` in
+    /// `refset_id` (e.g.
+    /// [`constants::MRCM_ATTRIBUTE_RANGE_REFERENCE_SET`]).
+    pub fn mrcm_attribute_range_members(
+        &self,
+        refset_id: SctId,
+        attribute_id: SctId,
+    ) -> &[MrcmAttributeRangeRefsetMember] {
+        self.mrcm_attribute_range_members
+            .get(&(refset_id, attribute_id))
+            .map(Vec::as_slice)
+            .unwrap_or(&[])
+    }
+
+    /// Active MRCM Module Scope members for `module_id` in `refset_id`
+    /// (e.g. [`constants::MRCM_MODULE_SCOPE_REFERENCE_SET`]).
+    pub fn mrcm_module_scope_members(
+        &self,
+        refset_id: SctId,
+        module_id: SctId,
+    ) -> &[MrcmModuleScopeRefsetMember] {
+        self.mrcm_module_scope_members
+            .get(&(refset_id, module_id))
             .map(Vec::as_slice)
             .unwrap_or(&[])
     }
@@ -1092,5 +1195,106 @@ mod tests {
         assert!(store
             .description_type_members(descriptor_refset, constants::TEXT_DEFINITION)
             .is_empty());
+    }
+
+    #[test]
+    fn mrcm_refset_members_are_queryable_and_span_membership() {
+        // 71388002 |Procedure| — real, well-known concept, used as an
+        // MRCM domain.
+        let procedure = SctId::new_unchecked(71388002);
+        let attribute = SctId::new_unchecked(405815000); // |Procedure device|
+
+        let mut b = SnapshotStore::builder();
+        b.add_mrcm_domain_member(MrcmDomainRefsetMember {
+            core: core(
+                "80000000-0000-4000-8000-000000000022",
+                20200731,
+                true,
+                constants::MRCM_DOMAIN_REFERENCE_SET,
+                procedure,
+            ),
+            domain_constraint: "<< 71388002".to_string(),
+            parent_domain: String::new(),
+            proximal_primitive_constraint: "<< 71388002".to_string(),
+            proximal_primitive_refinement: String::new(),
+            domain_template_for_precoordination: String::new(),
+            domain_template_for_postcoordination: String::new(),
+            guide_url: String::new(),
+        });
+        b.add_mrcm_attribute_domain_member(MrcmAttributeDomainRefsetMember {
+            core: core(
+                "80000000-0000-4000-8000-000000000023",
+                20200731,
+                true,
+                constants::MRCM_ATTRIBUTE_DOMAIN_REFERENCE_SET,
+                attribute,
+            ),
+            domain_id: procedure,
+            grouped: true,
+            attribute_cardinality: "0..*".to_string(),
+            attribute_in_group_cardinality: "0..*".to_string(),
+            rule_strength_id: constants::CORE_MODULE, // placeholder valid SCTID
+            content_type_id: constants::CORE_MODULE,  // placeholder valid SCTID
+        });
+        b.add_mrcm_attribute_range_member(MrcmAttributeRangeRefsetMember {
+            core: core(
+                "80000000-0000-4000-8000-000000000024",
+                20200731,
+                true,
+                constants::MRCM_ATTRIBUTE_RANGE_REFERENCE_SET,
+                attribute,
+            ),
+            range_constraint: "<< 49062001".to_string(),
+            attribute_rule: String::new(),
+            rule_strength_id: constants::CORE_MODULE, // placeholder valid SCTID
+            content_type_id: constants::CORE_MODULE,  // placeholder valid SCTID
+        });
+        b.add_mrcm_module_scope_member(MrcmModuleScopeRefsetMember {
+            core: core(
+                "80000000-0000-4000-8000-000000000025",
+                20200731,
+                true,
+                constants::MRCM_MODULE_SCOPE_REFERENCE_SET,
+                constants::CORE_MODULE,
+            ),
+            mrcm_rule_refset_id: constants::MRCM_ATTRIBUTE_RANGE_REFERENCE_SET,
+        });
+        let store = b.build();
+
+        let domains = store.mrcm_domain_members(constants::MRCM_DOMAIN_REFERENCE_SET, procedure);
+        assert_eq!(domains.len(), 1);
+        assert_eq!(domains[0].domain_constraint, "<< 71388002");
+
+        let attribute_domains = store.mrcm_attribute_domain_members(
+            constants::MRCM_ATTRIBUTE_DOMAIN_REFERENCE_SET,
+            attribute,
+        );
+        assert_eq!(attribute_domains.len(), 1);
+        assert!(attribute_domains[0].grouped);
+
+        let attribute_ranges = store
+            .mrcm_attribute_range_members(constants::MRCM_ATTRIBUTE_RANGE_REFERENCE_SET, attribute);
+        assert_eq!(attribute_ranges.len(), 1);
+        assert_eq!(attribute_ranges[0].range_constraint, "<< 49062001");
+
+        let module_scopes = store.mrcm_module_scope_members(
+            constants::MRCM_MODULE_SCOPE_REFERENCE_SET,
+            constants::CORE_MODULE,
+        );
+        assert_eq!(module_scopes.len(), 1);
+        assert_eq!(
+            module_scopes[0].mrcm_rule_refset_id,
+            constants::MRCM_ATTRIBUTE_RANGE_REFERENCE_SET
+        );
+
+        // Every MRCM refset participates in the unified membership index
+        // (spec/08 rule 4), same as every other refset type.
+        assert!(store.is_member(constants::MRCM_DOMAIN_REFERENCE_SET, procedure));
+        assert!(store.is_member(constants::MRCM_ATTRIBUTE_DOMAIN_REFERENCE_SET, attribute));
+        assert!(store.is_member(constants::MRCM_ATTRIBUTE_RANGE_REFERENCE_SET, attribute));
+        assert!(store.is_member(
+            constants::MRCM_MODULE_SCOPE_REFERENCE_SET,
+            constants::CORE_MODULE
+        ));
     }
 }

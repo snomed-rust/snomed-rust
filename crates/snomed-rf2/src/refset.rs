@@ -276,6 +276,142 @@ impl Rf2Record for DescriptionTypeRefsetMember {
     }
 }
 
+/// MRCM Domain refset (`der2_sssssssRefset_MRCMDomain*`): enumerates the
+/// concept model domains attributes may be applied to.
+/// `referencedComponentId` is the domain concept. All seven extra columns
+/// are free text (ECL constraints or expression templates) and MAY be
+/// empty — e.g. `parentDomain` is empty for a domain with no parent, and
+/// `proximalPrimitiveRefinement` is commonly empty (spec/08).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct MrcmDomainRefsetMember {
+    pub core: RefsetMemberCore,
+    pub domain_constraint: String,
+    pub parent_domain: String,
+    pub proximal_primitive_constraint: String,
+    pub proximal_primitive_refinement: String,
+    pub domain_template_for_precoordination: String,
+    pub domain_template_for_postcoordination: String,
+    pub guide_url: String,
+}
+
+impl Rf2Record for MrcmDomainRefsetMember {
+    const HEADER: &'static [&'static str] = common_then!(
+        "domainConstraint",
+        "parentDomain",
+        "proximalPrimitiveConstraint",
+        "proximalPrimitiveRefinement",
+        "domainTemplateForPrecoordination",
+        "domainTemplateForPostcoordination",
+        "guideURL"
+    );
+
+    fn parse_fields(f: &[&str]) -> Result<Self, FieldError> {
+        Ok(MrcmDomainRefsetMember {
+            core: RefsetMemberCore::parse(f)?,
+            domain_constraint: f[6].to_string(),
+            parent_domain: f[7].to_string(),
+            proximal_primitive_constraint: f[8].to_string(),
+            proximal_primitive_refinement: f[9].to_string(),
+            domain_template_for_precoordination: f[10].to_string(),
+            domain_template_for_postcoordination: f[11].to_string(),
+            guide_url: f[12].to_string(),
+        })
+    }
+}
+
+/// MRCM Attribute Domain refset (`der2_cissccRefset_MRCMAttributeDomain*`):
+/// associates a concept model attribute with the domain(s) it may be
+/// applied to. `referencedComponentId` is the attribute concept.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct MrcmAttributeDomainRefsetMember {
+    pub core: RefsetMemberCore,
+    pub domain_id: SctId,
+    /// Whether this attribute, for this domain, must appear inside a
+    /// relationship group.
+    pub grouped: bool,
+    pub attribute_cardinality: String,
+    pub attribute_in_group_cardinality: String,
+    pub rule_strength_id: SctId,
+    pub content_type_id: SctId,
+}
+
+impl Rf2Record for MrcmAttributeDomainRefsetMember {
+    const HEADER: &'static [&'static str] = common_then!(
+        "domainId",
+        "grouped",
+        "attributeCardinality",
+        "attributeInGroupCardinality",
+        "ruleStrengthId",
+        "contentTypeId"
+    );
+
+    fn parse_fields(f: &[&str]) -> Result<Self, FieldError> {
+        Ok(MrcmAttributeDomainRefsetMember {
+            core: RefsetMemberCore::parse(f)?,
+            domain_id: parse_sctid(f[6], "domainId")?,
+            grouped: parse_active(f[7], "grouped")?,
+            attribute_cardinality: f[8].to_string(),
+            attribute_in_group_cardinality: f[9].to_string(),
+            rule_strength_id: parse_sctid(f[10], "ruleStrengthId")?,
+            content_type_id: parse_sctid(f[11], "contentTypeId")?,
+        })
+    }
+}
+
+/// MRCM Attribute Range refset (`der2_ssccRefset_MRCMAttributeRange*`):
+/// associates a concept model attribute with the valid range for its
+/// values. `referencedComponentId` is the attribute concept.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct MrcmAttributeRangeRefsetMember {
+    pub core: RefsetMemberCore,
+    pub range_constraint: String,
+    pub attribute_rule: String,
+    pub rule_strength_id: SctId,
+    pub content_type_id: SctId,
+}
+
+impl Rf2Record for MrcmAttributeRangeRefsetMember {
+    const HEADER: &'static [&'static str] = common_then!(
+        "rangeConstraint",
+        "attributeRule",
+        "ruleStrengthId",
+        "contentTypeId"
+    );
+
+    fn parse_fields(f: &[&str]) -> Result<Self, FieldError> {
+        Ok(MrcmAttributeRangeRefsetMember {
+            core: RefsetMemberCore::parse(f)?,
+            range_constraint: f[6].to_string(),
+            attribute_rule: f[7].to_string(),
+            rule_strength_id: parse_sctid(f[8], "ruleStrengthId")?,
+            content_type_id: parse_sctid(f[9], "contentTypeId")?,
+        })
+    }
+}
+
+/// MRCM Module Scope refset (`der2_cRefset_MRCMModuleScope*`): specifies
+/// which of the other three MRCM refsets applies to content in a given
+/// module. `referencedComponentId` is the module concept (e.g.
+/// `900000000000207008` |SNOMED CT core module|); `mrcm_rule_refset_id`
+/// is the SCTID of the applicable MRCM Domain/Attribute Domain/Attribute
+/// Range refset.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct MrcmModuleScopeRefsetMember {
+    pub core: RefsetMemberCore,
+    pub mrcm_rule_refset_id: SctId,
+}
+
+impl Rf2Record for MrcmModuleScopeRefsetMember {
+    const HEADER: &'static [&'static str] = common_then!("mrcmRuleRefsetId");
+
+    fn parse_fields(f: &[&str]) -> Result<Self, FieldError> {
+        Ok(MrcmModuleScopeRefsetMember {
+            core: RefsetMemberCore::parse(f)?,
+            mrcm_rule_refset_id: parse_sctid(f[6], "mrcmRuleRefsetId")?,
+        })
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -330,5 +466,83 @@ mod tests {
         assert_eq!(members.len(), 1);
         assert_eq!(members[0].description_length, 255);
         assert_eq!(members[0].core.referenced_component_id, constants::SYNONYM);
+    }
+
+    // The MRCM Attribute Domain, MRCM Attribute Range, and MRCM Module
+    // Scope rows below are real, verified rows (UUIDs, ids, and all),
+    // copied from SNOMED International's own Snowstorm terminology
+    // server's RF2 test fixtures
+    // (github.com/IHTSDO/snowstorm, src/test/resources/dummy-snomed-content),
+    // not fabricated — the MRCM Domain row is hand-written instead since
+    // real MRCM Domain rows run to several KB of ECL/template text per
+    // row, impractical to embed here; it's illustrative of the column
+    // shape, not claimed as verbatim real content.
+
+    #[test]
+    fn parses_mrcm_domain_rows() {
+        let data = "id\teffectiveTime\tactive\tmoduleId\trefsetId\treferencedComponentId\t\
+            domainConstraint\tparentDomain\tproximalPrimitiveConstraint\tproximalPrimitiveRefinement\t\
+            domainTemplateForPrecoordination\tdomainTemplateForPostcoordination\tguideURL\n\
+            80000000-0000-4000-8000-000000000005\t20200731\t1\t900000000000012004\t723560006\t\
+            71388002\t<< 71388002\t\t<< 71388002\t\t[[+id(<< 71388002)]]\t[[+scg(<< 71388002)]]\t\
+            http://snomed.org/dom71388002\n";
+        let members: Vec<MrcmDomainRefsetMember> = read_all(data.as_bytes()).unwrap();
+        assert_eq!(members.len(), 1);
+        assert_eq!(members[0].domain_constraint, "<< 71388002");
+        assert_eq!(members[0].parent_domain, "", "root domain has no parent");
+        assert_eq!(members[0].guide_url, "http://snomed.org/dom71388002");
+    }
+
+    #[test]
+    fn parses_mrcm_attribute_domain_rows() {
+        let data = "id\teffectiveTime\tactive\tmoduleId\trefsetId\treferencedComponentId\t\
+            domainId\tgrouped\tattributeCardinality\tattributeInGroupCardinality\truleStrengthId\tcontentTypeId\n\
+            016dbf3a-4665-4b44-908e-2040dc8ccf5d\t20170731\t1\t900000000000012004\t723561005\t\
+            405815000\t71388002\t1\t0..*\t0..*\t723597001\t723596005\n";
+        let members: Vec<MrcmAttributeDomainRefsetMember> = read_all(data.as_bytes()).unwrap();
+        assert_eq!(members.len(), 1);
+        assert!(members[0].grouped);
+        assert_eq!(members[0].attribute_cardinality, "0..*");
+        assert_eq!(
+            members[0].domain_id,
+            SctId::new_unchecked(71388002) // |Procedure|
+        );
+    }
+
+    #[test]
+    fn parses_mrcm_attribute_range_rows() {
+        let data = "id\teffectiveTime\tactive\tmoduleId\trefsetId\treferencedComponentId\t\
+            rangeConstraint\tattributeRule\truleStrengthId\tcontentTypeId\n\
+            efd2d4f8-8230-41bc-9755-4351cce89a0a\t20170731\t1\t900000000000012004\t723562003\t\
+            272741003\t<< 182353008 |Side (qualifier value)|\t\
+            << 91723000 |Anatomical structure (body structure)|: [0..1] 272741003 |Laterality| = \
+            << 182353008 |Side (qualifier value)|\t723597001\t723596005\n";
+        let members: Vec<MrcmAttributeRangeRefsetMember> = read_all(data.as_bytes()).unwrap();
+        assert_eq!(members.len(), 1);
+        assert_eq!(
+            members[0].range_constraint,
+            "<< 182353008 |Side (qualifier value)|"
+        );
+        assert_eq!(
+            members[0].core.referenced_component_id,
+            SctId::new_unchecked(272741003)
+        ); // |Laterality|
+    }
+
+    #[test]
+    fn parses_mrcm_module_scope_rows() {
+        let data = "id\teffectiveTime\tactive\tmoduleId\trefsetId\treferencedComponentId\tmrcmRuleRefsetId\n\
+            8e5766bc-7755-45fb-99c8-8d2c52e45da5\t20170731\t1\t900000000000012004\t723563008\t\
+            900000000000207008\t723562003\n";
+        let members: Vec<MrcmModuleScopeRefsetMember> = read_all(data.as_bytes()).unwrap();
+        assert_eq!(members.len(), 1);
+        assert_eq!(
+            members[0].core.referenced_component_id,
+            constants::CORE_MODULE
+        );
+        assert_eq!(
+            members[0].mrcm_rule_refset_id,
+            SctId::new_unchecked(723562003) // |MRCM attribute range international reference set|
+        );
     }
 }

@@ -85,9 +85,20 @@ layout), and `Relationship`'s by both `sct2_Relationship_*` and
 | `ModuleDependencyRefsetMember` | `sourceEffectiveTime`, `targetEffectiveTime` |
 | `RefsetDescriptorRefsetMember` | `attributeDescription`, `attributeType`, `attributeOrder` |
 | `DescriptionTypeRefsetMember` | `descriptionFormat`, `descriptionLength` |
+| `MrcmDomainRefsetMember` | `domainConstraint`, `parentDomain`, `proximalPrimitiveConstraint`, `proximalPrimitiveRefinement`, `domainTemplateForPrecoordination`, `domainTemplateForPostcoordination`, `guideURL` |
+| `MrcmAttributeDomainRefsetMember` | `domainId`, `grouped`, `attributeCardinality`, `attributeInGroupCardinality`, `ruleStrengthId`, `contentTypeId` |
+| `MrcmAttributeRangeRefsetMember` | `rangeConstraint`, `attributeRule`, `ruleStrengthId`, `contentTypeId` |
+| `MrcmModuleScopeRefsetMember` | `mrcmRuleRefsetId` |
+
+The four MRCM (Machine Readable Concept Model) types' exact columns came
+from real RF2 test fixtures in SNOMED International's own
+[`snomed-owl-toolkit`](https://github.com/IHTSDO/snomed-owl-toolkit) and
+[`snowstorm`](https://github.com/IHTSDO/snowstorm) — docs.snomed.org's
+MRCM glossary entry states each refset's purpose but not its column
+shape (spec/08).
 
 Not yet implemented (tracked in the root `tasks.md`): ordered/annotation
-refset variants, MRCM refsets.
+refset variants.
 
 ## Extending this crate
 

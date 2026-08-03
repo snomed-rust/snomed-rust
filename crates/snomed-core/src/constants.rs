@@ -76,6 +76,16 @@ pub const ACCEPTABLE: SctId = SctId::new_unchecked(900000000000549004);
 pub const MODULE_DEPENDENCY_REFSET: SctId = SctId::new_unchecked(900000000000534007);
 /// `447562003 |ICD-10 complex map reference set|`.
 pub const ICD10_EXTENDED_MAP_REFSET: SctId = SctId::new_unchecked(447562003);
+/// `723560006 |MRCM domain international reference set|` (spec/08).
+pub const MRCM_DOMAIN_REFERENCE_SET: SctId = SctId::new_unchecked(723560006);
+/// `723561005 |MRCM attribute domain international reference set|`
+/// (spec/08).
+pub const MRCM_ATTRIBUTE_DOMAIN_REFERENCE_SET: SctId = SctId::new_unchecked(723561005);
+/// `723562003 |MRCM attribute range international reference set|`
+/// (spec/08).
+pub const MRCM_ATTRIBUTE_RANGE_REFERENCE_SET: SctId = SctId::new_unchecked(723562003);
+/// `723563008 |MRCM module scope reference set|` (spec/08).
+pub const MRCM_MODULE_SCOPE_REFERENCE_SET: SctId = SctId::new_unchecked(723563008);
 
 #[cfg(test)]
 mod tests {
@@ -107,6 +117,10 @@ mod tests {
             ACCEPTABLE,
             MODULE_DEPENDENCY_REFSET,
             ICD10_EXTENDED_MAP_REFSET,
+            MRCM_DOMAIN_REFERENCE_SET,
+            MRCM_ATTRIBUTE_DOMAIN_REFERENCE_SET,
+            MRCM_ATTRIBUTE_RANGE_REFERENCE_SET,
+            MRCM_MODULE_SCOPE_REFERENCE_SET,
         ];
         for id in all {
             let parsed = SctId::parse(&id.to_string()).expect("constant must be a valid SCTID");

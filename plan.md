@@ -69,7 +69,9 @@ the spec's normative rules. Day-to-day execution items live in `tasks.md`.
     interactive or batch use; revisit only if a real-release run (or a
     profiled downstream consumer) shows otherwise.
 - Remaining refset patterns *not yet implemented* (tracked, not urgent):
-  ordered/annotation refset variants, MRCM refsets (spec/08).
+  ordered/annotation refset variants (spec/08). The four MRCM refsets
+  listed here as a gap were implemented later — see the Phase 6 entry
+  below.
 
 ## Phase 5 — Query layer ✅
 
@@ -224,6 +226,21 @@ fix it surfaced, and `HistoryStore`.
   have the context-sensitive-error-masking problem that motivated ECL's
   design, so there was no reason to match it. Wired into the `snomed`
   facade's prelude (`parse_owl`).
+- MRCM refset support ✅: the four Machine Readable Concept Model refsets
+  (Domain, Attribute Domain, Attribute Range, Module Scope) — a Phase 4
+  gap closed later. docs.snomed.org's MRCM glossary entry gives each
+  refset's purpose but not its columns; those came from real RF2 test
+  fixtures in `snomed-owl-toolkit` (whose `SnomedTaxonomyLoader.java`
+  positionally reads MRCM Attribute Domain's `grouped`/`contentTypeId`
+  columns, confirming their presence and order) and `snowstorm`
+  (`src/test/resources/dummy-snomed-content/*`, real RF2 rows including
+  headers for all four). Four new `snomed-rf2::refset` types, four new
+  `snomed_core::constants` (the refsets' own well-known SCTIDs), and
+  full `snomed-store` wiring (builder methods, `build()` grouping,
+  participation in the unified `refset_memberships` index, per-type
+  accessors, `load_release_dir` dispatch) — the same shape every prior
+  refset-type addition followed, extended by four more rows in the
+  macro-generated method list rather than anything structurally new.
 
 ## Non-goals (for now)
 

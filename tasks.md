@@ -467,12 +467,50 @@ This closes Phase 5 (`snomed-ecl` simple constraints + basic refinements,
 
 This closes every item originally scoped in `plan.md` Phase 6.
 
+## Done (2026-08-03, MRCM refset support)
+
+- [x] Researched the four MRCM (Machine Readable Concept Model) refsets'
+      exact columns — docs.snomed.org's [MRCM reference set glossary
+      entry](https://docs.snomed.org/snomed-ct-glossary/m/mrcm-reference-set.md)
+      states each refset's purpose but not its columns. Found them in two
+      of SNOMED International's own open-source tools:
+      [`snomed-owl-toolkit`](https://github.com/IHTSDO/snomed-owl-toolkit)'s
+      `SnomedTaxonomyLoader.java` (positionally reads MRCM Attribute
+      Domain's `grouped`/`contentTypeId` columns, confirming their
+      presence and order) and
+      [`snowstorm`](https://github.com/IHTSDO/snowstorm)'s
+      `src/test/resources/dummy-snomed-content/*` (real RF2 rows,
+      including header rows, for MRCM Domain, Attribute Domain, and
+      Attribute Range; Module Scope's file wasn't in that directory, so
+      its one column name — `mrcmRuleRefsetId` — came from a plain code
+      search across all of GitHub, which turned up its real header row in
+      an unrelated project's checked-in RF2 sample).
+- [x] Four new `snomed-rf2::refset` types (`MrcmDomainRefsetMember`,
+      `MrcmAttributeDomainRefsetMember`, `MrcmAttributeRangeRefsetMember`,
+      `MrcmModuleScopeRefsetMember`) with real-verified-data tests (MRCM
+      Domain's test row is hand-written instead — real rows run to
+      several KB of ECL/template text per row). Four new
+      `snomed_core::constants` for the refsets' own well-known SCTIDs.
+      Full `snomed-store` wiring: builder methods (via the existing
+      `refset_member_methods!` macro), `build()` grouping, participation
+      in the unified `refset_memberships` index (spec/08 rule 4 — so
+      `is_member`/`refset_ids` see MRCM memberships too, same as every
+      other refset type), per-type accessors, and `load_release_dir`
+      dispatch (`sssssssRefset`/"MRCMDomain",
+      `cissccRefset`/"MRCMAttributeDomain", `ssccRefset`/
+      "MRCMAttributeRange", `cRefset`/"MRCMModuleScope" — the last needed
+      its own exact-match dispatch arm alongside the existing `cRefset`
+      arms for Language/Association/AttributeValue). spec/08 updated with
+      the new columns, well-known SCTIDs, and a sources note. This closes
+      the last tracked gap from Phase 4's refset coverage (only
+      ordered/annotation refset variants remain, still not scoped).
+      199 tests passing workspace-wide (6 new), clippy clean.
+
 ## Next up
 
 - [ ] Nothing currently scoped. Candidate future work (not yet
       decided/planned): a real classifier/reasoner layer for `snomed-owl`
       (large, likely its own `plan.md` phase if ever pursued); a
-      `snomed-fhir` HTTP server crate; MRCM refset support in
-      `snomed-rf2`/`snomed-store`; re-running the Phase 4 benchmark
-      against a real International Edition release if one becomes
-      available.
+      `snomed-fhir` HTTP server crate; ordered/annotation refset variants
+      (spec/08); re-running the Phase 4 benchmark against a real
+      International Edition release if one becomes available.

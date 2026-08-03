@@ -79,8 +79,10 @@ store.refset_ids(); // -> impl Iterator<Item = SctId>, every refsetId with activ
 Plus per-refset-type accessors (`association_members`,
 `attribute_value_members`, `simple_map_members`, `extended_map_members`,
 `owl_expression_members`, `module_dependency_members`,
-`refset_descriptor_members`, `description_type_members`) that return the
-full typed member rows rather than just a scalar, and
+`refset_descriptor_members`, `description_type_members`,
+`mrcm_domain_members`, `mrcm_attribute_domain_members`,
+`mrcm_attribute_range_members`, `mrcm_module_scope_members`) that return
+the full typed member rows rather than just a scalar, and
 `relationships_of`/`relationship_concrete_values_of` for the raw
 relationship data hierarchy queries are built on top of.
 
