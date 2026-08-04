@@ -145,7 +145,19 @@ impl Parser {
                         feature: "`^ *` (member of any refset)",
                     });
                 }
+                if matches!(self.peek().kind, TokenKind::ReverseFlag) {
+                    return Err(EclError::NotYetImplemented {
+                        pos: self.peek().pos,
+                        feature: "`^R` (refsetContainingAny)",
+                    });
+                }
                 let (refset_id, term) = self.parse_concept_reference()?;
+                if matches!(self.peek().kind, TokenKind::LBracket) {
+                    return Err(EclError::NotYetImplemented {
+                        pos: self.peek().pos,
+                        feature: "`^ [A, B]` (member of, with field selection)",
+                    });
+                }
                 Ok(ExpressionConstraint::MemberOf { refset_id, term })
             }
             _ => {
@@ -156,6 +168,12 @@ impl Parser {
                     return Ok(ExpressionConstraint::Refined {
                         focus: Box::new(ExpressionConstraint::Simple(simple)),
                         refinement,
+                    });
+                }
+                if matches!(self.peek().kind, TokenKind::Dot) {
+                    return Err(EclError::NotYetImplemented {
+                        pos: self.peek().pos,
+                        feature: "dot notation (`.`)",
                     });
                 }
                 if matches!(self.peek().kind, TokenKind::LBrace2) {
@@ -405,6 +423,18 @@ impl Parser {
                 self.advance()?;
                 HierarchyOp::AncestorOf
             }
+            TokenKind::Top => {
+                return Err(EclError::NotYetImplemented {
+                    pos: self.peek().pos,
+                    feature: "`!!>` (top)",
+                })
+            }
+            TokenKind::Bottom => {
+                return Err(EclError::NotYetImplemented {
+                    pos: self.peek().pos,
+                    feature: "`!!<` (bottom)",
+                })
+            }
             _ => HierarchyOp::SelfOnly,
         };
 
@@ -630,6 +660,57 @@ mod tests {
             parse("^ *"),
             Err(EclError::NotYetImplemented {
                 feature: "`^ *` (member of any refset)",
+                ..
+            })
+        ));
+    }
+
+    #[test]
+    fn rejects_refset_containing_any_with_a_named_error() {
+        assert!(matches!(
+            parse("^R 447562003"),
+            Err(EclError::NotYetImplemented {
+                feature: "`^R` (refsetContainingAny)",
+                ..
+            })
+        ));
+    }
+
+    #[test]
+    fn rejects_member_of_field_selection_with_a_named_error() {
+        assert!(matches!(
+            parse("^ 447562003 [a, b]"),
+            Err(EclError::NotYetImplemented {
+                feature: "`^ [A, B]` (member of, with field selection)",
+                ..
+            })
+        ));
+    }
+
+    #[test]
+    fn rejects_dot_notation_with_a_named_error() {
+        assert!(matches!(
+            parse("404684003 . 363698007"),
+            Err(EclError::NotYetImplemented {
+                feature: "dot notation (`.`)",
+                ..
+            })
+        ));
+    }
+
+    #[test]
+    fn rejects_top_and_bottom_with_a_named_error() {
+        assert!(matches!(
+            parse("!!> 404684003"),
+            Err(EclError::NotYetImplemented {
+                feature: "`!!>` (top)",
+                ..
+            })
+        ));
+        assert!(matches!(
+            parse("!!< 404684003"),
+            Err(EclError::NotYetImplemented {
+                feature: "`!!<` (bottom)",
                 ..
             })
         ));
@@ -878,11 +959,14 @@ mod tests {
 
     #[test]
     fn rejects_malformed_cardinality() {
-        // A single `.` isn't a valid token at all (only `..` is) — this
-        // fails at the lexer, not the parser.
+        // A single `.` lexes as its own token (dot notation elsewhere),
+        // but `..` is required here — the parser rejects it as an
+        // unexpected token, not a dot-notation NotYetImplemented (dot
+        // notation is only detected after a complete sub-expression, not
+        // inside a cardinality).
         assert!(matches!(
             parse("404684003 : [0.1] 116676008 = 79654002"),
-            Err(EclError::UnexpectedChar { ch: '.', .. })
+            Err(EclError::UnexpectedToken { .. })
         ));
         assert!(matches!(
             parse("404684003 : [0..1 116676008 = 79654002"),

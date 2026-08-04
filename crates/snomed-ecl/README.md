@@ -56,12 +56,15 @@ let matches = evaluate(&expr, store);
 | Attribute groups | `[cardinality] { attr = x AND attr2 = y }` — requires one role group (nonzero `relationshipGroup`) to satisfy every attribute together |
 | Syntax details | pipe-delimited terms (`73211009 \|Diabetes mellitus\|`, non-semantic), case-insensitive keywords, `,` as an alternate spelling for `AND`, `/* comments */` |
 
-Not yet implemented — each rejected with a specific
-`EclError::NotYetImplemented { feature, .. }` naming what's missing, never
-silently mishandled: attribute names other than a plain concept reference,
-concrete value comparisons, `{{ }}` filters, the history supplement,
-`!!>`/`!!<`, `^ *`, a hierarchy prefix combined with `^`, alternate
-identifiers (`A#B`), dot notation.
+Not yet implemented, never silently mishandled: `{{ }}` filters, the
+history supplement, `!!>`/`!!<`, `^ *`, a hierarchy prefix combined with
+`^`, `^R`, `^ [A, B]` (member of with field selection), alternate
+identifiers (`A#B`), and dot notation are all rejected with a specific
+`EclError::NotYetImplemented { feature, .. }` naming what's missing.
+Attribute names other than a plain concept reference and concrete value
+comparisons are rejected too, but currently with a generic parse error
+rather than a named one (spec/10 rule 9) — both are genuinely
+unimplemented constructs, not just missing a label.
 
 ## Design notes worth knowing before you extend this crate
 

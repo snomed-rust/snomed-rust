@@ -40,6 +40,12 @@ pub enum TokenKind {
     RBracket,
     /// `..` — separates a cardinality's min and max.
     DotDot,
+    /// `.` alone — starts dot notation (not yet implemented).
+    Dot,
+    /// `!!>` — `top` (not yet implemented).
+    Top,
+    /// `!!<` — `bottom` (not yet implemented).
+    Bottom,
     /// `R` — the reverse-attribute flag.
     ReverseFlag,
     /// `=` — attribute-value comparison.
@@ -84,6 +90,9 @@ pub fn describe(kind: &TokenKind) -> String {
         TokenKind::LBracket => "`[`".to_string(),
         TokenKind::RBracket => "`]`".to_string(),
         TokenKind::DotDot => "`..`".to_string(),
+        TokenKind::Dot => "`.`".to_string(),
+        TokenKind::Top => "`!!>`".to_string(),
+        TokenKind::Bottom => "`!!<`".to_string(),
         TokenKind::ReverseFlag => "`R`".to_string(),
         TokenKind::Eq => "`=`".to_string(),
         TokenKind::NotEq => "`!=`".to_string(),
@@ -189,6 +198,10 @@ impl Lexer {
                 self.pos += 2;
                 TokenKind::DotDot
             }
+            '.' => {
+                self.pos += 1;
+                TokenKind::Dot
+            }
             '=' => {
                 self.pos += 1;
                 TokenKind::Eq
@@ -196,6 +209,18 @@ impl Lexer {
             '!' if self.chars.get(self.pos + 1) == Some(&'=') => {
                 self.pos += 2;
                 TokenKind::NotEq
+            }
+            '!' if self.chars.get(self.pos + 1) == Some(&'!')
+                && self.chars.get(self.pos + 2) == Some(&'>') =>
+            {
+                self.pos += 3;
+                TokenKind::Top
+            }
+            '!' if self.chars.get(self.pos + 1) == Some(&'!')
+                && self.chars.get(self.pos + 2) == Some(&'<') =>
+            {
+                self.pos += 3;
+                TokenKind::Bottom
             }
             '<' => {
                 if self.chars.get(self.pos + 1) == Some(&'<')
@@ -271,10 +296,30 @@ impl Lexer {
                     "MINUS" => TokenKind::Minus,
                     "R" => TokenKind::ReverseFlag,
                     _ => {
+                        // Could this be the start of an `A#B` alternate
+                        // identifier (`altIdentifierSchemeAlias "#" ...`)?
+                        // The scheme-alias grammar allows trailing
+                        // digits/dashes after the initial alpha run —
+                        // check for those, then for a following `#`,
+                        // before concluding this is just an unrecognized
+                        // keyword (e.g. a typo like "XOR").
+                        let mut lookahead = self.pos;
+                        while lookahead < self.chars.len()
+                            && (self.chars[lookahead].is_ascii_alphanumeric()
+                                || self.chars[lookahead] == '-')
+                        {
+                            lookahead += 1;
+                        }
+                        if self.chars.get(lookahead) == Some(&'#') {
+                            return Err(EclError::NotYetImplemented {
+                                pos: start,
+                                feature: "alternate identifiers (`A#B`)",
+                            });
+                        }
                         return Err(EclError::UnexpectedKeyword {
                             pos: start,
                             found: s,
-                        })
+                        });
                     }
                 }
             }
@@ -437,10 +482,42 @@ mod tests {
     }
 
     #[test]
-    fn lone_dot_is_rejected() {
-        // Dot notation (dottedExpressionConstraint) is out of scope; only
-        // `..` (cardinality separator) is a recognized use of `.`.
-        assert_eq!(lex("."), Err(EclError::UnexpectedChar { pos: 0, ch: '.' }));
+    fn lone_dot_lexes_as_its_own_token() {
+        // A single `.` (dot notation, dottedExpressionConstraint) lexes
+        // successfully — the parser rejects it with a named
+        // NotYetImplemented error (see parser.rs tests), not the lexer
+        // with a generic UnexpectedChar. Only `..` (the cardinality
+        // separator) lexes differently.
+        assert_eq!(kinds("."), vec![TokenKind::Dot, TokenKind::Eof]);
+    }
+
+    #[test]
+    fn lexes_top_and_bottom_tokens() {
+        assert_eq!(kinds("!!>"), vec![TokenKind::Top, TokenKind::Eof]);
+        assert_eq!(kinds("!!<"), vec![TokenKind::Bottom, TokenKind::Eof]);
+    }
+
+    #[test]
+    fn alternate_identifier_shape_is_a_named_not_yet_implemented_error() {
+        // `A#B`: an alpha run followed by `#` is recognized specifically,
+        // not folded into the generic UnexpectedKeyword a genuine typo
+        // (e.g. "XOR") gets.
+        assert_eq!(
+            lex("ICD10#E10.9"),
+            Err(EclError::NotYetImplemented {
+                pos: 0,
+                feature: "alternate identifiers (`A#B`)",
+            })
+        );
+        // A genuine unrecognized keyword (no `#` anywhere nearby) is
+        // unaffected.
+        assert_eq!(
+            lex("XOR"),
+            Err(EclError::UnexpectedKeyword {
+                pos: 0,
+                found: "XOR".to_string()
+            })
+        );
     }
 
     #[test]

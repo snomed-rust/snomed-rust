@@ -38,10 +38,20 @@ guessing; see spec/10's "Attribute groups" section before changing it.
 
 **Never let unsupported syntax silently produce a wrong (incomplete)
 result.** Every construct spec/10 marks "not yet implemented" MUST fail
-parsing with `EclError::NotYetImplemented { feature, .. }` naming the
-feature — never be silently accepted and evaluated as something else, and
-never panic. This is the same principle the RF2 reader uses (row-level
-errors instead of skipped-and-forgotten data), applied to syntax.
+parsing — never be silently accepted and evaluated as something else,
+and never panic. Naming the specific feature via
+`EclError::NotYetImplemented { feature, .. }` is strongly preferred (most
+of spec/10's list gets this now) but isn't yet universal: two genuinely
+unimplemented constructs (non-plain-concept attribute names, concrete
+value comparisons) still surface as a generic `UnexpectedToken` because
+recognizing their shape well enough to name them isn't as simple as
+matching a fixed token sequence — see spec/10 rule 9. Moving one of
+those two from generic to named, without implementing the underlying
+feature, is a welcome, low-risk improvement on its own; see the recent
+`Dot`/`Top`/`Bottom`/`A#B`-detection additions in `lexer.rs`/`parser.rs`
+for the pattern. This is the same principle the RF2 reader uses
+(row-level errors instead of skipped-and-forgotten data), applied to
+syntax.
 
 ## The lexer is pull-based, not eager — keep it that way
 

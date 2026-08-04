@@ -1115,18 +1115,69 @@ This closes Phase 7 (see `plan.md`).
       the example isn't a `#[test]`, verified by actually running it and
       reading its output instead).
 
+## Done (2026-08-04, named NotYetImplemented errors for 5 ECL gaps)
+
+- [x] Closed the small, low-risk item spec/10 rule 9 explicitly flagged
+      as not needing a `plan.md` decision: gave 5 of the 7 constructs in
+      `snomed-ecl`'s "generic error, not yet named" bucket a specific,
+      feature-naming `EclError::NotYetImplemented` instead — dot
+      notation (`.`), alternate identifiers (`A#B`), `!!>`/`!!<`
+      (top/bottom), `^R` (refsetContainingAny), and `^ [A, B]` (member of
+      with field selection). The construct itself is still not
+      *implemented* in any of these cases — only the error naming
+      improved, matching every other "not yet implemented" rejection in
+      this crate.
+- [x] New lexer tokens `Dot`, `Top`, `Bottom`, following the exact shape
+      `DotDot`/`LtLt`/etc. already use. `A#B` needed a different
+      approach: no clean fixed-length token exists for a whole
+      alternate-identifier construct, so the lexer's alpha-scan arm
+      (already used for `AND`/`OR`/`MINUS`/`R`) gained a lookahead —
+      after a run of alpha chars fails to match a keyword, extend the
+      lookahead through any trailing digit/dash chars (matching
+      `altIdentifierSchemeAlias`'s real grammar) and check for a
+      following `#` before falling back to the original generic
+      `UnexpectedKeyword` (so a genuine typo like `XOR` is unaffected).
+- [x] Parser wiring follows the existing pattern exactly (matching how
+      `{{ }}`/`^ *` were already done): `Dot` checked at the same
+      "what comes after a complete sub-expression" point as `Colon`/
+      `LBrace2`; `Top`/`Bottom` added as early-return arms in the
+      hierarchy-prefix match (spec/10 grammar note: `top`/`bottom` are
+      syntactically hierarchy prefixes, not a separate filter
+      construct — this crate already documented that miscategorization
+      risk before this change); `^R` and `^ [A, B]` both checked inside
+      the existing `Caret` branch, before and after
+      `parse_concept_reference` respectively.
+- [x] Updated every place the old (incomplete) grouping was documented:
+      spec/10-ecl.md's "Not yet implemented" section (5 items moved from
+      the generic-error group to the named-error group; the remaining 2
+      — non-plain-concept attribute names, concrete value comparisons —
+      stay generic because they're genuinely unimplemented features, not
+      just missing a label, so naming them isn't a fixed-token-shape
+      fix); `crates/snomed-ecl/README.md`; `AGENTS/ecl-engineer.md`'s
+      "one rule that matters most" (no longer overclaims every NYI
+      construct gets a named error).
+- [x] Tests: 6 new (2 lexer — `!!>`/`!!<` tokenization,
+      `A#B`-vs-genuine-typo disambiguation; 4 parser — one per newly-
+      named construct), plus fixed 2 existing tests whose expectations
+      changed as a direct, correct consequence (a lone `.` now lexes
+      successfully as its own token instead of erroring at the lexer;
+      `[0.1]` malformed-cardinality still errors, just via a different,
+      still-correct error variant now that `.` tokenizes differently).
+      257 tests passing workspace-wide (up from 251). `cargo fmt --all
+      -- --check` and `cargo clippy --all-targets` both clean.
+
 ## Next up
 
 - [ ] Nothing currently scoped. Candidate future work (not yet
       decided/planned): a `snomed-fhir` HTTP server crate (would need a
       new external dependency — needs explicit user direction against
-      the zero-dependency policy, not an autonomous pick); remaining
-      `snomed-ecl` "Not yet implemented" gaps, now split by whether they
-      get a named `NotYetImplemented` error (spec/10) — giving the
-      generic-error group (dot notation, `A#B`, `!!>`/`!!<`, `^R`/
-      `^[A,B]`) a named error each is a small, low-risk improvement that
-      doesn't need a `plan.md` decision (spec/10 rule 9); property-chain/
-      transitive-property redundancy elimination for
+      the zero-dependency policy, not an autonomous pick); naming the
+      remaining 2 `snomed-ecl` gaps (non-plain-concept attribute names,
+      concrete value comparisons) is explicitly harder — they're
+      genuinely unimplemented features, not just missing an error
+      label, so closing them means real parser/eval work, not another
+      small lexer lookahead; property-chain/transitive-property
+      redundancy elimination for
       `necessary_normal_form` (spec/14's documented, conservative scope
       cut); re-running the Phase 4 `snomed-store` benchmark (and the
       Phase 7 `snomed-classify` one) against a real International

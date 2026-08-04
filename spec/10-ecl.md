@@ -304,19 +304,26 @@ Rejected with a named `EclError::NotYetImplemented`:
   supplement (`{{+HISTORY}}`).
 - `^ *` (member of any refset) and a hierarchy prefix combined with `^`
   (e.g. `< ^ 447562003`).
+- Dot notation (`.` / `dottedExpressionConstraint`) — a lone `.` lexes as
+  its own token (only `..`, the cardinality separator, is a *different*
+  token); the parser rejects a `.` following a complete sub-expression
+  by name. (A `.` in a position no grammar production expects at all —
+  e.g. inside a cardinality, `[0.1]` instead of `[0..1]` — still
+  surfaces as a generic `UnexpectedToken`, not this named error; dot
+  notation is only detected in the one grammar position it would
+  actually appear.)
+- `A#B` alternate identifiers — detected at the lexer, by an alpha run
+  (extended through any trailing digits/dashes, matching
+  `altIdentifierSchemeAlias`'s real grammar) immediately followed by `#`.
+- `!!>` / `!!<` (`top`/`bottom` — part of `constraintOperator`).
+- `^R` (refsetContainingAny) and `^ [A, B]` (member of, with field
+  selection).
 
 Rejected, but currently only with a generic lex/parse error (not yet
-named):
+named) — both are genuinely unimplemented constructs, not just missing
+an error label, so naming them precisely isn't as simple as recognizing
+a fixed token shape:
 
-- Dot notation (`.` / `dottedExpressionConstraint`) — a lone `.` is an
-  `UnexpectedChar` (only `..`, the cardinality separator, is a
-  recognized token).
-- `A#B` alternate identifiers — `#` is an `UnexpectedChar`.
-- `!!>` / `!!<` (`top`/`bottom` — part of `constraintOperator`) — `!` not
-  followed by `=` is an `UnexpectedChar`.
-- `^R` (refsetContainingAny) and `^ [A, B]` (member of, with field
-  selection) — falls through to `parse_concept_reference`'s generic
-  `UnexpectedToken { expected: "an SCTID" }`.
 - Attribute names that are anything other than a plain concept reference
   (the official grammar allows any `subExpressionConstraint` as
   `eclAttributeName`, e.g. a hierarchy-prefixed attribute name).
