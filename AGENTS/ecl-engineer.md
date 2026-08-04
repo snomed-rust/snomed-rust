@@ -8,13 +8,14 @@ AST, and evaluator.
 `spec/10-ecl.md` is normative. It documents exactly which grammar subset is
 implemented ("simple expression constraints" — hierarchy operators,
 memberOf, wildcard, AND/OR/MINUS — plus refinements: `attributeId
-(= | !=) value`, numeric/string concrete value comparisons, AND/OR,
-parenthesized groups, attribute cardinality `[min..max]`, the reverse
-flag `R`, and attribute groups `{ }`) and lists what is explicitly **not
-yet implemented** (non-plain-concept-reference attribute names,
-`concreteStringSet`, boolean concrete value comparisons, `{{ }}` filters,
-`^ *`, `!!>`/`!!<`, history supplement, alternate identifiers, a
-hierarchy prefix combined with `^`, dot notation).
+(= | !=) value` where `attributeId` is itself any `subExpressionConstraint`
+(not just a plain concept reference), numeric/string concrete value
+comparisons, AND/OR, parenthesized groups, attribute cardinality
+`[min..max]`, the reverse flag `R`, and attribute groups `{ }`) and lists
+what is explicitly **not yet implemented** (`concreteStringSet`, boolean
+concrete value comparisons, `{{ }}` filters, `^ *`, `!!>`/`!!<`, history
+supplement, alternate identifiers, a hierarchy prefix combined with `^`,
+dot notation).
 
 **The authoritative grammar is the ABNF at
 <https://github.com/IHTSDO/snomed-expression-constraint-language>,
@@ -42,17 +43,16 @@ result.** Every construct spec/10 marks "not yet implemented" MUST fail
 parsing — never be silently accepted and evaluated as something else,
 and never panic. Naming the specific feature via
 `EclError::NotYetImplemented { feature, .. }` is strongly preferred (most
-of spec/10's list gets this now) but isn't yet universal: two genuinely
-unimplemented constructs (non-plain-concept attribute names, concrete
-value comparisons) still surface as a generic `UnexpectedToken` because
-recognizing their shape well enough to name them isn't as simple as
-matching a fixed token sequence — see spec/10 rule 9. Moving one of
-those two from generic to named, without implementing the underlying
-feature, is a welcome, low-risk improvement on its own; see the recent
-`Dot`/`Top`/`Bottom`/`A#B`-detection additions in `lexer.rs`/`parser.rs`
-for the pattern. This is the same principle the RF2 reader uses
-(row-level errors instead of skipped-and-forgotten data), applied to
-syntax.
+of spec/10's list gets this now) but isn't yet universal: `concreteStringSet`
+and boolean concrete value comparisons still surface as a generic
+`UnexpectedToken` because recognizing their shape well enough to name
+them isn't as simple as matching a fixed token sequence — see spec/10
+rule 9. Moving one of those from generic to named, without implementing
+the underlying feature, is a welcome, low-risk improvement on its own;
+see the recent `Dot`/`Top`/`Bottom`/`A#B`-detection additions in
+`lexer.rs`/`parser.rs` for the pattern. This is the same principle the
+RF2 reader uses (row-level errors instead of skipped-and-forgotten
+data), applied to syntax.
 
 ## The lexer is pull-based, not eager — keep it that way
 
@@ -118,6 +118,27 @@ the latter would make `!=` trivially true whenever *any* other value
 exists alongside the one being excluded. `Le`/`Lt`/`Ge`/`Gt` have no such
 distinction; they define the per-row predicate directly, since there's no
 "aggregate negation" reading of `<=` to preserve consistency with.
+
+## Attribute names are `subExpressionConstraint`, evaluated like any other set
+
+`AttributeConstraint.attribute` is `Box<ExpressionConstraint>`, not
+`SctId` — `parse_attribute_constraint` reuses
+`parse_sub_expression_constraint()` unmodified for the attribute-name
+position, since the official grammar's `eclAttributeName` is exactly that
+nonterminal. `evaluate_attribute_constraint` computes
+`attribute_types = evaluate(&a.attribute, store)` once and checks
+`attribute_types.contains(&r.type_id)` in all three `AttributeComparison`
+branches, instead of the old direct `r.type_id == a.attribute_id`
+equality. This makes spec/10 rule 2 (a focus concept absent from the
+store evaluates to the empty set) apply uniformly to attribute names too
+— including the plain-concept-reference case, since that's just
+`HierarchyOp::SelfOnly` reflexively requiring `store.concept(id).is_some()`.
+**Consequence for test fixtures:** every attribute-type SCTID used in a
+hand-built `SnapshotStore` MUST be added via `b.add_concept(...)`, even
+though it never appears as a hierarchy focus — omitting it silently
+empties `attribute_types` and every match fails. Real RF2 data doesn't
+hit this because attribute types are always present as their own
+`Concept` rows.
 
 ## `concreteStringSet` and `(` are genuinely ambiguous with 1 token of lookahead
 

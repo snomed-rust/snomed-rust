@@ -41,6 +41,12 @@ let expr = parse(
 )?;
 let matches = evaluate(&expr, store);
 
+// A hierarchy-prefixed attribute name: matches relationships whose type
+// is any descendant-or-self of 246090004 |Associated finding|, not just
+// that one exact type.
+let expr = parse("<< 404684003 : << 246090004 = 409774005")?;
+let matches = evaluate(&expr, store);
+
 // Concrete value comparisons (spec/07's concrete domains): the syntax
 // shape, not a real SNOMED attribute — swap in whatever attribute type
 // your release actually models as a RelationshipConcreteValue.
@@ -58,7 +64,7 @@ let matches = evaluate(&expr, store);
 | Wildcard | `*` — every concept the store knows about |
 | Member of | `^ 447562003` — active membership in *any* refset type |
 | Boolean sets | `AND` (chains freely), `OR` (chains freely), `MINUS` (exactly two operands — parenthesize to chain further) |
-| Refinements | `attr = value`, `attr != value`, `AND`/`OR` at refinement level, parenthesized groups; `value` may itself be a full hierarchy expression |
+| Refinements | `attr = value`, `attr != value`, `AND`/`OR` at refinement level, parenthesized groups; `attr` and `value` may each be a full hierarchy expression, not just a plain concept reference |
 | Cardinality | `[min..max] attr = value` — counts matches instead of just checking "any"; defaults to `[1..*]` when omitted |
 | Reverse flag | `R attr = value` — matches by the relationship's *source* instead of its destination |
 | Attribute groups | `[cardinality] { attr = x AND attr2 = y }` — requires one role group (nonzero `relationshipGroup`) to satisfy every attribute together |
@@ -70,8 +76,7 @@ history supplement, `!!>`/`!!<`, `^ *`, a hierarchy prefix combined with
 `^`, `^R`, `^ [A, B]` (member of with field selection), alternate
 identifiers (`A#B`), and dot notation are all rejected with a specific
 `EclError::NotYetImplemented { feature, .. }` naming what's missing.
-Attribute names other than a plain concept reference,
-`concreteStringSet` (`("a" "b" ...)`), and boolean concrete value
+`concreteStringSet` (`("a" "b" ...)`) and boolean concrete value
 comparisons are rejected too, but currently with a generic parse error
 rather than a named one (spec/10 rule 9) — genuinely unimplemented
 constructs, not just missing a label.

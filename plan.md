@@ -104,9 +104,10 @@ the spec's normative rules. Day-to-day execution items live in `tasks.md`.
   `MINUS` there — the grammar doesn't define one). `value` may itself be
   any hierarchy-prefixed expression. Evaluates against active **inferred**
   relationships (spec/07's convention, extended to attributes). Concrete
-  value comparisons and non-plain-concept attribute names remain **not
-  yet implemented** — explicitly rejected with a clear error, never
-  silently ignored (spec/10's "Not yet implemented" section + `tasks.md`).
+  value comparisons and non-plain-concept attribute names remained **not
+  yet implemented** at this point — explicitly rejected with a clear
+  error, never silently ignored (spec/10's "Not yet implemented" section
+  + `tasks.md`); both landed in later increments below.
 - Refinements extended (2026-08-04) with attribute cardinality
   (`[min..max]`, default `[1..*]`), the reverse flag (`R`), and attribute
   groups (`{ }`) ✅ — the next three items off spec/10's "Not yet
@@ -155,6 +156,27 @@ the spec's normative rules. Day-to-day execution items live in `tasks.md`.
   into eval.rs via the existing `relationship_concrete_values_of`
   accessor and cardinality/group-scope machinery, no new store API
   needed.
+- Attribute names as a full `subExpressionConstraint` (2026-08-04) ✅ —
+  closed the other "genuinely harder" gap: `attributeId` is now any
+  hierarchy expression (`<< 363698007 = value` matches relationships
+  whose type is any descendant-or-self of `363698007`), not just a
+  plain concept reference, matching the official grammar's
+  `eclAttributeName = subExpressionConstraint` exactly.
+  `AttributeConstraint.attribute` changed from `SctId` to
+  `Box<ExpressionConstraint>` — parsing needed no new logic beyond
+  reusing `parse_sub_expression_constraint()` for the attribute-name
+  position; evaluation computes the attribute name's matching set once
+  and checks `type_id` membership in it, uniformly for every
+  `AttributeComparison` variant. Surfaced that spec/10 rule 2 ("absent
+  concept evaluates to the empty set") now correctly reaches attribute
+  names too — 8 hand-built test fixtures across `snomed-ecl` and
+  `crates/snomed/tests/ecl.rs` had never added their attribute-type
+  SCTID as a `Concept` row and needed fixing, a real RF2 release never
+  hits this since attribute types always exist as their own rows. 2 new
+  tests (parser AST shape, eval matching across multiple descendant
+  types). This closes both items spec/10 previously flagged as
+  "genuinely harder than a lexer lookahead" — only `concreteStringSet`
+  and boolean concrete comparisons remain in that list now.
 - History/audit queries over Full-view data ✅: `snomed-store::HistoryStore`
   keeps every version of a Concept/Description/Relationship (spec/09's new
   "History construction" section), built from Full-view files only —

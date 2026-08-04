@@ -1233,18 +1233,62 @@ This closes Phase 7 (see `plan.md`).
 - [x] 265 tests passing workspace-wide (up from 257). `cargo fmt --all
       -- --check` and `cargo clippy --all-targets` both clean.
 
+## Done (2026-08-04, snomed-ecl attribute names as full subExpressionConstraint)
+
+- [x] Closed the other remaining `snomed-ecl` gap flagged as "genuinely
+      harder": `attributeId` (spec/10's `eclAttributeName`) is now any
+      `subExpressionConstraint`, not just a plain concept reference — e.g.
+      `<< 363698007 = value` matches relationships whose type is any
+      descendant-or-self of `363698007`, not just that one exact type.
+- [x] `AttributeConstraint`'s `attribute_id: SctId` + `attribute_term:
+      Option<String>` fields replaced with `attribute: Box<ExpressionConstraint>`
+      — another deliberate, contained breaking change to the public AST
+      (grepped every downstream crate first; only `snomed-ecl`'s own
+      parser/eval touch the field directly).
+- [x] No new parsing logic needed: `parse_attribute_constraint` reuses
+      `parse_sub_expression_constraint()` unmodified for the attribute-name
+      position, since the grammar's `eclAttributeName` is literally that
+      nonterminal already used for top-level focus concepts.
+- [x] `evaluate_attribute_constraint` computes `attribute_types =
+      evaluate(&a.attribute, store)` once per constraint and checks
+      `attribute_types.contains(&r.type_id)` in all three
+      `AttributeComparison` branches, replacing the old direct `r.type_id
+      == a.attribute_id` equality — uniform across Expression/Numeric/
+      String, no special-casing for the plain-concept-reference case.
+- [x] Consequence surfaced by the workspace's own test suite: spec/10
+      rule 2 (a focus concept absent from the store evaluates to the
+      empty set) now correctly applies to attribute names too — every
+      hand-built `SnapshotStore` test fixture that used an attribute-type
+      SCTID without adding it as a `Concept` row (7 fixtures across
+      `snomed-ecl`'s `eval.rs` plus one in `crates/snomed/tests/ecl.rs`)
+      started failing until fixed. Diagnosed as correct/expected (real
+      RF2 data always has attribute-type concepts present as their own
+      rows), not worked around in production code.
+- [x] Tests: 1 new parser (hierarchy-prefixed attribute name's AST shape),
+      1 new eval (a hierarchy-prefixed attribute name matching relationships
+      of two distinct — but both descendant — types, where the plain
+      unprefixed form only matches one) — 2 new tests, plus the 8 fixture
+      fixes above (no behavior change to already-passing assertions).
+      267 tests passing workspace-wide (up from 265). `cargo fmt --all
+      -- --check` and `cargo clippy --all-targets` both clean.
+- [x] Docs: spec/10-ecl.md (grammar's `attributeConstraint` production,
+      "Refinements" prose, "Not yet implemented" list narrowed to just
+      `concreteStringSet`/boolean comparisons now); `crates/snomed-ecl/README.md`
+      (table row, new quick example — `246090004`/`409774005` both
+      check-digit-verified before being written down); `AGENTS/ecl-engineer.md`
+      (new section on the attribute-name-is-an-expression design and its
+      test-fixture consequence, "one rule that matters most" narrowed to
+      match).
+
 ## Next up
 
 - [ ] Nothing currently scoped. Candidate future work (not yet
       decided/planned): a `snomed-fhir` HTTP server crate (would need a
       new external dependency — needs explicit user direction against
-      the zero-dependency policy, not an autonomous pick); the one
-      remaining `snomed-ecl` gap in the "genuinely harder" category —
-      attribute names other than a plain concept reference (the official
-      grammar allows any `subExpressionConstraint` there); `snomed-ecl`'s
-      smaller documented gaps (`concreteStringSet`, boolean concrete
-      comparisons, `{{ }}` filters, the history supplement); property-
-      chain/transitive-property redundancy elimination for
+      the zero-dependency policy, not an autonomous pick); `snomed-ecl`'s
+      remaining smaller documented gaps (`concreteStringSet`, boolean
+      concrete comparisons, `{{ }}` filters, the history supplement);
+      property-chain/transitive-property redundancy elimination for
       `necessary_normal_form` (spec/14's documented, conservative scope
       cut); re-running the Phase 4 `snomed-store` benchmark (and the
       Phase 7 `snomed-classify` one) against a real International

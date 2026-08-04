@@ -101,14 +101,16 @@ impl Default for Cardinality {
 /// `[cardinality] [reverseFlag] attributeName (comparison)` — spec/10's
 /// refinement subset.
 ///
-/// `attribute_name` is restricted to a plain concept reference in this
-/// version (the official grammar allows any `subExpressionConstraint`
-/// there, e.g. a hierarchy-prefixed attribute name — not yet implemented,
-/// see spec/10).
+/// `attribute` is `eclAttributeName = subExpressionConstraint` per the
+/// official grammar — any hierarchy expression, not just a plain concept
+/// reference (e.g. `<< 363698007 = value` matches relationships whose
+/// type is *any* descendant-or-self of `363698007`). The common case
+/// (`attribute_id |term|`) is just `ExpressionConstraint::Simple` with
+/// `HierarchyOp::SelfOnly` — no special-casing needed at this level; see
+/// `eval.rs` for how the match set is computed uniformly either way.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct AttributeConstraint {
-    pub attribute_id: SctId,
-    pub attribute_term: Option<String>,
+    pub attribute: Box<ExpressionConstraint>,
     /// Defaults to `[1..*]` when not written explicitly (spec/10).
     pub cardinality: Cardinality,
     /// `true` for a leading `R`: match relationships where this concept is

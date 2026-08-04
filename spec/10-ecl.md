@@ -77,10 +77,12 @@ eclAttributeSet       := subAttributeSet 1*(("AND" | "OR") subAttributeSet)
                         -- restricted to attributes (no nested groups — the
                         -- official grammar never nests eclAttributeGroup)
 subAttributeSet       := attributeConstraint | "(" eclAttributeSet ")"
-attributeConstraint   := [cardinality] [reverseFlag] conceptReference comparison
-                        -- attributeName restricted to a plain conceptReference
-                        -- in this version; the official grammar allows any
-                        -- subExpressionConstraint there (not yet implemented)
+attributeConstraint   := [cardinality] [reverseFlag] eclAttributeName comparison
+eclAttributeName      := subExpressionConstraint
+                        -- any hierarchy expression, not just a plain
+                        -- conceptReference — e.g. a hierarchy-prefixed
+                        -- attribute name matches relationships whose type
+                        -- is any concept in the evaluated set
 comparison            := ("=" | "!=") subExpressionConstraint      -- expression comparison
                         | numericComparisonOp "#" numericValue     -- numeric concrete value
                         | ("=" | "!=") concreteString              -- string concrete value
@@ -197,12 +199,19 @@ grammar, `refinedExpressionConstraint` is a distinct top-level alternative
 of `expressionConstraint` — a refinement isn't "just another operator" at
 the same level as `AND`/`OR`/`MINUS`.
 
-- `attributeId` is a plain concept reference in this version (not a full
-  `subExpressionConstraint` — see Not yet implemented).
+- `attributeId` (`eclAttributeName`) is any `subExpressionConstraint`, per
+  the official grammar — not just a plain concept reference. A bare
+  concept reference is simply the common case: `parse_sub_expression_constraint`
+  is reused unmodified for the attribute-name position, so a
+  hierarchy-prefixed attribute name (e.g. `<< 363698007 = value`) matches
+  relationships whose `typeId` is *any* concept in that evaluated set, not
+  just one exact id. Evaluation computes the attribute name's matching set
+  once per constraint and checks `type_id` membership in it, uniformly for
+  the plain-concept-reference case too — no special-casing.
 - `=` : the concept MUST satisfy `attributeId`'s cardinality (see below) by
   active **inferred** relationships (spec/07's hierarchy-view convention,
-  extended here) of type `attributeId` whose destination is in `value`'s
-  evaluated set.
+  extended here) whose `typeId` is in `attributeId`'s evaluated set and
+  whose destination is in `value`'s evaluated set.
 - `!=` : the concept MUST NOT satisfy that cardinality — i.e. `!=` negates
   the whole cardinality check, not just "has zero matches" (though with the
   default `[1..*]` cardinality, negating "at least one match" *is* exactly
@@ -371,9 +380,6 @@ named) — genuinely unimplemented constructs, not just missing an error
 label, so naming them precisely isn't as simple as recognizing a fixed
 token shape:
 
-- Attribute names that are anything other than a plain concept reference
-  (the official grammar allows any `subExpressionConstraint` as
-  `eclAttributeName`, e.g. a hierarchy-prefixed attribute name).
 - `concreteStringSet` (`("a" "b" ...)`) and boolean concrete value
   comparisons — see "Concrete value comparisons" above for why (numeric
   and string comparisons *are* implemented).

@@ -95,6 +95,11 @@ fn evaluate_attribute_constraint(
     store: &SnapshotStore,
     group_scope: Option<u32>,
 ) -> bool {
+    // `eclAttributeName = subExpressionConstraint` (spec/10): the
+    // attribute name is itself a set of concepts to match `type_id`
+    // against — a plain concept reference is just the common case
+    // (a singleton set), not a special-cased fast path.
+    let attribute_types = evaluate(&a.attribute, store);
     match &a.comparison {
         // `(= | !=) value`: count active inferred relationships of this
         // type whose destination — or, with the reverse flag, whose
@@ -111,14 +116,14 @@ fn evaluate_attribute_constraint(
             let count = if a.reverse {
                 store
                     .relationships_to(concept)
-                    .filter(|r| r.active && r.is_inferred() && r.type_id == a.attribute_id)
+                    .filter(|r| r.active && r.is_inferred() && attribute_types.contains(&r.type_id))
                     .filter(|r| group_scope.map_or(true, |g| r.relationship_group == g))
                     .filter(|r| value_set.contains(&r.source_id))
                     .count() as u32
             } else {
                 store
                     .relationships_of(concept)
-                    .filter(|r| r.active && r.is_inferred() && r.type_id == a.attribute_id)
+                    .filter(|r| r.active && r.is_inferred() && attribute_types.contains(&r.type_id))
                     .filter(|r| group_scope.map_or(true, |g| r.relationship_group == g))
                     .filter(|r| value_set.contains(&r.destination_id))
                     .count() as u32
@@ -142,7 +147,7 @@ fn evaluate_attribute_constraint(
         AttributeComparison::Numeric { operator, value } => {
             let count = store
                 .relationship_concrete_values_of(concept)
-                .filter(|r| r.active && r.is_inferred() && r.type_id == a.attribute_id)
+                .filter(|r| r.active && r.is_inferred() && attribute_types.contains(&r.type_id))
                 .filter(|r| group_scope.map_or(true, |g| r.relationship_group == g))
                 .filter(|r| match &r.value {
                     ConcreteValue::Number(n) => numeric_matches(*operator, n, value),
@@ -165,7 +170,7 @@ fn evaluate_attribute_constraint(
         AttributeComparison::String { negated, values } => {
             let count = store
                 .relationship_concrete_values_of(concept)
-                .filter(|r| r.active && r.is_inferred() && r.type_id == a.attribute_id)
+                .filter(|r| r.active && r.is_inferred() && attribute_types.contains(&r.type_id))
                 .filter(|r| group_scope.map_or(true, |g| r.relationship_group == g))
                 .filter(|r| match &r.value {
                     ConcreteValue::String(s) => values.iter().any(|v| v == s),
@@ -477,7 +482,7 @@ mod tests {
         let value_b = SctId::compose(9003, ComponentType::Concept, None).unwrap();
 
         let mut b = SnapshotStore::builder();
-        for c in [ROOT, FINDING, DISEASE, MI, value_a, value_b] {
+        for c in [ROOT, FINDING, DISEASE, MI, attr_type, value_a, value_b] {
             b.add_concept(concept(c));
         }
         b.add_relationship(is_a(1, FINDING, ROOT));
@@ -541,7 +546,7 @@ mod tests {
         let value_b = SctId::compose(9103, ComponentType::Concept, None).unwrap();
 
         let mut b = SnapshotStore::builder();
-        for c in [MI, value_a, value_b] {
+        for c in [MI, attr_type, value_a, value_b] {
             b.add_concept(concept(c));
         }
         // MI has exactly two matching relationships of attr_type.
@@ -613,7 +618,7 @@ mod tests {
         let bone = SctId::compose(9112, ComponentType::Concept, None).unwrap();
 
         let mut b = SnapshotStore::builder();
-        for c in [fracture, bone] {
+        for c in [finding_site, fracture, bone] {
             b.add_concept(concept(c));
         }
         b.add_relationship(Relationship {
@@ -667,7 +672,7 @@ mod tests {
         let value_c = SctId::compose(9125, ComponentType::Concept, None).unwrap();
 
         let mut b = SnapshotStore::builder();
-        for c in [subject, value_a, value_b, value_c] {
+        for c in [subject, attr_a, attr_b, value_a, value_b, value_c] {
             b.add_concept(concept(c));
         }
         let rel = |item: u64, group: u32, type_id: SctId, dest: SctId| Relationship {
@@ -732,7 +737,7 @@ mod tests {
         let attr_type = SctId::compose(9130, ComponentType::Concept, None).unwrap();
         let value = SctId::compose(9131, ComponentType::Concept, None).unwrap();
         let mut b = SnapshotStore::builder();
-        for c in [MI, value] {
+        for c in [MI, attr_type, value] {
             b.add_concept(concept(c));
         }
         // The only matching relationship is ungrouped (relationshipGroup 0).
@@ -773,6 +778,54 @@ mod tests {
         assert_eq!(eval(&expr, &store), HashSet::new());
     }
 
+    /// attr_child1 and attr_child2 are both IS-A children of attr_parent.
+    /// MI has one relationship of each type, both pointing at `value`.
+    fn attribute_name_hierarchy_store() -> (SnapshotStore, SctId, SctId, SctId, SctId) {
+        let attr_parent = SctId::compose(9150, ComponentType::Concept, None).unwrap();
+        let attr_child1 = SctId::compose(9151, ComponentType::Concept, None).unwrap();
+        let attr_child2 = SctId::compose(9152, ComponentType::Concept, None).unwrap();
+        let value = SctId::compose(9153, ComponentType::Concept, None).unwrap();
+
+        let mut b = SnapshotStore::builder();
+        for c in [MI, attr_parent, attr_child1, attr_child2, value] {
+            b.add_concept(concept(c));
+        }
+        b.add_relationship(is_a(1, attr_child1, attr_parent));
+        b.add_relationship(is_a(2, attr_child2, attr_parent));
+        for (item, type_id) in [(4400, attr_child1), (4401, attr_child2)] {
+            b.add_relationship(Relationship {
+                id: SctId::compose(item, ComponentType::Relationship, None).unwrap(),
+                effective_time: EffectiveTime::new_unchecked(20190731),
+                active: true,
+                module_id: constants::CORE_MODULE,
+                source_id: MI,
+                destination_id: value,
+                relationship_group: 0,
+                type_id,
+                characteristic_type_id: constants::INFERRED_RELATIONSHIP,
+                modifier_id: constants::EXISTENTIAL_MODIFIER,
+            });
+        }
+        (b.build(), attr_parent, attr_child1, attr_child2, value)
+    }
+
+    #[test]
+    fn hierarchy_prefixed_attribute_name_matches_multiple_types() {
+        let (store, attr_parent, attr_child1, _attr_child2, value) =
+            attribute_name_hierarchy_store();
+        // A plain (unprefixed) attr_child1 only counts its own
+        // relationship — one match, not enough for [2..*].
+        let expr = format!("{MI} : [2..*] {attr_child1} = {value}");
+        assert_eq!(eval(&expr, &store), HashSet::new());
+
+        // `<<` on the attribute *name* pulls in both attr_child1's and
+        // attr_child2's relationships, satisfying [2..*] — proving the
+        // attribute name is evaluated as a full subExpressionConstraint
+        // (spec/10), not matched by direct SctId equality.
+        let expr = format!("{MI} : [2..*] << {attr_parent} = {value}");
+        assert_eq!(eval(&expr, &store), HashSet::from([MI]));
+    }
+
     /// MI has a `RelationshipConcreteValue` of `attr_type` with a numeric
     /// value of 10 and another (different type) with a string value.
     fn concrete_value_store() -> (SnapshotStore, SctId, SctId) {
@@ -780,7 +833,9 @@ mod tests {
         let string_attr_type = SctId::compose(9141, ComponentType::Concept, None).unwrap();
 
         let mut b = SnapshotStore::builder();
-        b.add_concept(concept(MI));
+        for c in [MI, attr_type, string_attr_type] {
+            b.add_concept(concept(c));
+        }
         b.add_relationship_concrete_value(RelationshipConcreteValue {
             id: SctId::compose(4300, ComponentType::Relationship, None).unwrap(),
             effective_time: EffectiveTime::new_unchecked(20190731),

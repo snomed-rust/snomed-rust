@@ -71,6 +71,7 @@ fn ecl_attribute_refinement_through_the_facade() {
 
     let morphology = SctId::compose(9001, ComponentType::Concept, None).unwrap();
     let necrosis = SctId::compose(9002, ComponentType::Concept, None).unwrap();
+    b.add_concept(concept(morphology));
     b.add_concept(concept(necrosis));
     b.add_relationship(Relationship {
         id: SctId::compose(9003, ComponentType::Relationship, None).unwrap(),

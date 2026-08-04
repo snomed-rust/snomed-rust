@@ -345,9 +345,8 @@ impl Parser {
         }
     }
 
-    /// `[reverseFlag] attributeName ("=" | "!=") value`. `cardinality` is
-    /// pre-parsed by the caller (see [`Self::parse_sub_refinement`]); the
-    /// attribute name is restricted to a plain concept reference (spec/10).
+    /// `[reverseFlag] attributeName (comparison)`. `cardinality` is
+    /// pre-parsed by the caller (see [`Self::parse_sub_refinement`]).
     fn parse_attribute_constraint(
         &mut self,
         cardinality: Option<Cardinality>,
@@ -358,7 +357,13 @@ impl Parser {
         } else {
             false
         };
-        let (attribute_id, attribute_term) = self.parse_concept_reference()?;
+        // `eclAttributeName = subExpressionConstraint` per the official
+        // grammar — any hierarchy expression, not just a plain concept
+        // reference (spec/10). Reuses the same parser entry point a
+        // top-level focus concept uses; nothing about that function
+        // assumes it's parsing a query root rather than an attribute
+        // name.
+        let attribute = self.parse_sub_expression_constraint()?;
         let comparison = self.parse_attribute_comparison()?;
         if reverse && !matches!(comparison, AttributeComparison::Expression { .. }) {
             // Grammatically legal (reverseFlag precedes the whole
@@ -373,8 +378,7 @@ impl Parser {
             });
         }
         Ok(AttributeConstraint {
-            attribute_id,
-            attribute_term,
+            attribute: Box::new(attribute),
             cardinality: cardinality.unwrap_or_default(),
             reverse,
             comparison,
@@ -949,7 +953,16 @@ mod tests {
                 );
                 match refinement {
                     crate::ast::RefinementConstraint::Attribute(a) => {
-                        assert_eq!(a.attribute_id, concept("116676008"));
+                        assert_eq!(
+                            *a.attribute,
+                            EC::Simple(SimpleExpressionConstraint {
+                                op: HierarchyOp::SelfOnly,
+                                focus: FocusConcept::Concept {
+                                    id: concept("116676008"),
+                                    term: None
+                                },
+                            })
+                        );
                         match &a.comparison {
                             crate::ast::AttributeComparison::Expression { negated, value } => {
                                 assert!(!negated);
@@ -1118,7 +1131,42 @@ mod tests {
                 ..
             } => {
                 assert!(a.reverse);
-                assert_eq!(a.attribute_id, concept("363698007"));
+                assert_eq!(
+                    *a.attribute,
+                    EC::Simple(SimpleExpressionConstraint {
+                        op: HierarchyOp::SelfOnly,
+                        focus: FocusConcept::Concept {
+                            id: concept("363698007"),
+                            term: None
+                        },
+                    })
+                );
+            }
+            other => panic!("expected an Attribute refinement, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn parses_hierarchy_prefixed_attribute_name() {
+        // `eclAttributeName = subExpressionConstraint` per the official
+        // grammar: the attribute name itself can carry a hierarchy prefix,
+        // not just the value side.
+        let expr = parse("404684003 : << 363698007 = 125605004").unwrap();
+        match expr {
+            EC::Refined {
+                refinement: crate::ast::RefinementConstraint::Attribute(a),
+                ..
+            } => {
+                assert_eq!(
+                    *a.attribute,
+                    EC::Simple(SimpleExpressionConstraint {
+                        op: HierarchyOp::DescendantOrSelfOf,
+                        focus: FocusConcept::Concept {
+                            id: concept("363698007"),
+                            term: None
+                        },
+                    })
+                );
             }
             other => panic!("expected an Attribute refinement, got {other:?}"),
         }
