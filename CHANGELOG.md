@@ -11,6 +11,26 @@ together, in dependency order (`snomed-core` → `snomed-rf2` → `snomed-owl`
 → `snomed-store` → `snomed-classify` → `snomed-ecl` → `snomed-fhir` →
 `snomed-cli` → `snomed`), not independently.
 
+## [0.4.0] — 2026-08-04
+
+### Changed
+
+- `snomed-ecl`: refinement attribute comparisons split into an
+  `AttributeComparison` enum (`Expression`/`Numeric`/`String`), replacing
+  `AttributeConstraint`'s flat `negated`/`value` fields — a breaking
+  change to the public AST. Enables new numeric (`=`/`!=`/`<=`/`<`/`>=`/
+  `>`) and string (`=`/`!=`) comparisons against a
+  `RelationshipConcreteValue` (spec/07's concrete domains), e.g.
+  `attr <= #10`, `attr = "E10.9"`.
+- `snomed-ecl`: `AttributeConstraint.attribute_id: SctId` +
+  `attribute_term: Option<String>` replaced with `attribute:
+  Box<ExpressionConstraint>` — another breaking change to the public
+  AST. Attribute names (`eclAttributeName`) are now any
+  `subExpressionConstraint`, not just a plain concept reference, e.g.
+  `<< 363698007 = value` matches relationships whose type is any
+  descendant-or-self of `363698007`, matching the official grammar
+  exactly.
+
 ## [0.3.1] — 2026-08-04
 
 ### Changed
