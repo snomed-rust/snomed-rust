@@ -6,11 +6,12 @@ behind refset/value-set definitions, MRCM range constraints, and
 `$expand`/`$validate-code` in FHIR terminology servers.
 
 Implements **simple expression constraints** (all eight hierarchy
-operators, `memberOf`, wildcard, boolean set operators) plus a **basic
-refinements subset** (`attributeId (= | !=) value`, with `AND`/`OR` and
-parenthesized grouping). See [`spec/10-ecl.md`](../../spec/10-ecl.md) —
-the normative spec, including the full grammar, what's out of scope, and
-where the official grammar lives if you need to extend this crate.
+operators, `memberOf`, wildcard, boolean set operators) plus **refinements**
+(`attributeId (= | !=) value`, with `AND`/`OR` and parenthesized grouping,
+attribute cardinality `[min..max]`, the reverse flag `R`, and attribute
+groups `{ }`). See [`spec/10-ecl.md`](../../spec/10-ecl.md) — the normative
+spec, including the full grammar, what's out of scope, and where the
+official grammar lives if you need to extend this crate.
 
 Depends on `snomed-core` and `snomed-store`.
 
@@ -29,6 +30,15 @@ let matches = evaluate(&expr, store); // -> HashSet<SctId>
 // A refinement: disorders with a specific associated morphology.
 let expr = parse("<< 64572001 : 116676008 |Associated morphology| = 409774005")?;
 let matches = evaluate(&expr, store);
+
+// An attribute group: one role group with both a specific finding site
+// and a specific morphology together (not just each somewhere on the
+// concept — spec/10's attribute groups).
+let expr = parse(
+    "<< 404684003 : { 363698007 |Finding site| = << 39057004 AND \
+     116676008 |Associated morphology| = << 55641003 }",
+)?;
+let matches = evaluate(&expr, store);
 # Ok(()) }
 ```
 
@@ -41,15 +51,17 @@ let matches = evaluate(&expr, store);
 | Member of | `^ 447562003` — active membership in *any* refset type |
 | Boolean sets | `AND` (chains freely), `OR` (chains freely), `MINUS` (exactly two operands — parenthesize to chain further) |
 | Refinements | `attr = value`, `attr != value`, `AND`/`OR` at refinement level, parenthesized groups; `value` may itself be a full hierarchy expression |
+| Cardinality | `[min..max] attr = value` — counts matches instead of just checking "any"; defaults to `[1..*]` when omitted |
+| Reverse flag | `R attr = value` — matches by the relationship's *source* instead of its destination |
+| Attribute groups | `[cardinality] { attr = x AND attr2 = y }` — requires one role group (nonzero `relationshipGroup`) to satisfy every attribute together |
 | Syntax details | pipe-delimited terms (`73211009 \|Diabetes mellitus\|`, non-semantic), case-insensitive keywords, `,` as an alternate spelling for `AND`, `/* comments */` |
 
 Not yet implemented — each rejected with a specific
 `EclError::NotYetImplemented { feature, .. }` naming what's missing, never
-silently mishandled: attribute cardinality (`[min..max]`), the reverse flag
-(`R`), attribute groups (`{ }`), attribute names other than a plain concept
-reference, concrete value comparisons, `{{ }}` filters, the history
-supplement, `!!>`/`!!<`, `^ *`, a hierarchy prefix combined with `^`,
-alternate identifiers (`A#B`).
+silently mishandled: attribute names other than a plain concept reference,
+concrete value comparisons, `{{ }}` filters, the history supplement,
+`!!>`/`!!<`, `^ *`, a hierarchy prefix combined with `^`, alternate
+identifiers (`A#B`), dot notation.
 
 ## Design notes worth knowing before you extend this crate
 
@@ -64,14 +76,24 @@ alternate identifiers (`A#B`).
   docs.snomed.org's Specification and Guide doesn't state operator
   precedence or arity; the formal ABNF grammar at
   `github.com/IHTSDO/snomed-expression-constraint-language`
-  (`syntax/abnf-brief.txt`) does, unambiguously, and already contains the
-  full refinement grammar for whenever cardinality/attribute groups get
-  implemented. Fetching it caught three real bugs during development (see
-  `plan.md` Phase 5) — don't guess from memory on grammar shape.
+  (`syntax/abnf-brief.txt`) does, unambiguously. Fetching it caught three
+  real bugs during development (see `plan.md` Phase 5) — don't guess from
+  memory on grammar shape.
 - **Every hierarchy operator is implemented in terms of `SnapshotStore`'s
   existing primitives** (`parents`/`children`/`ancestors`/`descendants`),
   never a fresh traversal, so hierarchy semantics live in exactly one
-  place in the workspace.
+  place in the workspace. Attribute groups follow the same rule via a new
+  `SnapshotStore::relationships_to` (destination-indexed, mirroring the
+  existing `relationships_of`), added specifically for the reverse flag.
 - **Attribute refinements match against active *inferred* relationships
   only** — the same view hierarchy queries use (spec/07), extended here
   rather than given new semantics.
+- **Cardinality is a value, not an `Option`.** `AttributeConstraint`/
+  `AttributeGroup::cardinality` is `Cardinality`, defaulting to `[1..*]`
+  via `Cardinality::default()` when not written — evaluation never
+  branches on "was a cardinality given", only on the (possibly default)
+  range, so the pre-cardinality "any match" / "no match" behavior falls
+  out as that default's special case rather than needing its own code
+  path. See `spec/10-ecl.md`'s Refinements section for why role group `0`
+  is excluded from `{ }` candidacy — a judgment call the official guide
+  doesn't make explicitly, grounded in spec/07 instead.

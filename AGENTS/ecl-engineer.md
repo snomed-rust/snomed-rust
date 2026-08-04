@@ -7,12 +7,13 @@ AST, and evaluator.
 
 `spec/10-ecl.md` is normative. It documents exactly which grammar subset is
 implemented ("simple expression constraints" — hierarchy operators,
-memberOf, wildcard, AND/OR/MINUS — plus a basic refinements subset:
-`attributeId (= | !=) value`, AND/OR, parenthesized groups) and lists what
-is explicitly **not yet implemented** (attribute cardinality, the reverse
-flag, attribute groups, non-plain-concept-reference attribute names,
-concrete value comparisons, `{{ }}` filters, `^ *`, `!!>`/`!!<`, history
-supplement, alternate identifiers, a hierarchy prefix combined with `^`).
+memberOf, wildcard, AND/OR/MINUS — plus refinements: `attributeId
+(= | !=) value`, AND/OR, parenthesized groups, attribute cardinality
+`[min..max]`, the reverse flag `R`, and attribute groups `{ }`) and lists
+what is explicitly **not yet implemented** (non-plain-concept-reference
+attribute names, concrete value comparisons, `{{ }}` filters, `^ *`,
+`!!>`/`!!<`, history supplement, alternate identifiers, a hierarchy prefix
+combined with `^`, dot notation).
 
 **The authoritative grammar is the ABNF at
 <https://github.com/IHTSDO/snomed-expression-constraint-language>,
@@ -23,10 +24,15 @@ repos/IHTSDO/snomed-expression-constraint-language/contents/syntax/abnf-brief.tx
 --jq '.content' | base64 -d`, since the raw.githubusercontent.com URL 404s
 under WebFetch for this repo's default branch — use `gh api`) before
 implementing anything grammar-shaped, rather than guessing or trusting
-memory. `syntax/abnf-brief.txt` already contains the full refinement grammar
-too (`eclRefinement`, `eclAttributeSet`, `eclAttributeGroup`, `eclAttribute`,
-…) — read it directly when starting the refinements task instead of
-re-deriving from scattered examples.
+memory. The ABNF states the *syntax* precisely, but not everything —
+cardinality's default value and the reverse flag's meaning came from the
+prose guide's Refinements/Cardinality pages instead (fetch both when
+extending refinements; the ABNF alone won't tell you `[1..*]` is the
+default). Some things neither source states: whether role group `0`
+(ungrouped) can satisfy a `{ }` constraint isn't addressed by either the
+ABNF or the guide — that was resolved by grounding in this workspace's own
+already-documented `relationshipGroup` semantics (spec/07) instead of
+guessing; see spec/10's "Attribute groups" section before changing it.
 
 ## The one rule that matters most
 

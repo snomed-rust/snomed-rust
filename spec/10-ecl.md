@@ -1,31 +1,35 @@
-# 10 — Expression Constraint Language (ECL) — simple constraints + basic refinements
+# 10 — Expression Constraint Language (ECL) — simple constraints + refinements
 
 Official sources:
 - [SNOMED CT Expression Constraint Language — Specification and
   Guide](https://docs.snomed.org/snomed-ct-specifications/snomed-ct-expression-constraint-language)
   (current version ECL v2.3) — prose, examples, [Appendix D — ECL Quick
   Reference](https://docs.snomed.org/snomed-ct-specifications/snomed-ct-expression-constraint-language/appendices/appendix-d-ecl-quick-reference)
-  for the "brief syntax" operator symbols.
+  for the "brief syntax" operator symbols. The
+  [Refinements](https://docs.snomed.org/snomed-ct-specifications/snomed-ct-expression-constraint-language/behaviour-specification-with-examples/6.2-refinements.md)
+  and
+  [Cardinality](https://docs.snomed.org/snomed-ct-specifications/snomed-ct-expression-constraint-language/behaviour-specification-with-examples/6.3-cardinality.md)
+  pages are the source for the reverse-flag and cardinality semantics
+  below (quoted where load-bearing); note the guide does **not** state how
+  role group `0` interacts with `{ }` — that judgment call is this crate's
+  own, grounded in spec/07's own `relationshipGroup` documentation instead
+  (see "Attribute groups" below).
 - **The formal grammar**: [IHTSDO/snomed-expression-constraint-language](https://github.com/IHTSDO/snomed-expression-constraint-language),
   `syntax/abnf-brief.txt` (brief syntax) and `syntax/abnf-long.txt` (long
   syntax, textual keywords instead of symbols) on the `main` branch. The
   docs.snomed.org prose pages don't state operator precedence or arity
   explicitly; the ABNF does, unambiguously — **this is the authoritative
-  source for grammar questions**, prefer it over the prose guide. It also
-  already contains the full refinement grammar (`eclRefinement`,
-  `eclAttributeSet`, `eclAttributeGroup`, `eclAttribute`, …) needed for the
-  refinements task in `tasks.md` — worth reading directly rather than
-  re-deriving from examples when that work starts.
+  source for grammar questions**, prefer it over the prose guide.
 
 ECL is SNOMED's query language for defining bounded sets of concepts — the
 language behind refset/value-set definitions, MRCM range constraints, and
 `$expand`/`$validate-code` in FHIR terminology servers.
 
 `snomed-ecl` implements **simple expression constraints** (hierarchy
-operators, `memberOf`, wildcard, boolean set operators) plus a **basic
-refinements subset** (`:` attribute-value constraints, `=`/`!=`, `AND`/`OR`),
-evaluated against a [`SnapshotStore`]. Attribute cardinality (`[min..max]`),
-the reverse flag (`R`), attribute groups (`{ }`), concrete value comparisons,
+operators, `memberOf`, wildcard, boolean set operators) plus **refinements**
+(`:` attribute-value constraints with `=`/`!=`, `AND`/`OR`, attribute
+cardinality `[min..max]`, the reverse flag `R`, and attribute groups `{ }`),
+evaluated against a [`SnapshotStore`]. Concrete value comparisons,
 description/concept/member filters (`{{ }}`), the history supplement, and
 alternate identifiers are **out of scope for this version** — see
 [Not yet implemented](#not-yet-implemented).
@@ -64,11 +68,21 @@ sctid                 := digit+                         -- validated as an SctId
 eclRefinement         := subRefinement 1*(("AND" | "OR") subRefinement)
                         -- one level only: every operator at one level must
                         -- be the same kind (rule 5, same as top-level)
-subRefinement         := attributeConstraint | "(" eclRefinement ")"
-attributeConstraint   := conceptReference ("=" | "!=") subExpressionConstraint
+subRefinement         := attributeGroup | attributeConstraint | "(" eclRefinement ")"
+attributeGroup        := [cardinality] "{" eclAttributeSet "}"
+eclAttributeSet       := subAttributeSet 1*(("AND" | "OR") subAttributeSet)
+                        -- a group's body: same AND/OR shape as eclRefinement,
+                        -- restricted to attributes (no nested groups — the
+                        -- official grammar never nests eclAttributeGroup)
+subAttributeSet       := attributeConstraint | "(" eclAttributeSet ")"
+attributeConstraint   := [cardinality] [reverseFlag] conceptReference ("=" | "!=") subExpressionConstraint
                         -- attributeName restricted to a plain conceptReference
                         -- in this version; the official grammar allows any
                         -- subExpressionConstraint there (not yet implemented)
+cardinality           := "[" minValue ".." maxValue "]"
+minValue              := nonNegativeInteger
+maxValue              := nonNegativeInteger | "*"          -- "*" = unbounded
+reverseFlag           := "R"
 ```
 
 Whitespace (space, tab, CR, LF) is insignificant between tokens. `/* ... */`
@@ -164,7 +178,7 @@ A hierarchy prefix combined with wildcard (`eclFocusConcept` includes
 - `>`/`>!` with `*`: every concept with at least one child, by the same
   reasoning.
 
-## Refinements (`:` attribute-value constraints) — basic subset
+## Refinements (`:` attribute-value constraints)
 
 `focus : attributeId = value` restricts `focus`'s evaluated set to
 concepts that additionally have a matching attribute. Per the official
@@ -174,10 +188,15 @@ the same level as `AND`/`OR`/`MINUS`.
 
 - `attributeId` is a plain concept reference in this version (not a full
   `subExpressionConstraint` — see Not yet implemented).
-- `=` : the concept MUST have an active **inferred** relationship (spec/07's
-  hierarchy-view convention, extended here) of type `attributeId` whose
-  destination is in `value`'s evaluated set.
-- `!=` : the concept MUST NOT have such a relationship.
+- `=` : the concept MUST satisfy `attributeId`'s cardinality (see below) by
+  active **inferred** relationships (spec/07's hierarchy-view convention,
+  extended here) of type `attributeId` whose destination is in `value`'s
+  evaluated set.
+- `!=` : the concept MUST NOT satisfy that cardinality — i.e. `!=` negates
+  the whole cardinality check, not just "has zero matches" (though with the
+  default `[1..*]` cardinality, negating "at least one match" *is* exactly
+  "zero matches" — the pre-cardinality behavior falls out as the default
+  case, not a special one).
 - `value` is any `subExpressionConstraint` — including hierarchy-prefixed
   expressions, e.g. `116676008 |Associated morphology| = << 409774005`.
 - `AND`/`OR` chain attribute constraints at the refinement level, following
@@ -201,6 +220,67 @@ parse from what the parenthesized form would. If you rely on strict
 grammar conformance, parenthesize anyway; both spellings parse identically
 here.
 
+### Cardinality (`[min..max]`)
+
+`[min..max] attributeId = value` requires the *count* of matching
+relationships (rather than just "at least one") to fall within
+`[min, max]`; `max` may be `*` for unbounded. Per the official guide:
+
+> "The default cardinality of each attribute, where not explicitly stated,
+> is [1..*]." … "constrains the number of times the attribute may be
+> included in *any* attribute group" (i.e. counted across every group, not
+> per-group, when written outside `{ }`).
+
+So `attributeId = value` and `[1..*] attributeId = value` parse to the
+same `Cardinality` (`AttributeConstraint::cardinality` defaults to
+`{min: 1, max: None}`, never `Option<Cardinality>` — there's no
+"unspecified" state to track separately from the default).
+
+### Reverse flag (`R`)
+
+`R attributeId = value` swaps which end of the relationship is matched:
+instead of requiring `focus --attributeId--> (something in value)`, it
+requires `(something in value) --attributeId--> focus`. Per the official
+guide's own example:
+
+> `< 91723000 |Anatomical structure| : R 363698007 |Finding site| = <
+> 125605004 |Fracture of bone|` — "anatomical structures that are finding
+> sites of bone fractures."
+
+Implemented via a new `SnapshotStore::relationships_to` accessor (the
+destination-indexed mirror of the existing source-indexed
+`relationships_of`) — never a fresh whole-store scan, matching rule 4
+below.
+
+### Attribute groups (`{ }`)
+
+`[cardinality] { attributeSet }` requires that some number of the
+concept's **role groups** (`relationshipGroup` values, spec/07) — matching
+`cardinality`, default `[1..*]` — each independently satisfy every
+attribute in `attributeSet` using only that group's own relationships.
+Per the official guide:
+
+> "there must exist at least one attribute group for which the given
+> cardinality is satisfied by attributes in that group."
+
+So `{ a = x AND b = y }` requires one single group with *both* `a = x`
+*and* `b = y`; without braces, `a = x AND b = y` (still valid, at the
+`eclRefinement` level, not `eclAttributeSet`) allows the two matches to
+come from different groups, or from no group at all (grouping is a
+`{ }`-only concept per the official guide's own group/no-group
+distinction). An attribute inside `{ }` can carry its own cardinality too
+(`{ [2..*] 363698007 = value }`: some one group has at least 2 matching
+`363698007` relationships), independent of the group's own cardinality.
+
+**Role group `0` is excluded from candidacy.** The official ECL guide
+doesn't say this explicitly, but spec/07 already documents
+`relationshipGroup`'s own semantics: `0` means "ungrouped", nonzero values
+"group role attributes" — so group `0` isn't a role group to begin with,
+and treating it as a matchable `{ }` candidate would be inventing meaning
+the field doesn't carry. This is a documented judgment call, not a literal
+citation, the same category as `spec/08`'s `iRefset`/`ciRefset`
+file-pattern-letter derivation.
+
 ## Concept reference terms
 
 `73211009 |Diabetes mellitus|` — the pipe-delimited term is a
@@ -212,9 +292,7 @@ never consulted during evaluation; only the SCTID is evaluated).
 Tracked in `tasks.md`. Encountering any of these in input MUST produce a
 clear parse error naming the missing feature, never a silently wrong result:
 
-- Attribute cardinality (`[min..max]`), the reverse flag (`R`), attribute
-  groups (`{ }`), and dot notation (`.`). The full grammar for these already
-  exists in `syntax/abnf-brief.txt` — see the sources note above.
+- Dot notation (`.` / `dottedExpressionConstraint`).
 - Attribute names that are anything other than a plain concept reference
   (the official grammar allows any `subExpressionConstraint` as
   `eclAttributeName`, e.g. a hierarchy-prefixed attribute name).
@@ -254,3 +332,10 @@ clear parse error naming the missing feature, never a silently wrong result:
 6. Attribute constraint evaluation MUST use active **inferred**
    relationships only (mirroring rule 4's hierarchy convention) — never
    stated relationships, which live in the OWL refset (spec/07).
+7. An attribute/group's cardinality MUST default to `[1..*]` when not
+   written explicitly (`AttributeConstraint`/`AttributeGroup`'s
+   `cardinality` field is `Cardinality`, not `Option<Cardinality>` — the
+   default is a value, not an absent case evaluation has to branch on).
+8. Role group `0` MUST NOT be treated as a candidate group for `{ }`
+   evaluation (see "Attribute groups" above) — every `{ }` evaluation MUST
+   filter it out before counting satisfying groups.

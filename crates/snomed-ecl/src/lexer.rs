@@ -2,9 +2,10 @@
 //!
 //! [`Lexer`] pulls one token at a time rather than tokenizing the whole
 //! input upfront. This matters for error quality: the parser stops asking
-//! for tokens as soon as it hits unsupported syntax (e.g. `[` starting a
-//! cardinality, which this version doesn't parse further), so it never
-//! lexes — and never chokes on — the unsupported content past that point.
+//! for tokens as soon as it hits unsupported syntax (e.g. `{{` starting a
+//! description/concept/member filter, which this version doesn't parse
+//! further), so it never lexes — and never chokes on — the unsupported
+//! content past that point.
 
 use crate::error::EclError;
 
@@ -29,10 +30,18 @@ pub enum TokenKind {
     Colon,
     /// `{{` — description/concept/member filters (not yet implemented).
     LBrace2,
-    /// `{` alone — starts an attribute group (not yet implemented).
+    /// `{` alone — starts an attribute group.
     LBrace,
-    /// `[` — starts a cardinality (not yet implemented).
+    /// `}` — ends an attribute group.
+    RBrace,
+    /// `[` — starts a cardinality.
     LBracket,
+    /// `]` — ends a cardinality.
+    RBracket,
+    /// `..` — separates a cardinality's min and max.
+    DotDot,
+    /// `R` — the reverse-attribute flag.
+    ReverseFlag,
     /// `=` — attribute-value comparison.
     Eq,
     /// `!=` — negated attribute-value comparison.
@@ -71,7 +80,11 @@ pub fn describe(kind: &TokenKind) -> String {
         TokenKind::Colon => "`:`".to_string(),
         TokenKind::LBrace2 => "`{{`".to_string(),
         TokenKind::LBrace => "`{`".to_string(),
+        TokenKind::RBrace => "`}`".to_string(),
         TokenKind::LBracket => "`[`".to_string(),
+        TokenKind::RBracket => "`]`".to_string(),
+        TokenKind::DotDot => "`..`".to_string(),
+        TokenKind::ReverseFlag => "`R`".to_string(),
         TokenKind::Eq => "`=`".to_string(),
         TokenKind::NotEq => "`!=`".to_string(),
         TokenKind::Digits(d) => format!("`{d}`"),
@@ -160,9 +173,21 @@ impl Lexer {
                 self.pos += 1;
                 TokenKind::LBrace
             }
+            '}' => {
+                self.pos += 1;
+                TokenKind::RBrace
+            }
             '[' => {
                 self.pos += 1;
                 TokenKind::LBracket
+            }
+            ']' => {
+                self.pos += 1;
+                TokenKind::RBracket
+            }
+            '.' if self.chars.get(self.pos + 1) == Some(&'.') => {
+                self.pos += 2;
+                TokenKind::DotDot
             }
             '=' => {
                 self.pos += 1;
@@ -244,6 +269,7 @@ impl Lexer {
                     "AND" => TokenKind::And,
                     "OR" => TokenKind::Or,
                     "MINUS" => TokenKind::Minus,
+                    "R" => TokenKind::ReverseFlag,
                     _ => {
                         return Err(EclError::UnexpectedKeyword {
                             pos: start,
@@ -365,17 +391,56 @@ mod tests {
     #[test]
     fn lexes_refinement_tokens() {
         assert_eq!(
-            kinds(": = != [ { {{"),
+            kinds(": = != [ ] { } {{"),
             vec![
                 TokenKind::Colon,
                 TokenKind::Eq,
                 TokenKind::NotEq,
                 TokenKind::LBracket,
+                TokenKind::RBracket,
                 TokenKind::LBrace,
+                TokenKind::RBrace,
                 TokenKind::LBrace2,
                 TokenKind::Eof,
             ]
         );
+    }
+
+    #[test]
+    fn lexes_cardinality_and_reverse_flag_tokens() {
+        assert_eq!(
+            kinds("[0..1] R"),
+            vec![
+                TokenKind::LBracket,
+                TokenKind::Digits("0".to_string()),
+                TokenKind::DotDot,
+                TokenKind::Digits("1".to_string()),
+                TokenKind::RBracket,
+                TokenKind::ReverseFlag,
+                TokenKind::Eof,
+            ]
+        );
+        // Case-insensitive, matching AND/OR/MINUS's convention.
+        assert_eq!(kinds("r"), vec![TokenKind::ReverseFlag, TokenKind::Eof]);
+        // `*` as an unbounded max reuses the existing Star token.
+        assert_eq!(
+            kinds("[1..*]"),
+            vec![
+                TokenKind::LBracket,
+                TokenKind::Digits("1".to_string()),
+                TokenKind::DotDot,
+                TokenKind::Star,
+                TokenKind::RBracket,
+                TokenKind::Eof,
+            ]
+        );
+    }
+
+    #[test]
+    fn lone_dot_is_rejected() {
+        // Dot notation (dottedExpressionConstraint) is out of scope; only
+        // `..` (cardinality separator) is a recognized use of `.`.
+        assert_eq!(lex("."), Err(EclError::UnexpectedChar { pos: 0, ch: '.' }));
     }
 
     #[test]

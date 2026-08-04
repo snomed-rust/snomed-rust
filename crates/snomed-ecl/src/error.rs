@@ -62,7 +62,7 @@ impl fmt::Display for EclError {
             EclError::UnexpectedKeyword { pos, found } => {
                 write!(
                     f,
-                    "unexpected keyword `{found}` at position {pos} (expected AND, OR, or MINUS)"
+                    "unexpected keyword `{found}` at position {pos} (expected AND, OR, MINUS, or R)"
                 )
             }
             EclError::UnterminatedTerm { pos } => {

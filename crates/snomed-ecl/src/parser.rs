@@ -3,8 +3,8 @@
 use snomed_core::sctid::SctId;
 
 use crate::ast::{
-    AttributeConstraint, ExpressionConstraint, FocusConcept, HierarchyOp, RefinementConstraint,
-    SimpleExpressionConstraint,
+    AttributeConstraint, AttributeGroup, Cardinality, ExpressionConstraint, FocusConcept,
+    HierarchyOp, RefinementConstraint, SimpleExpressionConstraint,
 };
 use crate::error::EclError;
 use crate::lexer::{describe, Lexer, Token, TokenKind};
@@ -211,6 +211,11 @@ impl Parser {
         })
     }
 
+    /// `eclAttributeSet / eclAttributeGroup / "(" eclRefinement ")"`. A
+    /// leading `[cardinality]` is shared by the group and plain-attribute
+    /// shapes (the lexer only tells us `{` follows *after* the cardinality
+    /// is already consumed, since it has one token of lookahead), so it's
+    /// parsed once here and handed to whichever shape follows.
     fn parse_sub_refinement(&mut self) -> Result<RefinementConstraint, EclError> {
         if matches!(self.peek().kind, TokenKind::LParen) {
             self.advance()?;
@@ -218,27 +223,122 @@ impl Parser {
             self.expect(TokenKind::RParen, "`)`")?;
             return Ok(inner);
         }
+
+        let cardinality = self.parse_optional_cardinality()?;
+
         if matches!(self.peek().kind, TokenKind::LBrace) {
-            return Err(EclError::NotYetImplemented {
-                pos: self.peek().pos,
-                feature: "attribute groups (`{ }`)",
-            });
+            self.advance()?;
+            let attributes = self.parse_attribute_set()?;
+            self.expect(TokenKind::RBrace, "`}`")?;
+            return Ok(RefinementConstraint::Group(AttributeGroup {
+                cardinality: cardinality.unwrap_or_default(),
+                attributes: Box::new(attributes),
+            }));
         }
+
         Ok(RefinementConstraint::Attribute(
-            self.parse_attribute_constraint()?,
+            self.parse_attribute_constraint(cardinality)?,
         ))
     }
 
-    /// `[cardinality] [reverseFlag] attributeName ("=" | "!=") value`.
-    /// Cardinality and the reverse flag are not yet implemented; the
-    /// attribute name is restricted to a plain concept reference (spec/10).
-    fn parse_attribute_constraint(&mut self) -> Result<AttributeConstraint, EclError> {
-        if matches!(self.peek().kind, TokenKind::LBracket) {
-            return Err(EclError::NotYetImplemented {
-                pos: self.peek().pos,
-                feature: "attribute cardinality (`[min..max]`)",
-            });
+    /// `eclAttributeSet = subAttributeSet [conjunctionAttributeSet /
+    /// disjunctionAttributeSet]` — the body of an attribute group
+    /// (spec/10). Structurally mirrors [`Self::parse_refinement`], minus
+    /// the `eclAttributeGroup` alternative: the official grammar never
+    /// nests a group inside a group.
+    fn parse_attribute_set(&mut self) -> Result<RefinementConstraint, EclError> {
+        let first = self.parse_sub_attribute_set()?;
+
+        match &self.peek().kind {
+            TokenKind::And => {
+                let mut items = vec![first];
+                while matches!(self.peek().kind, TokenKind::And) {
+                    self.advance()?;
+                    items.push(self.parse_sub_attribute_set()?);
+                }
+                self.reject_trailing_refinement_operator("AND")?;
+                Ok(RefinementConstraint::And(items))
+            }
+            TokenKind::Or => {
+                let mut items = vec![first];
+                while matches!(self.peek().kind, TokenKind::Or) {
+                    self.advance()?;
+                    items.push(self.parse_sub_attribute_set()?);
+                }
+                self.reject_trailing_refinement_operator("OR")?;
+                Ok(RefinementConstraint::Or(items))
+            }
+            _ => Ok(first),
         }
+    }
+
+    /// `subAttributeSet = eclAttribute / "(" eclAttributeSet ")"`.
+    fn parse_sub_attribute_set(&mut self) -> Result<RefinementConstraint, EclError> {
+        if matches!(self.peek().kind, TokenKind::LParen) {
+            self.advance()?;
+            let inner = self.parse_attribute_set()?;
+            self.expect(TokenKind::RParen, "`)`")?;
+            return Ok(inner);
+        }
+        let cardinality = self.parse_optional_cardinality()?;
+        Ok(RefinementConstraint::Attribute(
+            self.parse_attribute_constraint(cardinality)?,
+        ))
+    }
+
+    fn parse_optional_cardinality(&mut self) -> Result<Option<Cardinality>, EclError> {
+        if matches!(self.peek().kind, TokenKind::LBracket) {
+            Ok(Some(self.parse_cardinality()?))
+        } else {
+            Ok(None)
+        }
+    }
+
+    /// `"[" minValue ".." maxValue "]"`; `maxValue` is a non-negative
+    /// integer or `*` (unbounded — `many` in the official grammar).
+    fn parse_cardinality(&mut self) -> Result<Cardinality, EclError> {
+        self.expect(TokenKind::LBracket, "`[`")?;
+        let min = self.parse_nonneg_integer()?;
+        self.expect(TokenKind::DotDot, "`..`")?;
+        let max = if matches!(self.peek().kind, TokenKind::Star) {
+            self.advance()?;
+            None
+        } else {
+            Some(self.parse_nonneg_integer()?)
+        };
+        self.expect(TokenKind::RBracket, "`]`")?;
+        Ok(Cardinality { min, max })
+    }
+
+    fn parse_nonneg_integer(&mut self) -> Result<u32, EclError> {
+        let tok = self.advance()?;
+        match tok.kind {
+            TokenKind::Digits(s) => s.parse::<u32>().map_err(|_| EclError::UnexpectedToken {
+                pos: tok.pos,
+                found: format!("`{s}`"),
+                expected: "a cardinality bound that fits in a 32-bit integer",
+            }),
+            other => Err(EclError::UnexpectedToken {
+                pos: tok.pos,
+                found: describe(&other),
+                expected: "a cardinality bound (digits)",
+            }),
+        }
+    }
+
+    /// `[reverseFlag] attributeName ("=" | "!=") value`. `cardinality` is
+    /// pre-parsed by the caller (see [`Self::parse_sub_refinement`]); the
+    /// attribute name is restricted to a plain concept reference (spec/10).
+    fn parse_attribute_constraint(
+        &mut self,
+        cardinality: Option<Cardinality>,
+    ) -> Result<AttributeConstraint, EclError> {
+        let reverse = if matches!(self.peek().kind, TokenKind::ReverseFlag) {
+            self.advance()?;
+            true
+        } else {
+            false
+        };
         let (attribute_id, attribute_term) = self.parse_concept_reference()?;
         let negated = match &self.peek().kind {
             TokenKind::Eq => {
@@ -263,6 +363,8 @@ impl Parser {
             attribute_id,
             attribute_term,
             negated,
+            cardinality: cardinality.unwrap_or_default(),
+            reverse,
             value: Box::new(value),
         })
     }
@@ -651,20 +753,140 @@ mod tests {
     }
 
     #[test]
-    fn rejects_refinement_extras_not_yet_implemented() {
-        assert!(matches!(
-            parse("404684003 : [0..1] 116676008 = 79654002"),
-            Err(EclError::NotYetImplemented {
-                feature: "attribute cardinality (`[min..max]`)",
+    fn parses_attribute_cardinality() {
+        let expr = parse("404684003 : [0..1] 116676008 = 79654002").unwrap();
+        match expr {
+            EC::Refined {
+                refinement: crate::ast::RefinementConstraint::Attribute(a),
                 ..
-            })
+            } => {
+                assert_eq!(
+                    a.cardinality,
+                    crate::ast::Cardinality {
+                        min: 0,
+                        max: Some(1)
+                    }
+                );
+            }
+            other => panic!("expected an Attribute refinement, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn parses_unbounded_cardinality_max() {
+        let expr = parse("404684003 : [2..*] 116676008 = 79654002").unwrap();
+        match expr {
+            EC::Refined {
+                refinement: crate::ast::RefinementConstraint::Attribute(a),
+                ..
+            } => {
+                assert_eq!(a.cardinality, crate::ast::Cardinality { min: 2, max: None });
+            }
+            other => panic!("expected an Attribute refinement, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn attribute_without_cardinality_defaults_to_one_to_many() {
+        let expr = parse("404684003 : 116676008 = 79654002").unwrap();
+        match expr {
+            EC::Refined {
+                refinement: crate::ast::RefinementConstraint::Attribute(a),
+                ..
+            } => {
+                assert_eq!(a.cardinality, crate::ast::Cardinality::default());
+                assert_eq!(a.cardinality, crate::ast::Cardinality { min: 1, max: None });
+            }
+            other => panic!("expected an Attribute refinement, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn parses_reverse_flag() {
+        let expr = parse("< 91723000 : R 363698007 = < 125605004").unwrap();
+        match expr {
+            EC::Refined {
+                refinement: crate::ast::RefinementConstraint::Attribute(a),
+                ..
+            } => {
+                assert!(a.reverse);
+                assert_eq!(a.attribute_id, concept("363698007"));
+            }
+            other => panic!("expected an Attribute refinement, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn parses_attribute_group_with_default_cardinality() {
+        let expr = parse("404684003 : { 116676008 = 79654002 }").unwrap();
+        match expr {
+            EC::Refined {
+                refinement: crate::ast::RefinementConstraint::Group(g),
+                ..
+            } => {
+                assert_eq!(g.cardinality, crate::ast::Cardinality::default());
+                assert!(matches!(
+                    *g.attributes,
+                    crate::ast::RefinementConstraint::Attribute(_)
+                ));
+            }
+            other => panic!("expected a Group refinement, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn parses_attribute_group_with_explicit_cardinality_and_and_or_body() {
+        let expr =
+            parse("404684003 : [1..2] { 116676008 = 79654002 AND 363698007 = 4147007 }").unwrap();
+        match expr {
+            EC::Refined {
+                refinement: crate::ast::RefinementConstraint::Group(g),
+                ..
+            } => {
+                assert_eq!(
+                    g.cardinality,
+                    crate::ast::Cardinality {
+                        min: 1,
+                        max: Some(2)
+                    }
+                );
+                assert!(matches!(
+                    *g.attributes,
+                    crate::ast::RefinementConstraint::And(ref v) if v.len() == 2
+                ));
+            }
+            other => panic!("expected a Group refinement, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn parses_attribute_level_cardinality_inside_a_group() {
+        let expr = parse("404684003 : { [2..*] 116676008 = 79654002 }").unwrap();
+        match expr {
+            EC::Refined {
+                refinement: crate::ast::RefinementConstraint::Group(g),
+                ..
+            } => match *g.attributes {
+                crate::ast::RefinementConstraint::Attribute(a) => {
+                    assert_eq!(a.cardinality, crate::ast::Cardinality { min: 2, max: None });
+                }
+                other => panic!("expected an Attribute, got {other:?}"),
+            },
+            other => panic!("expected a Group refinement, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn rejects_malformed_cardinality() {
+        // A single `.` isn't a valid token at all (only `..` is) — this
+        // fails at the lexer, not the parser.
+        assert!(matches!(
+            parse("404684003 : [0.1] 116676008 = 79654002"),
+            Err(EclError::UnexpectedChar { ch: '.', .. })
         ));
         assert!(matches!(
-            parse("404684003 : { 116676008 = 79654002 }"),
-            Err(EclError::NotYetImplemented {
-                feature: "attribute groups (`{ }`)",
-                ..
-            })
+            parse("404684003 : [0..1 116676008 = 79654002"),
+            Err(EclError::UnexpectedToken { .. })
         ));
     }
 

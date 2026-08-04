@@ -76,7 +76,30 @@ pub enum ExpressionConstraint {
     },
 }
 
-/// `attributeName (= | !=) value` — spec/10's refinement subset.
+/// `[min..max]` — an attribute or attribute group's cardinality
+/// (spec/10). `max: None` is the unbounded `*` ("many").
+///
+/// The grammar's `["[" cardinality "]" ws]` is always optional; when
+/// absent, the official guide states the default is `[1..*]` — see
+/// [`Cardinality::default`].
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Cardinality {
+    pub min: u32,
+    pub max: Option<u32>,
+}
+
+impl Default for Cardinality {
+    /// `[1..*]` — "at least one, no upper bound" — per the official ECL
+    /// guide: "The default cardinality of each attribute, where not
+    /// explicitly stated, is [1..*]." Also used as the implicit
+    /// cardinality of an attribute group written without one.
+    fn default() -> Self {
+        Cardinality { min: 1, max: None }
+    }
+}
+
+/// `[cardinality] [reverseFlag] attributeName (= | !=) value` — spec/10's
+/// refinement subset.
 ///
 /// `attribute_name` is restricted to a plain concept reference in this
 /// version (the official grammar allows any `subExpressionConstraint`
@@ -86,16 +109,39 @@ pub enum ExpressionConstraint {
 pub struct AttributeConstraint {
     pub attribute_id: SctId,
     pub attribute_term: Option<String>,
-    /// `true` for `!=`: the concept must NOT have a matching relationship.
+    /// `true` for `!=`: the concept must NOT satisfy `cardinality`
+    /// (see `eval.rs` for how negation composes with a non-default
+    /// cardinality).
     pub negated: bool,
+    /// Defaults to `[1..*]` when not written explicitly (spec/10).
+    pub cardinality: Cardinality,
+    /// `true` for a leading `R`: match relationships where this concept is
+    /// the *destination* and `value` constrains the *source*, instead of
+    /// the usual source/destination roles (spec/10's reverse attributes).
+    pub reverse: bool,
     pub value: Box<ExpressionConstraint>,
 }
 
-/// An `eclRefinement`, restricted to attribute constraints (no attribute
-/// groups, cardinality, or reverse flag yet — spec/10).
+/// `["[" cardinality "]" ws] "{" eclAttributeSet "}"` — a role group
+/// constraint (spec/10). `attributes` is restricted by the parser (not
+/// the type) to `Attribute`/`And`/`Or` — the official grammar's
+/// `eclAttributeSet` never nests another `eclAttributeGroup`, so
+/// `parse_attribute_set` never constructs one here.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AttributeGroup {
+    /// Defaults to `[1..*]`: "there must exist at least one attribute
+    /// group for which the given cardinality is satisfied" — with the
+    /// default, "at least one group satisfies `attributes`".
+    pub cardinality: Cardinality,
+    pub attributes: Box<RefinementConstraint>,
+}
+
+/// An `eclRefinement` (spec/10's refinement subset).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum RefinementConstraint {
     Attribute(AttributeConstraint),
+    /// `{ ... }` — a role group; see [`AttributeGroup`].
+    Group(AttributeGroup),
     /// `AND`-joined attribute constraints; flat, mirroring
     /// [`ExpressionConstraint::And`]'s reasoning.
     And(Vec<RefinementConstraint>),

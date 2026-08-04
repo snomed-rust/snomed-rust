@@ -103,11 +103,33 @@ the spec's normative rules. Day-to-day execution items live in `tasks.md`.
   `AND`/`OR` chains and parenthesized groups at refinement level (no
   `MINUS` there — the grammar doesn't define one). `value` may itself be
   any hierarchy-prefixed expression. Evaluates against active **inferred**
-  relationships (spec/07's convention, extended to attributes).
-  Cardinality, the reverse flag, attribute groups, concrete value
-  comparisons, and non-plain-concept attribute names remain **not yet
-  implemented** — explicitly rejected with a clear error, never silently
-  ignored (spec/10's "Not yet implemented" section + `tasks.md`).
+  relationships (spec/07's convention, extended to attributes). Concrete
+  value comparisons and non-plain-concept attribute names remain **not
+  yet implemented** — explicitly rejected with a clear error, never
+  silently ignored (spec/10's "Not yet implemented" section + `tasks.md`).
+- Refinements extended (2026-08-04) with attribute cardinality
+  (`[min..max]`, default `[1..*]`), the reverse flag (`R`), and attribute
+  groups (`{ }`) ✅ — the next three items off spec/10's "Not yet
+  implemented" list, picked as a self-contained increment (no new crate,
+  no new dependency). Grounded in three distinct sources, each covering a
+  gap the others left: the ABNF (`eclAttributeGroup`/`eclAttribute`/
+  `cardinality` productions) for syntax; the official guide's Refinements
+  and Cardinality pages (fetched directly, since the ABNF alone doesn't
+  state semantics) for the reverse flag's meaning and cardinality's
+  `[1..*]` default; and — for the one thing *neither* source addresses,
+  whether role group `0` (ungrouped) can satisfy a `{ }` constraint —
+  this workspace's own already-documented `relationshipGroup` semantics
+  (spec/07: `0` = ungrouped), a judgment call flagged as such rather than
+  presented as a citation. `Cardinality` is a value (`{min, max:
+  Option<u32>}`, `Default` = `[1..*]`), not `Option<Cardinality>` — the
+  default is data, not a branch. New `SnapshotStore::relationships_to`
+  (destination-indexed, mirroring the existing source-indexed
+  `relationships_of`) backs the reverse flag without a fresh whole-store
+  scan. Attribute-group evaluation threads an `Option<u32>` group scope
+  through refinement evaluation: `None` at the top level counts matches
+  across every group (the bare/ungrouped-attribute cardinality meaning
+  "any attribute group" per the guide); `Some(gid)` inside a candidate
+  group restricts matching to that group's own relationships only.
 - History/audit queries over Full-view data ✅: `snomed-store::HistoryStore`
   keeps every version of a Concept/Description/Relationship (spec/09's new
   "History construction" section), built from Full-view files only —

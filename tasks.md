@@ -681,3 +681,65 @@ This closes Phase 7 (see `plan.md`).
       pick); re-running the Phase 4 `snomed-store` benchmark (and the
       Phase 7 `snomed-classify` one) against a real International
       Edition release if one becomes available.
+
+## Done (2026-08-04, snomed-ecl refinements — cardinality, reverse flag, attribute groups)
+
+- [x] Implemented the next three items off spec/10-ecl.md's "Not yet
+      implemented" list: attribute cardinality (`[min..max]`, default
+      `[1..*]`), the reverse flag (`R`), and attribute groups (`{ }`).
+      Picked as a self-contained "next" increment — no new crate, no new
+      dependency, extends an existing crate's already-documented gap list.
+- [x] Fetched the official ABNF (`syntax/abnf-brief.txt`) for the exact
+      grammar shapes (`eclAttributeGroup`, `eclAttribute`, `cardinality`,
+      `reverseFlag`), and — since the ABNF states syntax but not semantics
+      — separately fetched docs.snomed.org's Refinements and Cardinality
+      pages for the reverse flag's meaning (source/destination swap,
+      confirmed against the guide's own worked example) and cardinality's
+      documented default (`[1..*]` when omitted). Neither source states
+      how role group `0` (ungrouped relationships) interacts with `{ }`
+      matching — resolved by grounding in this workspace's own
+      already-documented `relationshipGroup` semantics (spec/07: `0` =
+      ungrouped) instead of guessing, flagged explicitly as a judgment
+      call in spec/10, not presented as a citation.
+- [x] `snomed-store`: new `relationships_to(destination_id)` accessor (a
+      `relationships_by_destination` index mirroring the existing
+      `relationships_of`/`relationships_by_source`) — backs the reverse
+      flag without a fresh whole-store scan, per this crate's own rule
+      that hierarchy/relationship traversal stays in existing indexed
+      primitives.
+- [x] `snomed-ecl`: new lexer tokens (`RBrace`, `RBracket`, `DotDot`,
+      `ReverseFlag`); `AttributeConstraint` gained `cardinality:
+      Cardinality` (a value with a `[1..*]` `Default`, not
+      `Option<Cardinality>`) and `reverse: bool`; new
+      `RefinementConstraint::Group(AttributeGroup)` variant. Parser adds
+      `parse_cardinality`/`parse_optional_cardinality` and a second
+      AND/OR-chaining pair (`parse_attribute_set`/`parse_sub_attribute_set`)
+      mirroring `parse_refinement`/`parse_sub_refinement` for a group's
+      body, since the official grammar never nests a group inside a
+      group. Eval threads an `Option<u32>` group scope through refinement
+      evaluation — `None` at the top level counts matches across every
+      group (bare-attribute cardinality means "any attribute group" per
+      the guide); `Some(gid)` inside a candidate group restricts matching
+      to that group's own relationships. `!=` now negates the whole
+      cardinality check rather than being a separate code path, so the
+      pre-cardinality "zero matches" behavior falls out as the default
+      cardinality's special case, not bespoke logic.
+- [x] Tests: lexer (new tokens, case-insensitive `R`, lone `.` still
+      rejected), parser (cardinality bounds incl. unbounded `*` max,
+      default-cardinality equivalence, reverse flag, group parsing incl.
+      nested cardinality on an attribute inside a group, malformed
+      cardinality), and eval (cardinality counts across groups regardless
+      of scope, negated cardinality, reverse-flag matches by destination
+      not source, a group requiring all its attributes from the *same*
+      role group — not just anywhere on the concept, group cardinality
+      counting satisfying groups, and role group `0` excluded from `{ }`
+      candidacy while still counting toward the bare/ungrouped form).
+- [x] Docs: spec/10-ecl.md's grammar, Refinements section (three new
+      subsections with guide citations), Not yet implemented list, and
+      Rules (two new normative rules) all updated in the same change;
+      `crates/snomed-ecl/README.md` and `AGENTS/ecl-engineer.md` updated
+      to stop describing these as future work.
+- [x] 236 tests passing workspace-wide (up from 220: +1 store, +15 ecl —
+      6 lexer, plus net new/rewritten parser and eval tests for
+      cardinality, the reverse flag, and attribute groups). `cargo fmt
+      --all -- --check` and `cargo clippy --all-targets` both clean.

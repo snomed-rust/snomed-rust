@@ -296,11 +296,16 @@ impl SnapshotStoreBuilder {
         }
 
         let mut relationships_by_source: HashMap<SctId, Vec<SctId>> = HashMap::new();
+        let mut relationships_by_destination: HashMap<SctId, Vec<SctId>> = HashMap::new();
         let mut parents: HashMap<SctId, Vec<SctId>> = HashMap::new();
         let mut children: HashMap<SctId, Vec<SctId>> = HashMap::new();
         for r in self.relationships.values() {
             relationships_by_source
                 .entry(r.source_id)
+                .or_default()
+                .push(r.id);
+            relationships_by_destination
+                .entry(r.destination_id)
                 .or_default()
                 .push(r.id);
             // Hierarchy edges: active, inferred, |is a|.
@@ -423,6 +428,7 @@ impl SnapshotStoreBuilder {
             relationship_concrete_values: self.relationship_concrete_values,
             descriptions_by_concept,
             relationships_by_source,
+            relationships_by_destination,
             relationship_concrete_values_by_source,
             parents,
             children,
@@ -457,6 +463,7 @@ pub struct SnapshotStore {
     relationship_concrete_values: HashMap<SctId, RelationshipConcreteValue>,
     descriptions_by_concept: HashMap<SctId, Vec<SctId>>,
     relationships_by_source: HashMap<SctId, Vec<SctId>>,
+    relationships_by_destination: HashMap<SctId, Vec<SctId>>,
     relationship_concrete_values_by_source: HashMap<SctId, Vec<SctId>>,
     /// Active inferred IS-A edges: child -> parents.
     parents: HashMap<SctId, Vec<SctId>>,
@@ -577,6 +584,18 @@ impl SnapshotStore {
     pub fn relationships_of(&self, source_id: SctId) -> impl Iterator<Item = &Relationship> {
         self.relationships_by_source
             .get(&source_id)
+            .into_iter()
+            .flatten()
+            .filter_map(|id| self.relationships.get(id))
+    }
+
+    /// All (latest-version) relationships whose destination is this
+    /// concept — the mirror of [`relationships_of`](Self::relationships_of),
+    /// for callers that need to search by destination rather than source
+    /// (e.g. `snomed-ecl`'s reverse-flag attribute constraints, spec/10).
+    pub fn relationships_to(&self, destination_id: SctId) -> impl Iterator<Item = &Relationship> {
+        self.relationships_by_destination
+            .get(&destination_id)
             .into_iter()
             .flatten()
             .filter_map(|id| self.relationships.get(id))
@@ -1264,6 +1283,25 @@ mod tests {
         let values: Vec<_> = store.relationship_concrete_values_of(MI).collect();
         assert_eq!(values.len(), 1);
         assert!(store.relationship_concrete_values_of(ROOT).next().is_none());
+    }
+
+    #[test]
+    fn relationships_to_finds_by_destination_not_source() {
+        let mut b = SnapshotStore::builder();
+        for c in [ROOT, FINDING, DISEASE, MI] {
+            b.add_concept(concept(c, 20190731, true));
+        }
+        b.add_relationship(is_a(1, FINDING, ROOT));
+        b.add_relationship(is_a(2, DISEASE, ROOT));
+        let store = b.build();
+
+        let to_root: Vec<SctId> = store.relationships_to(ROOT).map(|r| r.source_id).collect();
+        assert_eq!(to_root.len(), 2);
+        assert!(to_root.contains(&FINDING));
+        assert!(to_root.contains(&DISEASE));
+        // Mirrors relationships_of, not aliases it.
+        assert!(store.relationships_to(FINDING).next().is_none());
+        assert!(store.relationships_to(MI).next().is_none());
     }
 
     #[test]

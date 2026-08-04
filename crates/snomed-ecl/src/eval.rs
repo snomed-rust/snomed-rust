@@ -7,8 +7,8 @@ use snomed_core::sctid::SctId;
 use snomed_store::SnapshotStore;
 
 use crate::ast::{
-    AttributeConstraint, ExpressionConstraint, FocusConcept, HierarchyOp, RefinementConstraint,
-    SimpleExpressionConstraint,
+    AttributeConstraint, AttributeGroup, Cardinality, ExpressionConstraint, FocusConcept,
+    HierarchyOp, RefinementConstraint, SimpleExpressionConstraint,
 };
 
 /// Evaluates `expr` against `store`, returning the matching concept ids.
@@ -47,44 +47,109 @@ pub fn evaluate(expr: &ExpressionConstraint, store: &SnapshotStore) -> HashSet<S
         }
         ExpressionConstraint::Refined { focus, refinement } => evaluate(focus, store)
             .into_iter()
-            .filter(|&c| evaluate_refinement(refinement, c, store))
+            .filter(|&c| evaluate_refinement(refinement, c, store, None))
             .collect(),
     }
 }
 
-fn evaluate_refinement(r: &RefinementConstraint, concept: SctId, store: &SnapshotStore) -> bool {
+/// `group_scope`, when `Some(g)`, restricts matching to relationships
+/// whose `relationshipGroup` is exactly `g` — used while evaluating one
+/// candidate role group's attribute set (spec/10's attribute groups).
+/// `None` (the top-level/ungrouped case) considers every matching
+/// relationship regardless of group, per the official guide: cardinality
+/// on a bare (non-grouped) attribute "constrains the number of times the
+/// attribute may be included in *any* attribute group".
+fn evaluate_refinement(
+    r: &RefinementConstraint,
+    concept: SctId,
+    store: &SnapshotStore,
+    group_scope: Option<u32>,
+) -> bool {
     match r {
-        RefinementConstraint::Attribute(a) => evaluate_attribute_constraint(a, concept, store),
-        RefinementConstraint::And(items) => {
-            items.iter().all(|i| evaluate_refinement(i, concept, store))
+        RefinementConstraint::Attribute(a) => {
+            evaluate_attribute_constraint(a, concept, store, group_scope)
         }
-        RefinementConstraint::Or(items) => {
-            items.iter().any(|i| evaluate_refinement(i, concept, store))
-        }
+        RefinementConstraint::Group(g) => evaluate_attribute_group(g, concept, store),
+        RefinementConstraint::And(items) => items
+            .iter()
+            .all(|i| evaluate_refinement(i, concept, store, group_scope)),
+        RefinementConstraint::Or(items) => items
+            .iter()
+            .any(|i| evaluate_refinement(i, concept, store, group_scope)),
     }
 }
 
-/// `concept` satisfies `attribute_id (= | !=) value` when it has (or, for
-/// `!=`, lacks) an active **inferred** relationship of that type whose
-/// destination is in `value`'s evaluated set — mirroring spec/10 rule 4's
-/// "hierarchy uses the inferred view" principle, extended to attributes.
+/// `concept` satisfies `[cardinality] [R] attribute_id (= | !=) value` when
+/// the count of active **inferred** relationships of that type (matching
+/// `group_scope` when set) whose destination — or, with the reverse flag,
+/// whose *source* — is in `value`'s evaluated set falls within
+/// `cardinality`'s `[min..max]` (default `[1..*]`, spec/10). `!=` negates
+/// the whole cardinality check, so a bare `!=` with the default cardinality
+/// means "zero matches", matching the pre-cardinality behavior exactly.
+///
+/// Reverse (`R`) swaps which end of the relationship is `concept` versus
+/// `value`: `R attr = value` matches when some concept in `value` has an
+/// active inferred `attr` relationship *to* `concept` (spec/10's reverse
+/// attributes) — `relationships_to`, not `relationships_of`.
 fn evaluate_attribute_constraint(
     a: &AttributeConstraint,
     concept: SctId,
     store: &SnapshotStore,
+    group_scope: Option<u32>,
 ) -> bool {
     let value_set = evaluate(&a.value, store);
-    let has_match = store.relationships_of(concept).any(|r| {
-        r.active
-            && r.is_inferred()
-            && r.type_id == a.attribute_id
-            && value_set.contains(&r.destination_id)
-    });
-    if a.negated {
-        !has_match
+    let count = if a.reverse {
+        store
+            .relationships_to(concept)
+            .filter(|r| r.active && r.is_inferred() && r.type_id == a.attribute_id)
+            .filter(|r| group_scope.map_or(true, |g| r.relationship_group == g))
+            .filter(|r| value_set.contains(&r.source_id))
+            .count() as u32
     } else {
-        has_match
+        store
+            .relationships_of(concept)
+            .filter(|r| r.active && r.is_inferred() && r.type_id == a.attribute_id)
+            .filter(|r| group_scope.map_or(true, |g| r.relationship_group == g))
+            .filter(|r| value_set.contains(&r.destination_id))
+            .count() as u32
+    };
+    let within_cardinality = cardinality_matches(a.cardinality, count);
+    if a.negated {
+        !within_cardinality
+    } else {
+        within_cardinality
     }
+}
+
+/// `concept` satisfies `[cardinality] { attributes }` when the number of
+/// distinct **nonzero** `relationshipGroup` values among its active
+/// inferred relationships for which `attributes` holds (evaluated with
+/// that group's relationships as the only match candidates) falls within
+/// `cardinality` (default `[1..*]`: "at least one group satisfies").
+///
+/// Group `0` means "ungrouped" (spec/07 rule — `relationshipGroup`'s own
+/// documented semantics), not a real role group, so it's excluded from
+/// candidacy here; the official ECL guide doesn't state this explicitly,
+/// this crate's own already-established `relationshipGroup` semantics do.
+fn evaluate_attribute_group(g: &AttributeGroup, concept: SctId, store: &SnapshotStore) -> bool {
+    let mut group_ids: Vec<u32> = store
+        .relationships_of(concept)
+        .filter(|r| r.active && r.is_inferred() && r.relationship_group != 0)
+        .map(|r| r.relationship_group)
+        .collect();
+    group_ids.sort_unstable();
+    group_ids.dedup();
+
+    let satisfied = group_ids
+        .iter()
+        .filter(|&&gid| evaluate_refinement(&g.attributes, concept, store, Some(gid)))
+        .count() as u32;
+
+    cardinality_matches(g.cardinality, satisfied)
+}
+
+fn cardinality_matches(c: Cardinality, count: u32) -> bool {
+    count >= c.min && c.max.map_or(true, |max| count <= max)
 }
 
 fn evaluate_simple(s: &SimpleExpressionConstraint, store: &SnapshotStore) -> HashSet<SctId> {
@@ -386,6 +451,234 @@ mod tests {
         // only MI.
         let expr = format!("<< {DISEASE} : {attr_type} != {value_a}");
         assert_eq!(eval(&expr, &store), HashSet::from([MI]));
+    }
+
+    fn cardinality_store() -> (SnapshotStore, SctId, SctId, SctId) {
+        let attr_type = SctId::compose(9101, ComponentType::Concept, None).unwrap();
+        let value_a = SctId::compose(9102, ComponentType::Concept, None).unwrap();
+        let value_b = SctId::compose(9103, ComponentType::Concept, None).unwrap();
+
+        let mut b = SnapshotStore::builder();
+        for c in [MI, value_a, value_b] {
+            b.add_concept(concept(c));
+        }
+        // MI has exactly two matching relationships of attr_type.
+        b.add_relationship(Relationship {
+            id: SctId::compose(4001, ComponentType::Relationship, None).unwrap(),
+            effective_time: EffectiveTime::new_unchecked(20190731),
+            active: true,
+            module_id: constants::CORE_MODULE,
+            source_id: MI,
+            destination_id: value_a,
+            relationship_group: 0,
+            type_id: attr_type,
+            characteristic_type_id: constants::INFERRED_RELATIONSHIP,
+            modifier_id: constants::EXISTENTIAL_MODIFIER,
+        });
+        b.add_relationship(Relationship {
+            id: SctId::compose(4002, ComponentType::Relationship, None).unwrap(),
+            effective_time: EffectiveTime::new_unchecked(20190731),
+            active: true,
+            module_id: constants::CORE_MODULE,
+            source_id: MI,
+            destination_id: value_b,
+            relationship_group: 0,
+            type_id: attr_type,
+            characteristic_type_id: constants::INFERRED_RELATIONSHIP,
+            modifier_id: constants::EXISTENTIAL_MODIFIER,
+        });
+        (b.build(), attr_type, value_a, value_b)
+    }
+
+    #[test]
+    fn cardinality_counts_matches_regardless_of_group() {
+        let (store, attr_type, ..) = cardinality_store();
+        // MI has 2 matching relationships; [2..*] and the default [1..*]
+        // both accept it, [1..1] does not.
+        assert_eq!(
+            eval(&format!("{MI} : [2..*] {attr_type} = *"), &store),
+            HashSet::from([MI])
+        );
+        assert_eq!(
+            eval(&format!("{MI} : {attr_type} = *"), &store),
+            HashSet::from([MI])
+        );
+        assert_eq!(
+            eval(&format!("{MI} : [1..1] {attr_type} = *"), &store),
+            HashSet::new()
+        );
+    }
+
+    #[test]
+    fn negated_cardinality_negates_the_whole_range_check() {
+        let (store, attr_type, ..) = cardinality_store();
+        // MI's count (2) is outside [3..*], so `!=` (negating that check)
+        // matches; it's inside the default [1..*], so `!=` there doesn't.
+        assert_eq!(
+            eval(&format!("{MI} : [3..*] {attr_type} != *"), &store),
+            HashSet::from([MI])
+        );
+        assert_eq!(
+            eval(&format!("{MI} : {attr_type} != *"), &store),
+            HashSet::new()
+        );
+    }
+
+    fn reverse_flag_store() -> (SnapshotStore, SctId, SctId, SctId) {
+        // FRACTURE --finding_site--> BONE.
+        let finding_site = SctId::compose(9110, ComponentType::Concept, None).unwrap();
+        let fracture = SctId::compose(9111, ComponentType::Concept, None).unwrap();
+        let bone = SctId::compose(9112, ComponentType::Concept, None).unwrap();
+
+        let mut b = SnapshotStore::builder();
+        for c in [fracture, bone] {
+            b.add_concept(concept(c));
+        }
+        b.add_relationship(Relationship {
+            id: SctId::compose(4010, ComponentType::Relationship, None).unwrap(),
+            effective_time: EffectiveTime::new_unchecked(20190731),
+            active: true,
+            module_id: constants::CORE_MODULE,
+            source_id: fracture,
+            destination_id: bone,
+            relationship_group: 0,
+            type_id: finding_site,
+            characteristic_type_id: constants::INFERRED_RELATIONSHIP,
+            modifier_id: constants::EXISTENTIAL_MODIFIER,
+        });
+        (b.build(), finding_site, fracture, bone)
+    }
+
+    #[test]
+    fn reverse_flag_matches_by_destination_not_source() {
+        let (store, finding_site, fracture, bone) = reverse_flag_store();
+        // bone is finding_site's destination on the fracture relationship:
+        // "R finding_site = fracture" selects concepts that are a finding
+        // site *of* fracture, i.e. bone — not fracture itself.
+        assert_eq!(
+            eval(&format!("{bone} : R {finding_site} = {fracture}"), &store),
+            HashSet::from([bone])
+        );
+        // The non-reversed form doesn't match bone (bone has no outgoing
+        // finding_site relationship of its own).
+        assert_eq!(
+            eval(&format!("{bone} : {finding_site} = {fracture}"), &store),
+            HashSet::new()
+        );
+        // Nor does the reversed form match fracture (fracture is the
+        // source, not the destination, of its own finding_site edge).
+        assert_eq!(
+            eval(
+                &format!("{fracture} : R {finding_site} = {fracture}"),
+                &store
+            ),
+            HashSet::new()
+        );
+    }
+
+    fn attribute_group_store() -> (SnapshotStore, SctId, SctId, SctId, SctId, SctId, SctId) {
+        let subject = SctId::compose(9120, ComponentType::Concept, None).unwrap();
+        let attr_a = SctId::compose(9121, ComponentType::Concept, None).unwrap();
+        let attr_b = SctId::compose(9122, ComponentType::Concept, None).unwrap();
+        let value_a = SctId::compose(9123, ComponentType::Concept, None).unwrap();
+        let value_b = SctId::compose(9124, ComponentType::Concept, None).unwrap();
+        let value_c = SctId::compose(9125, ComponentType::Concept, None).unwrap();
+
+        let mut b = SnapshotStore::builder();
+        for c in [subject, value_a, value_b, value_c] {
+            b.add_concept(concept(c));
+        }
+        let rel = |item: u64, group: u32, type_id: SctId, dest: SctId| Relationship {
+            id: SctId::compose(4100 + item, ComponentType::Relationship, None).unwrap(),
+            effective_time: EffectiveTime::new_unchecked(20190731),
+            active: true,
+            module_id: constants::CORE_MODULE,
+            source_id: subject,
+            destination_id: dest,
+            relationship_group: group,
+            type_id,
+            characteristic_type_id: constants::INFERRED_RELATIONSHIP,
+            modifier_id: constants::EXISTENTIAL_MODIFIER,
+        };
+        // Group 1: attr_a=value_a AND attr_b=value_b (together).
+        b.add_relationship(rel(1, 1, attr_a, value_a));
+        b.add_relationship(rel(2, 1, attr_b, value_b));
+        // Group 2: attr_a=value_c only.
+        b.add_relationship(rel(3, 2, attr_a, value_c));
+        (
+            b.build(),
+            subject,
+            attr_a,
+            attr_b,
+            value_a,
+            value_b,
+            value_c,
+        )
+    }
+
+    #[test]
+    fn attribute_group_requires_all_attributes_in_the_same_group() {
+        let (store, subject, attr_a, attr_b, value_a, value_b, value_c) = attribute_group_store();
+        // Group 1 alone satisfies attr_a=value_a AND attr_b=value_b.
+        let expr = format!("{subject} : {{ {attr_a} = {value_a} AND {attr_b} = {value_b} }}");
+        assert_eq!(eval(&expr, &store), HashSet::from([subject]));
+
+        // No single group has attr_a=value_c AND attr_b=value_b (value_c is
+        // group 2's, value_b is group 1's) — cross-group combinations don't
+        // count, unlike a plain (bare) AND at refinement level would.
+        let expr = format!("{subject} : {{ {attr_a} = {value_c} AND {attr_b} = {value_b} }}");
+        assert_eq!(eval(&expr, &store), HashSet::new());
+    }
+
+    #[test]
+    fn group_cardinality_counts_satisfying_groups() {
+        let (store, subject, attr_a, ..) = attribute_group_store();
+        // Both group 1 and group 2 have an attr_a relationship, so
+        // `{ attr_a = * }` is satisfied by 2 distinct groups.
+        assert_eq!(
+            eval(&format!("{subject} : [2..*] {{ {attr_a} = * }}"), &store),
+            HashSet::from([subject])
+        );
+        assert_eq!(
+            eval(&format!("{subject} : [3..*] {{ {attr_a} = * }}"), &store),
+            HashSet::new()
+        );
+    }
+
+    #[test]
+    fn ungrouped_relationships_are_not_candidate_groups() {
+        let attr_type = SctId::compose(9130, ComponentType::Concept, None).unwrap();
+        let value = SctId::compose(9131, ComponentType::Concept, None).unwrap();
+        let mut b = SnapshotStore::builder();
+        for c in [MI, value] {
+            b.add_concept(concept(c));
+        }
+        // The only matching relationship is ungrouped (relationshipGroup 0).
+        b.add_relationship(Relationship {
+            id: SctId::compose(4200, ComponentType::Relationship, None).unwrap(),
+            effective_time: EffectiveTime::new_unchecked(20190731),
+            active: true,
+            module_id: constants::CORE_MODULE,
+            source_id: MI,
+            destination_id: value,
+            relationship_group: 0,
+            type_id: attr_type,
+            characteristic_type_id: constants::INFERRED_RELATIONSHIP,
+            modifier_id: constants::EXISTENTIAL_MODIFIER,
+        });
+        let store = b.build();
+
+        // Braced (group) form: group 0 isn't a candidate group, so no match.
+        assert_eq!(
+            eval(&format!("{MI} : {{ {attr_type} = {value} }}"), &store),
+            HashSet::new()
+        );
+        // Bare form: counts every matching relationship regardless of
+        // group, including the ungrouped one — so this does match.
+        assert_eq!(
+            eval(&format!("{MI} : {attr_type} = {value}"), &store),
+            HashSet::from([MI])
+        );
     }
 
     #[test]
