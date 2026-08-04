@@ -11,6 +11,17 @@ together, in dependency order (`snomed-core` → `snomed-rf2` → `snomed-owl`
 → `snomed-store` → `snomed-classify` → `snomed-ecl` → `snomed-fhir` →
 `snomed-cli` → `snomed`), not independently.
 
+## [0.3.1] — 2026-08-04
+
+### Changed
+
+- `snomed-ecl`: 5 more "not yet implemented" constructs now reject with
+  a specific, feature-naming `EclError::NotYetImplemented` instead of a
+  generic lexer/parser error — dot notation (`.`), alternate identifiers
+  (`A#B`), `!!>`/`!!<` (top/bottom), `^R` (refsetContainingAny), and
+  `^ [A, B]` (member of with field selection). Error-quality only; none
+  of these constructs are newly implemented, and no public API changed.
+
 ## [0.3.0] — 2026-08-04
 
 ### Added
