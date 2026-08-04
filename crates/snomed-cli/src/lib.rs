@@ -50,6 +50,7 @@ pub fn run(args: &[String]) -> Result<String, Box<dyn Error>> {
         "export" => cmd_export(rest),
         "validate" => cmd_validate(rest),
         "classify" => cmd_classify(rest),
+        "nnf" => cmd_nnf(rest),
         "help" | "-h" | "--help" => Ok(usage()),
         other => Err(format!("unknown command `{other}` (try `snomed-cli help`)").into()),
     }
@@ -85,6 +86,10 @@ fn usage() -> String {
         (
             "classify <release-dir> [concept-id] [--full]",
             "classify the release's OWL axioms; show one concept's entailed supertypes, or a summary",
+        ),
+        (
+            "nnf <release-dir> [concept-id] [--full]",
+            "necessary normal form: proximal parents + redundancy-reduced attributes, or a summary",
         ),
     ];
     let width = rows.iter().map(|(cmd, _)| cmd.len()).max().unwrap_or(0);
@@ -258,24 +263,7 @@ fn cmd_classify(args: &[String]) -> Result<String, Box<dyn Error>> {
     };
 
     let (store, mut out) = load(dir, release_type)?;
-
-    let mut axioms: Vec<Axiom> = Vec::new();
-    let mut parse_failures: Vec<(SctId, String)> = Vec::new();
-    for member in store.all_owl_expression_members() {
-        match snomed_owl::parse(&member.owl_expression) {
-            Ok(axiom) => axioms.push(axiom),
-            Err(e) => parse_failures.push((member.core.referenced_component_id, e.to_string())),
-        }
-    }
-    writeln!(
-        out,
-        "OWL axioms: {} parsed, {} failed to parse",
-        axioms.len(),
-        parse_failures.len()
-    )?;
-    write_capped(&mut out, &parse_failures, |out, (id, reason)| {
-        writeln!(out, "  parse error on {id}: {reason}")
-    })?;
+    let axioms = load_owl_axioms(&store, &mut out)?;
 
     let report = snomed_classify::classify(&axioms);
     if !report.skipped.is_empty() {
@@ -312,6 +300,117 @@ fn cmd_classify(args: &[String]) -> Result<String, Box<dyn Error>> {
                 out,
                 "{} concept(s) classified, {total_pairs} entailed subsumption pair(s) total",
                 concepts.len()
+            )?;
+        }
+    }
+    Ok(out)
+}
+
+/// Parses every active OWLExpression refset member in `store`, reporting
+/// (into `out`) how many parsed versus failed — a row that fails to parse
+/// (an OWL construct `snomed-owl` doesn't support yet, spec/12) is
+/// skipped and reported, not a hard error, same philosophy as
+/// `load`/`validate`. Shared by `classify` and `nnf`, the two subcommands
+/// that both start from "every OWL axiom in this release".
+fn load_owl_axioms(store: &SnapshotStore, out: &mut String) -> Result<Vec<Axiom>, Box<dyn Error>> {
+    let mut axioms = Vec::new();
+    let mut parse_failures: Vec<(SctId, String)> = Vec::new();
+    for member in store.all_owl_expression_members() {
+        match snomed_owl::parse(&member.owl_expression) {
+            Ok(axiom) => axioms.push(axiom),
+            Err(e) => parse_failures.push((member.core.referenced_component_id, e.to_string())),
+        }
+    }
+    writeln!(
+        out,
+        "OWL axioms: {} parsed, {} failed to parse",
+        axioms.len(),
+        parse_failures.len()
+    )?;
+    write_capped(out, &parse_failures, |out, (id, reason)| {
+        writeln!(out, "  parse error on {id}: {reason}")
+    })?;
+    Ok(axioms)
+}
+
+/// Computes the necessary normal form (spec/14) of the release's OWL
+/// axioms: proximal (non-redundant) entailed parents, plus role-grouped,
+/// redundancy-reduced attributes — built on `snomed-classify`'s
+/// classification, one layer up from `classify` itself. With a
+/// `concept-id`, shows that concept's form; without one, a summary.
+fn cmd_nnf(args: &[String]) -> Result<String, Box<dyn Error>> {
+    let usage = "usage: nnf <release-dir> [concept-id] [--full]";
+    let mut positional: Vec<&str> = Vec::new();
+    let mut release_type = ReleaseType::Snapshot;
+    for a in args {
+        match a.as_str() {
+            "--full" => release_type = ReleaseType::Full,
+            other => positional.push(other),
+        }
+    }
+    let (dir, concept_id) = match positional.as_slice() {
+        [dir] => (*dir, None),
+        [dir, id] => (*dir, Some(*id)),
+        _ => return Err(usage.into()),
+    };
+
+    let (store, mut out) = load(dir, release_type)?;
+    let axioms = load_owl_axioms(&store, &mut out)?;
+
+    let report = snomed_classify::necessary_normal_form(&axioms);
+    if !report.skipped.is_empty() {
+        writeln!(
+            out,
+            "{} construct(s) not modeled while computing necessary normal form:",
+            report.skipped.len()
+        )?;
+        write_capped(&mut out, &report.skipped, |out, s| writeln!(out, "  {s}"))?;
+    }
+
+    match concept_id {
+        Some(id_str) => {
+            let id = SctId::parse(id_str)?;
+            let name = |id: SctId| {
+                store
+                    .fsn(id)
+                    .map(|d| d.term.as_str())
+                    .unwrap_or("?")
+                    .to_string()
+            };
+            match report.forms.get(&id) {
+                Some(form) => {
+                    writeln!(out, "{id} necessary normal form:")?;
+                    writeln!(out, "  is-a ({}):", form.is_a.len())?;
+                    for &parent in &form.is_a {
+                        writeln!(out, "    {parent}  {}", name(parent))?;
+                    }
+                    writeln!(out, "  attributes ({}):", form.attributes.len())?;
+                    for attr in &form.attributes {
+                        writeln!(
+                            out,
+                            "    group {}: {} ({})  =  {} ({})",
+                            attr.group,
+                            attr.type_id,
+                            name(attr.type_id),
+                            attr.destination_id,
+                            name(attr.destination_id)
+                        )?;
+                    }
+                }
+                None => writeln!(
+                    out,
+                    "{id}: no necessary normal form (not named by any input axiom)"
+                )?,
+            }
+        }
+        None => {
+            let concept_count = report.forms.len();
+            let total_parents: usize = report.forms.values().map(|f| f.is_a.len()).sum();
+            let total_attributes: usize = report.forms.values().map(|f| f.attributes.len()).sum();
+            writeln!(
+                out,
+                "{concept_count} concept(s), {total_parents} proximal parent(s), \
+                 {total_attributes} attribute(s) total"
             )?;
         }
     }

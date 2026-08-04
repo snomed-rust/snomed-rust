@@ -2,8 +2,8 @@
 
 A command-line binary over the `snomed` workspace: validate an SCTID,
 sanity-check an RF2 release directory, look up a concept's neighborhood,
-run an ECL query, or classify a release's OWL axioms — all from the
-terminal, without writing Rust.
+run an ECL query, classify a release's OWL axioms, or compute their
+necessary normal form — all from the terminal, without writing Rust.
 
 ## Install / run
 
@@ -31,6 +31,7 @@ snomed-cli export <rf2-file> [output-file]  convert one RF2 file to NDJSON (stdo
 snomed-cli export <release-dir> <output-dir> [--full]  convert every exportable file in a release directory to NDJSON
 snomed-cli validate <release-dir> [--full]  check referential integrity and IS-A acyclicity
 snomed-cli classify <release-dir> [concept-id] [--full]  classify the release's OWL axioms
+snomed-cli nnf <release-dir> [concept-id] [--full]  necessary normal form: proximal parents + reduced attributes
 ```
 
 `<release-dir>` is an unzipped RF2 release directory (i.e. the folder
@@ -215,6 +216,45 @@ construct `snomed-classify` recognizes but doesn't model
 (`ReflexiveObjectProperty`, `SubDataPropertyOf`, `DataHasValue`) is
 counted and reported, never silently dropped. Both failure lists cap at
 5 shown entries with a "... and N more" tail for large releases.
+
+### `nnf`
+
+```sh
+$ snomed-cli nnf ./Snapshot 22298006
+loaded 3 file(s), skipped 0 in 1.01ms
+OWL axioms: 2 parsed, 0 failed to parse
+22298006 necessary normal form:
+  is-a (1):
+    64572001  Disease (disorder)
+  attributes (0):
+```
+
+(Real output, verified against the same two-axiom release `classify`'s
+example uses. Note the difference: `classify 22298006` shows **both**
+`64572001` and `404684003` as entailed supertypes, since it answers "is A
+subsumed by B" for every B; `nnf 22298006` shows only `64572001` as an
+`is-a` line, since `404684003` is transitively redundant — implied by
+`64572001` already, so keeping it as a direct parent would be redundant.
+That's necessary normal form's whole point: the minimal set RF2 would
+actually ship, not everything entailed. Only the file count/elapsed time
+are illustrative.)
+
+Without a `concept-id`, prints a summary instead:
+
+```sh
+$ snomed-cli nnf ./Snapshot
+loaded 3 file(s), skipped 0 in 0.70ms
+OWL axioms: 2 parsed, 0 failed to parse
+3 concept(s), 2 proximal parent(s), 0 attribute(s) total
+```
+
+Computes `snomed-classify`'s necessary normal form (spec/14) over the
+same OWL axioms `classify` collects — proximal (non-redundant) entailed
+parents, plus role-grouped, redundancy-reduced attributes. Attribute
+lines show `group <N>: <type> (<name>) = <destination> (<name>)`, with
+`group 0` for ungrouped attributes. Parse failures and unmodeled
+constructs (now also including a stated attribute whose filler isn't a
+plain concept) are reported the same way `classify` reports them.
 
 ## Design
 

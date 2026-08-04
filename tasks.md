@@ -839,17 +839,52 @@ This closes Phase 7 (see `plan.md`).
       algorithm and its CLI wiring were separate, independently-scoped
       increments.
 
+## Done (2026-08-04, snomed-cli nnf subcommand)
+
+- [x] Wired `necessary_normal_form` into `snomed-cli` as `nnf
+      <release-dir> [concept-id] [--full]`, the deliberately-deferred
+      follow-on from the necessary-normal-form increment — same shape as
+      the `classify` crate → `classify` subcommand precedent.
+- [x] Factored the "collect + parse every active OWL Expression refset
+      member" logic (previously inline in `cmd_classify`) out into a
+      shared `load_owl_axioms` helper, now used by both `classify` and
+      `nnf` — avoids a third copy of the same parse loop when the next
+      OWL-axiom-consuming subcommand shows up.
+      With a concept id, `nnf` prints its proximal parents and
+      role-grouped attributes (`group <N>: type (name) = destination
+      (name)`, `group 0` for ungrouped); without one, a summary count.
+      Parse failures and unmodeled constructs are reported the same way
+      `classify` reports them (capped list, "skip and report").
+- [x] Manually verified end-to-end against a real two-axiom release
+      (`SubClassOf(:22298006 :64572001)`, `SubClassOf(:64572001
+      :404684003)`): `nnf 22298006`'s `is-a` line shows only
+      `64572001` (the proximal parent), while `classify 22298006` against
+      the *identical* release shows both `64572001` and the
+      transitively-redundant `404684003` — concrete, not just asserted,
+      proof the redundancy reduction actually runs. Captured verbatim in
+      the `snomed-cli` README's new `### nnf` section.
+- [x] Tests: a no-OWL-axioms summary; the proximal-parent-plus-attribute
+      case above; a parse-failure case (mirrors `classify`'s three). 247
+      tests passing workspace-wide (up from 244: 3 new `nnf` integration
+      tests). `cargo fmt --all -- --check` and `cargo clippy
+      --all-targets` both clean.
+- [x] Docs: `snomed-cli` README (`### nnf` section, subcommand table,
+      intro sentence), root README (crate table row, terminal
+      quick-start line), `Cargo.toml` description,
+      `AGENTS/cli-engineer.md` (renamed section to cover both
+      `classify`/`nnf`, notes the shared helper), `plan.md`'s Phase 7
+      entry.
+
 ## Next up
 
 - [ ] Nothing currently scoped. Candidate future work (not yet
-      decided/planned): a `snomed-cli` subcommand wiring
-      `necessary_normal_form` into the CLI (natural follow-on, same shape
-      as the `classify` crate → `classify` subcommand precedent); a
-      `snomed-fhir` HTTP server crate (would need a new external
-      dependency — needs explicit user direction against the
-      zero-dependency policy, not an autonomous pick); remaining
+      decided/planned): a `snomed-fhir` HTTP server crate (would need a
+      new external dependency — needs explicit user direction against
+      the zero-dependency policy, not an autonomous pick); remaining
       `snomed-ecl` "Not yet implemented" gaps (`{{ }}` filters, concrete
       value comparisons, `!!>`/`!!<`, alternate identifiers, dot
-      notation); re-running the Phase 4 `snomed-store` benchmark (and the
-      Phase 7 `snomed-classify` one) against a real International
-      Edition release if one becomes available.
+      notation); property-chain/transitive-property redundancy
+      elimination for `necessary_normal_form` (spec/14's documented,
+      conservative scope cut); re-running the Phase 4 `snomed-store`
+      benchmark (and the Phase 7 `snomed-classify` one) against a real
+      International Edition release if one becomes available.

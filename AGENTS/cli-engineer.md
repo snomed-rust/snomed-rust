@@ -76,17 +76,23 @@ walk-and-filter step rather than reimplementing it — that's real domain
 logic (see "the one rule that matters most" above) and already lives in
 `snomed-store`.
 
-## `classify` composes three crates, owns none of their logic
+## `classify`/`nnf` compose three crates, own none of their logic
 
-`cmd_classify` is the clearest example yet of "thin presentation layer":
-it collects axioms via `SnapshotStore::all_owl_expression_members()`
-(added to `snomed-store` specifically for this — there was no "give me
+`cmd_classify` and `cmd_nnf` are the clearest examples yet of "thin
+presentation layer": both collect axioms via the same shared
+`load_owl_axioms` helper (`SnapshotStore::all_owl_expression_members()`,
+added to `snomed-store` specifically for this — there was no "give me
 every member of this refset type across the whole store" accessor
-before, only per-`(refsetId, componentId)` lookups), parses each via
-`snomed_owl::parse`, and feeds the result to `snomed_classify::classify`.
-All three "skip and report, don't hard-fail" decisions (a row that fails
-to parse; a construct `snomed-classify` doesn't model) reuse those
+before, only per-`(refsetId, componentId)` lookups; parses each via
+`snomed_owl::parse`), then diverge: `cmd_classify` feeds the result to
+`snomed_classify::classify`, `cmd_nnf` to
+`snomed_classify::necessary_normal_form` (spec/14, one layer up from
+`classify`). All "skip and report, don't hard-fail" decisions (a row that
+fails to parse; a construct either function doesn't model) reuse those
 crates' own reporting types (`OwlError`'s message, `SkippedConstruct`) —
 this file only formats them, via the shared `write_capped` helper (caps
 long lists at 5 entries + a "... and N more" tail, since a real release's
-parse-failure or skipped-construct list could be large).
+parse-failure or skipped-construct list could be large). If you add a
+third subcommand that also starts from "every OWL axiom in this
+release", route it through `load_owl_axioms` too rather than
+re-duplicating the parse loop a third time.

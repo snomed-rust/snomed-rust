@@ -395,6 +395,84 @@ fn classify_reports_parse_failures_without_aborting() {
 }
 
 #[test]
+fn nnf_summarizes_a_release_with_no_owl_axioms() {
+    let tmp = TempDir::new("nnf-none");
+    write_synthetic_release(tmp.path());
+
+    let out =
+        snomed_cli::run(&["nnf".to_string(), tmp.path().to_str().unwrap().to_string()]).unwrap();
+
+    assert!(
+        out.contains("OWL axioms: 0 parsed, 0 failed to parse"),
+        "{out}"
+    );
+    assert!(
+        out.contains("0 concept(s), 0 proximal parent(s), 0 attribute(s) total"),
+        "{out}"
+    );
+}
+
+#[test]
+fn nnf_shows_proximal_parents_and_attributes_for_a_concept() {
+    let tmp = TempDir::new("nnf-concept");
+    write_synthetic_release(tmp.path());
+    // MI ⊑ Disease ⊑ Clinical finding, plus an attribute on MI. Proximal-
+    // parent reduction must keep only Disease (Clinical finding is
+    // transitively redundant, implied by Disease) — proving the
+    // redundancy elimination actually ran, not just echoed stated axioms.
+    write(
+        tmp.path(),
+        "Snapshot/Refset/OWL/der2_sRefset_OWLExpressionSnapshot_INT_20190731.txt",
+        "id\teffectiveTime\tactive\tmoduleId\trefsetId\treferencedComponentId\towlExpression\n\
+         80000000-0000-4000-8000-000000000051\t20190731\t1\t900000000000207008\t733073007\t22298006\tSubClassOf(:22298006 :64572001)\n\
+         80000000-0000-4000-8000-000000000052\t20190731\t1\t900000000000207008\t733073007\t64572001\tSubClassOf(:64572001 :404684003)\n\
+         80000000-0000-4000-8000-000000000053\t20190731\t1\t900000000000207008\t733073007\t22298006\tSubClassOf(:22298006 ObjectSomeValuesFrom(:116676008 :55641003))\n",
+    );
+
+    let out = snomed_cli::run(&[
+        "nnf".to_string(),
+        tmp.path().to_str().unwrap().to_string(),
+        "22298006".to_string(),
+    ])
+    .unwrap();
+
+    assert!(out.contains("22298006 necessary normal form:"), "{out}");
+    assert!(out.contains("is-a (1):"), "{out}");
+    assert!(out.contains("64572001  Disease (disorder)"), "{out}");
+    assert!(
+        !out.contains("404684003  Clinical finding (finding)"),
+        "Clinical finding should be redundant (implied by Disease), not a proximal parent: {out}"
+    );
+    assert!(out.contains("attributes (1):"), "{out}");
+    assert!(
+        out.contains("group 0: 116676008 (?)  =  55641003 (?)"),
+        "{out}"
+    );
+}
+
+#[test]
+fn nnf_reports_parse_failures_without_aborting() {
+    let tmp = TempDir::new("nnf-parse-failure");
+    write_synthetic_release(tmp.path());
+    write(
+        tmp.path(),
+        "Snapshot/Refset/OWL/der2_sRefset_OWLExpressionSnapshot_INT_20190731.txt",
+        "id\teffectiveTime\tactive\tmoduleId\trefsetId\treferencedComponentId\towlExpression\n\
+         80000000-0000-4000-8000-000000000054\t20190731\t1\t900000000000207008\t733073007\t22298006\tSubClassOf(:22298006 :64572001)\n\
+         80000000-0000-4000-8000-000000000055\t20190731\t1\t900000000000207008\t733073007\t64572001\tSubClassOf(:64572001 ObjectUnionOf(:404684003 :404684003))\n",
+    );
+
+    let out =
+        snomed_cli::run(&["nnf".to_string(), tmp.path().to_str().unwrap().to_string()]).unwrap();
+
+    assert!(
+        out.contains("OWL axioms: 1 parsed, 1 failed to parse"),
+        "{out}"
+    );
+    assert!(out.contains("parse error on 64572001"), "{out}");
+}
+
+#[test]
 fn validate_reports_a_clean_release() {
     let tmp = TempDir::new("validate-clean");
     write_synthetic_release(tmp.path());

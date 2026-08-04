@@ -371,12 +371,25 @@ fix it surfaced, and `HistoryStore`.
   silent: no property-chain/transitive-property redundancy elimination
   (the reference's second BFS pass), and no union-group handling (moot —
   OWL 2 EL, the only profile this workspace's OWL parser/classifier
-  support, has no disjunction operator at all). 18 new tests, including
+  support, has no disjunction operator at all). 8 new tests, including
   the two subtlest cases: attribute redundancy that only fires via role
   *hierarchy* (not just plain type equality), and whole-group-vs-group
   redundancy where a more specific group's extra attributes cover a less
   specific inherited group's requirements entirely. Wired into the
   `snomed` facade's prelude.
+- Wired into `snomed-cli` as an `nnf <release-dir> [concept-id]
+  [--full]` subcommand, following the exact precedent `classify`'s own
+  wiring set: a shared `load_owl_axioms` helper (factored out of
+  `cmd_classify`, now used by both) collects and parses the release's OWL
+  axioms once; `cmd_nnf` feeds the result to `necessary_normal_form`
+  instead of `classify`. With a concept id, prints its proximal parents
+  and role-grouped attributes (by FSN); without one, a summary count.
+  Manually verified end-to-end against a real two-axiom release: `nnf`'s
+  `is-a` line correctly shows only the proximal parent, while `classify`
+  against the identical release shows both the proximal *and* the
+  transitively-redundant entailed supertype — concrete proof the
+  reduction runs, not just that the two subcommands format the same data
+  differently.
 
 ## Non-goals (for now)
 
