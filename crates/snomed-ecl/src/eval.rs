@@ -6,9 +6,12 @@ use std::collections::HashSet;
 use snomed_core::sctid::SctId;
 use snomed_store::SnapshotStore;
 
+use snomed_core::concrete_value::ConcreteValue;
+
 use crate::ast::{
-    AttributeConstraint, AttributeGroup, Cardinality, ExpressionConstraint, FocusConcept,
-    HierarchyOp, RefinementConstraint, SimpleExpressionConstraint,
+    AttributeComparison, AttributeConstraint, AttributeGroup, Cardinality, ExpressionConstraint,
+    FocusConcept, HierarchyOp, NumericComparisonOp, RefinementConstraint,
+    SimpleExpressionConstraint,
 };
 
 /// Evaluates `expr` against `store`, returning the matching concept ids.
@@ -79,45 +82,123 @@ fn evaluate_refinement(
     }
 }
 
-/// `concept` satisfies `[cardinality] [R] attribute_id (= | !=) value` when
-/// the count of active **inferred** relationships of that type (matching
-/// `group_scope` when set) whose destination — or, with the reverse flag,
-/// whose *source* — is in `value`'s evaluated set falls within
-/// `cardinality`'s `[min..max]` (default `[1..*]`, spec/10). `!=` negates
-/// the whole cardinality check, so a bare `!=` with the default cardinality
-/// means "zero matches", matching the pre-cardinality behavior exactly.
-///
-/// Reverse (`R`) swaps which end of the relationship is `concept` versus
-/// `value`: `R attr = value` matches when some concept in `value` has an
-/// active inferred `attr` relationship *to* `concept` (spec/10's reverse
-/// attributes) — `relationships_to`, not `relationships_of`.
+/// `concept` satisfies `[cardinality] [R] attribute_id (comparison)` —
+/// spec/10. Dispatches on [`AttributeComparison`]; see each branch for
+/// its specific semantics. In every case, the *count* of matching rows
+/// (relationships or concrete values) is what's checked against
+/// `cardinality`'s `[min..max]` (default `[1..*]`) — never just "any
+/// match" directly, so the pre-cardinality "any"/"none" behavior falls
+/// out as that default's special case.
 fn evaluate_attribute_constraint(
     a: &AttributeConstraint,
     concept: SctId,
     store: &SnapshotStore,
     group_scope: Option<u32>,
 ) -> bool {
-    let value_set = evaluate(&a.value, store);
-    let count = if a.reverse {
-        store
-            .relationships_to(concept)
-            .filter(|r| r.active && r.is_inferred() && r.type_id == a.attribute_id)
-            .filter(|r| group_scope.map_or(true, |g| r.relationship_group == g))
-            .filter(|r| value_set.contains(&r.source_id))
-            .count() as u32
-    } else {
-        store
-            .relationships_of(concept)
-            .filter(|r| r.active && r.is_inferred() && r.type_id == a.attribute_id)
-            .filter(|r| group_scope.map_or(true, |g| r.relationship_group == g))
-            .filter(|r| value_set.contains(&r.destination_id))
-            .count() as u32
+    match &a.comparison {
+        // `(= | !=) value`: count active inferred relationships of this
+        // type whose destination — or, with the reverse flag, whose
+        // *source* — is in `value`'s evaluated set. `!=` negates the
+        // whole cardinality check, so a bare `!=` with the default
+        // cardinality means "zero matches", matching the
+        // pre-cardinality behavior exactly. Reverse (`R`) swaps which
+        // end of the relationship is `concept` versus `value`: `R attr =
+        // value` matches when some concept in `value` has an active
+        // inferred `attr` relationship *to* `concept` —
+        // `relationships_to`, not `relationships_of`.
+        AttributeComparison::Expression { negated, value } => {
+            let value_set = evaluate(value, store);
+            let count = if a.reverse {
+                store
+                    .relationships_to(concept)
+                    .filter(|r| r.active && r.is_inferred() && r.type_id == a.attribute_id)
+                    .filter(|r| group_scope.map_or(true, |g| r.relationship_group == g))
+                    .filter(|r| value_set.contains(&r.source_id))
+                    .count() as u32
+            } else {
+                store
+                    .relationships_of(concept)
+                    .filter(|r| r.active && r.is_inferred() && r.type_id == a.attribute_id)
+                    .filter(|r| group_scope.map_or(true, |g| r.relationship_group == g))
+                    .filter(|r| value_set.contains(&r.destination_id))
+                    .count() as u32
+            };
+            let within_cardinality = cardinality_matches(a.cardinality, count);
+            if *negated {
+                !within_cardinality
+            } else {
+                within_cardinality
+            }
+        }
+        // `numericComparisonOperator "#" value`: count active inferred
+        // `RelationshipConcreteValue` rows of this type whose `Number`
+        // satisfies `operator` (a `String` value never matches a
+        // numeric comparison — a type mismatch, not an error). `Le`/
+        // `Lt`/`Ge`/`Gt` define the per-row predicate directly; `Eq`/
+        // `NotEq` both count *equal* rows (the positive condition) and
+        // let `NotEq` negate the aggregate cardinality check instead —
+        // mirroring `Expression`'s `negated` semantics exactly, rather
+        // than redefining what "matches" means per operator.
+        AttributeComparison::Numeric { operator, value } => {
+            let count = store
+                .relationship_concrete_values_of(concept)
+                .filter(|r| r.active && r.is_inferred() && r.type_id == a.attribute_id)
+                .filter(|r| group_scope.map_or(true, |g| r.relationship_group == g))
+                .filter(|r| match &r.value {
+                    ConcreteValue::Number(n) => numeric_matches(*operator, n, value),
+                    ConcreteValue::String(_) => false,
+                })
+                .count() as u32;
+            let within_cardinality = cardinality_matches(a.cardinality, count);
+            if matches!(operator, NumericComparisonOp::NotEq) {
+                !within_cardinality
+            } else {
+                within_cardinality
+            }
+        }
+        // `stringComparisonOperator concreteString`: count active
+        // inferred `RelationshipConcreteValue` rows of this type whose
+        // `String` exactly matches one of `values` (only ever one entry
+        // until `concreteStringSet` is implemented, spec/10) — a
+        // `Number` value never matches. `negated` negates the aggregate
+        // cardinality check, same pattern as `Expression`.
+        AttributeComparison::String { negated, values } => {
+            let count = store
+                .relationship_concrete_values_of(concept)
+                .filter(|r| r.active && r.is_inferred() && r.type_id == a.attribute_id)
+                .filter(|r| group_scope.map_or(true, |g| r.relationship_group == g))
+                .filter(|r| match &r.value {
+                    ConcreteValue::String(s) => values.iter().any(|v| v == s),
+                    ConcreteValue::Number(_) => false,
+                })
+                .count() as u32;
+            let within_cardinality = cardinality_matches(a.cardinality, count);
+            if *negated {
+                !within_cardinality
+            } else {
+                within_cardinality
+            }
+        }
+    }
+}
+
+/// Compares two decimal literals (stored as text, per `ConcreteValue`'s
+/// own "preserve precision" convention) as `f64`. `Eq`/`NotEq` both
+/// check equality here — see `evaluate_attribute_constraint`'s doc for
+/// why `NotEq`'s negation is applied at the cardinality level instead.
+/// A literal that somehow fails to parse (shouldn't happen — both RF2
+/// and this parser constrain the grammar) never matches, rather than
+/// panicking.
+fn numeric_matches(operator: NumericComparisonOp, actual: &str, target: &str) -> bool {
+    let (Ok(a), Ok(b)) = (actual.parse::<f64>(), target.parse::<f64>()) else {
+        return false;
     };
-    let within_cardinality = cardinality_matches(a.cardinality, count);
-    if a.negated {
-        !within_cardinality
-    } else {
-        within_cardinality
+    match operator {
+        NumericComparisonOp::Eq | NumericComparisonOp::NotEq => a == b,
+        NumericComparisonOp::Le => a <= b,
+        NumericComparisonOp::Lt => a < b,
+        NumericComparisonOp::Ge => a >= b,
+        NumericComparisonOp::Gt => a > b,
     }
 }
 
@@ -219,7 +300,8 @@ fn evaluate_concept(op: HierarchyOp, id: SctId, store: &SnapshotStore) -> HashSe
 mod tests {
     use super::*;
     use crate::parser::parse;
-    use snomed_core::components::{Concept, Description, Relationship};
+    use snomed_core::components::{Concept, Description, Relationship, RelationshipConcreteValue};
+    use snomed_core::concrete_value::ConcreteValue;
     use snomed_core::constants;
     use snomed_core::sctid::ComponentType;
     use snomed_core::time::EffectiveTime;
@@ -689,5 +771,100 @@ mod tests {
 
         let expr = format!("<< {DISEASE} : {attr_type} = {value_a} AND {attr_type} = {value_b}");
         assert_eq!(eval(&expr, &store), HashSet::new());
+    }
+
+    /// MI has a `RelationshipConcreteValue` of `attr_type` with a numeric
+    /// value of 10 and another (different type) with a string value.
+    fn concrete_value_store() -> (SnapshotStore, SctId, SctId) {
+        let attr_type = SctId::compose(9140, ComponentType::Concept, None).unwrap();
+        let string_attr_type = SctId::compose(9141, ComponentType::Concept, None).unwrap();
+
+        let mut b = SnapshotStore::builder();
+        b.add_concept(concept(MI));
+        b.add_relationship_concrete_value(RelationshipConcreteValue {
+            id: SctId::compose(4300, ComponentType::Relationship, None).unwrap(),
+            effective_time: EffectiveTime::new_unchecked(20190731),
+            active: true,
+            module_id: constants::CORE_MODULE,
+            source_id: MI,
+            value: ConcreteValue::Number("10".to_string()),
+            relationship_group: 0,
+            type_id: attr_type,
+            characteristic_type_id: constants::INFERRED_RELATIONSHIP,
+            modifier_id: constants::EXISTENTIAL_MODIFIER,
+        });
+        b.add_relationship_concrete_value(RelationshipConcreteValue {
+            id: SctId::compose(4301, ComponentType::Relationship, None).unwrap(),
+            effective_time: EffectiveTime::new_unchecked(20190731),
+            active: true,
+            module_id: constants::CORE_MODULE,
+            source_id: MI,
+            value: ConcreteValue::String("250mg".to_string()),
+            relationship_group: 0,
+            type_id: string_attr_type,
+            characteristic_type_id: constants::INFERRED_RELATIONSHIP,
+            modifier_id: constants::EXISTENTIAL_MODIFIER,
+        });
+        (b.build(), attr_type, string_attr_type)
+    }
+
+    #[test]
+    fn numeric_concrete_value_comparisons() {
+        let (store, attr_type, _) = concrete_value_store();
+        assert_eq!(
+            eval(&format!("{MI} : {attr_type} = #10"), &store),
+            HashSet::from([MI])
+        );
+        assert_eq!(
+            eval(&format!("{MI} : {attr_type} = #11"), &store),
+            HashSet::new()
+        );
+        assert_eq!(
+            eval(&format!("{MI} : {attr_type} != #11"), &store),
+            HashSet::from([MI])
+        );
+        assert_eq!(
+            eval(&format!("{MI} : {attr_type} <= #10"), &store),
+            HashSet::from([MI])
+        );
+        assert_eq!(
+            eval(&format!("{MI} : {attr_type} < #10"), &store),
+            HashSet::new()
+        );
+        assert_eq!(
+            eval(&format!("{MI} : {attr_type} >= #10"), &store),
+            HashSet::from([MI])
+        );
+        assert_eq!(
+            eval(&format!("{MI} : {attr_type} > #9"), &store),
+            HashSet::from([MI])
+        );
+        // A String-typed concrete value never matches a numeric comparison.
+        assert_eq!(
+            eval(&format!("{MI} : {attr_type} = #250"), &store),
+            HashSet::new()
+        );
+    }
+
+    #[test]
+    fn string_concrete_value_comparisons() {
+        let (store, _, string_attr_type) = concrete_value_store();
+        assert_eq!(
+            eval(&format!("{MI} : {string_attr_type} = \"250mg\""), &store),
+            HashSet::from([MI])
+        );
+        assert_eq!(
+            eval(&format!("{MI} : {string_attr_type} = \"500mg\""), &store),
+            HashSet::new()
+        );
+        assert_eq!(
+            eval(&format!("{MI} : {string_attr_type} != \"500mg\""), &store),
+            HashSet::from([MI])
+        );
+        // A Number-typed concrete value never matches a string comparison.
+        assert_eq!(
+            eval(&format!("{MI} : {string_attr_type} = \"10\""), &store),
+            HashSet::new()
+        );
     }
 }

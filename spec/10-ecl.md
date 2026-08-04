@@ -27,11 +27,13 @@ language behind refset/value-set definitions, MRCM range constraints, and
 
 `snomed-ecl` implements **simple expression constraints** (hierarchy
 operators, `memberOf`, wildcard, boolean set operators) plus **refinements**
-(`:` attribute-value constraints with `=`/`!=`, `AND`/`OR`, attribute
-cardinality `[min..max]`, the reverse flag `R`, and attribute groups `{ }`),
-evaluated against a [`SnapshotStore`]. Concrete value comparisons,
-description/concept/member filters (`{{ }}`), the history supplement, and
-alternate identifiers are **out of scope for this version** — see
+(`:` attribute-value constraints — expression `=`/`!=`, numeric/string
+concrete value comparisons, `AND`/`OR`, attribute cardinality
+`[min..max]`, the reverse flag `R`, and attribute groups `{ }`),
+evaluated against a [`SnapshotStore`]. `concreteStringSet`/boolean
+concrete value comparisons, description/concept/member filters (`{{ }}`),
+the history supplement, and alternate identifiers are **out of scope for
+this version** — see
 [Not yet implemented](#not-yet-implemented).
 
 ## Grammar (this subset only, derived from `syntax/abnf-brief.txt`)
@@ -75,10 +77,19 @@ eclAttributeSet       := subAttributeSet 1*(("AND" | "OR") subAttributeSet)
                         -- restricted to attributes (no nested groups — the
                         -- official grammar never nests eclAttributeGroup)
 subAttributeSet       := attributeConstraint | "(" eclAttributeSet ")"
-attributeConstraint   := [cardinality] [reverseFlag] conceptReference ("=" | "!=") subExpressionConstraint
+attributeConstraint   := [cardinality] [reverseFlag] conceptReference comparison
                         -- attributeName restricted to a plain conceptReference
                         -- in this version; the official grammar allows any
                         -- subExpressionConstraint there (not yet implemented)
+comparison            := ("=" | "!=") subExpressionConstraint      -- expression comparison
+                        | numericComparisonOp "#" numericValue     -- numeric concrete value
+                        | ("=" | "!=") concreteString              -- string concrete value
+                        -- reverseFlag is only valid with the expression form
+                        -- (a concrete value has no "other concept" to reverse
+                        -- into) — rejected at parse time otherwise
+numericComparisonOp   := "=" | "!=" | "<=" | "<" | ">=" | ">"
+numericValue          := ["-" | "+"] digit+ ["." digit+]
+concreteString        := '"' <any char except unescaped '"'> '"'  -- \" and \\ are escapes
 cardinality           := "[" minValue ".." maxValue "]"
 minValue              := nonNegativeInteger
 maxValue              := nonNegativeInteger | "*"          -- "*" = unbounded
@@ -281,6 +292,42 @@ the field doesn't carry. This is a documented judgment call, not a literal
 citation, the same category as `spec/08`'s `iRefset`/`ciRefset`
 file-pattern-letter derivation.
 
+### Concrete value comparisons
+
+`attributeId numericComparisonOp "#" numericValue` and `attributeId ("="
+| "!=") concreteString` compare against a `RelationshipConcreteValue`
+row's `Number`/`String` (spec/07's concrete domains — `#10` or `#-2.5`
+for numbers, `"250mg"` for strings) instead of a relationship's
+destination concept. As with the expression form, the *count* of
+matching rows is what's checked against `cardinality` (default `[1..*]`):
+
+- `=`/`!=`/`<=`/`<`/`>=`/`>` are all valid for numbers; only `=`/`!=` for
+  strings (the official grammar's `numericComparisonOperator` vs.
+  `stringComparisonOperator`).
+- For `=`/`!=` specifically, the row-level predicate is always
+  *equality* — `!=` negates the **aggregate** cardinality check
+  afterwards, exactly like the expression form's `negated`, rather than
+  redefining "matches" to mean "not equal" per-row. `<=`/`<`/`>=`/`>`
+  have no such distinction; they define the per-row predicate directly.
+- A `String` value never matches a numeric comparison, and a `Number`
+  value never matches a string comparison — a type mismatch, not an
+  error.
+- The reverse flag (`R`) is rejected at parse time when combined with a
+  concrete value comparison: a concrete value has no "other concept" for
+  `R` to reverse the source/destination roles of, so the combination is
+  syntactically legal per the official grammar but semantically empty.
+
+**Not implemented: `concreteStringSet`** (`("a" "b" ...)`, an OR'd set of
+strings) and **boolean comparisons**. `concreteStringSet` needs
+lookahead past a `(` to distinguish it from a parenthesized
+`subExpressionConstraint` (both can follow `=`) — this crate's one-
+token-of-lookahead parser doesn't support that cleanly, so `(` is always
+treated as a parenthesized expression, and a genuine `concreteStringSet`
+fails with a generic (not feature-named) error. Boolean comparisons are
+out of scope entirely: `snomed_core::ConcreteValue` has no boolean
+variant, and neither does SNOMED CT's own concrete domain model as this
+project has encountered it.
+
 ## Concept reference terms
 
 `73211009 |Diabetes mellitus|` — the pipe-delimited term is a
@@ -320,16 +367,16 @@ Rejected with a named `EclError::NotYetImplemented`:
   selection).
 
 Rejected, but currently only with a generic lex/parse error (not yet
-named) — both are genuinely unimplemented constructs, not just missing
-an error label, so naming them precisely isn't as simple as recognizing
-a fixed token shape:
+named) — genuinely unimplemented constructs, not just missing an error
+label, so naming them precisely isn't as simple as recognizing a fixed
+token shape:
 
 - Attribute names that are anything other than a plain concept reference
   (the official grammar allows any `subExpressionConstraint` as
   `eclAttributeName`, e.g. a hierarchy-prefixed attribute name).
-- Concrete value comparisons (numeric/string/boolean operators on
-  relationship concrete values — `attributeConstraint` here only supports
-  the expression-comparison form, `subExpressionConstraint` as the value).
+- `concreteStringSet` (`("a" "b" ...)`) and boolean concrete value
+  comparisons — see "Concrete value comparisons" above for why (numeric
+  and string comparisons *are* implemented).
 
 ## Rules (normative for `snomed-ecl`)
 
@@ -353,8 +400,10 @@ a fixed token shape:
    grammar above, not a guess. The same "no mixing without parens" rule
    applies independently at refinement level (AND/OR only, no MINUS).
 6. Attribute constraint evaluation MUST use active **inferred**
-   relationships only (mirroring rule 4's hierarchy convention) — never
-   stated relationships, which live in the OWL refset (spec/07).
+   relationships (or, for concrete value comparisons,
+   `RelationshipConcreteValue` rows) only — mirroring rule 4's hierarchy
+   convention — never stated relationships, which live in the OWL refset
+   (spec/07).
 7. An attribute/group's cardinality MUST default to `[1..*]` when not
    written explicitly (`AttributeConstraint`/`AttributeGroup`'s
    `cardinality` field is `Cardinality`, not `Option<Cardinality>` — the
@@ -368,3 +417,11 @@ a fixed token shape:
    is preferred but not yet required of every item (see the two-group
    split above); moving an item from "generic error" to "named error" is
    a welcome, low-risk improvement and does not need a `plan.md` decision.
+10. For a numeric concrete value comparison's `=`/`!=`, the row-level
+    match predicate MUST always be equality — `!=` negates the
+    **aggregate** cardinality check afterwards (matching the expression
+    form's `negated` semantics exactly), never redefines the per-row
+    predicate to "not equal". A `String`-typed concrete value MUST NOT
+    match a numeric comparison, and a `Number`-typed one MUST NOT match a
+    string comparison — a type mismatch is absence of a match, not an
+    error.

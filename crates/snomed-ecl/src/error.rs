@@ -21,6 +21,10 @@ pub enum EclError {
     UnterminatedComment {
         pos: usize,
     },
+    /// A `concreteString` (`"..."`) with no closing `"`.
+    UnterminatedString {
+        pos: usize,
+    },
     InvalidSctId {
         pos: usize,
         source: SctIdError,
@@ -75,6 +79,12 @@ impl fmt::Display for EclError {
                 write!(
                     f,
                     "unterminated comment (missing closing `*/`) starting at position {pos}"
+                )
+            }
+            EclError::UnterminatedString { pos } => {
+                write!(
+                    f,
+                    "unterminated string (missing closing `\"`) starting at position {pos}"
                 )
             }
             EclError::InvalidSctId { pos, source } => {

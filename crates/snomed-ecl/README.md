@@ -7,11 +7,12 @@ behind refset/value-set definitions, MRCM range constraints, and
 
 Implements **simple expression constraints** (all eight hierarchy
 operators, `memberOf`, wildcard, boolean set operators) plus **refinements**
-(`attributeId (= | !=) value`, with `AND`/`OR` and parenthesized grouping,
-attribute cardinality `[min..max]`, the reverse flag `R`, and attribute
-groups `{ }`). See [`spec/10-ecl.md`](../../spec/10-ecl.md) — the normative
-spec, including the full grammar, what's out of scope, and where the
-official grammar lives if you need to extend this crate.
+(`attributeId (= | !=) value`, numeric/string concrete value comparisons,
+`AND`/`OR` and parenthesized grouping, attribute cardinality
+`[min..max]`, the reverse flag `R`, and attribute groups `{ }`). See
+[`spec/10-ecl.md`](../../spec/10-ecl.md) — the normative spec, including
+the full grammar, what's out of scope, and where the official grammar
+lives if you need to extend this crate.
 
 Depends on `snomed-core` and `snomed-store`.
 
@@ -39,6 +40,13 @@ let expr = parse(
      116676008 |Associated morphology| = << 55641003 }",
 )?;
 let matches = evaluate(&expr, store);
+
+// Concrete value comparisons (spec/07's concrete domains): the syntax
+// shape, not a real SNOMED attribute — swap in whatever attribute type
+// your release actually models as a RelationshipConcreteValue.
+let expr = parse("<< 404684003 : 246501002 > #500")?;    // numeric
+let expr = parse("<< 404684003 : 246501002 = \"E10.9\"")?; // string
+let matches = evaluate(&expr, store);
 # Ok(()) }
 ```
 
@@ -54,6 +62,7 @@ let matches = evaluate(&expr, store);
 | Cardinality | `[min..max] attr = value` — counts matches instead of just checking "any"; defaults to `[1..*]` when omitted |
 | Reverse flag | `R attr = value` — matches by the relationship's *source* instead of its destination |
 | Attribute groups | `[cardinality] { attr = x AND attr2 = y }` — requires one role group (nonzero `relationshipGroup`) to satisfy every attribute together |
+| Concrete values | `attr > #500`, `attr <= #-2.5`, `attr = "E10.9"` — numeric (`=`/`!=`/`<=`/`<`/`>=`/`>`) and string (`=`/`!=`) comparisons against a `RelationshipConcreteValue` |
 | Syntax details | pipe-delimited terms (`73211009 \|Diabetes mellitus\|`, non-semantic), case-insensitive keywords, `,` as an alternate spelling for `AND`, `/* comments */` |
 
 Not yet implemented, never silently mishandled: `{{ }}` filters, the
@@ -61,10 +70,11 @@ history supplement, `!!>`/`!!<`, `^ *`, a hierarchy prefix combined with
 `^`, `^R`, `^ [A, B]` (member of with field selection), alternate
 identifiers (`A#B`), and dot notation are all rejected with a specific
 `EclError::NotYetImplemented { feature, .. }` naming what's missing.
-Attribute names other than a plain concept reference and concrete value
+Attribute names other than a plain concept reference,
+`concreteStringSet` (`("a" "b" ...)`), and boolean concrete value
 comparisons are rejected too, but currently with a generic parse error
-rather than a named one (spec/10 rule 9) — both are genuinely
-unimplemented constructs, not just missing a label.
+rather than a named one (spec/10 rule 9) — genuinely unimplemented
+constructs, not just missing a label.
 
 ## Design notes worth knowing before you extend this crate
 

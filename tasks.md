@@ -1166,18 +1166,85 @@ This closes Phase 7 (see `plan.md`).
       257 tests passing workspace-wide (up from 251). `cargo fmt --all
       -- --check` and `cargo clippy --all-targets` both clean.
 
+## Done (2026-08-04, snomed-ecl numeric/string concrete value comparisons)
+
+- [x] Closed one of the two remaining `snomed-ecl` gaps flagged as
+      "explicitly harder — real parser/eval work, not another small
+      lexer lookahead": numeric (`=`/`!=`/`<=`/`<`/`>=`/`>`) and string
+      (`=`/`!=`) comparisons against a `RelationshipConcreteValue`
+      (spec/07's concrete domains), e.g. `attr <= #10`, `attr = "E10.9"`.
+- [x] `AttributeConstraint`'s shape changed from a flat `negated`/`value`
+      pair to a new `AttributeComparison` enum (`Expression`/`Numeric`/
+      `String`) — a real, deliberate breaking change to the public AST.
+      Verified it's contained entirely within `snomed-ecl` before making
+      it (grepped every downstream crate for direct field access — none
+      existed; `snomed-fhir`/`snomed-cli`/`snomed` only ever call
+      `parse`/`evaluate`, never touch `AttributeConstraint`'s internals).
+      Acceptable pre-1.0 per this workspace's own established precedent
+      (every prior minor version bump has included breaking changes).
+- [x] New lexer tokens: `LtEq`/`GtEq` (never hierarchy prefixes — the
+      official grammar's `constraintOperator` has no `<=`, only
+      `numericComparisonOperator` does), `Hash` (`#`, marks a numeric
+      literal), `Dash`/`Plus` (a numeric value's optional sign),
+      `QuotedString` (`"..."` with `\"`/`\\` escape unescaping, a new
+      `EclError::UnterminatedString` for a missing closing quote).
+- [x] The one genuinely non-obvious design decision: numeric `Eq`/`NotEq`
+      do **not** redefine the per-row match predicate to "not equal" for
+      `NotEq` — both always count *equal* rows, and `NotEq` negates the
+      **aggregate** cardinality check afterward, mirroring `Expression`'s
+      existing `negated` semantics exactly (proven correct by the
+      pre-existing `negated_attribute_refinement` test's own behavior).
+      Worked through the alternative (redefining "matches" per operator)
+      and confirmed it gives the wrong answer whenever a concept has
+      *multiple* values for the same attribute — documented as spec/10
+      rule 10 and in `AGENTS/ecl-engineer.md`, not left implicit.
+- [x] Reverse flag (`R`) combined with a concrete value comparison is
+      rejected at parse time with a named `NotYetImplemented` — legal per
+      the official grammar (reverseFlag precedes the whole comparison
+      choice, not just the expression form) but semantically empty, since
+      a concrete value has no "other concept" to reverse into.
+- [x] Deliberately scoped out, both documented as genuine gaps rather
+      than silently unhandled: `concreteStringSet` (`("a" "b" ...)`) —
+      ambiguous with a parenthesized `subExpressionConstraint` right
+      after `=`/`!=` given this parser's one-token-of-lookahead design;
+      resolving it needs real lookahead/backtracking, not a quick fix —
+      and boolean concrete value comparisons, since
+      `snomed_core::ConcreteValue` has no boolean variant anywhere in
+      this workspace (a deeper gap than just `snomed-ecl`).
+- [x] Tests: 2 new lexer (numeric-comparison token shapes incl. signed/
+      decimal values; quoted-string escape handling incl. unterminated),
+      5 new parser (all 6 numeric operators, string comparison incl.
+      negation, reverse-flag rejection, `concreteStringSet` still
+      erroring), 2 new eval (numeric comparisons against a real
+      `RelationshipConcreteValue` fixture incl. type-mismatch-never-
+      matches; string comparisons likewise) — 8 new tests total. All 57
+      pre-existing tests needed zero behavior changes, only two direct
+      call-site updates for the field-to-enum AST change (parser.rs's own
+      test assertions) — confirming the refactor was correctness-
+      preserving for the already-shipped `Expression` comparison form.
+- [x] Docs: spec/10-ecl.md (grammar, new "Concrete value comparisons"
+      section, Not yet implemented list narrowed, two new normative
+      rules); `crates/snomed-ecl/README.md` (table row, quick example,
+      NYI paragraph — every SCTID used was check-digit-verified before
+      being written down, none claimed to be a specific real SNOMED
+      attribute unless it actually is); `AGENTS/ecl-engineer.md` (two new
+      sections capturing the two load-bearing, non-obvious decisions
+      above, so they don't get "simplified away" later).
+- [x] 265 tests passing workspace-wide (up from 257). `cargo fmt --all
+      -- --check` and `cargo clippy --all-targets` both clean.
+
 ## Next up
 
 - [ ] Nothing currently scoped. Candidate future work (not yet
       decided/planned): a `snomed-fhir` HTTP server crate (would need a
       new external dependency — needs explicit user direction against
-      the zero-dependency policy, not an autonomous pick); naming the
-      remaining 2 `snomed-ecl` gaps (non-plain-concept attribute names,
-      concrete value comparisons) is explicitly harder — they're
-      genuinely unimplemented features, not just missing an error
-      label, so closing them means real parser/eval work, not another
-      small lexer lookahead; property-chain/transitive-property
-      redundancy elimination for
+      the zero-dependency policy, not an autonomous pick); the one
+      remaining `snomed-ecl` gap in the "genuinely harder" category —
+      attribute names other than a plain concept reference (the official
+      grammar allows any `subExpressionConstraint` there); `snomed-ecl`'s
+      smaller documented gaps (`concreteStringSet`, boolean concrete
+      comparisons, `{{ }}` filters, the history supplement); property-
+      chain/transitive-property redundancy elimination for
       `necessary_normal_form` (spec/14's documented, conservative scope
       cut); re-running the Phase 4 `snomed-store` benchmark (and the
       Phase 7 `snomed-classify` one) against a real International

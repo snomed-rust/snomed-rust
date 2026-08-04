@@ -3,8 +3,9 @@
 use snomed_core::sctid::SctId;
 
 use crate::ast::{
-    AttributeConstraint, AttributeGroup, Cardinality, ExpressionConstraint, FocusConcept,
-    HierarchyOp, RefinementConstraint, SimpleExpressionConstraint,
+    AttributeComparison, AttributeConstraint, AttributeGroup, Cardinality, ExpressionConstraint,
+    FocusConcept, HierarchyOp, NumericComparisonOp, RefinementConstraint,
+    SimpleExpressionConstraint,
 };
 use crate::error::EclError;
 use crate::lexer::{describe, Lexer, Token, TokenKind};
@@ -358,33 +359,140 @@ impl Parser {
             false
         };
         let (attribute_id, attribute_term) = self.parse_concept_reference()?;
-        let negated = match &self.peek().kind {
-            TokenKind::Eq => {
-                self.advance()?;
-                false
-            }
-            TokenKind::NotEq => {
-                self.advance()?;
-                true
-            }
-            _ => {
-                let tok = self.peek().clone();
-                return Err(EclError::UnexpectedToken {
-                    pos: tok.pos,
-                    found: describe(&tok.kind),
-                    expected: "`=` or `!=`",
-                });
-            }
-        };
-        let value = self.parse_sub_expression_constraint()?;
+        let comparison = self.parse_attribute_comparison()?;
+        if reverse && !matches!(comparison, AttributeComparison::Expression { .. }) {
+            // Grammatically legal (reverseFlag precedes the whole
+            // comparison choice, not just the expression form) but
+            // semantically empty: a concrete value has no "other
+            // concept" for R to reverse the source/destination roles
+            // of. Rejected explicitly rather than silently evaluating
+            // to an empty/wrong result.
+            return Err(EclError::NotYetImplemented {
+                pos: self.peek().pos,
+                feature: "`R` combined with a numeric or string concrete value comparison",
+            });
+        }
         Ok(AttributeConstraint {
             attribute_id,
             attribute_term,
-            negated,
             cardinality: cardinality.unwrap_or_default(),
             reverse,
-            value: Box::new(value),
+            comparison,
         })
+    }
+
+    /// `(expressionComparisonOperator subExpressionConstraint) /
+    /// (numericComparisonOperator "#" numericValue) / (stringComparisonOperator
+    /// concreteString)` — spec/10. `concreteStringSet` (`("a" "b")`, an
+    /// OR'd set of strings) is not yet implemented: disambiguating it from
+    /// a parenthesized `subExpressionConstraint` needs lookahead past what
+    /// this parser's one-token-of-lookahead design supports cleanly: `(`
+    /// always means "parenthesized expression" here, so writing `= ("a"
+    /// "b")` fails inside expression parsing with a generic error, not a
+    /// named one — a real, documented gap (spec/10), not a bug. Boolean
+    /// comparisons are entirely out of scope: `ConcreteValue` has no
+    /// boolean variant (see `AttributeComparison`'s own doc).
+    fn parse_attribute_comparison(&mut self) -> Result<AttributeComparison, EclError> {
+        match &self.peek().kind {
+            TokenKind::LtEq | TokenKind::Lt | TokenKind::GtEq | TokenKind::Gt => {
+                let operator = match self.advance()?.kind {
+                    TokenKind::LtEq => NumericComparisonOp::Le,
+                    TokenKind::Lt => NumericComparisonOp::Lt,
+                    TokenKind::GtEq => NumericComparisonOp::Ge,
+                    TokenKind::Gt => NumericComparisonOp::Gt,
+                    _ => unreachable!("matched above"),
+                };
+                self.expect(TokenKind::Hash, "`#`")?;
+                let value = self.parse_numeric_value()?;
+                Ok(AttributeComparison::Numeric { operator, value })
+            }
+            TokenKind::Eq | TokenKind::NotEq => {
+                let negated = matches!(self.peek().kind, TokenKind::NotEq);
+                self.advance()?;
+                match &self.peek().kind {
+                    TokenKind::Hash => {
+                        self.advance()?;
+                        let value = self.parse_numeric_value()?;
+                        let operator = if negated {
+                            NumericComparisonOp::NotEq
+                        } else {
+                            NumericComparisonOp::Eq
+                        };
+                        Ok(AttributeComparison::Numeric { operator, value })
+                    }
+                    TokenKind::QuotedString(_) => {
+                        let TokenKind::QuotedString(s) = self.advance()?.kind else {
+                            unreachable!("matched above")
+                        };
+                        Ok(AttributeComparison::String {
+                            negated,
+                            values: vec![s],
+                        })
+                    }
+                    _ => {
+                        let value = self.parse_sub_expression_constraint()?;
+                        Ok(AttributeComparison::Expression {
+                            negated,
+                            value: Box::new(value),
+                        })
+                    }
+                }
+            }
+            _ => {
+                let tok = self.peek().clone();
+                Err(EclError::UnexpectedToken {
+                    pos: tok.pos,
+                    found: describe(&tok.kind),
+                    expected: "`=`, `!=`, `<=`, `<`, `>=`, or `>`",
+                })
+            }
+        }
+    }
+
+    /// `["-" / "+"] (decimalValue / integerValue)` — the literal is kept
+    /// exactly as written (sign included, if any), matching
+    /// `ConcreteValue::Number`'s own "preserve precision and trailing
+    /// zeros" convention.
+    fn parse_numeric_value(&mut self) -> Result<String, EclError> {
+        let mut s = String::new();
+        match &self.peek().kind {
+            TokenKind::Dash => {
+                self.advance()?;
+                s.push('-');
+            }
+            TokenKind::Plus => {
+                self.advance()?;
+                s.push('+');
+            }
+            _ => {}
+        }
+        let tok = self.advance()?;
+        match tok.kind {
+            TokenKind::Digits(d) => s.push_str(&d),
+            other => {
+                return Err(EclError::UnexpectedToken {
+                    pos: tok.pos,
+                    found: describe(&other),
+                    expected: "a numeric value",
+                })
+            }
+        }
+        if matches!(self.peek().kind, TokenKind::Dot) {
+            self.advance()?;
+            s.push('.');
+            let tok = self.advance()?;
+            match tok.kind {
+                TokenKind::Digits(d) => s.push_str(&d),
+                other => {
+                    return Err(EclError::UnexpectedToken {
+                        pos: tok.pos,
+                        found: describe(&other),
+                        expected: "digits after `.`",
+                    })
+                }
+            }
+        }
+        Ok(s)
     }
 
     fn parse_simple_expression_constraint(
@@ -717,6 +825,114 @@ mod tests {
     }
 
     #[test]
+    fn parses_numeric_concrete_value_comparisons() {
+        let cases: &[(&str, crate::ast::NumericComparisonOp, &str)] = &[
+            (
+                "404684003 : 116676008 = #10",
+                crate::ast::NumericComparisonOp::Eq,
+                "10",
+            ),
+            (
+                "404684003 : 116676008 != #10",
+                crate::ast::NumericComparisonOp::NotEq,
+                "10",
+            ),
+            (
+                "404684003 : 116676008 <= #10",
+                crate::ast::NumericComparisonOp::Le,
+                "10",
+            ),
+            (
+                "404684003 : 116676008 < #10",
+                crate::ast::NumericComparisonOp::Lt,
+                "10",
+            ),
+            (
+                "404684003 : 116676008 >= #10",
+                crate::ast::NumericComparisonOp::Ge,
+                "10",
+            ),
+            (
+                "404684003 : 116676008 > #10",
+                crate::ast::NumericComparisonOp::Gt,
+                "10",
+            ),
+            (
+                "404684003 : 116676008 >= #-2.5",
+                crate::ast::NumericComparisonOp::Ge,
+                "-2.5",
+            ),
+        ];
+        for (expr, expected_op, expected_value) in cases {
+            match parse(expr).unwrap() {
+                EC::Refined {
+                    refinement: crate::ast::RefinementConstraint::Attribute(a),
+                    ..
+                } => match a.comparison {
+                    crate::ast::AttributeComparison::Numeric { operator, value } => {
+                        assert_eq!(operator, *expected_op, "for `{expr}`");
+                        assert_eq!(value, *expected_value, "for `{expr}`");
+                    }
+                    other => panic!("expected Numeric for `{expr}`, got {other:?}"),
+                },
+                other => panic!("expected Refined for `{expr}`, got {other:?}"),
+            }
+        }
+    }
+
+    #[test]
+    fn parses_string_concrete_value_comparisons() {
+        let expr = parse("404684003 : 116676008 = \"250mg\"").unwrap();
+        match expr {
+            EC::Refined {
+                refinement: crate::ast::RefinementConstraint::Attribute(a),
+                ..
+            } => match a.comparison {
+                crate::ast::AttributeComparison::String { negated, values } => {
+                    assert!(!negated);
+                    assert_eq!(values, vec!["250mg".to_string()]);
+                }
+                other => panic!("expected String, got {other:?}"),
+            },
+            other => panic!("expected Refined, got {other:?}"),
+        }
+
+        let expr = parse("404684003 : 116676008 != \"250mg\"").unwrap();
+        match expr {
+            EC::Refined {
+                refinement: crate::ast::RefinementConstraint::Attribute(a),
+                ..
+            } => match a.comparison {
+                crate::ast::AttributeComparison::String { negated, .. } => assert!(negated),
+                other => panic!("expected String, got {other:?}"),
+            },
+            other => panic!("expected Refined, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn rejects_reverse_flag_combined_with_a_concrete_value_comparison() {
+        assert!(matches!(
+            parse("404684003 : R 116676008 = #10"),
+            Err(EclError::NotYetImplemented { .. })
+        ));
+        assert!(matches!(
+            parse("404684003 : R 116676008 = \"250mg\""),
+            Err(EclError::NotYetImplemented { .. })
+        ));
+        // Reverse still works fine with a plain expression comparison.
+        assert!(parse("404684003 : R 116676008 = 79654002").is_ok());
+    }
+
+    #[test]
+    fn concrete_string_set_is_not_yet_implemented() {
+        // `("a" "b")` (concreteStringSet) isn't distinguished from a
+        // parenthesized subExpressionConstraint — documented gap,
+        // spec/10. It still errors, just not with a named feature.
+        assert!(parse("404684003 : 116676008 = (\"a\" \"b\")").is_err());
+    }
+
+    #[test]
     fn parses_a_single_attribute_refinement() {
         let expr = parse("< 404684003 : 116676008 = 79654002").unwrap();
         match expr {
@@ -734,17 +950,22 @@ mod tests {
                 match refinement {
                     crate::ast::RefinementConstraint::Attribute(a) => {
                         assert_eq!(a.attribute_id, concept("116676008"));
-                        assert!(!a.negated);
-                        assert_eq!(
-                            *a.value,
-                            EC::Simple(SimpleExpressionConstraint {
-                                op: HierarchyOp::SelfOnly,
-                                focus: FocusConcept::Concept {
-                                    id: concept("79654002"),
-                                    term: None
-                                },
-                            })
-                        );
+                        match &a.comparison {
+                            crate::ast::AttributeComparison::Expression { negated, value } => {
+                                assert!(!negated);
+                                assert_eq!(
+                                    **value,
+                                    EC::Simple(SimpleExpressionConstraint {
+                                        op: HierarchyOp::SelfOnly,
+                                        focus: FocusConcept::Concept {
+                                            id: concept("79654002"),
+                                            term: None
+                                        },
+                                    })
+                                );
+                            }
+                            other => panic!("expected Expression, got {other:?}"),
+                        }
                     }
                     other => panic!("expected Attribute, got {other:?}"),
                 }
@@ -760,9 +981,12 @@ mod tests {
             EC::Refined {
                 refinement: crate::ast::RefinementConstraint::Attribute(a),
                 ..
-            } => {
-                assert!(a.negated);
-            }
+            } => match &a.comparison {
+                crate::ast::AttributeComparison::Expression { negated, .. } => {
+                    assert!(negated);
+                }
+                other => panic!("expected Expression, got {other:?}"),
+            },
             other => panic!("expected a negated Attribute refinement, got {other:?}"),
         }
     }
@@ -786,18 +1010,21 @@ mod tests {
             EC::Refined {
                 refinement: crate::ast::RefinementConstraint::Attribute(a),
                 ..
-            } => {
-                assert_eq!(
-                    *a.value,
-                    EC::Simple(SimpleExpressionConstraint {
-                        op: HierarchyOp::DescendantOrSelfOf,
-                        focus: FocusConcept::Concept {
-                            id: concept("79654002"),
-                            term: None
-                        },
-                    })
-                );
-            }
+            } => match &a.comparison {
+                crate::ast::AttributeComparison::Expression { value, .. } => {
+                    assert_eq!(
+                        **value,
+                        EC::Simple(SimpleExpressionConstraint {
+                            op: HierarchyOp::DescendantOrSelfOf,
+                            focus: FocusConcept::Concept {
+                                id: concept("79654002"),
+                                term: None
+                            },
+                        })
+                    );
+                }
+                other => panic!("expected Expression, got {other:?}"),
+            },
             other => panic!("expected an Attribute refinement, got {other:?}"),
         }
     }

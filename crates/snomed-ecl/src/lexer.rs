@@ -52,9 +52,24 @@ pub enum TokenKind {
     Eq,
     /// `!=` — negated attribute-value comparison.
     NotEq,
+    /// `<=` — numeric concrete-value comparison (never a hierarchy
+    /// prefix — the official grammar's `constraintOperator` has no
+    /// `<=`, only `numericComparisonOperator` does).
+    LtEq,
+    /// `>=` — numeric concrete-value comparison.
+    GtEq,
+    /// `#` — marks a numeric concrete value (`#10`, `#-2.5`).
+    Hash,
+    /// `-` — a numeric concrete value's optional leading sign.
+    Dash,
+    /// `+` — a numeric concrete value's optional leading sign.
+    Plus,
     Digits(String),
     /// The text between a pair of `|`, exclusive.
     Term(String),
+    /// The text between a pair of `"`, exclusive, with `\"`/`\\`
+    /// unescaped — a `concreteString` (spec/10).
+    QuotedString(String),
     Eof,
 }
 
@@ -96,8 +111,14 @@ pub fn describe(kind: &TokenKind) -> String {
         TokenKind::ReverseFlag => "`R`".to_string(),
         TokenKind::Eq => "`=`".to_string(),
         TokenKind::NotEq => "`!=`".to_string(),
+        TokenKind::LtEq => "`<=`".to_string(),
+        TokenKind::GtEq => "`>=`".to_string(),
+        TokenKind::Hash => "`#`".to_string(),
+        TokenKind::Dash => "`-`".to_string(),
+        TokenKind::Plus => "`+`".to_string(),
         TokenKind::Digits(d) => format!("`{d}`"),
         TokenKind::Term(t) => format!("`|{t}|`"),
+        TokenKind::QuotedString(s) => format!("`\"{s}\"`"),
         TokenKind::Eof => "end of input".to_string(),
     }
 }
@@ -234,6 +255,11 @@ impl Lexer {
                 } else if self.chars.get(self.pos + 1) == Some(&'!') {
                     self.pos += 2;
                     TokenKind::LtBang
+                } else if self.chars.get(self.pos + 1) == Some(&'=') {
+                    // Never a hierarchy prefix — only
+                    // numericComparisonOperator has `<=`.
+                    self.pos += 2;
+                    TokenKind::LtEq
                 } else {
                     self.pos += 1;
                     TokenKind::Lt
@@ -251,10 +277,50 @@ impl Lexer {
                 } else if self.chars.get(self.pos + 1) == Some(&'!') {
                     self.pos += 2;
                     TokenKind::GtBang
+                } else if self.chars.get(self.pos + 1) == Some(&'=') {
+                    self.pos += 2;
+                    TokenKind::GtEq
                 } else {
                     self.pos += 1;
                     TokenKind::Gt
                 }
+            }
+            '#' => {
+                self.pos += 1;
+                TokenKind::Hash
+            }
+            '-' => {
+                self.pos += 1;
+                TokenKind::Dash
+            }
+            '+' => {
+                self.pos += 1;
+                TokenKind::Plus
+            }
+            '"' => {
+                self.pos += 1;
+                let mut s = String::new();
+                loop {
+                    match self.chars.get(self.pos) {
+                        None => return Err(EclError::UnterminatedString { pos: start }),
+                        Some('"') => {
+                            self.pos += 1;
+                            break;
+                        }
+                        Some('\\')
+                            if matches!(self.chars.get(self.pos + 1), Some('"') | Some('\\')) =>
+                        {
+                            // escapedChar = BS QM / BS BS — unescape both.
+                            s.push(self.chars[self.pos + 1]);
+                            self.pos += 2;
+                        }
+                        Some(&c) => {
+                            s.push(c);
+                            self.pos += 1;
+                        }
+                    }
+                }
+                TokenKind::QuotedString(s)
             }
             '|' => {
                 self.pos += 1;
@@ -495,6 +561,61 @@ mod tests {
     fn lexes_top_and_bottom_tokens() {
         assert_eq!(kinds("!!>"), vec![TokenKind::Top, TokenKind::Eof]);
         assert_eq!(kinds("!!<"), vec![TokenKind::Bottom, TokenKind::Eof]);
+    }
+
+    #[test]
+    fn lexes_numeric_comparison_tokens() {
+        assert_eq!(kinds("<="), vec![TokenKind::LtEq, TokenKind::Eof]);
+        assert_eq!(kinds(">="), vec![TokenKind::GtEq, TokenKind::Eof]);
+        // `<`/`>` alone are still the plain hierarchy tokens.
+        assert_eq!(kinds("<"), vec![TokenKind::Lt, TokenKind::Eof]);
+        assert_eq!(kinds(">"), vec![TokenKind::Gt, TokenKind::Eof]);
+        assert_eq!(
+            kinds("#-2.5"),
+            vec![
+                TokenKind::Hash,
+                TokenKind::Dash,
+                TokenKind::Digits("2".to_string()),
+                TokenKind::Dot,
+                TokenKind::Digits("5".to_string()),
+                TokenKind::Eof,
+            ]
+        );
+        assert_eq!(
+            kinds("#+10"),
+            vec![
+                TokenKind::Hash,
+                TokenKind::Plus,
+                TokenKind::Digits("10".to_string()),
+                TokenKind::Eof,
+            ]
+        );
+    }
+
+    #[test]
+    fn lexes_quoted_strings_with_escapes() {
+        assert_eq!(
+            kinds("\"plain\""),
+            vec![TokenKind::QuotedString("plain".to_string()), TokenKind::Eof]
+        );
+        assert_eq!(
+            kinds("\"a \\\"quoted\\\" word\""),
+            vec![
+                TokenKind::QuotedString("a \"quoted\" word".to_string()),
+                TokenKind::Eof
+            ]
+        );
+        assert_eq!(
+            kinds("\"back\\\\slash\""),
+            vec![
+                TokenKind::QuotedString("back\\slash".to_string()),
+                TokenKind::Eof
+            ]
+        );
+        assert_eq!(
+            lex("\"unterminated"),
+            Err(EclError::UnterminatedString { pos: 0 })
+        );
     }
 
     #[test]

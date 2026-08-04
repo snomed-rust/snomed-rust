@@ -130,6 +130,31 @@ the spec's normative rules. Day-to-day execution items live in `tasks.md`.
   across every group (the bare/ungrouped-attribute cardinality meaning
   "any attribute group" per the guide); `Some(gid)` inside a candidate
   group restricts matching to that group's own relationships only.
+- Numeric and string concrete value comparisons (2026-08-04) ✅ —
+  `attr <= #10`, `attr = "E10.9"`, etc. (spec/07's concrete domains,
+  spec/10's `numericComparisonOperator`/`stringComparisonOperator`).
+  `AttributeConstraint`'s shape changed from a flat `negated`/`value`
+  pair to an `AttributeComparison` enum (`Expression`/`Numeric`/
+  `String`) — a real, deliberate breaking change to the public AST
+  (acceptable pre-1.0; contained entirely within `snomed-ecl`, no
+  downstream crate touched `AttributeConstraint`'s internals). New
+  lexer tokens `LtEq`/`GtEq`/`Hash`/`Dash`/`Plus`/`QuotedString`
+  (with `\"`/`\\` escape handling) and a new `UnterminatedString`
+  error. Numeric `Eq`/`NotEq` both count *equal* rows and let `NotEq`
+  negate the aggregate cardinality check afterward — mirroring
+  `Expression`'s existing `negated` semantics exactly, rather than
+  redefining "matches" per operator (see `AGENTS/ecl-engineer.md` for
+  why the alternative would be wrong, not just different). Reverse
+  flag combined with a concrete comparison is rejected at parse time
+  (grammatically legal, semantically empty — a concrete value has no
+  "other concept" to reverse into). Deliberately scoped out:
+  `concreteStringSet` (`("a" "b")`) — genuinely ambiguous with a
+  parenthesized expression given this parser's one-token lookahead,
+  not a quick fix — and boolean comparisons (`ConcreteValue` has no
+  boolean variant anywhere in this workspace). 8 new tests. Wired
+  into eval.rs via the existing `relationship_concrete_values_of`
+  accessor and cardinality/group-scope machinery, no new store API
+  needed.
 - History/audit queries over Full-view data ✅: `snomed-store::HistoryStore`
   keeps every version of a Concept/Description/Relationship (spec/09's new
   "History construction" section), built from Full-view files only —

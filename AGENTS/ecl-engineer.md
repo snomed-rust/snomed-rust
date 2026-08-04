@@ -8,12 +8,13 @@ AST, and evaluator.
 `spec/10-ecl.md` is normative. It documents exactly which grammar subset is
 implemented ("simple expression constraints" — hierarchy operators,
 memberOf, wildcard, AND/OR/MINUS — plus refinements: `attributeId
-(= | !=) value`, AND/OR, parenthesized groups, attribute cardinality
-`[min..max]`, the reverse flag `R`, and attribute groups `{ }`) and lists
-what is explicitly **not yet implemented** (non-plain-concept-reference
-attribute names, concrete value comparisons, `{{ }}` filters, `^ *`,
-`!!>`/`!!<`, history supplement, alternate identifiers, a hierarchy prefix
-combined with `^`, dot notation).
+(= | !=) value`, numeric/string concrete value comparisons, AND/OR,
+parenthesized groups, attribute cardinality `[min..max]`, the reverse
+flag `R`, and attribute groups `{ }`) and lists what is explicitly **not
+yet implemented** (non-plain-concept-reference attribute names,
+`concreteStringSet`, boolean concrete value comparisons, `{{ }}` filters,
+`^ *`, `!!>`/`!!<`, history supplement, alternate identifiers, a
+hierarchy prefix combined with `^`, dot notation).
 
 **The authoritative grammar is the ABNF at
 <https://github.com/IHTSDO/snomed-expression-constraint-language>,
@@ -98,3 +99,40 @@ even with itself (`ExclusionTakesTwoOperands`): the grammar literally has no
 production for either. See spec/10's "Boolean set operators" section for the
 citation. Don't "simplify" `MINUS` back into an `AND`/`OR`-style chain —
 `A MINUS B MINUS C` really is invalid ECL without parentheses.
+
+## `AttributeComparison`: numeric `!=` counts equal rows, then negates
+
+When concrete value comparisons were added, `AttributeConstraint`'s shape
+changed from a flat `negated`/`value` pair to an `AttributeComparison`
+enum (`Expression`/`Numeric`/`String`) — a real, deliberate breaking
+change to the public AST, acceptable pre-1.0. The one non-obvious
+decision inside it: `Numeric`'s `Eq`/`NotEq` do **not** redefine the
+per-row match predicate to "not equal" for `NotEq` — both always count
+*equal* rows, and `NotEq` negates the **aggregate** cardinality check
+afterwards, in `eval.rs`. This mirrors `Expression`'s `negated` field
+exactly (which already worked this way, proven by
+`negated_attribute_refinement`'s test), and it's the only choice
+consistent with it: `attr != #10` on a concept with values `{5, 10}`
+should mean "does NOT have a #10", not "has some value that isn't 10" —
+the latter would make `!=` trivially true whenever *any* other value
+exists alongside the one being excluded. `Le`/`Lt`/`Ge`/`Gt` have no such
+distinction; they define the per-row predicate directly, since there's no
+"aggregate negation" reading of `<=` to preserve consistency with.
+
+## `concreteStringSet` and `(` are genuinely ambiguous with 1 token of lookahead
+
+`stringComparisonOperator (concreteString / concreteStringSet)` and
+`expressionComparisonOperator subExpressionConstraint` (which itself
+allows `"(" expressionConstraint ")"`) can both start with `(` right
+after `=`/`!=` — a `concreteStringSet` (`("a" "b")`) and a parenthesized
+expression are only distinguishable by looking *inside* the parens
+(quote vs. concept reference/hierarchy prefix). This parser's `Parser`
+struct holds exactly one token of lookahead (`current`) by design (see
+the lexer module doc on why); resolving this properly means either
+buffering a second token or backtracking, neither of which exists here
+yet. Until one does, `(` after `=`/`!=` is always treated as a
+parenthesized expression — `concreteStringSet` stays in spec/10's
+generic-error bucket, not the named one. Don't "fix" this by guessing
+which one was meant from what character comes first without actually
+adding real lookahead; a wrong guess would be a silently misparsed result,
+which is the one thing spec/10 rule 9 categorically forbids.

@@ -98,7 +98,7 @@ impl Default for Cardinality {
     }
 }
 
-/// `[cardinality] [reverseFlag] attributeName (= | !=) value` — spec/10's
+/// `[cardinality] [reverseFlag] attributeName (comparison)` — spec/10's
 /// refinement subset.
 ///
 /// `attribute_name` is restricted to a plain concept reference in this
@@ -109,17 +109,64 @@ impl Default for Cardinality {
 pub struct AttributeConstraint {
     pub attribute_id: SctId,
     pub attribute_term: Option<String>,
-    /// `true` for `!=`: the concept must NOT satisfy `cardinality`
-    /// (see `eval.rs` for how negation composes with a non-default
-    /// cardinality).
-    pub negated: bool,
     /// Defaults to `[1..*]` when not written explicitly (spec/10).
     pub cardinality: Cardinality,
     /// `true` for a leading `R`: match relationships where this concept is
-    /// the *destination* and `value` constrains the *source*, instead of
+    /// the *destination* and the value constrains the *source*, instead of
     /// the usual source/destination roles (spec/10's reverse attributes).
+    /// Only valid with [`AttributeComparison::Expression`] — a concrete
+    /// value has no "other concept" to reverse into, so combining `R` with
+    /// a numeric/string comparison is rejected at parse time.
     pub reverse: bool,
-    pub value: Box<ExpressionConstraint>,
+    pub comparison: AttributeComparison,
+}
+
+/// The three shapes an [`AttributeConstraint`]'s comparison can take
+/// (spec/10): matching against a set of concepts, or against a
+/// `RelationshipConcreteValue`'s number or string (spec/07's concrete
+/// domains). Boolean concrete values (`booleanComparisonOperator` in the
+/// official grammar) remain out of scope — `snomed_core::ConcreteValue`
+/// has no boolean variant; SNOMED CT's own concrete domain model doesn't
+/// carry one either.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum AttributeComparison {
+    /// `(= | !=) subExpressionConstraint` — the original, most common
+    /// shape: match by an active inferred relationship whose destination
+    /// is in `value`'s evaluated set.
+    Expression {
+        /// `true` for `!=`: the concept must NOT satisfy `cardinality`.
+        negated: bool,
+        value: Box<ExpressionConstraint>,
+    },
+    /// `numericComparisonOperator "#" numericValue` — compare against a
+    /// `RelationshipConcreteValue`'s `Number`.
+    Numeric {
+        operator: NumericComparisonOp,
+        /// The decimal literal exactly as written (preserving precision
+        /// and trailing zeros), matching `ConcreteValue::Number`'s own
+        /// representation.
+        value: String,
+    },
+    /// `stringComparisonOperator (concreteString | concreteStringSet)` —
+    /// compare against a `RelationshipConcreteValue`'s `String`.
+    /// `values` has 2+ entries only for a `concreteStringSet`
+    /// (`("a" "b" ...)`) — matching is OR'd across the set either way.
+    String {
+        /// `true` for `!=`: the concept must NOT have a matching value.
+        negated: bool,
+        values: Vec<String>,
+    },
+}
+
+/// `numericComparisonOperator = "=" / "!=" / "<=" / "<" / ">=" / ">"`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum NumericComparisonOp {
+    Eq,
+    NotEq,
+    Le,
+    Lt,
+    Ge,
+    Gt,
 }
 
 /// `["[" cardinality "]" ws] "{" eclAttributeSet "}"` — a role group
