@@ -11,6 +11,27 @@ together, in dependency order (`snomed-core` → `snomed-rf2` → `snomed-owl`
 → `snomed-store` → `snomed-classify` → `snomed-ecl` → `snomed-fhir` →
 `snomed-cli` → `snomed`), not independently.
 
+## [0.3.0] — 2026-08-04
+
+### Added
+
+- `snomed-classify`: `necessary_normal_form` — reduces a classification
+  down to the minimal RF2-`Relationship`-shaped output a release would
+  actually ship: proximal (non-redundant) entailed parents, plus
+  role-grouped attributes with redundancy eliminated. See spec/14.
+- `snomed-ecl` refinements extended with attribute cardinality
+  (`[min..max]`, default `[1..*]`), the reverse flag (`R`), and
+  attribute groups (`{ }`).
+- `snomed-store`: `relationships_to()` (destination-indexed relationship
+  lookup, backing the ECL reverse flag).
+- `snomed-cli`: new `nnf` subcommand (necessary normal form, mirroring
+  `classify`'s shape); `export` now covers all 22 record types this
+  workspace parses (previously missing the 4 MRCM and 4 Ordered/
+  Annotation refset types).
+- New `crates/snomed/examples/tutorial.rs`, a runnable six-step tour
+  across every crate (`cargo run --example tutorial -p snomed`), plus
+  `docs/tutorial.md` and `docs/troubleshooting.md`.
+
 ## [0.2.0] — 2026-08-04
 
 ### Added
