@@ -238,12 +238,12 @@ This closes Phase 5 (`snomed-ecl` simple constraints + basic refinements,
       JSON serialization in the new `crates/snomed-cli/src/json.rs` (no
       serde) — every RF2 record type this workspace parses is exportable
       (3 core component types, `RelationshipConcreteValue`, all 10 refset
-      types) **as of this entry's date** — true when written, but
-      `export_to_ndjson`'s dispatch was never extended for the 8 refset
-      types (4 MRCM, 4 Ordered/Annotation) added later in Phase 6, unlike
-      `load.rs`'s dispatch, which was. Now a real, tracked gap — see
-      `AGENTS/cli-engineer.md`'s "Known gaps" and the later
-      documentation-audit entries in this file.
+      types) **as of this entry's date**. This fell out of date when 8
+      more refset types (MRCM, Ordered/Annotation) shipped later in Phase
+      6 without a matching `export` update; caught by the 2026-08-04
+      documentation audit below and closed the same day (see the "export
+      gap closed" entry near the end of this file) — `export` covers all
+      22 record types again as of that fix.
       SCTIDs/UUIDs/`effectiveTime` always render as JSON *strings*
       (never numbers — SCTIDs reach 18 digits, past where JSON numbers keep
       exact precision in common consumers like JS's `JSON.parse`); only
@@ -1025,12 +1025,49 @@ This closes Phase 7 (see `plan.md`).
       documentation), `cargo fmt --all -- --check` and `cargo clippy
       --all-targets` both clean.
 
+## Done (2026-08-04, snomed-cli export gap closed)
+
+- [x] Closed the gap the plan.md/tasks.md accuracy pass had just found
+      and documented (rather than leaving it as a tracked "Next up"
+      item): `export_to_ndjson` now covers all 8 previously-missing
+      refset types (MRCM Domain, MRCM Attribute Domain, MRCM Attribute
+      Range, MRCM Module Scope, Ordered Component, Ordered Association,
+      Component Annotation, Member Annotation), bringing `export` back
+      to covering all 22 record types this workspace parses.
+- [x] `crates/snomed-cli/src/json.rs`: 8 new `*_to_json` functions,
+      following the exact shape the existing 10 use (`core_fields` +
+      type-specific extra columns via `json_object`). `grouped` (a
+      `bool`) and `order` (a `u32`) render as bare JSON `true`/numbers,
+      matching the crate's existing "bounded small integers/booleans are
+      JSON values, everything else is a string" convention — not new
+      policy, just extended to two fields that hadn't existed yet.
+- [x] `crates/snomed-cli/src/lib.rs`: 8 new dispatch arms in
+      `export_to_ndjson`, each `(content type, summary)` pair copied
+      exactly from `load.rs`'s own dispatch (verified against it
+      directly, not re-derived from spec/08's pattern-letter table, to
+      guarantee `export` and `load` recognize identically-named files).
+- [x] Tests: 3 new `json.rs` unit tests (the `grouped`-as-bare-boolean
+      case, `order`-as-bare-number, and a `MemberAnnotation` shape/escaping
+      check) plus 1 new CLI integration test proving two of the eight
+      newly-wired types actually export end-to-end through the real
+      dispatch path, not just that their serializer functions produce
+      correct JSON in isolation. Also fixed a stale comment on the
+      existing `export_dir_skips_content_it_cannot_export_and_reports_it`
+      test, which still described its deliberately-mismatched fixture
+      file name as demonstrating the now-closed gap.
+- [x] Updated every place the gap had just been documented, now that
+      it's closed: `crates/snomed-cli/README.md`'s export section (back
+      to "every RF2 record type... is exportable"), `AGENTS/cli-
+      engineer.md`'s "Known gaps" (entry removed — the gap it described
+      is gone, not just append a closure note over stale text), and
+      `plan.md`'s Phase 6 `export` bullet.
+- [x] 251 tests passing workspace-wide (up from 247), `cargo fmt --all
+      -- --check` and `cargo clippy --all-targets` both clean.
+
 ## Next up
 
 - [ ] Nothing currently scoped. Candidate future work (not yet
-      decided/planned): extending `snomed-cli export` for the 8 refset
-      types it's missing (see the entry just above — a small, mechanical
-      gap, well-scoped); a `snomed-fhir` HTTP server crate (would need a
+      decided/planned): a `snomed-fhir` HTTP server crate (would need a
       new external dependency — needs explicit user direction against
       the zero-dependency policy, not an autonomous pick); remaining
       `snomed-ecl` "Not yet implemented" gaps, now split by whether they

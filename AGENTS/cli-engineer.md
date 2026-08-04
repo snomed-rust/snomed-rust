@@ -61,16 +61,6 @@ a `plan.md` decision explicitly — don't just add the dependency.
   `AGENTS/store-engineer.md`.
 - ECL expressions must be passed as a single (shell-quoted) argument; no
   multi-arg reassembly.
-- `export_to_ndjson`'s dispatch (in `src/lib.rs`) only covers 14 of the
-  22 record types this workspace now parses — the 3 core component
-  types, `RelationshipConcreteValue`, and the first 10 refset types. The
-  4 MRCM types and the 4 Ordered/Annotation types (added to
-  `snomed-rf2`/`snomed-store` later in the same phase `export` shipped
-  in) were never added to `json.rs`/the dispatch match. Not a deliberate
-  cut — an oversight from `export` predating those refset types — and a
-  real gap unlike the `validate` one above. Extending it means: one new
-  `*_to_json` function per type in `json.rs`, one new dispatch arm each
-  in `export_to_ndjson`, following the exact shape the existing 10 use.
 
 ## `export`'s two modes
 

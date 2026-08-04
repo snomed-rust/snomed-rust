@@ -150,14 +150,12 @@ fix it surfaced, and `HistoryStore`.
   release directory, print a summary — Snapshot by default, `--full` for
   the Full view), `lookup` (FSN/synonyms/parents/children for a concept),
   `ecl` (evaluate an expression against a loaded release), `export`
-  (RF2 → NDJSON, one file at a time; covered the 14 record types this
-  workspace parsed at the time — 3 core component types,
-  `RelationshipConcreteValue`, and the first 10 refset types. **Not**
-  extended for the 8 refset types added later in this same phase — MRCM's
-  four and Ordered/Annotation's four, below — a real gap, not a
-  deliberate scope cut; tracked in `AGENTS/cli-engineer.md`'s "Known
-  gaps" and `tasks.md`), `validate` (referential integrity + IS-A
-  acyclicity — see
+  (RF2 → NDJSON, one file at a time, all 22 record types this workspace
+  parses — 3 core component types, `RelationshipConcreteValue`, and all
+  18 refset types, including MRCM and Ordered/Annotation added later in
+  this same phase; extending `export` for those 8 was a real gap,
+  tracked and closed — see `tasks.md`), `validate` (referential
+  integrity + IS-A acyclicity — see
   below). Deliberately thin — `src/lib.rs`'s `run(args) -> Result<String,
   _>` does all the work and is directly testable without spawning the
   binary; `src/main.rs` is ~10 lines. Hand-rolled argument parsing *and*

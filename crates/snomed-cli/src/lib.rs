@@ -25,10 +25,12 @@ use snomed_rf2::filename::ReleaseFileName;
 use snomed_rf2::reader::Rf2Reader;
 use snomed_rf2::record::Rf2Record;
 use snomed_rf2::refset::{
-    AssociationRefsetMember, AttributeValueRefsetMember, DescriptionTypeRefsetMember,
-    ExtendedMapRefsetMember, LanguageRefsetMember, ModuleDependencyRefsetMember,
-    OwlExpressionRefsetMember, RefsetDescriptorRefsetMember, SimpleMapRefsetMember,
-    SimpleRefsetMember,
+    AssociationRefsetMember, AttributeValueRefsetMember, ComponentAnnotationRefsetMember,
+    DescriptionTypeRefsetMember, ExtendedMapRefsetMember, LanguageRefsetMember,
+    MemberAnnotationRefsetMember, ModuleDependencyRefsetMember, MrcmAttributeDomainRefsetMember,
+    MrcmAttributeRangeRefsetMember, MrcmDomainRefsetMember, MrcmModuleScopeRefsetMember,
+    OrderedAssociationRefsetMember, OrderedComponentRefsetMember, OwlExpressionRefsetMember,
+    RefsetDescriptorRefsetMember, SimpleMapRefsetMember, SimpleRefsetMember,
 };
 use snomed_rf2::release_type::ReleaseType;
 use snomed_store::{SnapshotStore, SnapshotStoreBuilder};
@@ -684,6 +686,52 @@ fn export_to_ndjson(path: &Path, f: &ReleaseFileName) -> Result<Option<String>, 
             &mut out,
             json::description_type_refset_to_json,
         )?,
+        ("cRefset", "MRCMModuleScope") => export_rows::<MrcmModuleScopeRefsetMember, _>(
+            path,
+            &mut out,
+            json::mrcm_module_scope_refset_to_json,
+        )?,
+        ("sssssssRefset", "MRCMDomain") => export_rows::<MrcmDomainRefsetMember, _>(
+            path,
+            &mut out,
+            json::mrcm_domain_refset_to_json,
+        )?,
+        ("cissccRefset", "MRCMAttributeDomain") => {
+            export_rows::<MrcmAttributeDomainRefsetMember, _>(
+                path,
+                &mut out,
+                json::mrcm_attribute_domain_refset_to_json,
+            )?
+        }
+        ("ssccRefset", "MRCMAttributeRange") => export_rows::<MrcmAttributeRangeRefsetMember, _>(
+            path,
+            &mut out,
+            json::mrcm_attribute_range_refset_to_json,
+        )?,
+        ("iRefset", "OrderedComponent") => export_rows::<OrderedComponentRefsetMember, _>(
+            path,
+            &mut out,
+            json::ordered_component_refset_to_json,
+        )?,
+        ("ciRefset", "OrderedAssociation") => export_rows::<OrderedAssociationRefsetMember, _>(
+            path,
+            &mut out,
+            json::ordered_association_refset_to_json,
+        )?,
+        ("scsRefset", "ComponentAnnotationStringValue") => {
+            export_rows::<ComponentAnnotationRefsetMember, _>(
+                path,
+                &mut out,
+                json::component_annotation_refset_to_json,
+            )?
+        }
+        ("sscsRefset", "MemberAnnotationStringValue") => {
+            export_rows::<MemberAnnotationRefsetMember, _>(
+                path,
+                &mut out,
+                json::member_annotation_refset_to_json,
+            )?
+        }
         (_, _) => return Ok(None),
     }
     Ok(Some(out))

@@ -12,10 +12,12 @@
 use snomed_core::components::{Concept, Description, Relationship, RelationshipConcreteValue};
 use snomed_core::concrete_value::ConcreteValue;
 use snomed_rf2::refset::{
-    AssociationRefsetMember, AttributeValueRefsetMember, DescriptionTypeRefsetMember,
-    ExtendedMapRefsetMember, LanguageRefsetMember, ModuleDependencyRefsetMember,
-    OwlExpressionRefsetMember, RefsetDescriptorRefsetMember, RefsetMemberCore,
-    SimpleMapRefsetMember, SimpleRefsetMember,
+    AssociationRefsetMember, AttributeValueRefsetMember, ComponentAnnotationRefsetMember,
+    DescriptionTypeRefsetMember, ExtendedMapRefsetMember, LanguageRefsetMember,
+    MemberAnnotationRefsetMember, ModuleDependencyRefsetMember, MrcmAttributeDomainRefsetMember,
+    MrcmAttributeRangeRefsetMember, MrcmDomainRefsetMember, MrcmModuleScopeRefsetMember,
+    OrderedAssociationRefsetMember, OrderedComponentRefsetMember, OwlExpressionRefsetMember,
+    RefsetDescriptorRefsetMember, RefsetMemberCore, SimpleMapRefsetMember, SimpleRefsetMember,
 };
 
 pub(crate) enum JsonValue {
@@ -221,6 +223,107 @@ pub(crate) fn description_type_refset_to_json(m: &DescriptionTypeRefsetMember) -
     json_object(&fields)
 }
 
+pub(crate) fn mrcm_domain_refset_to_json(m: &MrcmDomainRefsetMember) -> String {
+    let mut fields = core_fields(&m.core);
+    fields.push((
+        "domainConstraint",
+        JsonValue::Str(m.domain_constraint.clone()),
+    ));
+    fields.push(("parentDomain", JsonValue::Str(m.parent_domain.clone())));
+    fields.push((
+        "proximalPrimitiveConstraint",
+        JsonValue::Str(m.proximal_primitive_constraint.clone()),
+    ));
+    fields.push((
+        "proximalPrimitiveRefinement",
+        JsonValue::Str(m.proximal_primitive_refinement.clone()),
+    ));
+    fields.push((
+        "domainTemplateForPrecoordination",
+        JsonValue::Str(m.domain_template_for_precoordination.clone()),
+    ));
+    fields.push((
+        "domainTemplateForPostcoordination",
+        JsonValue::Str(m.domain_template_for_postcoordination.clone()),
+    ));
+    fields.push(("guideURL", JsonValue::Str(m.guide_url.clone())));
+    json_object(&fields)
+}
+
+pub(crate) fn mrcm_attribute_domain_refset_to_json(m: &MrcmAttributeDomainRefsetMember) -> String {
+    let mut fields = core_fields(&m.core);
+    fields.push(("domainId", JsonValue::s(m.domain_id)));
+    fields.push(("grouped", JsonValue::Bool(m.grouped)));
+    fields.push((
+        "attributeCardinality",
+        JsonValue::Str(m.attribute_cardinality.clone()),
+    ));
+    fields.push((
+        "attributeInGroupCardinality",
+        JsonValue::Str(m.attribute_in_group_cardinality.clone()),
+    ));
+    fields.push(("ruleStrengthId", JsonValue::s(m.rule_strength_id)));
+    fields.push(("contentTypeId", JsonValue::s(m.content_type_id)));
+    json_object(&fields)
+}
+
+pub(crate) fn mrcm_attribute_range_refset_to_json(m: &MrcmAttributeRangeRefsetMember) -> String {
+    let mut fields = core_fields(&m.core);
+    fields.push((
+        "rangeConstraint",
+        JsonValue::Str(m.range_constraint.clone()),
+    ));
+    fields.push(("attributeRule", JsonValue::Str(m.attribute_rule.clone())));
+    fields.push(("ruleStrengthId", JsonValue::s(m.rule_strength_id)));
+    fields.push(("contentTypeId", JsonValue::s(m.content_type_id)));
+    json_object(&fields)
+}
+
+pub(crate) fn mrcm_module_scope_refset_to_json(m: &MrcmModuleScopeRefsetMember) -> String {
+    let mut fields = core_fields(&m.core);
+    fields.push(("mrcmRuleRefsetId", JsonValue::s(m.mrcm_rule_refset_id)));
+    json_object(&fields)
+}
+
+pub(crate) fn ordered_component_refset_to_json(m: &OrderedComponentRefsetMember) -> String {
+    let mut fields = core_fields(&m.core);
+    fields.push(("order", JsonValue::U32(m.order)));
+    json_object(&fields)
+}
+
+pub(crate) fn ordered_association_refset_to_json(m: &OrderedAssociationRefsetMember) -> String {
+    let mut fields = core_fields(&m.core);
+    fields.push(("targetComponentId", JsonValue::s(m.target_component_id)));
+    fields.push(("order", JsonValue::U32(m.order)));
+    json_object(&fields)
+}
+
+pub(crate) fn component_annotation_refset_to_json(m: &ComponentAnnotationRefsetMember) -> String {
+    let mut fields = core_fields(&m.core);
+    fields.push((
+        "languageDialectCode",
+        JsonValue::Str(m.language_dialect_code.clone()),
+    ));
+    fields.push(("typeId", JsonValue::s(m.type_id)));
+    fields.push(("value", JsonValue::Str(m.value.clone())));
+    json_object(&fields)
+}
+
+pub(crate) fn member_annotation_refset_to_json(m: &MemberAnnotationRefsetMember) -> String {
+    let mut fields = core_fields(&m.core);
+    fields.push((
+        "referencedMemberId",
+        JsonValue::Str(m.referenced_member_id.clone()),
+    ));
+    fields.push((
+        "languageDialectCode",
+        JsonValue::Str(m.language_dialect_code.clone()),
+    ));
+    fields.push(("typeId", JsonValue::s(m.type_id)));
+    fields.push(("value", JsonValue::Str(m.value.clone())));
+    json_object(&fields)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -293,5 +396,65 @@ mod tests {
             relationship_concrete_value_to_json(&base(ConcreteValue::String("250mg".to_string())));
         assert!(s.contains("\"valueType\":\"string\""), "{s}");
         assert!(s.contains("\"value\":\"250mg\""), "{s}");
+    }
+
+    fn core(item: u64) -> RefsetMemberCore {
+        RefsetMemberCore {
+            id: format!("80000000-0000-4000-8000-{item:012}"),
+            effective_time: EffectiveTime::new_unchecked(20190731),
+            active: true,
+            module_id: constants::CORE_MODULE,
+            refset_id: constants::MRCM_ATTRIBUTE_DOMAIN_REFERENCE_SET,
+            referenced_component_id: constants::ROOT_CONCEPT,
+        }
+    }
+
+    #[test]
+    fn mrcm_attribute_domain_json_renders_grouped_as_a_bare_boolean() {
+        let m = MrcmAttributeDomainRefsetMember {
+            core: core(1),
+            domain_id: constants::ROOT_CONCEPT,
+            grouped: true,
+            attribute_cardinality: "0..1".to_string(),
+            attribute_in_group_cardinality: "0..*".to_string(),
+            rule_strength_id: constants::PRIMITIVE,
+            content_type_id: constants::PRIMITIVE,
+        };
+        let json = mrcm_attribute_domain_refset_to_json(&m);
+        // Unquoted (not "true"), matching every other JsonValue::Bool field.
+        assert!(json.contains("\"grouped\":true"), "{json}");
+        assert!(json.contains("\"attributeCardinality\":\"0..1\""), "{json}");
+    }
+
+    #[test]
+    fn ordered_association_json_renders_order_as_a_bare_number() {
+        let m = OrderedAssociationRefsetMember {
+            core: core(2),
+            target_component_id: constants::ROOT_CONCEPT,
+            order: 3,
+        };
+        let json = ordered_association_refset_to_json(&m);
+        assert!(json.contains("\"order\":3"), "{json}");
+        assert!(!json.contains("\"order\":\"3\""), "{json}");
+    }
+
+    #[test]
+    fn member_annotation_json_shape() {
+        let m = MemberAnnotationRefsetMember {
+            core: core(3),
+            referenced_member_id: "80000000-0000-4000-8000-000000000099".to_string(),
+            language_dialect_code: "en".to_string(),
+            type_id: constants::ROOT_CONCEPT,
+            value: "a note with \"quotes\"".to_string(),
+        };
+        let json = member_annotation_refset_to_json(&m);
+        assert!(
+            json.contains("\"referencedMemberId\":\"80000000-0000-4000-8000-000000000099\""),
+            "{json}"
+        );
+        assert!(
+            json.contains("\"value\":\"a note with \\\"quotes\\\"\""),
+            "{json}"
+        );
     }
 }

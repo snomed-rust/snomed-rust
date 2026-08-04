@@ -259,8 +259,11 @@ fn export_dir_converts_every_file_in_a_release_directory() {
 fn export_dir_skips_content_it_cannot_export_and_reports_it() {
     let tmp = TempDir::new("export-dir-skip");
     write_synthetic_release(tmp.path());
-    // Recognized RF2 name, but content type "cRefset"/"OrderedComponent"
-    // has no exporter (same gap as `load`'s dispatch).
+    // A parseable name whose (content type, summary) combination has no
+    // exporter: `cRefset` is a real pattern letter, but Ordered
+    // Component's real pattern is `iRefset` (spec/08) — deliberately
+    // mismatched, mirroring `snomed-store::load.rs`'s own test fixture
+    // for the same "recognized name, unrecognized dispatch" shape.
     write(
         tmp.path(),
         "Snapshot/Refset/Ordered/der2_cRefset_OrderedComponentSnapshot_INT_20190731.txt",
@@ -280,6 +283,48 @@ fn export_dir_skips_content_it_cannot_export_and_reports_it() {
         "{summary}"
     );
     assert!(summary.contains("is not yet exportable"), "{summary}");
+}
+
+#[test]
+fn export_covers_the_mrcm_and_ordered_annotation_refset_types() {
+    // The 8 refset types added to snomed-rf2/snomed-store after `export`
+    // first shipped (4 MRCM, 4 Ordered/Annotation) were never wired into
+    // export_to_ndjson's dispatch until now — this proves two of the
+    // eight (one MRCM, one Ordered) actually export, not just parse.
+    let tmp = TempDir::new("export-mrcm-ordered");
+    let mrcm_file = tmp
+        .path()
+        .join("der2_cRefset_MRCMModuleScopeSnapshot_INT_20200731.txt");
+    fs::write(
+        &mrcm_file,
+        "id\teffectiveTime\tactive\tmoduleId\trefsetId\treferencedComponentId\tmrcmRuleRefsetId\n\
+         80000000-0000-4000-8000-000000000071\t20200731\t1\t900000000000207008\t723563008\t900000000000207008\t723560006\n",
+    )
+    .unwrap();
+
+    let out = snomed_cli::run(&[
+        "export".to_string(),
+        mrcm_file.to_str().unwrap().to_string(),
+    ])
+    .unwrap();
+    assert!(out.contains("\"mrcmRuleRefsetId\":\"723560006\""), "{out}");
+
+    let ordered_file = tmp
+        .path()
+        .join("der2_iRefset_OrderedComponentSnapshot_INT_20200731.txt");
+    fs::write(
+        &ordered_file,
+        "id\teffectiveTime\tactive\tmoduleId\trefsetId\treferencedComponentId\torder\n\
+         80000000-0000-4000-8000-000000000072\t20200731\t1\t900000000000207008\t733619002\t404684003\t1\n",
+    )
+    .unwrap();
+
+    let out = snomed_cli::run(&[
+        "export".to_string(),
+        ordered_file.to_str().unwrap().to_string(),
+    ])
+    .unwrap();
+    assert!(out.contains("\"order\":1"), "{out}");
 }
 
 #[test]

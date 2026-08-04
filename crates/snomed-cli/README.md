@@ -118,17 +118,12 @@ against a tiny hand-written two-row Concept file; the file name and the
 `wrote N line(s)` count in these examples are illustrative.)
 
 Single-file mode auto-detects the record type from the file name the same
-way `load` does internally. 14 of the 22 record types this workspace can
-parse are exportable — the three core component types,
-`RelationshipConcreteValue`, and the first 10 refset types added (Simple,
-Language, Association, AttributeValue, SimpleMap, OWLExpression,
-ExtendedMap, ModuleDependency, RefsetDescriptor, DescriptionType). The 8
-added later — the four MRCM types and the four Ordered/Annotation
-types — aren't wired into `export_to_ndjson` yet; a genuine gap, not a
-deliberate cut (see `AGENTS/cli-engineer.md`'s "Known gaps"). Content
-types with no exporter are skipped and reported by name (same as
-`load`), never a hard error, so this gap degrades gracefully. SCTIDs,
-UUIDs, and `effectiveTime` are always
+way `load` does internally. Every RF2 record type this workspace can
+parse is exportable — the three core component types,
+`RelationshipConcreteValue`, and all 18 refset types (spec/08), including
+MRCM and Ordered/Annotation. Any content type this crate doesn't
+recognize at all is still skipped and reported by name (same as `load`),
+never a hard error. SCTIDs, UUIDs, and `effectiveTime` are always
 rendered as JSON **strings**, never numbers — SCTIDs can reach 18 digits,
 well past where JSON numbers keep exact precision in common consumers
 (JavaScript's `JSON.parse`, `jq` in some modes). Only genuinely small
