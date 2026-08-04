@@ -1280,16 +1280,56 @@ This closes Phase 7 (see `plan.md`).
       test-fixture consequence, "one rule that matters most" narrowed to
       match).
 
+## Done (2026-08-04, snomed-ecl concreteStringSet)
+
+- [x] Closed one of the two remaining `snomed-ecl` gaps left in the
+      generic-error bucket: `concreteStringSet` (`("a" "b" ...)`, an OR'd
+      set of strings), e.g. `attr = ("mild" "moderate")`. Previously
+      documented as needing real backtracking to distinguish from a
+      parenthesized `subExpressionConstraint` (both start with `(` right
+      after `=`/`!=`) — turned out not to: fetched the ABNF's
+      `concreteStringSet = "(" ws concreteString *(mws concreteString) ws
+      ")"` production directly (`gh api .../abnf-brief.txt`) and confirmed
+      a `concreteStringSet` always starts with a `concreteString`, which
+      settles the choice from the token right after `(`, no second
+      lookahead slot or backtracking needed.
+- [x] `parse_attribute_comparison`'s `LParen` handling (inside the
+      `Eq`/`NotEq` arm) now consumes `(` itself, then branches on the next
+      token: `QuotedString` loops into a `concreteStringSet`; anything
+      else falls through to a new shared helper,
+      `parse_parenthesized_expression_constraint_tail` (`expressionConstraint
+      ")"`, factored out of `parse_sub_expression_constraint`'s own
+      `LParen` arm so both call sites parse the parenthesized-expression
+      body identically).
+- [x] No `eval.rs` changes needed at all: `AttributeComparison::String.values`
+      already supported multiple entries (`values.iter().any(...)`) from
+      the single-string increment — `concreteStringSet` was purely a
+      parsing gap, evaluation was already generic enough.
+- [x] Tests: 2 new parser (concreteStringSet AST shape incl. negation and
+      a single-element set; a regression check that `= (<< X)` still
+      parses as a parenthesized expression, not a string set), 1 new eval
+      (set membership matches on any element, not just the first).
+      269 tests passing workspace-wide (up from 267). `cargo fmt --all
+      -- --check` and `cargo clippy --all-targets` both clean.
+- [x] Docs: spec/10-ecl.md (grammar's `comparison`/`concreteStringSet`
+      productions, "Concrete value comparisons" section, "Not yet
+      implemented" narrowed to just boolean comparisons now);
+      `crates/snomed-ecl/README.md` (table row, new quick example);
+      `AGENTS/ecl-engineer.md` (the old "genuinely ambiguous" section
+      rewritten into a design note on how it was actually resolved, since
+      the write-up of *why it's hard* was no longer true and would have
+      misled the next person into assuming backtracking is required).
+
 ## Next up
 
 - [ ] Nothing currently scoped. Candidate future work (not yet
       decided/planned): a `snomed-fhir` HTTP server crate (would need a
       new external dependency — needs explicit user direction against
       the zero-dependency policy, not an autonomous pick); `snomed-ecl`'s
-      remaining smaller documented gaps (`concreteStringSet`, boolean
-      concrete comparisons, `{{ }}` filters, the history supplement);
-      property-chain/transitive-property redundancy elimination for
-      `necessary_normal_form` (spec/14's documented, conservative scope
-      cut); re-running the Phase 4 `snomed-store` benchmark (and the
-      Phase 7 `snomed-classify` one) against a real International
-      Edition release if one becomes available.
+      remaining smaller documented gaps (boolean concrete comparisons,
+      `{{ }}` filters, the history supplement); property-chain/transitive-
+      property redundancy elimination for `necessary_normal_form`
+      (spec/14's documented, conservative scope cut); re-running the
+      Phase 4 `snomed-store` benchmark (and the Phase 7 `snomed-classify`
+      one) against a real International Edition release if one becomes
+      available.

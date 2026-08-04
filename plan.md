@@ -148,11 +148,13 @@ the spec's normative rules. Day-to-day execution items live in `tasks.md`.
   why the alternative would be wrong, not just different). Reverse
   flag combined with a concrete comparison is rejected at parse time
   (grammatically legal, semantically empty — a concrete value has no
-  "other concept" to reverse into). Deliberately scoped out:
-  `concreteStringSet` (`("a" "b")`) — genuinely ambiguous with a
-  parenthesized expression given this parser's one-token lookahead,
-  not a quick fix — and boolean comparisons (`ConcreteValue` has no
-  boolean variant anywhere in this workspace). 8 new tests. Wired
+  "other concept" to reverse into). Deliberately scoped out at this
+  point: `concreteStringSet` (`("a" "b")`) — thought at the time to be
+  genuinely ambiguous with a parenthesized expression given this
+  parser's one-token lookahead; turned out not to be, see the later
+  increment below — and boolean comparisons (`ConcreteValue` has no
+  boolean variant anywhere in this workspace, still out of scope). 8 new
+  tests. Wired
   into eval.rs via the existing `relationship_concrete_values_of`
   accessor and cardinality/group-scope machinery, no new store API
   needed.
@@ -175,8 +177,23 @@ the spec's normative rules. Day-to-day execution items live in `tasks.md`.
   hits this since attribute types always exist as their own rows. 2 new
   tests (parser AST shape, eval matching across multiple descendant
   types). This closes both items spec/10 previously flagged as
-  "genuinely harder than a lexer lookahead" — only `concreteStringSet`
-  and boolean concrete comparisons remain in that list now.
+  "genuinely harder than a lexer lookahead".
+- `concreteStringSet` (2026-08-04) ✅ — the OR'd-string-set form
+  (`attr = ("mild" "moderate")`) previously assumed to need real
+  backtracking to disambiguate from a parenthesized `subExpressionConstraint`
+  (both start with `(` right after `=`/`!=`). Fetched the ABNF's
+  `concreteStringSet = "(" ws concreteString *(mws concreteString) ws
+  ")"` production directly and found the ambiguity resolves with the
+  *existing* one-token lookahead: consume `(`, then check the next
+  token — a `concreteStringSet` always starts with a `concreteString`,
+  a parenthesized expression never does. `parse_attribute_comparison`
+  now branches on that; the parenthesized-expression body was factored
+  into a small shared helper so both call sites (this one and
+  `parse_sub_expression_constraint`'s own `LParen` arm) parse it
+  identically. No `eval.rs` change needed — `AttributeComparison::String.values`
+  already supported multiple entries from the single-string increment.
+  3 new tests. Only boolean concrete comparisons remain genuinely
+  unimplemented in `snomed-ecl`'s refinement subset now.
 - History/audit queries over Full-view data ✅: `snomed-store::HistoryStore`
   keeps every version of a Concept/Description/Relationship (spec/09's new
   "History construction" section), built from Full-view files only —

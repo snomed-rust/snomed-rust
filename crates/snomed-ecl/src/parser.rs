@@ -134,9 +134,7 @@ impl Parser {
         match &self.peek().kind {
             TokenKind::LParen => {
                 self.advance()?;
-                let inner = self.parse_expression_constraint()?;
-                self.expect(TokenKind::RParen, "`)`")?;
-                Ok(inner)
+                self.parse_parenthesized_expression_constraint_tail()
             }
             TokenKind::Caret => {
                 self.advance()?;
@@ -186,6 +184,19 @@ impl Parser {
                 Ok(ExpressionConstraint::Simple(simple))
             }
         }
+    }
+
+    /// Parses `expressionConstraint ")"` — the part of a parenthesized
+    /// `subExpressionConstraint` after its opening `(` has already been
+    /// consumed by the caller. Factored out so [`Self::parse_attribute_comparison`]
+    /// can consume `(` itself first (to peek at what follows and decide
+    /// between this and a `concreteStringSet`) and still reuse this body.
+    fn parse_parenthesized_expression_constraint_tail(
+        &mut self,
+    ) -> Result<ExpressionConstraint, EclError> {
+        let inner = self.parse_expression_constraint()?;
+        self.expect(TokenKind::RParen, "`)`")?;
+        Ok(inner)
     }
 
     /// `subRefinement (("AND" | "OR") subRefinement)*` — only AND or only
@@ -387,15 +398,16 @@ impl Parser {
 
     /// `(expressionComparisonOperator subExpressionConstraint) /
     /// (numericComparisonOperator "#" numericValue) / (stringComparisonOperator
-    /// concreteString)` — spec/10. `concreteStringSet` (`("a" "b")`, an
-    /// OR'd set of strings) is not yet implemented: disambiguating it from
-    /// a parenthesized `subExpressionConstraint` needs lookahead past what
-    /// this parser's one-token-of-lookahead design supports cleanly: `(`
-    /// always means "parenthesized expression" here, so writing `= ("a"
-    /// "b")` fails inside expression parsing with a generic error, not a
-    /// named one — a real, documented gap (spec/10), not a bug. Boolean
-    /// comparisons are entirely out of scope: `ConcreteValue` has no
-    /// boolean variant (see `AttributeComparison`'s own doc).
+    /// (concreteString / concreteStringSet))` — spec/10. Disambiguating a
+    /// `concreteStringSet` (`("a" "b")`, an OR'd set of strings) from a
+    /// parenthesized `subExpressionConstraint` (which also starts with `(`
+    /// right after `=`/`!=`) doesn't need real backtracking: once `(` is
+    /// consumed, the very next token settles it — a `concreteStringSet`
+    /// always starts with a `concreteString`, and a parenthesized
+    /// expression never does (its first token is a hierarchy prefix, an
+    /// SCTID, `*`, or `^`). Boolean comparisons remain entirely out of
+    /// scope: `ConcreteValue` has no boolean variant (see
+    /// `AttributeComparison`'s own doc).
     fn parse_attribute_comparison(&mut self) -> Result<AttributeComparison, EclError> {
         match &self.peek().kind {
             TokenKind::LtEq | TokenKind::Lt | TokenKind::GtEq | TokenKind::Gt => {
@@ -432,6 +444,26 @@ impl Parser {
                             negated,
                             values: vec![s],
                         })
+                    }
+                    TokenKind::LParen => {
+                        self.advance()?;
+                        if matches!(self.peek().kind, TokenKind::QuotedString(_)) {
+                            let mut values = Vec::new();
+                            while let TokenKind::QuotedString(_) = &self.peek().kind {
+                                let TokenKind::QuotedString(s) = self.advance()?.kind else {
+                                    unreachable!("matched above")
+                                };
+                                values.push(s);
+                            }
+                            self.expect(TokenKind::RParen, "`)`")?;
+                            Ok(AttributeComparison::String { negated, values })
+                        } else {
+                            let value = self.parse_parenthesized_expression_constraint_tail()?;
+                            Ok(AttributeComparison::Expression {
+                                negated,
+                                value: Box::new(value),
+                            })
+                        }
                     }
                     _ => {
                         let value = self.parse_sub_expression_constraint()?;
@@ -929,11 +961,59 @@ mod tests {
     }
 
     #[test]
-    fn concrete_string_set_is_not_yet_implemented() {
-        // `("a" "b")` (concreteStringSet) isn't distinguished from a
-        // parenthesized subExpressionConstraint — documented gap,
-        // spec/10. It still errors, just not with a named feature.
-        assert!(parse("404684003 : 116676008 = (\"a\" \"b\")").is_err());
+    fn parses_concrete_string_set() {
+        let expr = parse("404684003 : 116676008 = (\"a\" \"b\" \"c\")").unwrap();
+        match expr {
+            EC::Refined {
+                refinement: crate::ast::RefinementConstraint::Attribute(a),
+                ..
+            } => match a.comparison {
+                crate::ast::AttributeComparison::String { negated, values } => {
+                    assert!(!negated);
+                    assert_eq!(
+                        values,
+                        vec!["a".to_string(), "b".to_string(), "c".to_string()]
+                    );
+                }
+                other => panic!("expected String, got {other:?}"),
+            },
+            other => panic!("expected Refined, got {other:?}"),
+        }
+
+        // `!=` and a single-element set both work too.
+        let expr = parse("404684003 : 116676008 != (\"a\")").unwrap();
+        match expr {
+            EC::Refined {
+                refinement: crate::ast::RefinementConstraint::Attribute(a),
+                ..
+            } => match a.comparison {
+                crate::ast::AttributeComparison::String { negated, values } => {
+                    assert!(negated);
+                    assert_eq!(values, vec!["a".to_string()]);
+                }
+                other => panic!("expected String, got {other:?}"),
+            },
+            other => panic!("expected Refined, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn concrete_string_set_still_allows_a_parenthesized_expression_value() {
+        // `(` right after `=` is only a concreteStringSet when the very
+        // next token is a quoted string — otherwise it's the existing
+        // parenthesized-subExpressionConstraint case, unaffected by this
+        // feature (a regression check for the shared `LParen` branch).
+        let expr = parse("404684003 : 116676008 = (<< 79654002)").unwrap();
+        match expr {
+            EC::Refined {
+                refinement: crate::ast::RefinementConstraint::Attribute(a),
+                ..
+            } => assert!(matches!(
+                a.comparison,
+                crate::ast::AttributeComparison::Expression { .. }
+            )),
+            other => panic!("expected Refined, got {other:?}"),
+        }
     }
 
     #[test]

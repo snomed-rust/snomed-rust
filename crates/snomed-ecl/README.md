@@ -52,6 +52,7 @@ let matches = evaluate(&expr, store);
 // your release actually models as a RelationshipConcreteValue.
 let expr = parse("<< 404684003 : 246501002 > #500")?;    // numeric
 let expr = parse("<< 404684003 : 246501002 = \"E10.9\"")?; // string
+let expr = parse("<< 404684003 : 246501002 = (\"E10.9\" \"E11.9\")")?; // concreteStringSet
 let matches = evaluate(&expr, store);
 # Ok(()) }
 ```
@@ -68,7 +69,7 @@ let matches = evaluate(&expr, store);
 | Cardinality | `[min..max] attr = value` — counts matches instead of just checking "any"; defaults to `[1..*]` when omitted |
 | Reverse flag | `R attr = value` — matches by the relationship's *source* instead of its destination |
 | Attribute groups | `[cardinality] { attr = x AND attr2 = y }` — requires one role group (nonzero `relationshipGroup`) to satisfy every attribute together |
-| Concrete values | `attr > #500`, `attr <= #-2.5`, `attr = "E10.9"` — numeric (`=`/`!=`/`<=`/`<`/`>=`/`>`) and string (`=`/`!=`) comparisons against a `RelationshipConcreteValue` |
+| Concrete values | `attr > #500`, `attr <= #-2.5`, `attr = "E10.9"`, `attr = ("E10.9" "E11.9")` — numeric (`=`/`!=`/`<=`/`<`/`>=`/`>`) and string (`=`/`!=`, incl. an OR'd `concreteStringSet`) comparisons against a `RelationshipConcreteValue` |
 | Syntax details | pipe-delimited terms (`73211009 \|Diabetes mellitus\|`, non-semantic), case-insensitive keywords, `,` as an alternate spelling for `AND`, `/* comments */` |
 
 Not yet implemented, never silently mishandled: `{{ }}` filters, the
@@ -76,10 +77,9 @@ history supplement, `!!>`/`!!<`, `^ *`, a hierarchy prefix combined with
 `^`, `^R`, `^ [A, B]` (member of with field selection), alternate
 identifiers (`A#B`), and dot notation are all rejected with a specific
 `EclError::NotYetImplemented { feature, .. }` naming what's missing.
-`concreteStringSet` (`("a" "b" ...)`) and boolean concrete value
-comparisons are rejected too, but currently with a generic parse error
-rather than a named one (spec/10 rule 9) — genuinely unimplemented
-constructs, not just missing a label.
+Boolean concrete value comparisons are rejected too, but currently with
+a generic parse error rather than a named one (spec/10 rule 9) — a
+genuinely unimplemented construct, not just missing a label.
 
 ## Design notes worth knowing before you extend this crate
 

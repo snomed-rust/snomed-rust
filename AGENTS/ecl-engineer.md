@@ -10,12 +10,12 @@ implemented ("simple expression constraints" — hierarchy operators,
 memberOf, wildcard, AND/OR/MINUS — plus refinements: `attributeId
 (= | !=) value` where `attributeId` is itself any `subExpressionConstraint`
 (not just a plain concept reference), numeric/string concrete value
-comparisons, AND/OR, parenthesized groups, attribute cardinality
-`[min..max]`, the reverse flag `R`, and attribute groups `{ }`) and lists
-what is explicitly **not yet implemented** (`concreteStringSet`, boolean
-concrete value comparisons, `{{ }}` filters, `^ *`, `!!>`/`!!<`, history
-supplement, alternate identifiers, a hierarchy prefix combined with `^`,
-dot notation).
+comparisons including `concreteStringSet`, AND/OR, parenthesized groups,
+attribute cardinality `[min..max]`, the reverse flag `R`, and attribute
+groups `{ }`) and lists what is explicitly **not yet implemented**
+(boolean concrete value comparisons, `{{ }}` filters, `^ *`, `!!>`/`!!<`,
+history supplement, alternate identifiers, a hierarchy prefix combined
+with `^`, dot notation).
 
 **The authoritative grammar is the ABNF at
 <https://github.com/IHTSDO/snomed-expression-constraint-language>,
@@ -43,16 +43,16 @@ result.** Every construct spec/10 marks "not yet implemented" MUST fail
 parsing — never be silently accepted and evaluated as something else,
 and never panic. Naming the specific feature via
 `EclError::NotYetImplemented { feature, .. }` is strongly preferred (most
-of spec/10's list gets this now) but isn't yet universal: `concreteStringSet`
-and boolean concrete value comparisons still surface as a generic
-`UnexpectedToken` because recognizing their shape well enough to name
-them isn't as simple as matching a fixed token sequence — see spec/10
-rule 9. Moving one of those from generic to named, without implementing
-the underlying feature, is a welcome, low-risk improvement on its own;
-see the recent `Dot`/`Top`/`Bottom`/`A#B`-detection additions in
-`lexer.rs`/`parser.rs` for the pattern. This is the same principle the
-RF2 reader uses (row-level errors instead of skipped-and-forgotten
-data), applied to syntax.
+of spec/10's list gets this now) but isn't yet universal: boolean
+concrete value comparisons still surface as a generic `UnexpectedToken`
+because recognizing their shape well enough to name it isn't as simple
+as matching a fixed token sequence — see spec/10 rule 9. Moving it from
+generic to named, without implementing the underlying feature, is a
+welcome, low-risk improvement on its own; see the recent
+`Dot`/`Top`/`Bottom`/`A#B`-detection additions in `lexer.rs`/`parser.rs`
+for the pattern. This is the same principle the RF2 reader uses
+(row-level errors instead of skipped-and-forgotten data), applied to
+syntax.
 
 ## The lexer is pull-based, not eager — keep it that way
 
@@ -140,20 +140,28 @@ empties `attribute_types` and every match fails. Real RF2 data doesn't
 hit this because attribute types are always present as their own
 `Concept` rows.
 
-## `concreteStringSet` and `(` are genuinely ambiguous with 1 token of lookahead
+## `concreteStringSet` vs. a parenthesized expression: resolved by consuming `(` first, then peeking
 
 `stringComparisonOperator (concreteString / concreteStringSet)` and
 `expressionComparisonOperator subExpressionConstraint` (which itself
 allows `"(" expressionConstraint ")"`) can both start with `(` right
-after `=`/`!=` — a `concreteStringSet` (`("a" "b")`) and a parenthesized
-expression are only distinguishable by looking *inside* the parens
-(quote vs. concept reference/hierarchy prefix). This parser's `Parser`
-struct holds exactly one token of lookahead (`current`) by design (see
-the lexer module doc on why); resolving this properly means either
-buffering a second token or backtracking, neither of which exists here
-yet. Until one does, `(` after `=`/`!=` is always treated as a
-parenthesized expression — `concreteStringSet` stays in spec/10's
-generic-error bucket, not the named one. Don't "fix" this by guessing
-which one was meant from what character comes first without actually
-adding real lookahead; a wrong guess would be a silently misparsed result,
-which is the one thing spec/10 rule 9 categorically forbids.
+after `=`/`!=`. This turned out not to need real backtracking or a
+second lookahead slot, despite `Parser` holding only one token of
+lookahead (`current`) by design: `parse_attribute_comparison` consumes
+the `(` itself (instead of leaving it for `parse_sub_expression_constraint`
+to see), then checks what `self.peek()` shows *next* — a
+`concreteStringSet` always starts with a `QuotedString` token, a
+parenthesized expression never does. If it's a string, loop consuming
+`QuotedString` tokens until `)`. Otherwise, the `(` is already consumed,
+so the shared parenthesized-expression body was factored out into
+`parse_parenthesized_expression_constraint_tail` (just `expressionConstraint
+")"`, the part *after* `(`) so both call sites — `parse_sub_expression_constraint`'s
+own `LParen` arm and this one — stay in sync without duplicating logic.
+Don't "fix" future single-token-of-lookahead ambiguities by guessing from
+the first character without actually resolving them this way (or with
+real lookahead/backtracking); a wrong guess would be a silently misparsed
+result, which is the one thing spec/10 rule 9 categorically forbids. This
+is the pattern to reach for first when a new ambiguity looks like it
+needs 2 tokens of lookahead: check whether the *very next* token after
+consuming the ambiguous one actually settles it, before assuming real
+backtracking is required.

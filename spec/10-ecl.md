@@ -28,11 +28,11 @@ language behind refset/value-set definitions, MRCM range constraints, and
 `snomed-ecl` implements **simple expression constraints** (hierarchy
 operators, `memberOf`, wildcard, boolean set operators) plus **refinements**
 (`:` attribute-value constraints — expression `=`/`!=`, numeric/string
-concrete value comparisons, `AND`/`OR`, attribute cardinality
-`[min..max]`, the reverse flag `R`, and attribute groups `{ }`),
-evaluated against a [`SnapshotStore`]. `concreteStringSet`/boolean
-concrete value comparisons, description/concept/member filters (`{{ }}`),
-the history supplement, and alternate identifiers are **out of scope for
+concrete value comparisons including `concreteStringSet`, `AND`/`OR`,
+attribute cardinality `[min..max]`, the reverse flag `R`, and attribute
+groups `{ }`), evaluated against a [`SnapshotStore`]. Boolean concrete
+value comparisons, description/concept/member filters (`{{ }}`), the
+history supplement, and alternate identifiers are **out of scope for
 this version** — see
 [Not yet implemented](#not-yet-implemented).
 
@@ -85,13 +85,16 @@ eclAttributeName      := subExpressionConstraint
                         -- is any concept in the evaluated set
 comparison            := ("=" | "!=") subExpressionConstraint      -- expression comparison
                         | numericComparisonOp "#" numericValue     -- numeric concrete value
-                        | ("=" | "!=") concreteString              -- string concrete value
+                        | ("=" | "!=") (concreteString | concreteStringSet)
+                                                                    -- string concrete value
                         -- reverseFlag is only valid with the expression form
                         -- (a concrete value has no "other concept" to reverse
                         -- into) — rejected at parse time otherwise
 numericComparisonOp   := "=" | "!=" | "<=" | "<" | ">=" | ">"
 numericValue          := ["-" | "+"] digit+ ["." digit+]
 concreteString        := '"' <any char except unescaped '"'> '"'  -- \" and \\ are escapes
+concreteStringSet     := "(" concreteString 1*(ws concreteString) ")"
+                        -- an OR'd set of strings, e.g. ("mild" "moderate")
 cardinality           := "[" minValue ".." maxValue "]"
 minValue              := nonNegativeInteger
 maxValue              := nonNegativeInteger | "*"          -- "*" = unbounded
@@ -304,11 +307,12 @@ file-pattern-letter derivation.
 ### Concrete value comparisons
 
 `attributeId numericComparisonOp "#" numericValue` and `attributeId ("="
-| "!=") concreteString` compare against a `RelationshipConcreteValue`
-row's `Number`/`String` (spec/07's concrete domains — `#10` or `#-2.5`
-for numbers, `"250mg"` for strings) instead of a relationship's
-destination concept. As with the expression form, the *count* of
-matching rows is what's checked against `cardinality` (default `[1..*]`):
+| "!=") (concreteString | concreteStringSet)` compare against a
+`RelationshipConcreteValue` row's `Number`/`String` (spec/07's concrete
+domains — `#10` or `#-2.5` for numbers, `"250mg"` or `("250mg" "500mg")`
+for strings) instead of a relationship's destination concept. As with
+the expression form, the *count* of matching rows is what's checked
+against `cardinality` (default `[1..*]`):
 
 - `=`/`!=`/`<=`/`<`/`>=`/`>` are all valid for numbers; only `=`/`!=` for
   strings (the official grammar's `numericComparisonOperator` vs.
@@ -325,17 +329,22 @@ matching rows is what's checked against `cardinality` (default `[1..*]`):
   concrete value comparison: a concrete value has no "other concept" for
   `R` to reverse the source/destination roles of, so the combination is
   syntactically legal per the official grammar but semantically empty.
+- `concreteStringSet` (`("a" "b" ...)`) is an OR'd set: matching is the
+  same per-row `String` equality check as a single `concreteString`,
+  just checked against every value in the set (`values.iter().any(...)`)
+  instead of exactly one — `AttributeComparison::String.values` already
+  carried this shape from the single-string case, so evaluation needed
+  no changes at all, only the parser. Disambiguating `("a" "b")` from a
+  parenthesized `subExpressionConstraint` (both start with `(` right
+  after `=`/`!=`) doesn't need real backtracking despite this crate's
+  one-token-of-lookahead design: once `(` is consumed, the very next
+  token settles it — a `concreteStringSet` always starts with a
+  `concreteString`, a parenthesized expression never does.
 
-**Not implemented: `concreteStringSet`** (`("a" "b" ...)`, an OR'd set of
-strings) and **boolean comparisons**. `concreteStringSet` needs
-lookahead past a `(` to distinguish it from a parenthesized
-`subExpressionConstraint` (both can follow `=`) — this crate's one-
-token-of-lookahead parser doesn't support that cleanly, so `(` is always
-treated as a parenthesized expression, and a genuine `concreteStringSet`
-fails with a generic (not feature-named) error. Boolean comparisons are
-out of scope entirely: `snomed_core::ConcreteValue` has no boolean
-variant, and neither does SNOMED CT's own concrete domain model as this
-project has encountered it.
+**Not implemented: boolean comparisons.** `snomed_core::ConcreteValue`
+has no boolean variant, and neither does SNOMED CT's own concrete domain
+model as this project has encountered it — a deeper gap than just
+`snomed-ecl` would need to close.
 
 ## Concept reference terms
 
@@ -376,13 +385,13 @@ Rejected with a named `EclError::NotYetImplemented`:
   selection).
 
 Rejected, but currently only with a generic lex/parse error (not yet
-named) — genuinely unimplemented constructs, not just missing an error
-label, so naming them precisely isn't as simple as recognizing a fixed
+named) — a genuinely unimplemented construct, not just missing an error
+label, so naming it precisely isn't as simple as recognizing a fixed
 token shape:
 
-- `concreteStringSet` (`("a" "b" ...)`) and boolean concrete value
-  comparisons — see "Concrete value comparisons" above for why (numeric
-  and string comparisons *are* implemented).
+- Boolean concrete value comparisons — see "Concrete value comparisons"
+  above for why (numeric and string comparisons, including
+  `concreteStringSet`, *are* implemented).
 
 ## Rules (normative for `snomed-ecl`)
 

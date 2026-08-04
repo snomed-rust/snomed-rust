@@ -922,4 +922,33 @@ mod tests {
             HashSet::new()
         );
     }
+
+    #[test]
+    fn concrete_string_set_matches_any_member() {
+        let (store, _, string_attr_type) = concrete_value_store();
+        // MI's actual value is "250mg" — matches because it's one of the
+        // set, not because it's the first or only one.
+        assert_eq!(
+            eval(
+                &format!("{MI} : {string_attr_type} = (\"500mg\" \"250mg\")"),
+                &store
+            ),
+            HashSet::from([MI])
+        );
+        assert_eq!(
+            eval(
+                &format!("{MI} : {string_attr_type} = (\"500mg\" \"1000mg\")"),
+                &store
+            ),
+            HashSet::new()
+        );
+        // `!=` negates the whole set membership, same as a single string.
+        assert_eq!(
+            eval(
+                &format!("{MI} : {string_attr_type} != (\"500mg\" \"250mg\")"),
+                &store
+            ),
+            HashSet::new()
+        );
+    }
 }
