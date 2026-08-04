@@ -133,11 +133,9 @@ occurrence:
   still classified normally); a bare `DataHasValue` used where a single
   concept id is required normalizes to an isolated fresh concept with no
   defining axioms (matches nothing, is matched by nothing).
-- **The "necessary normal form" relationship-generation pipeline**:
-  converting a classification back into RF2 `Relationship` rows (with
-  role-group-aware redundancy elimination — removing a stated attribute
-  that's already implied by an inferred ancestor's attributes) is a
-  distinct, harder downstream problem from subsumption classification
-  itself (see the `snomed-owl-toolkit` source cited above). Out of scope
-  for this crate; `Classification` only answers "is A subsumed by B",
-  not "what are A's non-redundant proximal attributes".
+- ~~**The "necessary normal form" relationship-generation pipeline**~~ —
+  now implemented, see `spec/14-necessary-normal-form.md` and
+  `necessary_normal_form`. `Classification` itself still only answers
+  "is A subsumed by B"; the redundancy-reduced, role-grouped RF2
+  `Relationship`-shaped output is a separate downstream step built on top
+  of it, not part of `Classification`'s own API.

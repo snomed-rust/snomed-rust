@@ -11,10 +11,11 @@
 //! of [`snomed_owl::Axiom`] — [`snomed-owl`](../snomed_owl/index.html)
 //! parses syntax, this crate reasons over the result.
 //!
-//! `classify` answers **subsumption** ("is A a subtype of B, according
-//! to these axioms") — it does not generate RF2 relationship rows or
-//! reduce redundant attributes (SNOMED's "necessary normal form"); see
-//! spec/13's "Not yet implemented" section.
+//! `classify` answers **subsumption** ("is A a subtype of B, according to
+//! these axioms"). [`necessary_normal_form`] builds on it to answer the
+//! downstream question: what minimal set of RF2 `Relationship` rows would
+//! a release actually ship for a classified concept (spec/14) — proximal
+//! parents and redundancy-reduced, role-grouped attributes.
 //!
 //! ```
 //! use snomed_core::sctid::SctId;
@@ -37,8 +38,10 @@
 //! ```
 
 mod complete;
+mod normal_form;
 mod normalize;
 mod skipped;
+mod stated_profile;
 mod types;
 
 use std::collections::{HashMap, HashSet};
@@ -46,6 +49,9 @@ use std::collections::{HashMap, HashSet};
 use snomed_core::sctid::SctId;
 use snomed_owl::Axiom;
 
+pub use normal_form::{
+    necessary_normal_form, Attribute, NecessaryNormalForm, NecessaryNormalFormReport,
+};
 pub use skipped::SkippedConstruct;
 
 use types::ConceptId;

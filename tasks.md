@@ -669,19 +669,6 @@ This closes Phase 7 (see `plan.md`).
       3 snomed-cli integration), `cargo fmt --all -- --check` and
       `cargo clippy --all-targets` both clean.
 
-## Next up
-
-- [ ] Nothing currently scoped. Candidate future work (not yet
-      decided/planned): the "necessary normal form" RF2-relationship-
-      generation pipeline on top of `snomed-classify` (role-group-aware
-      redundancy elimination — a distinct, harder problem than
-      subsumption classification itself); a `snomed-fhir` HTTP server
-      crate (would need a new external dependency — needs explicit user
-      direction against the zero-dependency policy, not an autonomous
-      pick); re-running the Phase 4 `snomed-store` benchmark (and the
-      Phase 7 `snomed-classify` one) against a real International
-      Edition release if one becomes available.
-
 ## Done (2026-08-04, snomed-ecl refinements — cardinality, reverse flag, attribute groups)
 
 - [x] Implemented the next three items off spec/10-ecl.md's "Not yet
@@ -743,3 +730,126 @@ This closes Phase 7 (see `plan.md`).
       6 lexer, plus net new/rewritten parser and eval tests for
       cardinality, the reverse flag, and attribute groups). `cargo fmt
       --all -- --check` and `cargo clippy --all-targets` both clean.
+
+## Done (2026-08-04, published all 9 crates to crates.io at 0.2.0)
+
+- [x] User-requested: "publish crates". Found 6 of 9 crates already live
+      at `0.1.0` (published in an earlier, out-of-transcript session) but
+      substantially stale — `snomed-owl`/`snomed-classify`/`snomed-fhir`
+      didn't exist there at all, and the other six had a lot of new public
+      API since. Bumped the whole workspace to `0.2.0` (all crates share
+      one version, released together — confirmed with the user rather
+      than guessing 0.2.0 vs 0.1.1 vs 1.0.0) and published all 9 in
+      dependency order (`core → rf2 → owl → store → classify → ecl →
+      fhir → cli → snomed`), `cargo publish --dry-run` before each real
+      publish. Pushed the version-bump commit to all three mirrors
+      (GitHub/Codeberg/GitLab).
+- [x] Added `CHANGELOG.md` (Keep a Changelog format) — versions are now a
+      real, permanent public record, not just git history, so this was
+      the first gap surfaced by actually publishing for real; linked from
+      the root README.
+
+## Done (2026-08-04, necessary normal form — snomed-classify Phase 7 follow-on)
+
+- [x] User-requested: `do the "necessary normal form" RF2-relationship-
+      generation pipeline on top of snomed-classify (harder, role-
+      group-aware redundancy elimination)` — the item explicitly flagged
+      as "distinct, harder" in every prior "not yet implemented" note
+      since Phase 7 closed.
+- [x] Researched `snomed-owl-toolkit`'s real reference implementation
+      before writing any code: its own summary doc ("Calculating the
+      Necessary Normal Form") for the two-pass shape, then
+      `RelationshipNormalFormGenerator.java` and its supporting
+      `Group`/`UnionGroup`/`GroupSet`/`RelationshipFragment`/
+      `SemanticComparable` classes (fetched via `gh api`) for the actual
+      redundancy-comparison rules — the summary doc alone doesn't state
+      them. New `spec/14-necessary-normal-form.md` documents the ported
+      algorithm with citations.
+- [x] Deliberately scoped down from the reference implementation in two
+      places, both flagged as conservative simplifications (never wrong,
+      only occasionally less-reduced) rather than silently approximated:
+      no property-chain/transitive-property redundancy elimination (the
+      reference's second BFS pass + `NodeGraph` bookkeeping); no union
+      groups (moot — OWL 2 EL, the only profile this workspace's
+      `snomed-owl`/`snomed-classify` support, has no disjunction operator,
+      so every "union group" in the reference's model is always a
+      trivial singleton here).
+- [x] New `snomed_core::constants::ROLE_GROUP` (`609096000`) — SNOMED's
+      OWL encoding of a `relationshipGroup`: `ObjectSomeValuesFrom` on
+      `Role group` with an `ObjectIntersectionOf` filler (already
+      documented in spec/12, now load-bearing for spec/14 too).
+- [x] New `snomed-classify` module `stated_profile.rs`: an independent
+      walker over the raw `Axiom`/`ClassExpression` tree extracting each
+      named concept's own stated parents/attributes, deliberately *not*
+      reusing `normalize.rs`'s output — that module flattens everything
+      into fresh-named NF1–NF3 rules for completion, which loses the
+      `609096000`-wrapper nesting shape group reconstruction needs.
+      Recognizes both role-group shapes (single `ObjectSomeValuesFrom`
+      filler, or `ObjectIntersectionOf` of such for multi-attribute
+      groups) and ungrouped top-level existentials; a GCI (compound
+      `sub`) contributes nothing (no named subject to attach to — its
+      effect on necessary normal form is entirely through the
+      subsumption edges it causes, handled elsewhere). New
+      `SkippedConstruct::UnmodeledAttributeShape` for a filler that isn't
+      a plain concept — same "skip and report" discipline as spec/13.
+- [x] New `snomed-classify` module `normal_form.rs`: `necessary_normal_form`
+      computes, per concept, proximal parents (via `Classification`'s
+      transitive subsumers, reduced to the non-redundant subset) and
+      redundancy-eliminated attribute groups, via cycle-safe recursive
+      memoization (own stated groups + each proximal parent's
+      already-reduced groups, combined through a ported `GroupSet.add`).
+      Fragment-level redundancy (`(s,D)` makes `(r,C)` redundant when `s`
+      is `r`-or-a-subtype in the **role hierarchy** and `D` is `C`-or-a-
+      subtype in concept subsumption) needed a fresh transitive closure
+      over `SubObjectPropertyOf`'s plain edges — a second, independent
+      `normalize()` call, since `NormalizedTBox` isn't retained past
+      `classify()`. Ungrouped (`relationshipGroup 0`) candidates compete
+      in the *same* redundancy pool as numbered groups, never
+      special-cased out — matches the reference implementation exactly,
+      confirmed by reading `toZeroGroups`/`GroupSet.add` directly rather
+      than assuming.
+- [x] 8 new tests (`normal_form.rs`), each proving a rule wrong-without-it:
+      proximal-parent transitivity reduction; attribute redundancy via
+      plain type/value match; attribute redundancy that only fires
+      through **role hierarchy** (not type equality); role-group
+      reconstruction from the real OWL encoding (multi-attribute, via
+      `ObjectIntersectionOf`); ungrouped attributes staying group `0`;
+      whole-group-vs-group redundancy (a more specific group's extra
+      attributes fully covering a less specific inherited group); an
+      unmodeled shape reported via `SkippedConstruct`, not dropped; a GCI
+      contributing only through subsumption, never a direct profile entry.
+      `snomed-classify` goes from 10 to 18 lib tests; 244 tests passing
+      workspace-wide (up from 236). `cargo fmt --all -- --check` and
+      `cargo clippy --all-targets` both clean.
+- [x] Docs: spec/13-classification.md's "Not yet implemented" entry
+      struck through with a pointer to spec/14;
+      `AGENTS/classify-engineer.md` (new sections: the layering rule
+      between `classify`/`necessary_normal_form`, and why
+      `stated_profile.rs` doesn't reuse `normalize.rs`'s output);
+      `AGENTS/owl-engineer.md` updated to stop describing NNF as
+      hypothetical; `crates/snomed-classify/README.md` gets a full
+      "Necessary normal form" section with a real verified example; root
+      `README.md`'s crate table row; `spec/README.md`'s sources list and
+      index table; `snomed` facade's prelude
+      (`necessary_normal_form`/`NecessaryNormalForm`/
+      `NecessaryNormalFormReport`/`Attribute as NnfAttribute`).
+- [x] Deliberately left for a later increment (not this one): wiring
+      `necessary_normal_form` into a `snomed-cli` subcommand — matches
+      the precedent set by `classify` itself, where the crate-level
+      algorithm and its CLI wiring were separate, independently-scoped
+      increments.
+
+## Next up
+
+- [ ] Nothing currently scoped. Candidate future work (not yet
+      decided/planned): a `snomed-cli` subcommand wiring
+      `necessary_normal_form` into the CLI (natural follow-on, same shape
+      as the `classify` crate → `classify` subcommand precedent); a
+      `snomed-fhir` HTTP server crate (would need a new external
+      dependency — needs explicit user direction against the
+      zero-dependency policy, not an autonomous pick); remaining
+      `snomed-ecl` "Not yet implemented" gaps (`{{ }}` filters, concrete
+      value comparisons, `!!>`/`!!<`, alternate identifiers, dot
+      notation); re-running the Phase 4 `snomed-store` benchmark (and the
+      Phase 7 `snomed-classify` one) against a real International
+      Edition release if one becomes available.

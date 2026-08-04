@@ -16,15 +16,18 @@ was itself checked carefully against the papers, rather than guessing.
 
 ## The one rule that matters most
 
-**This crate classifies; `snomed-owl` parses; downstream RF2 generation
-is out of scope.** `classify` answers "is A subsumed by B" — it does not
-produce RF2 `Relationship` rows, does not compute SNOMED's "necessary
-normal form" (role-group-aware redundancy elimination on top of a
-classification — a distinct, harder problem, see
-`snomed-owl-toolkit`'s own docs on it), and does not touch OWL syntax
-parsing (that's `snomed-owl`'s job — this crate only ever consumes
-`Axiom`s it receives, never raw text). Keep these three concerns in
-their three separate crates.
+**`snomed-owl` parses; this crate classifies and (via
+`necessary_normal_form`, spec/14) reduces to RF2-shaped output; neither
+touches OWL syntax parsing.** `classify` itself only ever answers "is A
+subsumed by B" — it never produces `Relationship` rows directly.
+`necessary_normal_form` is a separate, later stage built on top of
+`classify` (its own module, `normal_form.rs` + `stated_profile.rs`), not
+part of `Classification`'s own API — keep that layering: nothing in
+`complete.rs`/`normalize.rs` should need to know about role groups or
+redundancy elimination, and nothing in `normal_form.rs` should reach past
+`Classification`'s public methods into completion internals. OWL syntax
+parsing stays `snomed-owl`'s job — this crate only ever consumes `Axiom`s
+it receives, never raw text.
 
 ## Never let an unmodeled construct silently drop information
 
@@ -36,6 +39,25 @@ silently ignored without a trace. If you add support for one of these
 (see spec/13's "Not yet implemented" list for what each would need), move
 it out of `normalize.rs`'s skip-and-report branches into real normal-form
 rules, and update spec/13's grammar/scope tables in the same change.
+`stated_profile.rs` follows the identical discipline for its own
+unmodeled shapes (a role-group or ungrouped filler that isn't a plain
+concept) via `SkippedConstruct::UnmodeledAttributeShape` — extend that
+enum, not a bespoke error type, when `normal_form.rs` needs to report
+something new.
+
+## `normal_form.rs` reads axioms directly — it doesn't reuse `normalize.rs`'s output
+
+`normalize.rs` flattens everything (including role groups) into
+fresh-named NF1–NF3 rules for completion; by the time that's done, the
+"this was specifically a `609096000` role-group wrapper" structure is
+gone — recoverable in principle by walking the fresh-name graph back out,
+but fragile (silently breaks if the fresh-naming strategy ever changes)
+and duplicative of information the original `Axiom` tree already has
+directly. `stated_profile.rs` is a second, independent walker over the
+same `Axiom`/`ClassExpression` input, built specifically to preserve that
+shape (spec/14's "Stated profile extraction"). If you touch
+`normalize.rs`'s structural-transformation strategy, `stated_profile.rs`
+does not need to change — that's the point of keeping them separate.
 
 ## Performance: never clone a growing collection inside the event loop
 

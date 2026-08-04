@@ -69,17 +69,47 @@ silently dropped**: `ClassificationReport::skipped` lists one
 section for why each is out of scope (mostly: concrete-value/numeric
 reasoning is a different kind of problem than EL's qualitative
 completion, and reflexivity is real but vanishingly rare in actual SNOMED
-CT content).
+CT content). `necessary_normal_form` extends the same enum with
+`SkippedConstruct::UnmodeledAttributeShape` for a stated attribute (role
+group or ungrouped) whose filler isn't a plain concept.
 
-## What's *not* implemented
+## Necessary normal form
 
-`snomed-classify` answers **subsumption** ("is A a subtype of B") — it
-does not generate RF2 `Relationship` rows or compute SNOMED's "necessary
-normal form" (which needs role-group-aware redundancy elimination on top
-of classification — see
-[`snomed-owl-toolkit`'s own documentation of that step](https://github.com/IHTSDO/snomed-owl-toolkit/blob/master/documentation/calculating-necessary-normal-form.md)).
-That's a distinct, harder downstream problem, tracked separately in the
-root `tasks.md` if it's ever picked up.
+`classify` answers **subsumption** ("is A a subtype of B") — it doesn't
+by itself tell you what RF2 `Relationship` rows a release should ship.
+`necessary_normal_form` builds that on top: proximal (most specific,
+non-redundant) entailed parents, plus role-grouped attributes with
+redundancy eliminated — the same reduction
+[`snomed-owl-toolkit`'s `RelationshipNormalFormGenerator`](https://github.com/IHTSDO/snomed-owl-toolkit/blob/master/documentation/calculating-necessary-normal-form.md)
+performs. See [`spec/14-necessary-normal-form.md`](../../spec/14-necessary-normal-form.md)
+for the full algorithm (ported from that reference implementation) and
+what's out of scope (property-chain-based redundancy elimination — a
+conservative simplification that never produces wrong output, only
+occasionally retains a few extra, technically-redundant attributes; union
+groups, not applicable since EL has no disjunction).
+
+```rust
+use snomed_core::sctid::SctId;
+use snomed_owl::{parse, Axiom};
+use snomed_classify::necessary_normal_form;
+
+let axioms: Vec<Axiom> = [
+    "SubClassOf(:64572001 :404684003)", // |Disease| ⊑ |Clinical finding|
+    "SubClassOf(:22298006 :64572001)",  // |Myocardial infarction| ⊑ |Disease|
+]
+.iter()
+.map(|s| parse(s).unwrap())
+.collect();
+
+let report = necessary_normal_form(&axioms);
+let mi = SctId::parse("22298006").unwrap();
+let disease = SctId::parse("64572001").unwrap();
+let finding = SctId::parse("404684003").unwrap();
+// Proximal parent only: Disease, not also the transitively-implied
+// Clinical finding — that's the redundancy reduction in action.
+assert_eq!(report.forms[&mi].is_a, vec![disease]);
+assert!(!report.forms[&mi].is_a.contains(&finding));
+```
 
 ## Performance
 

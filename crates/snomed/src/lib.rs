@@ -13,7 +13,8 @@
 //! - [`owl`] ([`snomed_owl`]) — parser for the OWL 2 functional-syntax
 //!   subset used in the OWL Expression reference set;
 //! - [`classify`] ([`snomed_classify`]) — EL-profile subsumption
-//!   classifier over `snomed_owl::Axiom`s.
+//!   classifier over `snomed_owl::Axiom`s, plus necessary normal form
+//!   (RF2 relationship) generation on top of it.
 //!
 //! ```
 //! use snomed::prelude::*;
@@ -74,5 +75,8 @@ pub mod prelude {
         ObjectPropertyExpression, OwlError,
     };
 
-    pub use snomed_classify::{classify, Classification, ClassificationReport, SkippedConstruct};
+    pub use snomed_classify::{
+        classify, necessary_normal_form, Attribute as NnfAttribute, Classification,
+        ClassificationReport, NecessaryNormalForm, NecessaryNormalFormReport, SkippedConstruct,
+    };
 }

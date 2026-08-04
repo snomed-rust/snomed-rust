@@ -351,6 +351,32 @@ fix it surfaced, and `HistoryStore`.
   failures and skipped constructs (capped at 5 + a "... and N more"
   tail) rather than hard-failing on either. With a concept id, prints
   its entailed supertypes (by FSN); without one, prints a summary count.
+- **Necessary normal form** (2026-08-04) ✅: `necessary_normal_form`
+  reduces a classification down to the minimal RF2-`Relationship`-shaped
+  output — proximal (non-redundant) entailed parents, plus role-grouped
+  attributes with redundancy eliminated — porting `snomed-owl-toolkit`'s
+  `RelationshipNormalFormGenerator` algorithm (fetched and read directly,
+  not re-derived from its own summary doc alone, since that doc doesn't
+  state the actual comparison rules). New `spec/14-necessary-normal-
+  form.md`. Two new modules: `stated_profile.rs` (an independent walker
+  over the raw `Axiom` tree recognizing `609096000 |Role group|`'s OWL
+  encoding — deliberately *not* reusing `normalize.rs`'s fresh-named
+  NF1–NF3 output, which has already lost that nesting shape by the time
+  completion runs) and `normal_form.rs` (proximal-parent reduction,
+  role-hierarchy-and-subsumption-aware attribute redundancy elimination,
+  cycle-safe recursive memoization per concept, deterministic group
+  numbering). New `snomed_core::constants::ROLE_GROUP`. Scoped down from
+  the reference implementation in two ways, both documented as
+  conservative (never wrong, occasionally less-reduced) rather than
+  silent: no property-chain/transitive-property redundancy elimination
+  (the reference's second BFS pass), and no union-group handling (moot —
+  OWL 2 EL, the only profile this workspace's OWL parser/classifier
+  support, has no disjunction operator at all). 18 new tests, including
+  the two subtlest cases: attribute redundancy that only fires via role
+  *hierarchy* (not just plain type equality), and whole-group-vs-group
+  redundancy where a more specific group's extra attributes cover a less
+  specific inherited group's requirements entirely. Wired into the
+  `snomed` facade's prelude.
 
 ## Non-goals (for now)
 

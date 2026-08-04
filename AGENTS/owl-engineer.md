@@ -39,12 +39,10 @@ keeping the rest of the real shape intact (root `CLAUDE.md` convention).
 inferred-hierarchy computation, no DL reasoner — that's
 [`snomed-classify`](../crates/snomed-classify)'s job now (spec/13,
 `AGENTS/classify-engineer.md`), a separate crate that consumes this
-one's `Axiom` output. If a task starts to look like "given these axioms,
-compute the *necessary normal form*" (RF2 relationship generation with
-role-group-aware redundancy elimination on top of a classification) —
-that's a distinct, harder problem `snomed-classify` doesn't attempt
-either (see its README); it would need its own `plan.md` decision, not
-folding into either existing crate.
+one's `Axiom` output. That now includes "given these axioms, compute the
+*necessary normal form*" too (spec/14) — `snomed-classify::
+necessary_normal_form`, a later stage built on top of classification, not
+folded into this crate either.
 
 ## Never let an unsupported construct silently misparse
 

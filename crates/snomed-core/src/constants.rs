@@ -12,6 +12,10 @@ use crate::sctid::SctId;
 pub const ROOT_CONCEPT: SctId = SctId::new_unchecked(138875005);
 /// `116680003 |Is a|` — the subtype relationship type.
 pub const IS_A: SctId = SctId::new_unchecked(116680003);
+/// `609096000 |Role group|` — used as the `ObjectSomeValuesFrom` attribute
+/// with an `ObjectIntersectionOf` filler to encode an RF2 `relationshipGroup`
+/// in OWL (spec/12, spec/14).
+pub const ROLE_GROUP: SctId = SctId::new_unchecked(609096000);
 
 // -- Modules ------------------------------------------------------------
 
@@ -109,6 +113,7 @@ mod tests {
         let all: &[SctId] = &[
             ROOT_CONCEPT,
             IS_A,
+            ROLE_GROUP,
             CORE_MODULE,
             MODEL_COMPONENT_MODULE,
             PRIMITIVE,
