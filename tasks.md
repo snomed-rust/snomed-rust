@@ -238,7 +238,13 @@ This closes Phase 5 (`snomed-ecl` simple constraints + basic refinements,
       JSON serialization in the new `crates/snomed-cli/src/json.rs` (no
       serde) — every RF2 record type this workspace parses is exportable
       (3 core component types, `RelationshipConcreteValue`, all 10 refset
-      types). SCTIDs/UUIDs/`effectiveTime` always render as JSON *strings*
+      types) **as of this entry's date** — true when written, but
+      `export_to_ndjson`'s dispatch was never extended for the 8 refset
+      types (4 MRCM, 4 Ordered/Annotation) added later in Phase 6, unlike
+      `load.rs`'s dispatch, which was. Now a real, tracked gap — see
+      `AGENTS/cli-engineer.md`'s "Known gaps" and the later
+      documentation-audit entries in this file.
+      SCTIDs/UUIDs/`effectiveTime` always render as JSON *strings*
       (never numbers — SCTIDs reach 18 digits, past where JSON numbers keep
       exact precision in common consumers like JS's `JSON.parse`); only
       genuinely small bounded integers (`relationshipGroup`, `mapGroup`,
@@ -977,10 +983,54 @@ This closes Phase 7 (see `plan.md`).
       documentation/comment-only, no behavior changes), `cargo fmt --all
       -- --check` and `cargo clippy --all-targets` both clean.
 
+## Done (2026-08-04, plan.md/tasks.md accuracy pass)
+
+- [x] User-requested follow-on to the documentation audit above: "update
+      accuracy and specificity of any plans, any tasks, any files, any
+      agent files" — this time targeting `plan.md` and `tasks.md`
+      themselves, which the prior pass had only appended to, never
+      audited for internal accuracy.
+- [x] Ran two more read-only audit agents (one per file, since each is
+      large enough to warrant its own focused pass) plus verified their
+      findings myself before fixing anything.
+- [x] Found and fixed the same real gap independently in both files:
+      `plan.md`'s Phase 6 `export` bullet and `tasks.md`'s "snomed-cli
+      export" entry both claimed (accurately, when written) that every
+      RF2 record type this workspace parses is exportable. Neither was
+      updated when the MRCM and Ordered/Annotation refset types shipped
+      later in the same phase — `export_to_ndjson`'s dispatch (unlike
+      `load.rs`'s, which *was* kept current) still only covers the
+      original 14 of the now-22 record types. This is a real, unshipped
+      gap, not a documentation error to paper over — annotated both
+      historical entries honestly (`tasks.md`'s in place, without
+      rewriting the historical claim itself) and added it to
+      `AGENTS/cli-engineer.md`'s "Known gaps" and
+      `crates/snomed-cli/README.md`'s export section with the exact
+      scope needed to close it (one `*_to_json` fn + one dispatch arm
+      per missing type, following the existing 10's shape).
+- [x] `plan.md`'s Phase 6 header was missing the `✅` every other closed
+      phase's header carries, even though the phase's own body text says
+      "Phase 6 is closed." — fixed for consistency with the file's own
+      established convention.
+- [x] Everything else audited came back clean: `tasks.md`'s test-count
+      arithmetic sums correctly end-to-end (verified against a live
+      `cargo test --workspace` run); no duplicate `## Next up` sections;
+      every item in the final `## Next up` list confirmed still
+      genuinely unimplemented; date ordering fully chronological; spot-
+      checked "Done" entries' cited files/functions/tests all verified
+      to actually exist as described; `plan.md`'s benchmark numbers,
+      refset-type counts, and non-goals/risks sections all still
+      accurate.
+- [x] 247 tests passing (unchanged — no code behavior changed, only
+      documentation), `cargo fmt --all -- --check` and `cargo clippy
+      --all-targets` both clean.
+
 ## Next up
 
 - [ ] Nothing currently scoped. Candidate future work (not yet
-      decided/planned): a `snomed-fhir` HTTP server crate (would need a
+      decided/planned): extending `snomed-cli export` for the 8 refset
+      types it's missing (see the entry just above — a small, mechanical
+      gap, well-scoped); a `snomed-fhir` HTTP server crate (would need a
       new external dependency — needs explicit user direction against
       the zero-dependency policy, not an autonomous pick); remaining
       `snomed-ecl` "Not yet implemented" gaps, now split by whether they

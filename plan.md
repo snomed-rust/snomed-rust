@@ -144,14 +144,20 @@ the spec's normative rules. Day-to-day execution items live in `tasks.md`.
 expression constraints + basic refinements), the `is_member` correctness
 fix it surfaced, and `HistoryStore`.
 
-## Phase 6 — Interop & tooling
+## Phase 6 — Interop & tooling ✅
 
 - New crate `snomed-cli` ✅: `sctid` (validate/inspect), `load` (read a
   release directory, print a summary — Snapshot by default, `--full` for
   the Full view), `lookup` (FSN/synonyms/parents/children for a concept),
   `ecl` (evaluate an expression against a loaded release), `export`
-  (RF2 → NDJSON, one file at a time, all 14 record types this workspace
-  parses), `validate` (referential integrity + IS-A acyclicity — see
+  (RF2 → NDJSON, one file at a time; covered the 14 record types this
+  workspace parsed at the time — 3 core component types,
+  `RelationshipConcreteValue`, and the first 10 refset types. **Not**
+  extended for the 8 refset types added later in this same phase — MRCM's
+  four and Ordered/Annotation's four, below — a real gap, not a
+  deliberate scope cut; tracked in `AGENTS/cli-engineer.md`'s "Known
+  gaps" and `tasks.md`), `validate` (referential integrity + IS-A
+  acyclicity — see
   below). Deliberately thin — `src/lib.rs`'s `run(args) -> Result<String,
   _>` does all the work and is directly testable without spawning the
   binary; `src/main.rs` is ~10 lines. Hand-rolled argument parsing *and*
