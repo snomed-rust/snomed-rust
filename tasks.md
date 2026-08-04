@@ -875,16 +875,121 @@ This closes Phase 7 (see `plan.md`).
       `classify`/`nnf`, notes the shared helper), `plan.md`'s Phase 7
       entry.
 
+## Done (2026-08-04, documentation audit and harmonization pass)
+
+- [x] User-requested: "update, upgrade, harmonize, audit, fix" across
+      three areas — spec/* as single source of truth, CLAUDE.md/
+      AGENTS.md/AGENTS/* (kept under 40k bytes each), and README.md/
+      index.md/examples/tutorials. Ran four parallel read-only audit
+      agents (spec/01-09 vs. RF2-core code; spec/10-14 vs. ECL/FHIR/
+      OWL/classify code; CLAUDE.md/AGENTS.md/AGENTS/* internal
+      consistency; README.md + every crate README + docs completeness),
+      then fixed every concrete finding myself directly (audits were
+      read-only by design — no agent-authored edits landed unreviewed).
+- [x] spec/01-overview.md: "Scope of this workspace" was badly stale —
+      listed ECL, OWL parsing, and FHIR as "out of scope for now" when
+      all three have been shipped crates for multiple sessions, and
+      didn't mention `snomed-classify`/necessary normal form at all.
+      Rewrote to reflect current scope; narrowed genuine remaining scope
+      cuts to MRCM *rule* enforcement and an HTTP FHIR server.
+- [x] spec/02-release-types.md rule 4: claimed the loader only dispatches
+      Concept/Description/Relationship/Language refset files, "other
+      refset patterns... not-yet-loaded" — false since the MRCM and
+      Ordered/Annotation work landed; the loader dispatches all 18
+      refset types plus concrete values. Rewrote the rule.
+- [x] spec/10-ecl.md's "Not yet implemented" section claimed every listed
+      construct "MUST produce a clear parse error naming the missing
+      feature" — the audit found roughly half (dot notation, `A#B`,
+      `!!>`/`!!<`, `^R`/`^[A,B]`) actually fall through to a generic
+      lexer/parser error, not a named `NotYetImplemented`. Split the list
+      into "named error" vs. "generic error, not yet named" groups and
+      added rule 9 stating the honest guarantee (rejected, never silently
+      wrong; naming is preferred but not yet universal) — spec now
+      matches code exactly instead of overclaiming.
+- [x] spec/14-necessary-normal-form.md: named
+      `SkippedConstruct::UnmodeledAttributeShape` explicitly in the
+      "Stated profile extraction" section (previously only described
+      generically as "reported via `SkippedConstruct`").
+- [x] Three stale doc comments in code, found by cross-checking spec
+      against the actual crate doc comments (not just spec prose against
+      spec prose): `crates/snomed-store/src/load.rs`'s test fixture
+      comment claimed a file was skipped because spec/08 listed ordered
+      refsets as unimplemented (false — it's skipped because the test
+      deliberately uses the wrong file-pattern letter);
+      `crates/snomed-fhir/src/lib.rs`'s crate doc still listed the bare
+      `?fhir_vs=refset` form as not-yet-implemented (shipped in the
+      2026-08-03 session); `crates/snomed-owl/src/lib.rs`'s crate doc
+      said a DL classifier was "out of scope for this zero-dependency
+      workspace" (should say "for this crate" — `snomed-classify` *is*
+      that classifier, in the same workspace).
+- [x] CLAUDE.md's Layout section listed only 4 of 9 crates (missing
+      `snomed-ecl`, `snomed-fhir`, `snomed-owl`, `snomed-classify`,
+      `snomed-cli`) — the most consequential finding, since this is the
+      root instructions file. Rewrote to list all 9; also added the CLI
+      to the Commands section and a Gotchas line about the
+      "unsupported construct → typed error, never silent" pattern
+      repeated across `AGENTS/ecl-engineer.md`/`owl-engineer.md`/
+      `classify-engineer.md`.
+- [x] AGENTS.md: added a one-line note explaining why `snomed-core` and
+      `snomed` (the facade) have no dedicated `AGENTS/*.md` playbook
+      (folded into `rf2-engineer.md`; no domain logic of its own,
+      respectively) — previously true but unstated, which the audit
+      flagged as an undocumented gap rather than a wrong claim.
+      `AGENTS.md` itself and every other `AGENTS/*.md` file were
+      confirmed already accurate (crate lists, spec citations, and the
+      "classify"/"necessary_normal_form" shipped-not-hypothetical
+      language all checked out) — most of this category needed no fix.
+- [x] AGENTS/cli-engineer.md: added an explicit "current subcommands"
+      list near the top (`sctid`, `load`, `lookup`, `ecl`, `export`,
+      `validate`, `classify`, `nnf`) — the file discussed several
+      individually but never enumerated all eight in one place.
+- [x] Confirmed (not a fix — a check): CLAUDE.md, AGENTS.md, and every
+      `AGENTS/*.md` file are all comfortably under the 40k-byte
+      constraint (largest is `AGENTS/fhir-engineer.md` at 6892 bytes) —
+      no splitting was needed.
+- [x] Root README.md: intro paragraph didn't mention FHIR/OWL/classify
+      capabilities despite the Quick Start example right below using
+      them; "Development" section pointed to a stale `plan.md`
+      parenthetical ("deeper release validation, FHIR building
+      blocks" — FHIR shipped, no open next-phase currently). Both fixed;
+      crate table, Quick Start Rust block, and terminal quick-start were
+      all independently confirmed already accurate (all 9 crates, all 8
+      subcommands, every prelude name verified to actually exist).
+- [x] `crates/snomed/README.md` (the facade's own README) was the most
+      stale file found: listed only 4 of 7 re-exports (missing `fhir`,
+      `owl`, `classify`), linked only 4 of 8 sibling READMEs, and its
+      end-to-end example never touched OWL/classification despite the
+      crate re-exporting both. Rewrote comprehensively; the prelude
+      section now points to `src/lib.rs` as the authoritative list
+      instead of re-enumerating every name (avoids the exact drift that
+      caused this staleness in the first place).
+- [x] New `index.md` at the repo root: a documentation map (spec/crate-
+      README/AGENTS-playbook layers and when to read which), a
+      spec-to-crate cross-reference table, and a genuine worked example
+      spanning four crates in one pipeline (`snomed-store` load →
+      `snomed-ecl` query → `snomed-owl`/`snomed-classify` necessary
+      normal form → `snomed-fhir` `$expand` over the equivalent implicit
+      value set, asserting both paths agree) — the one thing no existing
+      single file demonstrated. Every API call in the example was
+      individually verified against real function signatures, not
+      assumed from memory.
+- [x] 247 tests passing workspace-wide (unchanged — this pass was
+      documentation/comment-only, no behavior changes), `cargo fmt --all
+      -- --check` and `cargo clippy --all-targets` both clean.
+
 ## Next up
 
 - [ ] Nothing currently scoped. Candidate future work (not yet
       decided/planned): a `snomed-fhir` HTTP server crate (would need a
       new external dependency — needs explicit user direction against
       the zero-dependency policy, not an autonomous pick); remaining
-      `snomed-ecl` "Not yet implemented" gaps (`{{ }}` filters, concrete
-      value comparisons, `!!>`/`!!<`, alternate identifiers, dot
-      notation); property-chain/transitive-property redundancy
-      elimination for `necessary_normal_form` (spec/14's documented,
-      conservative scope cut); re-running the Phase 4 `snomed-store`
-      benchmark (and the Phase 7 `snomed-classify` one) against a real
-      International Edition release if one becomes available.
+      `snomed-ecl` "Not yet implemented" gaps, now split by whether they
+      get a named `NotYetImplemented` error (spec/10) — giving the
+      generic-error group (dot notation, `A#B`, `!!>`/`!!<`, `^R`/
+      `^[A,B]`) a named error each is a small, low-risk improvement that
+      doesn't need a `plan.md` decision (spec/10 rule 9); property-chain/
+      transitive-property redundancy elimination for
+      `necessary_normal_form` (spec/14's documented, conservative scope
+      cut); re-running the Phase 4 `snomed-store` benchmark (and the
+      Phase 7 `snomed-classify` one) against a real International
+      Edition release if one becomes available.

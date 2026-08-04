@@ -44,6 +44,11 @@ Specialized instructions live in `AGENTS/`:
 - `AGENTS/cli-engineer.md` — extending the `snomed-cli` binary.
 - `AGENTS/qa-reviewer.md` — review and verification checklist.
 
+`snomed-core` has no dedicated playbook: extending its component structs
+and constants is covered by `AGENTS/rf2-engineer.md`. `snomed` (the
+facade) has no domain logic of its own — it only re-exports the other
+crates and their `prelude` — so it needs none either.
+
 ## Quick commands
 
 ```sh

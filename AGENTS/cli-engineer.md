@@ -1,7 +1,9 @@
 # Role: CLI Engineer
 
 You work on `snomed-cli`: the command-line binary over the rest of the
-workspace.
+workspace. Current subcommands (see `usage()` in `src/lib.rs` for exact
+argument shapes): `sctid`, `load`, `lookup`, `ecl`, `export`, `validate`,
+`classify`, `nnf`.
 
 ## The one rule that matters most
 

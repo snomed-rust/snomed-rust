@@ -73,7 +73,10 @@ SnomedCT_InternationalRF2_PRODUCTION_<date>/
    recognized, dispatched file that fails RF2 parsing (spec/01's format
    rules) — malformed data in a file the loader claims to understand is a
    hard error, not a skip.
-4. `snomed-store::load_release_dir` currently dispatches Concept,
-   Description/TextDefinition, Relationship/StatedRelationship, and Language
-   refset files (spec/05..08); other refset patterns are recognized-but-not-
-   yet-loaded, tracked in `tasks.md`.
+4. `snomed-store::load_release_dir` dispatches every component type
+   (Concept, Description/TextDefinition, Relationship/StatedRelationship,
+   RelationshipConcreteValues) and every refset type this workspace parses
+   — spec/08's full table, including all four MRCM types and the current
+   Ordered/Annotation variants (spec/05..08). No refset pattern this
+   workspace tracks is recognized-but-not-loaded; a genuinely unrecognized
+   (content type, summary) combination still skip-and-reports per rule 3.

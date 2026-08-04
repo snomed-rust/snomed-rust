@@ -289,24 +289,40 @@ never consulted during evaluation; only the SCTID is evaluated).
 
 ## Not yet implemented
 
-Tracked in `tasks.md`. Encountering any of these in input MUST produce a
-clear parse error naming the missing feature, never a silently wrong result:
+Tracked in `tasks.md`. None of these produce a silently *wrong* result —
+every one is rejected — but only some are rejected with a specific,
+feature-naming `EclError::NotYetImplemented`; the rest currently fall
+through to a generic lexer/parser error (`UnexpectedChar`/
+`UnexpectedToken`) because the parser never reaches a point where it
+recognizes the shape well enough to name it. This distinction is itself
+tracked as a gap (see rule 9 below) — don't assume every item below gets
+a named error without checking `parser.rs`/`lexer.rs` first.
 
-- Dot notation (`.` / `dottedExpressionConstraint`).
+Rejected with a named `EclError::NotYetImplemented`:
+
+- `{{ }}` description, concept, and member filters; the history
+  supplement (`{{+HISTORY}}`).
+- `^ *` (member of any refset) and a hierarchy prefix combined with `^`
+  (e.g. `< ^ 447562003`).
+
+Rejected, but currently only with a generic lex/parse error (not yet
+named):
+
+- Dot notation (`.` / `dottedExpressionConstraint`) — a lone `.` is an
+  `UnexpectedChar` (only `..`, the cardinality separator, is a
+  recognized token).
+- `A#B` alternate identifiers — `#` is an `UnexpectedChar`.
+- `!!>` / `!!<` (`top`/`bottom` — part of `constraintOperator`) — `!` not
+  followed by `=` is an `UnexpectedChar`.
+- `^R` (refsetContainingAny) and `^ [A, B]` (member of, with field
+  selection) — falls through to `parse_concept_reference`'s generic
+  `UnexpectedToken { expected: "an SCTID" }`.
 - Attribute names that are anything other than a plain concept reference
   (the official grammar allows any `subExpressionConstraint` as
   `eclAttributeName`, e.g. a hierarchy-prefixed attribute name).
 - Concrete value comparisons (numeric/string/boolean operators on
   relationship concrete values — `attributeConstraint` here only supports
   the expression-comparison form, `subExpressionConstraint` as the value).
-- `{{ }}` description, concept, and member filters; the history supplement
-  (`{{+HISTORY}}`).
-- `!!>` / `!!<` (`top`/`bottom` — part of `constraintOperator`, see above).
-- `^R` (refsetContainingAny) and `^ [A, B]` (member of, with field
-  selection).
-- `^ *` (member of any refset) and a hierarchy prefix combined with `^`
-  (e.g. `< ^ 447562003`).
-- `A#B` alternate identifiers.
 
 ## Rules (normative for `snomed-ecl`)
 
@@ -339,3 +355,9 @@ clear parse error naming the missing feature, never a silently wrong result:
 8. Role group `0` MUST NOT be treated as a candidate group for `{ }`
    evaluation (see "Attribute groups" above) — every `{ }` evaluation MUST
    filter it out before counting satisfying groups.
+9. Nothing in "Not yet implemented" above MAY be silently accepted and
+   evaluated as something else, or panic — every one MUST be rejected.
+   Naming the specific missing feature via `EclError::NotYetImplemented`
+   is preferred but not yet required of every item (see the two-group
+   split above); moving an item from "generic error" to "named error" is
+   a welcome, low-risk improvement and does not need a `plan.md` decision.

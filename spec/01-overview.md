@@ -33,8 +33,17 @@ those, stamped with an `effectiveTime`.
 
 ## Scope of this workspace
 
-Implemented: core component files, the common refset pattern plus the widely
-used refset types, file naming, SCTID validation/generation, snapshot
-construction, and IS-A hierarchy queries. Out of scope for now (tracked in
-`plan.md`): ECL, OWL axiom parsing, MRCM enforcement, FHIR terminology
-services.
+Implemented: core component files, every refset pattern this workspace
+tracks (spec/08's full table, including MRCM and the current Ordered/
+Annotation variants), file naming, SCTID validation/generation, snapshot
+construction and full version history, IS-A hierarchy queries, Expression
+Constraint Language (spec/10), FHIR terminology-service building blocks
+(spec/11), OWL axiom parsing (spec/12), EL-profile subsumption
+classification (spec/13), and necessary normal form generation (spec/14).
+
+Out of scope for now (tracked in `plan.md`/`tasks.md`): MRCM *rule*
+enforcement (the four MRCM refset types are parsed and loaded, but their
+constraints aren't validated against content); an HTTP FHIR server (this
+workspace ships terminology-operation building blocks, not a server —
+would need a new external dependency, a deliberate `plan.md` decision, not
+an incremental addition).

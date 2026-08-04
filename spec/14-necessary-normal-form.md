@@ -137,10 +137,11 @@ normalization) and classify each:
   either a single `ObjectSomeValuesFrom(r, v)` or an `ObjectIntersectionOf`
   of such — each `(r, v)` becomes one attribute in the group. `v` MUST be
   a plain `Concept`; anything else (nested existential, `DataHasValue`) is
-  **not modeled** — reported via `SkippedConstruct`, never silently
-  dropped, same philosophy as spec/13.
+  **not modeled** — reported via `SkippedConstruct::UnmodeledAttributeShape`,
+  never silently dropped, same philosophy as spec/13.
 - `ObjectSomeValuesFrom(r, v)` (`r ≠ 609096000`) → an ungrouped attribute
-  `(r, v)`. Same `v`-must-be-plain requirement.
+  `(r, v)`. Same `v`-must-be-plain requirement; a non-plain `v` is also
+  `SkippedConstruct::UnmodeledAttributeShape`.
 - `DataHasValue` → already-known-unmodeled (spec/13's `ConcreteValue`).
 - A `SubClassOf` whose `sub` is not a plain `Concept` (a GCI) contributes
   nothing to any concept's stated profile — it has no named subject to

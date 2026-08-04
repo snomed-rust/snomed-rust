@@ -445,9 +445,11 @@ mod tests {
             "id\teffectiveTime\tactive\tmoduleId\trefsetId\treferencedComponentId\tattributeDescription\tattributeType\tattributeOrder\n",
         );
 
-        // Recognized name, no record type implemented for it yet (spec/08
-        // still lists ordered/annotation variants as not yet implemented):
-        // should be skipped, not erred.
+        // A parseable name whose (content type, summary) combination the
+        // dispatcher doesn't recognize: `cRefset` is a real pattern letter,
+        // but Ordered Component's real pattern is `iRefset` (spec/08) — this
+        // file name is deliberately mismatched to exercise the "recognized
+        // name, unrecognized dispatch" skip path, not "unimplemented".
         write(
             root,
             "Snapshot/Refset/Ordered/der2_cRefset_OrderedComponentSnapshot_INT_20190731.txt",

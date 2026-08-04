@@ -3,9 +3,12 @@
 A local-first Rust workspace for working with [SNOMED CT](https://www.snomed.org/),
 the international clinical terminology used in electronic health records:
 parse official **RF2 release files**, validate **SCTIDs**, build an in-memory
-**snapshot store**, run **hierarchy/subsumption queries**, and evaluate
-**ECL** (Expression Constraint Language) queries — with zero external
-dependencies.
+**snapshot store**, run **hierarchy/subsumption queries**, evaluate
+**ECL** (Expression Constraint Language) queries, answer **FHIR**
+terminology-service operations (`$lookup`/`$subsumes`/`$expand`), parse
+**OWL** axioms from the OWL Expression reference set, and **classify**
+them — EL-profile subsumption plus necessary normal form (RF2
+relationship) generation — all with zero external dependencies.
 
 > **License note:** this repository contains *code only*. SNOMED CT content
 > (RF2 release files) is licensed material distributed by SNOMED International
@@ -38,6 +41,9 @@ or analytics pipelines.
 
 Supporting documents:
 
+- [`index.md`](index.md) — documentation map (spec/crate-README/AGENTS
+  layers, a spec-to-crate table, and a worked example spanning four
+  crates in one pipeline).
 - [`spec/`](spec/README.md) — project-local distillation of the official
   [RF2 Release File Specification](https://docs.snomed.org/snomed-ct-specifications/snomed-ct-release-file-specification);
   the normative reference for this codebase.
@@ -117,8 +123,8 @@ cargo fmt
 
 Development is **specification-driven**: behavior is written in `spec/*.md`
 first, code cites the spec it implements, and tests enforce the spec's
-normative rules. See `plan.md` for what's next (deeper release validation,
-FHIR building blocks).
+normative rules. See [`plan.md`](plan.md) for the roadmap by phase and
+[`tasks.md`](tasks.md) for what's currently scoped next.
 
 ## License
 

@@ -12,10 +12,10 @@
 //! delegate to.
 //!
 //! All three operations spec/11-fhir.md scopes are implemented:
-//! [`subsumes`], [`lookup`], [`expand`]. The bare `?fhir_vs=refset`
-//! implicit value set and `$expand`'s `context`/inline-`valueSet` inputs
-//! remain not yet implemented — see spec/11's "Not yet implemented"
-//! section and the root `tasks.md`.
+//! [`subsumes`], [`lookup`], [`expand`] (all five implicit value set
+//! forms, including the bare `?fhir_vs=refset`). `$expand`'s `context`/
+//! inline-`valueSet` inputs remain not yet implemented — see spec/11's
+//! "Not yet implemented" section and the root `tasks.md`.
 
 mod error;
 mod expand;

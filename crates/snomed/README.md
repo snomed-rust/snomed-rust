@@ -12,36 +12,46 @@ better starting points.
 ## What it re-exports
 
 ```rust
-pub use snomed_core as core;   // SCTIDs, components, constants
-pub use snomed_rf2 as rf2;     // RF2 release file parsing
-pub use snomed_store as store; // SnapshotStore, HistoryStore, hierarchy queries
-pub use snomed_ecl as ecl;     // Expression Constraint Language
+pub use snomed_core as core;         // SCTIDs, components, constants
+pub use snomed_rf2 as rf2;           // RF2 release file parsing
+pub use snomed_store as store;       // SnapshotStore, HistoryStore, hierarchy queries
+pub use snomed_ecl as ecl;           // Expression Constraint Language
+pub use snomed_fhir as fhir;         // FHIR terminology building blocks: $lookup, $subsumes, $expand
+pub use snomed_owl as owl;           // OWL 2 functional-syntax parser (OWL Expression refset)
+pub use snomed_classify as classify; // EL subsumption classifier + necessary normal form
 ```
 
 Each sub-crate has its own README with full detail:
 [`snomed-core`](../snomed-core/README.md),
 [`snomed-rf2`](../snomed-rf2/README.md),
 [`snomed-store`](../snomed-store/README.md),
-[`snomed-ecl`](../snomed-ecl/README.md).
+[`snomed-ecl`](../snomed-ecl/README.md),
+[`snomed-fhir`](../snomed-fhir/README.md),
+[`snomed-owl`](../snomed-owl/README.md),
+[`snomed-classify`](../snomed-classify/README.md),
+[`snomed-cli`](../snomed-cli/README.md) (the terminal binary built on this
+same API).
 
 ## `prelude`
 
 ```rust
 use snomed::prelude::*;
-
-// Everything below is now in scope without qualifying it by sub-crate:
-// Concept, Description, Relationship, RelationshipConcreteValue,
-// ConcreteValue, ConcreteValueError, constants, ComponentType, SctId,
-// SctIdError, EffectiveTime, ReleaseFileName, read_all, Rf2Reader,
-// the 10 refset member types, ReleaseType, SnapshotStore,
-// SnapshotStoreBuilder, HistoryStore, HistoryStoreBuilder, LoadError,
-// LoadReport, parse_ecl, evaluate_ecl, ExpressionConstraint, FocusConcept,
-// HierarchyOp, RefinementConstraint, AttributeConstraint, EclError.
 ```
 
-(`snomed_ecl::parse`/`evaluate` are re-exported as `parse_ecl`/
-`evaluate_ecl` to keep those generic names unambiguous alongside
-everything else the prelude brings in.)
+brings in every commonly-needed name from all seven sub-crates without
+qualifying by sub-crate — core types (`SctId`, `Concept`, `Description`,
+`Relationship`, `EffectiveTime`, `constants`, …), RF2 parsing
+(`ReleaseFileName`, `Rf2Reader`, `read_all`, every refset member type,
+`ReleaseType`), the store (`SnapshotStore`, `HistoryStore`, …), ECL
+(`parse_ecl`/`evaluate_ecl` — renamed from `snomed_ecl::parse`/`evaluate`
+to stay unambiguous alongside everything else — plus the AST types),
+FHIR (`lookup`, `subsumes`, `expand`, `SNOMED_CT_SYSTEM`, …), OWL
+(`parse_owl`, `Axiom`, `ClassExpression`, …), and classification
+(`classify`, `necessary_normal_form`, `Classification`,
+`NecessaryNormalForm`, `SkippedConstruct`, …). See
+[`src/lib.rs`](src/lib.rs)'s `prelude` module for the exact, authoritative
+list — not duplicated name-by-name here, since it would only drift out of
+sync as the workspace grows.
 
 ## End-to-end example
 
@@ -71,8 +81,17 @@ let is_finding = store.subsumes(SctId::parse("404684003")?, mi);
 // ECL.
 let expr = parse_ecl("<< 404684003 MINUS << 64572001")?;
 let matches = evaluate_ecl(&expr, &store);
+
+// OWL + classification: parse an axiom from the OWL Expression refset,
+// then compute what it entails (spec/12, spec/13) and its necessary
+// normal form (spec/14) — the minimal RF2 relationships it implies.
+let axiom = parse_owl("SubClassOf(:22298006 :404684003)")?;
+let report = classify(&[axiom]);
+assert!(report.classification.is_subsumed_by(mi, SctId::parse("404684003")?));
 # Ok::<(), Box<dyn std::error::Error>>(())
 ```
 
-See the root [`README.md`](../../README.md) for the `snomed-cli` binary,
-which wraps this same API for terminal use.
+For a longer walkthrough that also touches FHIR's `$expand`, see the root
+[`README.md`](../../README.md) and [`index.md`](../../index.md). For the
+`snomed-cli` binary, which wraps this same API for terminal use, see
+[`snomed-cli`](../snomed-cli/README.md).
