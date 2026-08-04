@@ -42,7 +42,8 @@ Supporting documents:
   [RF2 Release File Specification](https://docs.snomed.org/snomed-ct-specifications/snomed-ct-release-file-specification);
   the normative reference for this codebase.
 - [`plan.md`](plan.md) — roadmap by phase; [`tasks.md`](tasks.md) — execution
-  checklist.
+  checklist; [`CHANGELOG.md`](CHANGELOG.md) — what changed per published
+  version.
 - [`CLAUDE.md`](CLAUDE.md) / [`AGENTS.md`](AGENTS.md) /
   [`AGENTS/`](AGENTS) — instructions for AI coding agents.
 
