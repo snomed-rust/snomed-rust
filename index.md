@@ -9,6 +9,8 @@ guessing:
 | **Specs** | "What is this format/language/algorithm supposed to do, normatively?" | [`spec/*.md`](spec/README.md) |
 | **Crate READMEs** | "How do I use this crate's API?" (with runnable examples) | `crates/*/README.md` |
 | **Role playbooks** | "I'm about to change this crate — what conventions/gotchas apply?" | [`AGENTS/*.md`](AGENTS.md) |
+| **Tutorial** | "I'm new — walk me through it step by step." | [`docs/tutorial.md`](docs/tutorial.md) |
+| **Troubleshooting** | "I hit an error / something looks wrong — is this expected?" | [`docs/troubleshooting.md`](docs/troubleshooting.md) |
 
 Plus two process documents that aren't reference material: [`plan.md`](plan.md)
 (the roadmap, organized by phase, with the *why* behind non-obvious
@@ -95,11 +97,22 @@ The last assertion isn't incidental: `snomed-ecl`'s evaluator and
 path returns the same set — this is what "single source of truth" means
 in practice, not just for documentation but for the code itself.
 
+This is the compressed version. For the same six-crate pipeline broken
+into runnable steps with real captured output and prose explaining *why*
+at each one, see [`docs/tutorial.md`](docs/tutorial.md) — and its
+companion, [`crates/snomed/examples/tutorial.rs`](crates/snomed/examples/tutorial.rs),
+which you can actually run: `cargo run --example tutorial -p snomed`.
+
 ## Where to go next
 
 - New to the project? Start with the root [`README.md`](README.md)'s
-  quick start, then this file's spec → crate map for whichever piece
-  you're touching.
+  quick start, then [`docs/tutorial.md`](docs/tutorial.md) for a
+  guided, runnable walkthrough, then this file's spec → crate map for
+  whichever piece you're touching.
+- Hit an error, or something looks wrong? Check
+  [`docs/troubleshooting.md`](docs/troubleshooting.md) before assuming
+  it's a bug — many "errors" here are intentional (typed, never silent)
+  rejections of unsupported input.
 - About to change behavior? Read that crate's `spec/NN-*.md` first (it's
   normative), then its `AGENTS/*-engineer.md` (conventions/gotchas
   specific to that crate), then its `crates/*/README.md` (so your change

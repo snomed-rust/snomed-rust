@@ -91,7 +91,10 @@ assert!(report.classification.is_subsumed_by(mi, SctId::parse("404684003")?));
 # Ok::<(), Box<dyn std::error::Error>>(())
 ```
 
-For a longer walkthrough that also touches FHIR's `$expand`, see the root
-[`README.md`](../../README.md) and [`index.md`](../../index.md). For the
-`snomed-cli` binary, which wraps this same API for terminal use, see
-[`snomed-cli`](../snomed-cli/README.md).
+For a longer, runnable walkthrough that also touches FHIR's `$expand`
+and necessary normal form, run `cargo run --example tutorial -p snomed`
+(source: [`examples/tutorial.rs`](examples/tutorial.rs)) or read its
+prose companion, [`docs/tutorial.md`](../../docs/tutorial.md). See also
+the root [`README.md`](../../README.md) and [`index.md`](../../index.md).
+For the `snomed-cli` binary, which wraps this same API for terminal use,
+see [`snomed-cli`](../snomed-cli/README.md).

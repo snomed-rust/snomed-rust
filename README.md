@@ -44,6 +44,10 @@ Supporting documents:
 - [`index.md`](index.md) — documentation map (spec/crate-README/AGENTS
   layers, a spec-to-crate table, and a worked example spanning four
   crates in one pipeline).
+- [`docs/tutorial.md`](docs/tutorial.md) — a guided, runnable, six-step
+  walkthrough (`cargo run --example tutorial -p snomed`);
+  [`docs/troubleshooting.md`](docs/troubleshooting.md) — common errors
+  and questions, answered.
 - [`spec/`](spec/README.md) — project-local distillation of the official
   [RF2 Release File Specification](https://docs.snomed.org/snomed-ct-specifications/snomed-ct-release-file-specification);
   the normative reference for this codebase.
