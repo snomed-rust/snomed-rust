@@ -12,8 +12,10 @@ memberOf, wildcard, AND/OR/MINUS — plus refinements: `attributeId
 (not just a plain concept reference), numeric/string concrete value
 comparisons including `concreteStringSet`, AND/OR, parenthesized groups,
 attribute cardinality `[min..max]`, the reverse flag `R`, and attribute
-groups `{ }`) and lists what is explicitly **not yet implemented**
-(boolean concrete value comparisons, `{{ }}` filters, `^ *`, `!!>`/`!!<`,
+groups `{ }`; plus `{{ C active = true|false|* }}`, a concept filter
+constraint) and lists what is explicitly **not yet implemented** (boolean
+concrete value comparisons, concept filter kinds other than `active`,
+`{{ D ... }}`/`{{ M ... }}` description/member filters, `^ *`, `!!>`/`!!<`,
 history supplement, alternate identifiers, a hierarchy prefix combined
 with `^`, dot notation).
 
@@ -44,9 +46,10 @@ parsing — never be silently accepted and evaluated as something else,
 and never panic. Naming the specific feature via
 `EclError::NotYetImplemented { feature, .. }` is strongly preferred (most
 of spec/10's list gets this now) but isn't yet universal: boolean
-concrete value comparisons still surface as a generic `UnexpectedToken`
-because recognizing their shape well enough to name it isn't as simple
-as matching a fixed token sequence — see spec/10 rule 9. Moving it from
+concrete value comparisons and concept filter kinds other than `active`
+still surface as a generic `UnexpectedToken`/`UnexpectedKeyword` because
+recognizing their shape well enough to name them isn't as simple as
+matching a fixed token sequence — see spec/10 rule 9. Moving one from
 generic to named, without implementing the underlying feature, is a
 welcome, low-risk improvement on its own; see the recent
 `Dot`/`Top`/`Bottom`/`A#B`-detection additions in `lexer.rs`/`parser.rs`
@@ -165,3 +168,63 @@ is the pattern to reach for first when a new ambiguity looks like it
 needs 2 tokens of lookahead: check whether the *very next* token after
 consuming the ambiguous one actually settles it, before assuming real
 backtracking is required.
+
+## `{{ }}` filters: scoped to `{{ C active = ... }}` only, deliberately
+
+The official grammar's `{{ }}` filter subsystem is large — description,
+concept, and member filter constraints, each with several filter kinds
+(`term`/`language`/`type`/`dialect`/`module`/`effectiveTime`/`active`/
+`definitionStatus`/refset field), most needing their own value-set
+grammar. Implementing all of it in one increment isn't realistic; this
+crate deliberately implemented exactly one slice —
+`conceptFilterConstraint`'s `activeFilter` — and left the rest as
+documented gaps, the same incremental strategy used for refinements
+(cardinality, then reverse flag, then groups, then concrete values, then
+attribute names, then `concreteStringSet`, each its own commit). If
+you're extending this further, add one filter kind or one filter
+constraint type (`{{ D ... }}`) at a time, not all of them at once.
+
+**New single-letter/keyword tokens are lexed unconditionally, not just
+inside `{{ }}`.** `ConceptFilterMarker`/`DescriptionFilterMarker`/
+`MemberFilterMarker` (`C`/`D`/`M`) and `ActiveKeyword`/`True`/`False`
+(`active`/`true`/`false`) were added to the same case-insensitive
+keyword table `AND`/`OR`/`MINUS`/`R` already use — the lexer has no
+notion of "only recognize this token right after `{{`", and doesn't
+need one: nothing outside `{{ }}` can legally contain a bare `C`, `D`,
+`M`, `active`, `true`, or `false` in this grammar subset, so recognizing
+them everywhere is safe. This does shadow those exact strings as
+potential `A#B` alternate-identifier scheme aliases (e.g. a
+hypothetical `ACTIVE#123`) — an existing, accepted tradeoff already
+made for `R` (see the `A#B`-lookahead code in `lexer.rs`); don't treat
+this as a new problem to solve.
+
+**`,` inside `{{ }}` reuses `TokenKind::And`, not a new comma token.**
+The official grammar's `conceptFilter *(ws "," ws conceptFilter)` looks
+like it needs its own separator, but `,` already lexes as `TokenKind::And`
+everywhere (the alternate spelling for the top-level `AND` operator —
+see "Keywords are case-insensitive" in spec/10). `parse_concept_filter_list`
+just loops on `TokenKind::And` the same way `parse_expression_constraint`'s
+own `AND` chain does. Don't add a dedicated comma token for this; it
+would duplicate logic the lexer already has for a token that means the
+same thing in both places.
+
+**Filters apply to `subExpressionConstraint`, before `:` wraps it in a
+refinement.** `refinedExpressionConstraint := subExpressionConstraint ":"
+eclRefinement`, and `{{ }}` filters are part of `subExpressionConstraint`
+itself (see the grammar's `subExpressionConstraint` production in
+spec/10) — so `parse_sub_expression_constraint`'s `_` arm parses the
+focus concept, then loops consuming `{{ }}` blocks, and only *then*
+checks for a trailing `:`. Getting this ordering backwards (checking `:`
+first) would make `X {{ C active = true }} : attr = value`'s refinement
+see the *unfiltered* `X` as its focus — a real, silent correctness bug,
+not just a parse-order cosmetic issue.
+
+**Only `parse_simple_expression_constraint`'s branch supports trailing
+filters right now** — not the `LParen` (parenthesized) or `Caret`
+(`^ memberOf`) branches of `parse_sub_expression_constraint`, even
+though the official grammar allows `{{ }}` after those too (and
+`memberFilterConstraint` specifically only ever follows `^`). This
+mirrors the pre-existing scope: `{{ }}` was only ever detected in the
+plain-focus-concept branch before this increment. Extending filter
+support to those other two positions is a distinct, not-yet-scoped
+future increment — don't assume it's covered.

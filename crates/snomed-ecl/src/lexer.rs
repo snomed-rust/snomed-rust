@@ -70,6 +70,20 @@ pub enum TokenKind {
     /// The text between a pair of `"`, exclusive, with `\"`/`\\`
     /// unescaped — a `concreteString` (spec/10).
     QuotedString(String),
+    /// `C`/`c` immediately after `{{` — a concept filter constraint.
+    ConceptFilterMarker,
+    /// `D`/`d` immediately after `{{` — a description filter constraint
+    /// (not yet implemented; also the default when no marker is written).
+    DescriptionFilterMarker,
+    /// `M`/`m` immediately after `{{` — a member filter constraint (not
+    /// yet implemented).
+    MemberFilterMarker,
+    /// `active` — a concept/description/member filter's `activeFilter`.
+    ActiveKeyword,
+    /// `true` — an `activeValue`/`booleanValue`.
+    True,
+    /// `false` — an `activeValue`/`booleanValue`.
+    False,
     Eof,
 }
 
@@ -119,6 +133,12 @@ pub fn describe(kind: &TokenKind) -> String {
         TokenKind::Digits(d) => format!("`{d}`"),
         TokenKind::Term(t) => format!("`|{t}|`"),
         TokenKind::QuotedString(s) => format!("`\"{s}\"`"),
+        TokenKind::ConceptFilterMarker => "`C`".to_string(),
+        TokenKind::DescriptionFilterMarker => "`D`".to_string(),
+        TokenKind::MemberFilterMarker => "`M`".to_string(),
+        TokenKind::ActiveKeyword => "`active`".to_string(),
+        TokenKind::True => "`true`".to_string(),
+        TokenKind::False => "`false`".to_string(),
         TokenKind::Eof => "end of input".to_string(),
     }
 }
@@ -361,6 +381,12 @@ impl Lexer {
                     "OR" => TokenKind::Or,
                     "MINUS" => TokenKind::Minus,
                     "R" => TokenKind::ReverseFlag,
+                    "C" => TokenKind::ConceptFilterMarker,
+                    "D" => TokenKind::DescriptionFilterMarker,
+                    "M" => TokenKind::MemberFilterMarker,
+                    "ACTIVE" => TokenKind::ActiveKeyword,
+                    "TRUE" => TokenKind::True,
+                    "FALSE" => TokenKind::False,
                     _ => {
                         // Could this be the start of an `A#B` alternate
                         // identifier (`altIdentifierSchemeAlias "#" ...`)?

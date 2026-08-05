@@ -1320,6 +1320,68 @@ This closes Phase 7 (see `plan.md`).
       the write-up of *why it's hard* was no longer true and would have
       misled the next person into assuming backtracking is required).
 
+## Done (2026-08-05, snomed-ecl concept filter constraint — `{{ C active = ... }}`)
+
+- [x] Implemented the first slice of `{{ }}` filters: `conceptFilterConstraint`'s
+      `activeFilter` (`{{ C active = true|false|* }}`), restricting a set
+      to concepts whose own `active` field matches — e.g.
+      `<< 404684003 {{ C active = true }}`. The full `{{ }}` filter
+      subsystem (description/concept/member filter constraints, each with
+      several filter kinds) is large; scoped deliberately to one filter
+      kind of one filter constraint type, the same incremental strategy
+      used for every prior refinement increment this session.
+- [x] `ExpressionConstraint` gained a `ConceptFilter { inner, filters:
+      Vec<ConceptFilterKind> }` variant (`ConceptFilterKind` currently has
+      only `Active(ActiveFilter { negated, value: ActiveValue })` — an
+      enum from the start, matching the `AttributeComparison` precedent,
+      so future filter kinds don't force a second breaking change).
+- [x] New lexer tokens, added unconditionally to the same keyword table
+      `AND`/`OR`/`MINUS`/`R` already use (safe: nothing outside `{{ }}`
+      can legally contain these strings in this grammar subset):
+      `ConceptFilterMarker`/`DescriptionFilterMarker`/`MemberFilterMarker`
+      (`C`/`D`/`M`) and `ActiveKeyword`/`True`/`False`
+      (`active`/`true`/`false`).
+- [x] `parse_sub_expression_constraint`'s plain-focus-concept branch now
+      loops consuming `{{ }}` blocks *before* checking for a trailing `:`
+      — filters are part of `subExpressionConstraint`, which
+      `refinedExpressionConstraint := subExpressionConstraint ":"
+      eclRefinement` wraps, so getting this ordering backwards would have
+      made a refinement's focus see the *unfiltered* set (a real
+      correctness bug, not just cosmetic). `{{ D ... }}`, `{{ M ... }}`,
+      and a bare `{{ ... }}` (which the grammar defaults to a description
+      filter) are all recognized and rejected by name; only the `LParen`/
+      `Caret` branches of `parse_sub_expression_constraint` don't support
+      trailing filters yet — a scoped, documented gap (`AGENTS/ecl-engineer.md`),
+      matching the feature's pre-existing detection scope.
+- [x] `,` inside `{{ }}` (`conceptFilter *(ws "," ws conceptFilter)`)
+      reuses the existing `TokenKind::And` (the same alternate-AND-spelling
+      token used everywhere else) — no new separator token needed.
+- [x] `eval.rs` needed one new match arm: filter the inner evaluated set
+      by `store.concept(id)`'s own `active` field. Correctly reaches
+      inactive concepts anywhere upstream (`*`, `^ refsetId`, a hierarchy
+      operator over an inactive descendant) since `store.concept`/
+      `concepts()` include both active and inactive latest-version rows
+      per spec/09 — documented as new spec/10 rule 11.
+- [x] Tests: 2 new lexer-adjacent (parser AST shape for the filter
+      itself, and named-vs-generic rejection of `D`/`M`/bare-`{{`),
+      1 chaining/AND-list parser test, 2 new eval tests (active/inactive
+      restriction with `=`/`!=`/`*`, chained + comma-list filters), 1 new
+      facade integration test (`crates/snomed/tests/ecl.rs`) — plus 2
+      pre-existing tests updated where the expected error category
+      genuinely changed (an untokenized filter keyword like `term` now
+      fails at the lexer with a generic error, not a parser-level named
+      one, since only `C`/`D`/`M`/`active` are tokenized so far).
+      275 tests passing workspace-wide (up from 269). `cargo fmt --all
+      -- --check` and `cargo clippy --all-targets` both clean.
+- [x] Docs: spec/10-ecl.md (grammar's `conceptFilterConstraint`/
+      `activeFilter` productions, new "Concept filter constraint"
+      section, "Not yet implemented" list updated, new rule 11);
+      `crates/snomed-ecl/README.md` (table row, quick example, NYI
+      paragraph); `AGENTS/ecl-engineer.md` (new section covering the
+      unconditional-keyword-lexing tradeoff, the comma-reuses-AND
+      decision, and the filters-before-refinement ordering — all
+      non-obvious enough to re-derive wrong later).
+
 ## Next up
 
 - [ ] Nothing currently scoped. Candidate future work (not yet
@@ -1327,9 +1389,11 @@ This closes Phase 7 (see `plan.md`).
       new external dependency — needs explicit user direction against
       the zero-dependency policy, not an autonomous pick); `snomed-ecl`'s
       remaining smaller documented gaps (boolean concrete comparisons,
-      `{{ }}` filters, the history supplement); property-chain/transitive-
-      property redundancy elimination for `necessary_normal_form`
-      (spec/14's documented, conservative scope cut); re-running the
-      Phase 4 `snomed-store` benchmark (and the Phase 7 `snomed-classify`
-      one) against a real International Edition release if one becomes
-      available.
+      concept filter kinds other than `active`, `{{ D ... }}`/`{{ M ... }}`
+      description/member filters, `{{ }}` filters after a parenthesized
+      expression or `^ memberOf`, the history supplement);
+      property-chain/transitive-property redundancy elimination for
+      `necessary_normal_form` (spec/14's documented, conservative scope
+      cut); re-running the Phase 4 `snomed-store` benchmark (and the
+      Phase 7 `snomed-classify` one) against a real International
+      Edition release if one becomes available.

@@ -74,6 +74,44 @@ pub enum ExpressionConstraint {
         focus: Box<ExpressionConstraint>,
         refinement: RefinementConstraint,
     },
+    /// `inner {{ C filter (AND filter)* }}` — a `conceptFilterConstraint`
+    /// (spec/10): restricts `inner`'s evaluated set to concepts whose own
+    /// row matches every filter in `filters`. Only [`ConceptFilterKind::Active`]
+    /// is implemented; description filters (`{{ D ... }}`, or a bare
+    /// `{{ ... }}` with no marker, which defaults to a description filter
+    /// per the grammar), member filters (`{{ M ... }}`), and every other
+    /// concept filter kind (`definitionStatus`/`module`/`effectiveTime`)
+    /// are rejected — see spec/10's "Not yet implemented" section.
+    ConceptFilter {
+        inner: Box<ExpressionConstraint>,
+        filters: Vec<ConceptFilterKind>,
+    },
+}
+
+/// One filter inside a `{{ C ... }}` concept filter constraint. Currently
+/// only `activeFilter` — see [`ExpressionConstraint::ConceptFilter`].
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ConceptFilterKind {
+    /// `active (=|!=) (true|false|*)` — spec/10.
+    Active(ActiveFilter),
+}
+
+/// `activeKeyword ws booleanComparisonOperator ws activeValue`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ActiveFilter {
+    /// `true` for `!=`.
+    pub negated: bool,
+    pub value: ActiveValue,
+}
+
+/// `activeTrueValue / activeFalseValue / wildCard`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ActiveValue {
+    True,
+    False,
+    /// `*` — matches regardless of active status; a no-op filter on its
+    /// own, included for grammar completeness.
+    Wildcard,
 }
 
 /// `[min..max]` — an attribute or attribute group's cardinality

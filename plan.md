@@ -194,6 +194,34 @@ the spec's normative rules. Day-to-day execution items live in `tasks.md`.
   already supported multiple entries from the single-string increment.
   3 new tests. Only boolean concrete comparisons remain genuinely
   unimplemented in `snomed-ecl`'s refinement subset now.
+- Concept filter constraint, `{{ C active = ... }}` (2026-08-05) ✅ — the
+  first slice of the official grammar's `{{ }}` filter subsystem
+  (description/concept/member filter constraints, each with several
+  filter kinds — too large for one increment). Scoped deliberately to
+  `conceptFilterConstraint`'s `activeFilter` only:
+  `<< 404684003 {{ C active = true|false|* }}` restricts a set to
+  concepts whose own `active` field matches, evaluated via
+  `store.concept(id)` directly (a set-level restriction on the
+  concept's own row, unlike refinements which examine relationships).
+  New `ExpressionConstraint::ConceptFilter { inner, filters:
+  Vec<ConceptFilterKind> }` — an enum for `filters` from the start
+  (currently just `Active`), matching the `AttributeComparison`
+  precedent so a future filter kind doesn't force a second breaking
+  change. New lexer tokens (`C`/`D`/`M` markers, `active`/`true`/`false`
+  keywords) added unconditionally to the same keyword table `AND`/`OR`/
+  `MINUS`/`R` already use — safe, since nothing outside `{{ }}` can
+  legally contain those strings in this grammar subset. `,` inside
+  `{{ }}` reuses the existing `TokenKind::And` rather than a new
+  separator token. Filters are parsed and applied *before* a trailing
+  `:` wraps the result in a refinement (matching the grammar's own
+  `subExpressionConstraint`/`refinedExpressionConstraint` layering) —
+  getting this backwards would have been a real correctness bug, not
+  just a parse-order detail. `{{ D ... }}`/`{{ M ... }}`/a bare `{{ ... }}`
+  (which defaults to a description filter per the grammar) are
+  recognized and rejected by name; filters after a parenthesized
+  expression or `^ memberOf` aren't supported yet, matching this
+  feature's pre-existing detection scope. 6 new tests plus a new facade
+  integration test. 275 tests passing workspace-wide (up from 269).
 - History/audit queries over Full-view data ✅: `snomed-store::HistoryStore`
   keeps every version of a Concept/Description/Relationship (spec/09's new
   "History construction" section), built from Full-view files only —

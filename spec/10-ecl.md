@@ -30,10 +30,13 @@ operators, `memberOf`, wildcard, boolean set operators) plus **refinements**
 (`:` attribute-value constraints — expression `=`/`!=`, numeric/string
 concrete value comparisons including `concreteStringSet`, `AND`/`OR`,
 attribute cardinality `[min..max]`, the reverse flag `R`, and attribute
-groups `{ }`), evaluated against a [`SnapshotStore`]. Boolean concrete
-value comparisons, description/concept/member filters (`{{ }}`), the
-history supplement, and alternate identifiers are **out of scope for
-this version** — see
+groups `{ }`) plus a **concept filter constraint** (`{{ C active =
+true|false|* }}`, restricting a set to concepts whose own `active` flag
+matches), evaluated against a [`SnapshotStore`]. Boolean concrete value
+comparisons, every concept filter kind other than `active`, description
+and member filter constraints (`{{ D ... }}`/`{{ M ... }}`), the history
+supplement, and alternate identifiers are **out of scope for this
+version** — see
 [Not yet implemented](#not-yet-implemented).
 
 ## Grammar (this subset only, derived from `syntax/abnf-brief.txt`)
@@ -54,9 +57,15 @@ disjunctionExpressionConstraint
 exclusionExpressionConstraint
                       := subExpressionConstraint "MINUS" subExpressionConstraint
 subExpressionConstraint
-                      := simpleExpressionConstraint
-                       | memberOf
-                       | "(" expressionConstraint ")"
+                      := (simpleExpressionConstraint | memberOf | "(" expressionConstraint ")")
+                         *(conceptFilterConstraint)
+                        -- memberFilterConstraint/descriptionFilterConstraint
+                        -- also belong in this position per the official
+                        -- grammar; this crate only recognizes
+                        -- conceptFilterConstraint's marker (`C`) here, and
+                        -- names the other two as NotYetImplemented when
+                        -- their marker (`D`/`M`) or the marker-less
+                        -- description-filter default is seen
 memberOf              := "^" conceptReference
 simpleExpressionConstraint
                       := [hierarchyPrefix] focusConcept
@@ -66,6 +75,25 @@ focusConcept          := conceptReference | "*"
 conceptReference      := sctid [term]
 term                  := "|" <any text except "|"> "|"
 sctid                 := digit+                         -- validated as an SctId (spec/04)
+
+conceptFilterConstraint
+                      := "{{" ws "C" ws conceptFilter 1*(ws "," ws conceptFilter) ws "}}"
+                        -- the `C` marker is mandatory for a concept filter
+                        -- (unlike descriptionFilterConstraint's optional
+                        -- `D`, which is why a marker-less `{{ ... }}`
+                        -- defaults to a description filter, not this)
+conceptFilter         := activeFilter
+                        -- `definitionStatusFilter`/`moduleFilter`/
+                        -- `effectiveTimeFilter` are grammar alternatives
+                        -- not yet implemented; attempting one fails at
+                        -- the lexer (its keyword isn't tokenized), not
+                        -- with a named error
+activeFilter          := "active" ws booleanComparisonOp ws activeValue
+booleanComparisonOp   := "=" | "!="
+activeValue           := "true" | "false" | "*"
+                        -- the official grammar also allows "1"/"0"; not
+                        -- implemented here (real ECL essentially always
+                        -- uses the textual form)
 
 eclRefinement         := subRefinement 1*(("AND" | "OR") subRefinement)
                         -- one level only: every operator at one level must
@@ -346,6 +374,44 @@ has no boolean variant, and neither does SNOMED CT's own concrete domain
 model as this project has encountered it — a deeper gap than just
 `snomed-ecl` would need to close.
 
+## Concept filter constraint (`{{ C ... }}`)
+
+`inner {{ C filter (, filter)* }}` restricts `inner`'s evaluated set to
+concepts whose own `Concept` row matches every filter — a set-level
+restriction, unlike refinements (which examine a concept's
+*relationships*, not its own fields). Filters apply before any trailing
+`:` refinement (they're part of `subExpressionConstraint`, and
+`refinedExpressionConstraint := subExpressionConstraint ":" eclRefinement`
+wraps the already-filtered result), and multiple `{{ }}` blocks chain,
+each seeing only what the previous one let through.
+
+Only `activeFilter` is implemented:
+
+- `active = true` / `active = false` keep only active/inactive concepts
+  respectively (per spec/09, `store.concept(id)` returns both — a
+  concept's latest version can itself be inactive).
+- `active != true` negates, same as `active = false`; `active != false`
+  same as `active = true`.
+- `active = *` is a no-op (matches regardless of active status) —
+  included for grammar completeness, since `activeValue` allows a
+  wildcard.
+- A comma inside `{{ }}` (`conceptFilter *(ws "," ws conceptFilter)`)
+  lexes as `TokenKind::And` — the same alternate-AND-spelling token used
+  everywhere else in this lexer — so multiple filters in one block need
+  no new separator handling; they're ANDed together.
+
+**Not implemented:** every other `conceptFilter` kind
+(`definitionStatusFilter`/`moduleFilter`/`effectiveTimeFilter`) — their
+keywords aren't tokenized, so attempting one fails at the lexer with a
+generic error, not a named one. Description filter constraints (`{{ D
+... }}`, or a bare `{{ ... }}` with no marker — the official grammar's
+`descriptionFilterConstraint` has an *optional* `D`, defaulting to a
+description filter when omitted, which is why an unmarked `{{ active =
+true }}` is rejected rather than silently treated as a concept filter)
+and member filter constraints (`{{ M ... }}`) are both recognized and
+rejected by name, but not implemented — see [Not yet
+implemented](#not-yet-implemented).
+
 ## Concept reference terms
 
 `73211009 |Diabetes mellitus|` — the pipe-delimited term is a
@@ -365,8 +431,11 @@ a named error without checking `parser.rs`/`lexer.rs` first.
 
 Rejected with a named `EclError::NotYetImplemented`:
 
-- `{{ }}` description, concept, and member filters; the history
-  supplement (`{{+HISTORY}}`).
+- `{{ D ... }}` description filter constraints, `{{ M ... }}` member
+  filter constraints, and a bare `{{ ... }}` (no marker — defaults to a
+  description filter per the grammar); the history supplement
+  (`{{+HISTORY}}`). `{{ C ... }}` concept filter constraints *are*
+  implemented (`active` only) — see "Concept filter constraint" above.
 - `^ *` (member of any refset) and a hierarchy prefix combined with `^`
   (e.g. `< ^ 447562003`).
 - Dot notation (`.` / `dottedExpressionConstraint`) — a lone `.` lexes as
@@ -392,6 +461,11 @@ token shape:
 - Boolean concrete value comparisons — see "Concrete value comparisons"
   above for why (numeric and string comparisons, including
   `concreteStringSet`, *are* implemented).
+- Concept filter kinds other than `active`
+  (`definitionStatusFilter`/`moduleFilter`/`effectiveTimeFilter`) —
+  their keywords aren't tokenized yet, so a `{{ C ... }}` block
+  attempting one fails inside the lexer before `parse_concept_filter_kind`
+  is ever reached.
 
 ## Rules (normative for `snomed-ecl`)
 
@@ -440,3 +514,10 @@ token shape:
     match a numeric comparison, and a `Number`-typed one MUST NOT match a
     string comparison — a type mismatch is absence of a match, not an
     error.
+11. `{{ C active ... }}` MUST check a concept's own `active` field via
+    `store.concept(id)`, never assume every id `evaluate` can produce is
+    active — `store.concepts()`/`concept()` include both active and
+    inactive latest-version rows (spec/09), so an inactive concept can
+    legitimately appear anywhere upstream of a concept filter (e.g. via
+    `*`, `^ refsetId`, or a hierarchy operator that includes an inactive
+    descendant).

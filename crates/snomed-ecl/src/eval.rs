@@ -7,11 +7,12 @@ use snomed_core::sctid::SctId;
 use snomed_store::SnapshotStore;
 
 use snomed_core::concrete_value::ConcreteValue;
+use snomed_core::Concept;
 
 use crate::ast::{
-    AttributeComparison, AttributeConstraint, AttributeGroup, Cardinality, ExpressionConstraint,
-    FocusConcept, HierarchyOp, NumericComparisonOp, RefinementConstraint,
-    SimpleExpressionConstraint,
+    ActiveFilter, ActiveValue, AttributeComparison, AttributeConstraint, AttributeGroup,
+    Cardinality, ConceptFilterKind, ExpressionConstraint, FocusConcept, HierarchyOp,
+    NumericComparisonOp, RefinementConstraint, SimpleExpressionConstraint,
 };
 
 /// Evaluates `expr` against `store`, returning the matching concept ids.
@@ -52,6 +53,34 @@ pub fn evaluate(expr: &ExpressionConstraint, store: &SnapshotStore) -> HashSet<S
             .into_iter()
             .filter(|&c| evaluate_refinement(refinement, c, store, None))
             .collect(),
+        ExpressionConstraint::ConceptFilter { inner, filters } => evaluate(inner, store)
+            .into_iter()
+            .filter(|&c| {
+                store.concept(c).is_some_and(|concept| {
+                    filters.iter().all(|f| concept_filter_matches(f, concept))
+                })
+            })
+            .collect(),
+    }
+}
+
+/// A single `{{ C ... }}` filter against a concept's own row. Only
+/// [`ConceptFilterKind::Active`] exists so far — see
+/// [`ExpressionConstraint::ConceptFilter`].
+fn concept_filter_matches(filter: &ConceptFilterKind, concept: &Concept) -> bool {
+    match filter {
+        ConceptFilterKind::Active(ActiveFilter { negated, value }) => {
+            let matches = match value {
+                ActiveValue::True => concept.active,
+                ActiveValue::False => !concept.active,
+                ActiveValue::Wildcard => true,
+            };
+            if *negated {
+                !matches
+            } else {
+                matches
+            }
+        }
     }
 }
 
@@ -946,6 +975,66 @@ mod tests {
         assert_eq!(
             eval(
                 &format!("{MI} : {string_attr_type} != (\"500mg\" \"250mg\")"),
+                &store
+            ),
+            HashSet::new()
+        );
+    }
+
+    /// ROOT and FINDING are active; DISEASE is inactive.
+    fn concept_filter_store() -> SnapshotStore {
+        let mut b = SnapshotStore::builder();
+        b.add_concept(concept(ROOT));
+        b.add_concept(concept(FINDING));
+        b.add_concept(Concept {
+            active: false,
+            ..concept(DISEASE)
+        });
+        b.add_relationship(is_a(1, FINDING, ROOT));
+        b.add_relationship(is_a(2, DISEASE, FINDING));
+        b.build()
+    }
+
+    #[test]
+    fn concept_filter_active_restricts_by_the_concepts_own_active_flag() {
+        let store = concept_filter_store();
+        assert_eq!(
+            eval(&format!("<< {ROOT} {{{{ C active = true }}}}"), &store),
+            HashSet::from([ROOT, FINDING])
+        );
+        assert_eq!(
+            eval(&format!("<< {ROOT} {{{{ C active = false }}}}"), &store),
+            HashSet::from([DISEASE])
+        );
+        // `!=` negates.
+        assert_eq!(
+            eval(&format!("<< {ROOT} {{{{ C active != true }}}}"), &store),
+            HashSet::from([DISEASE])
+        );
+        // `*` is a no-op — matches regardless of active status.
+        assert_eq!(
+            eval(&format!("<< {ROOT} {{{{ C active = * }}}}"), &store),
+            HashSet::from([ROOT, FINDING, DISEASE])
+        );
+    }
+
+    #[test]
+    fn concept_filter_chains_and_combines_with_and_list() {
+        let store = concept_filter_store();
+        // Two chained `{{ }}` blocks: the second only sees what the
+        // first already let through.
+        assert_eq!(
+            eval(
+                &format!("<< {ROOT} {{{{ C active = true }}}} {{{{ C active = false }}}}"),
+                &store
+            ),
+            HashSet::new()
+        );
+        // A comma-separated (AND'd) filter list within one block behaves
+        // the same as chaining when both filters are on the same field.
+        assert_eq!(
+            eval(
+                &format!("<< {ROOT} {{{{ C active = true, active = false }}}}"),
                 &store
             ),
             HashSet::new()

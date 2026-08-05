@@ -92,7 +92,33 @@ fn ecl_attribute_refinement_through_the_facade() {
 }
 
 #[test]
+fn ecl_concept_filter_through_the_facade() {
+    let mut b = SnapshotStore::builder();
+    b.add_concept(concept(ROOT));
+    b.add_concept(concept(FINDING));
+    b.add_concept(Concept {
+        active: false,
+        ..concept(DISEASE)
+    });
+    b.add_relationship(is_a(1, FINDING, ROOT));
+    b.add_relationship(is_a(2, DISEASE, FINDING));
+    let store = b.build();
+
+    let expr = parse_ecl(&format!("<< {ROOT} {{{{ C active = true }}}}")).unwrap();
+    assert_eq!(
+        evaluate_ecl(&expr, &store),
+        [ROOT, FINDING].into_iter().collect()
+    );
+
+    let expr = parse_ecl(&format!("<< {ROOT} {{{{ C active = false }}}}")).unwrap();
+    assert_eq!(evaluate_ecl(&expr, &store), [DISEASE].into_iter().collect());
+}
+
+#[test]
 fn ecl_reports_unsupported_syntax_instead_of_a_wrong_result() {
-    let err = parse_ecl("404684003 {{ term = \"x\" }}").unwrap_err();
+    // `{{ D ... }}` (description filters) is recognized but not yet
+    // implemented; `{{ C ... }}` (concept filters) *is* implemented, so
+    // this specifically exercises the still-unsupported sibling.
+    let err = parse_ecl("404684003 {{ D term = \"x\" }}").unwrap_err();
     assert!(matches!(err, EclError::NotYetImplemented { .. }), "{err}");
 }

@@ -3,9 +3,9 @@
 use snomed_core::sctid::SctId;
 
 use crate::ast::{
-    AttributeComparison, AttributeConstraint, AttributeGroup, Cardinality, ExpressionConstraint,
-    FocusConcept, HierarchyOp, NumericComparisonOp, RefinementConstraint,
-    SimpleExpressionConstraint,
+    ActiveFilter, ActiveValue, AttributeComparison, AttributeConstraint, AttributeGroup,
+    Cardinality, ConceptFilterKind, ExpressionConstraint, FocusConcept, HierarchyOp,
+    NumericComparisonOp, RefinementConstraint, SimpleExpressionConstraint,
 };
 use crate::error::EclError;
 use crate::lexer::{describe, Lexer, Token, TokenKind};
@@ -161,13 +161,13 @@ impl Parser {
             }
             _ => {
                 let simple = self.parse_simple_expression_constraint()?;
-                if matches!(self.peek().kind, TokenKind::Colon) {
-                    self.advance()?;
-                    let refinement = self.parse_refinement()?;
-                    return Ok(ExpressionConstraint::Refined {
-                        focus: Box::new(ExpressionConstraint::Simple(simple)),
-                        refinement,
-                    });
+                // `*(ws (descriptionFilterConstraint / conceptFilterConstraint))`
+                // — filters apply to the focus concept itself, before any
+                // `:` refinement wraps the result (they're part of
+                // subExpressionConstraint, not eclRefinement).
+                let mut expr = ExpressionConstraint::Simple(simple);
+                while matches!(self.peek().kind, TokenKind::LBrace2) {
+                    expr = self.parse_filter_constraint(expr)?;
                 }
                 if matches!(self.peek().kind, TokenKind::Dot) {
                     return Err(EclError::NotYetImplemented {
@@ -175,13 +175,135 @@ impl Parser {
                         feature: "dot notation (`.`)",
                     });
                 }
-                if matches!(self.peek().kind, TokenKind::LBrace2) {
-                    return Err(EclError::NotYetImplemented {
-                        pos: self.peek().pos,
-                        feature: "description/concept/member filters (`{{ }}`)",
+                if matches!(self.peek().kind, TokenKind::Colon) {
+                    self.advance()?;
+                    let refinement = self.parse_refinement()?;
+                    return Ok(ExpressionConstraint::Refined {
+                        focus: Box::new(expr),
+                        refinement,
                     });
                 }
-                Ok(ExpressionConstraint::Simple(simple))
+                Ok(expr)
+            }
+        }
+    }
+
+    /// Parses one `{{ ... }}` filter constraint applied to `inner`. Only
+    /// `conceptFilterConstraint` (`{{ C ... }}`) is implemented;
+    /// description filters (`{{ D ... }}`, or a bare `{{ ... }}` — the
+    /// marker is optional and defaults to a description filter per the
+    /// grammar) and member filters (`{{ M ... }}`) are rejected by name.
+    fn parse_filter_constraint(
+        &mut self,
+        inner: ExpressionConstraint,
+    ) -> Result<ExpressionConstraint, EclError> {
+        let brace_pos = self.peek().pos;
+        self.advance()?; // consume `{{`
+        match &self.peek().kind {
+            TokenKind::ConceptFilterMarker => {
+                self.advance()?;
+                let filters = self.parse_concept_filter_list()?;
+                self.expect(TokenKind::RBrace, "`}`")?;
+                self.expect(TokenKind::RBrace, "`}`")?;
+                Ok(ExpressionConstraint::ConceptFilter {
+                    inner: Box::new(inner),
+                    filters,
+                })
+            }
+            TokenKind::DescriptionFilterMarker => Err(EclError::NotYetImplemented {
+                pos: brace_pos,
+                feature: "description filters (`{{ D ... }}`)",
+            }),
+            TokenKind::MemberFilterMarker => Err(EclError::NotYetImplemented {
+                pos: brace_pos,
+                feature: "member filters (`{{ M ... }}`)",
+            }),
+            TokenKind::ActiveKeyword => Err(EclError::NotYetImplemented {
+                pos: brace_pos,
+                feature: "description filters (a bare `{{ ... }}` with no `C`/`D`/`M` marker defaults to a description filter)",
+            }),
+            _ => {
+                let tok = self.peek().clone();
+                Err(EclError::UnexpectedToken {
+                    pos: tok.pos,
+                    found: describe(&tok.kind),
+                    expected: "`C` (concept filter — the only kind implemented)",
+                })
+            }
+        }
+    }
+
+    /// `conceptFilter *(ws "," ws conceptFilter)` — `,` lexes as
+    /// `TokenKind::And` (the same alternate-AND-spelling token used at
+    /// expression/refinement level), so no new separator token is needed.
+    fn parse_concept_filter_list(&mut self) -> Result<Vec<ConceptFilterKind>, EclError> {
+        let mut filters = vec![self.parse_concept_filter_kind()?];
+        while matches!(self.peek().kind, TokenKind::And) {
+            self.advance()?;
+            filters.push(self.parse_concept_filter_kind()?);
+        }
+        Ok(filters)
+    }
+
+    /// A single `conceptFilter`. Only `activeFilter` is implemented —
+    /// every other kind (`definitionStatusFilter`/`moduleFilter`/
+    /// `effectiveTimeFilter`) isn't tokenized yet, so attempting one fails
+    /// at the lexer with a generic (not feature-named) error before this
+    /// function ever sees it, the same "genuinely unimplemented" bucket
+    /// spec/10 rule 9 describes.
+    fn parse_concept_filter_kind(&mut self) -> Result<ConceptFilterKind, EclError> {
+        match &self.peek().kind {
+            TokenKind::ActiveKeyword => {
+                self.advance()?;
+                let negated = match &self.peek().kind {
+                    TokenKind::Eq => {
+                        self.advance()?;
+                        false
+                    }
+                    TokenKind::NotEq => {
+                        self.advance()?;
+                        true
+                    }
+                    _ => {
+                        let tok = self.peek().clone();
+                        return Err(EclError::UnexpectedToken {
+                            pos: tok.pos,
+                            found: describe(&tok.kind),
+                            expected: "`=` or `!=`",
+                        });
+                    }
+                };
+                let value = match &self.peek().kind {
+                    TokenKind::True => {
+                        self.advance()?;
+                        ActiveValue::True
+                    }
+                    TokenKind::False => {
+                        self.advance()?;
+                        ActiveValue::False
+                    }
+                    TokenKind::Star => {
+                        self.advance()?;
+                        ActiveValue::Wildcard
+                    }
+                    _ => {
+                        let tok = self.peek().clone();
+                        return Err(EclError::UnexpectedToken {
+                            pos: tok.pos,
+                            found: describe(&tok.kind),
+                            expected: "`true`, `false`, or `*`",
+                        });
+                    }
+                };
+                Ok(ConceptFilterKind::Active(ActiveFilter { negated, value }))
+            }
+            _ => {
+                let tok = self.peek().clone();
+                Err(EclError::UnexpectedToken {
+                    pos: tok.pos,
+                    found: describe(&tok.kind),
+                    expected: "a supported concept filter (`active`)",
+                })
             }
         }
     }
@@ -796,9 +918,11 @@ mod tests {
 
     #[test]
     fn rejects_filters_and_member_of_wildcard() {
+        // `term` isn't a tokenized filter keyword yet, so it's rejected
+        // generically at the lexer, before the parser ever sees `{{`.
         assert!(matches!(
             parse("404684003 {{ term = \"x\" }}"),
-            Err(EclError::NotYetImplemented { .. })
+            Err(EclError::UnexpectedKeyword { .. })
         ));
         assert!(matches!(
             parse("^ *"),
@@ -807,6 +931,108 @@ mod tests {
                 ..
             })
         ));
+    }
+
+    #[test]
+    fn rejects_description_and_member_filters_with_named_errors() {
+        // `D`/`M` markers, and the marker-less default (which the
+        // grammar defines as a description filter), are all recognized
+        // and named — only `{{ C ... }}` is actually implemented.
+        assert!(matches!(
+            parse("404684003 {{ D active = true }}"),
+            Err(EclError::NotYetImplemented { .. })
+        ));
+        assert!(matches!(
+            parse("404684003 {{ M active = true }}"),
+            Err(EclError::NotYetImplemented { .. })
+        ));
+        assert!(matches!(
+            parse("404684003 {{ active = true }}"),
+            Err(EclError::NotYetImplemented { .. })
+        ));
+    }
+
+    #[test]
+    fn parses_concept_filter_active() {
+        let expr = parse("<< 404684003 {{ C active = true }}").unwrap();
+        match expr {
+            EC::ConceptFilter { inner, filters } => {
+                assert_eq!(
+                    *inner,
+                    EC::Simple(SimpleExpressionConstraint {
+                        op: HierarchyOp::DescendantOrSelfOf,
+                        focus: FocusConcept::Concept {
+                            id: concept("404684003"),
+                            term: None
+                        },
+                    })
+                );
+                assert_eq!(filters.len(), 1);
+                assert!(matches!(
+                    filters[0],
+                    crate::ast::ConceptFilterKind::Active(crate::ast::ActiveFilter {
+                        negated: false,
+                        value: crate::ast::ActiveValue::True,
+                    })
+                ));
+            }
+            other => panic!("expected ConceptFilter, got {other:?}"),
+        }
+
+        // `!=`, `false`, and `*` all parse too.
+        let expr = parse("404684003 {{ C active != false }}").unwrap();
+        match expr {
+            EC::ConceptFilter { filters, .. } => assert!(matches!(
+                filters[0],
+                crate::ast::ConceptFilterKind::Active(crate::ast::ActiveFilter {
+                    negated: true,
+                    value: crate::ast::ActiveValue::False,
+                })
+            )),
+            other => panic!("expected ConceptFilter, got {other:?}"),
+        }
+        let expr = parse("404684003 {{ C active = * }}").unwrap();
+        match expr {
+            EC::ConceptFilter { filters, .. } => assert!(matches!(
+                filters[0],
+                crate::ast::ConceptFilterKind::Active(crate::ast::ActiveFilter {
+                    negated: false,
+                    value: crate::ast::ActiveValue::Wildcard,
+                })
+            )),
+            other => panic!("expected ConceptFilter, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn concept_filter_applies_before_refinement_and_supports_chaining() {
+        // `{{ }}` binds to the focus concept before `:` wraps the result
+        // in a refinement — the refinement's focus should be the
+        // filtered expression, not the other way around.
+        let expr = parse("404684003 {{ C active = true }} : 116676008 = 79654002").unwrap();
+        match expr {
+            EC::Refined { focus, .. } => {
+                assert!(matches!(*focus, EC::ConceptFilter { .. }));
+            }
+            other => panic!("expected Refined, got {other:?}"),
+        }
+
+        // Multiple `{{ C ... }}` blocks chain, each wrapping the last.
+        let expr = parse("404684003 {{ C active = true }} {{ C active != false }}").unwrap();
+        match expr {
+            EC::ConceptFilter { inner, .. } => {
+                assert!(matches!(*inner, EC::ConceptFilter { .. }));
+            }
+            other => panic!("expected ConceptFilter, got {other:?}"),
+        }
+
+        // A comma-separated list of filters ANDs together (`,` is an
+        // alternate spelling for AND everywhere in this lexer).
+        let expr = parse("404684003 {{ C active = true, active != false }}").unwrap();
+        match expr {
+            EC::ConceptFilter { filters, .. } => assert_eq!(filters.len(), 2),
+            other => panic!("expected ConceptFilter, got {other:?}"),
+        }
     }
 
     #[test]
