@@ -52,7 +52,12 @@ conceptRef                := ":" 1*DIGIT          ; e.g. :404684003 — SNOMED C
                                                     ; http://snomed.info/id/<id>
 literal                   := stringLiteral "^^" prefixedName
 stringLiteral             := '"' *(any char except '"') '"'
-prefixedName              := 1*ALPHA ":" 1*(ALPHA / DIGIT / "_")   ; e.g. xsd:integer
+prefixedName              := word ":" ALPHA *(ALPHA / DIGIT / "_")  ; e.g. xsd:integer
+word                      := ALPHA *(ALPHA / DIGIT / "_")
+                            ; the local part must START with a letter —
+                            ; xsd:1foo / xsd:_foo do not lex as a
+                            ; prefixedName (the lexer only commits to the
+                            ; prefixed form when a letter follows ":")
 ```
 
 Whitespace (spaces, tabs, newlines) between tokens is insignificant and
@@ -151,6 +156,7 @@ Also out of scope, not merely unimplemented:
    naming the exact keyword text — never silently accepted as some other
    construct, and never a panic.
 4. This crate parses; it does not evaluate, classify, or otherwise reason
-   over the resulting `Axiom`. Adding a classifier is out of scope for
-   this workspace (see "Not yet implemented" above) — don't grow this
-   crate into one without a `plan.md` decision first.
+   over the resulting `Axiom`. The workspace's classifier is
+   `snomed-classify` (spec/13), a separate crate consuming this one's
+   output — don't grow reasoning into *this* crate; reasoning changes
+   belong there.

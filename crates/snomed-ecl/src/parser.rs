@@ -256,12 +256,14 @@ impl Parser {
         Ok(filters)
     }
 
-    /// A single `conceptFilter`. Only `activeFilter` is implemented —
-    /// every other kind (`definitionStatusFilter`/`moduleFilter`/
-    /// `effectiveTimeFilter`) isn't tokenized yet, so attempting one fails
-    /// at the lexer with a generic (not feature-named) error before this
-    /// function ever sees it, the same "genuinely unimplemented" bucket
-    /// spec/10 rule 9 describes.
+    /// A single `conceptFilter`: `activeFilter`,
+    /// `definitionStatusTokenFilter`, `moduleFilter`
+    /// (`subExpressionConstraint` form), or `effectiveTimeFilter` —
+    /// spec/10's four implemented kinds. The one remaining grammar
+    /// alternative, `definitionStatusIdFilter`, isn't tokenized, so
+    /// attempting it fails at the lexer with a generic (not
+    /// feature-named) error before this function ever sees it — the
+    /// "genuinely unimplemented" bucket spec/10 rule 9 describes.
     fn parse_concept_filter_kind(&mut self) -> Result<ConceptFilterKind, EclError> {
         match &self.peek().kind {
             TokenKind::ActiveKeyword => {

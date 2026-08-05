@@ -55,9 +55,9 @@ pub enum EclError {
         pos: usize,
     },
     /// A grammar construct spec/10 documents but this version doesn't
-    /// evaluate (refinements, `^ *`, `!!>`/`!!<`, a hierarchy prefix
-    /// combined with `^`, …). Surfaced as a parse error rather than a
-    /// silently incomplete result.
+    /// evaluate (`{{ D }}`/`{{ M }}` filters, `^ *`, `!!>`/`!!<`, a
+    /// hierarchy prefix combined with `^`, dot notation, …). Surfaced as
+    /// a parse error rather than a silently incomplete result.
     NotYetImplemented {
         pos: usize,
         feature: &'static str,

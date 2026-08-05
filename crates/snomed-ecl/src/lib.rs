@@ -1,11 +1,13 @@
 //! SNOMED CT Expression Constraint Language (ECL) — simple expression
-//! constraints subset plus a basic attribute-refinement subset, per
-//! `spec/10-ecl.md`.
+//! constraints, refinements (cardinality, reverse flag, attribute groups,
+//! numeric/string concrete value comparisons), and `{{ C ... }}` concept
+//! filter constraints, per `spec/10-ecl.md`.
 //!
-//! Attribute cardinality, attribute groups, concrete value comparisons, and
-//! `{{ }}` filters are not yet implemented; see
-//! `spec/10-ecl.md#not-yet-implemented`. Encountering one is a parse error,
-//! never a silently incomplete result.
+//! What remains unimplemented (boolean concrete comparisons,
+//! `{{ D }}`/`{{ M }}` description/member filters, the history
+//! supplement, dot notation, alternate identifiers, …) is listed in
+//! `spec/10-ecl.md#not-yet-implemented`. Encountering one is a parse
+//! error, never a silently incomplete result.
 //!
 //! ```
 //! use snomed_ecl::{evaluate, parse};

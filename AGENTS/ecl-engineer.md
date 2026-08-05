@@ -19,9 +19,10 @@ groups `{ }`; plus a `{{ C ... }}` concept filter constraint —
 implemented** (boolean concrete value comparisons, the
 `definitionStatusIdFilter` concept filter kind, `moduleId`'s
 `eclConceptReferenceSet` alternative, `{{ D ... }}`/`{{ M ... }}`
-description/member filters, `^ *`, `!!>`/`!!<`, history supplement,
-alternate identifiers, a hierarchy prefix combined with `^`, dot
-notation).
+description/member filters and the marker-less `{{ ... }}` default,
+`^ *`, `^R`, `^ [A, B]`, `!!>`/`!!<`, the history supplement, alternate
+identifiers, a hierarchy prefix combined with `^`, dot notation — treat
+spec/10's own two-bucket list as authoritative, not this summary).
 
 **The authoritative grammar is the ABNF at
 <https://github.com/IHTSDO/snomed-expression-constraint-language>,
@@ -50,10 +51,14 @@ parsing — never be silently accepted and evaluated as something else,
 and never panic. Naming the specific feature via
 `EclError::NotYetImplemented { feature, .. }` is strongly preferred (most
 of spec/10's list gets this now) but isn't yet universal: boolean
-concrete value comparisons and the `definitionStatusIdFilter` concept
-filter kind still surface as a generic `UnexpectedToken`/`UnexpectedKeyword`
+concrete value comparisons, the history supplement (`{{+HISTORY}}`), a
+marker-less `{{ ... }}` whose first token isn't `active`, the
+`definitionStatusIdFilter` concept filter kind, and `moduleId`'s
+`eclConceptReferenceSet` form all still surface as a generic
+`UnexpectedToken`/`UnexpectedKeyword`
 because recognizing their shape well enough to name them isn't as simple
-as matching a fixed token sequence — see spec/10 rule 9. Moving one from
+as matching a fixed token sequence — see spec/10 rule 9's two-bucket
+list, which is the authoritative inventory. Moving one from
 generic to named, without implementing the underlying feature, is a
 welcome, low-risk improvement on its own; see the recent
 `Dot`/`Top`/`Bottom`/`A#B`-detection additions in `lexer.rs`/`parser.rs`
@@ -64,12 +69,15 @@ syntax.
 ## The lexer is pull-based, not eager — keep it that way
 
 `Lexer::next_token()` is called incrementally by the parser, one token at a
-time. This is why: if the whole input were tokenized upfront, an unsupported
-construct later in the string (e.g. `=` inside a refinement, which isn't a
-recognized character in this subset) would cause lexing to fail with a
-generic `UnexpectedChar` *before* the parser ever got a chance to see the
-`:` and report the much more useful `NotYetImplemented { feature:
-"refinements (\`:\`)" }`. If you add a construct that needs lookahead past
+time. This is why: if the whole input were tokenized upfront, an
+unsupported construct later in the string (today, e.g. an unrecognized
+keyword inside a `{{ D ... }}` description filter's body) would cause
+lexing to fail with a generic `UnexpectedChar`/`UnexpectedKeyword`
+*before* the parser ever got a chance to see the `{{ D` and report the
+much more useful named `NotYetImplemented` for description filters.
+(The original motivating example — `=` not being a recognized character
+before refinements existed — is long gone; the principle isn't.) If you
+add a construct that needs lookahead past
 what the parser currently consumes, keep the lazy-pull design — don't
 revert to eager whole-string tokenization to make it easier; it will
 degrade error messages for every not-yet-implemented feature after that

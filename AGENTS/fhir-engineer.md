@@ -85,9 +85,12 @@ don't special-case new names there unless they need their own error kind
 **Why `lookup` takes a precomputed `nnf_report` instead of computing it
 itself.** `snomed_classify::necessary_normal_form` has no per-concept
 entry point and no caching — it's a whole-axiom-set DL classification
-pass, expensive enough that `classify-engineer.md` benchmarks it in
-seconds even on a synthetic 20k-concept ontology, and a real SNOMED CT
-release is two orders of magnitude larger. Computing it fresh inside
+pass plus a second full stated-profile pass. `snomed-classify`'s own
+benchmark (`examples/benchmark_synthetic_ontology.rs`, 370k synthetic
+concepts — the real International Edition's scale) measures `classify`
+alone at ~1.7s; `necessary_normal_form` re-runs that *and* adds its own
+passes. Per-request cost in whole seconds for a single `$lookup`
+property is not viable. Computing it fresh inside
 `lookup` per `$lookup` call would silently make this crate's simplest
 operation the slowest one, and violate the same "never do a fresh
 traversal when a shared primitive exists" discipline `$subsumes`/`$expand`

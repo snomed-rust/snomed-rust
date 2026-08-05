@@ -36,7 +36,9 @@ those, stamped with an `effectiveTime`.
 Implemented: core component files, every refset pattern this workspace
 tracks (spec/08's full table, including MRCM and the current Ordered/
 Annotation variants), file naming, SCTID validation/generation, snapshot
-construction and full version history, IS-A hierarchy queries, Expression
+construction and version history for the Concept/Description/Relationship
+component types (refset-member and `RelationshipConcreteValues` history
+are documented gaps — spec/09 rule 5), IS-A hierarchy queries, Expression
 Constraint Language (spec/10), FHIR terminology-service building blocks
 (spec/11), OWL axiom parsing (spec/12), EL-profile subsumption
 classification (spec/13), and necessary normal form generation (spec/14).

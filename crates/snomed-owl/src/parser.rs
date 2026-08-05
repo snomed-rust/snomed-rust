@@ -421,9 +421,10 @@ mod tests {
 
     #[test]
     fn parses_a_role_group_without_a_nested_group_attribute() {
-        // A grouped attribute produces a nested ObjectIntersectionOf
-        // under the Role group ObjectSomeValuesFrom, even with only one
-        // attribute in the group.
+        // A role group with exactly one attribute OMITS the
+        // ObjectIntersectionOf wrapper (spec/14's "single-operand
+        // intersection isn't written" convention) — the Role group
+        // ObjectSomeValuesFrom nests the attribute existential directly.
         let axiom = parse(
             "EquivalentClasses(:9846003 ObjectIntersectionOf(:39132006 \
              ObjectSomeValuesFrom(:609096000 ObjectSomeValuesFrom(:127489000 :7771000))))",

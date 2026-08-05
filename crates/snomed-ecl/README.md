@@ -101,17 +101,18 @@ let matches = evaluate(&expr, store);
 | Syntax details | pipe-delimited terms (`73211009 \|Diabetes mellitus\|`, non-semantic), case-insensitive keywords, `,` as an alternate spelling for `AND`, `/* comments */` |
 
 Not yet implemented, never silently mishandled: `{{ D ... }}` description
-filters, `{{ M ... }}` member filters, a bare `{{ ... }}` (defaults to a
-description filter), the history supplement, `!!>`/`!!<`, `^ *`, a
-hierarchy prefix combined with `^`, `^R`, `^ [A, B]` (member of with
-field selection), alternate identifiers (`A#B`), and dot notation are
-all rejected with a specific `EclError::NotYetImplemented { feature, .. }`
-naming what's missing. Boolean concrete value comparisons, the
-`definitionStatusIdFilter` concept filter kind, and `moduleId`'s
-`eclConceptReferenceSet` alternative (`moduleId = (id1 id2)`) are
-rejected too, but currently with a generic parse error rather than a
-named one (spec/10 rule 9) — genuinely unimplemented constructs, not
-just missing a label.
+filters, `{{ M ... }}` member filters, a bare `{{ active ... }}`,
+`!!>`/`!!<`, `^ *`, a hierarchy prefix combined with `^`, `^R`,
+`^ [A, B]` (member of with field selection), alternate identifiers
+(`A#B`), and dot notation are all rejected with a specific
+`EclError::NotYetImplemented { feature, .. }` naming what's missing.
+Boolean concrete value comparisons, the history supplement
+(`{{+HISTORY}}`), a bare `{{ ... }}` starting with anything other than
+`active`, the `definitionStatusIdFilter` concept filter kind, and
+`moduleId`'s `eclConceptReferenceSet` alternative (`moduleId = (id1
+id2)`) are rejected too, but currently with a generic parse error rather
+than a named one (spec/10 rule 9) — genuinely unimplemented constructs,
+not just missing a label.
 
 ## Design notes worth knowing before you extend this crate
 
@@ -132,9 +133,10 @@ just missing a label.
 - **Every hierarchy operator is implemented in terms of `SnapshotStore`'s
   existing primitives** (`parents`/`children`/`ancestors`/`descendants`),
   never a fresh traversal, so hierarchy semantics live in exactly one
-  place in the workspace. Attribute groups follow the same rule via a new
+  place in the workspace. The reverse flag follows the same rule via
   `SnapshotStore::relationships_to` (destination-indexed, mirroring the
-  existing `relationships_of`), added specifically for the reverse flag.
+  existing `relationships_of`), added specifically for it; attribute
+  groups use the ordinary source-indexed `relationships_of`.
 - **Attribute refinements match against active *inferred* relationships
   only** — the same view hierarchy queries use (spec/07), extended here
   rather than given new semantics.

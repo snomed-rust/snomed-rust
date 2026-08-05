@@ -15,8 +15,9 @@ Official/academic sources:
   SNOMED International's own reasoner wrapper (OWL API + the ELK
   reasoner) confirms EL-family reasoning is exactly what SNOMED CT is
   designed for, and names the downstream step (deriving RF2's necessary
-  normal form / inferred relationships from a classification) that
-  `snomed-classify` does **not** attempt — see "Not yet implemented".
+  normal form / inferred relationships from a classification) — that
+  step is implemented too, as `necessary_normal_form` on top of
+  `classify`, specified separately in spec/14.
 
 `snomed-classify` computes, from a set of `snomed_owl::Axiom`s, the full
 entailed subsumption hierarchy: for every named concept, every other
@@ -53,11 +54,16 @@ fresh ones) and `r`, `s`, `t` over role names (including fresh ones):
 
 - `SubClassOf { sub, sup }`: `sub` is normalized into a list of conjunct
   concept ids (flattening a top-level `ObjectIntersectionOf`, if any,
-  directly into NF1's conjunct list — **no fresh name is introduced for
-  a top-level GCI's left side**, since that's both unnecessary and, in
-  real SNOMED content, the single most common axiom shape); `sup` is
-  distributed across its top-level conjuncts (if `ObjectIntersectionOf`)
-  into one NF1/NF2 rule per conjunct.
+  directly into NF1's conjunct list — no fresh name is needed for a
+  top-level GCI's left side *when `sup` normalizes to NF1 rules*, since
+  NF1's left side is itself a conjunction, and that's the single most
+  common axiom shape in real SNOMED content); `sup` is distributed
+  across its top-level conjuncts (if `ObjectIntersectionOf`) into one
+  NF1/NF2 rule per conjunct. **One exception**: when `sup` (or one of
+  its conjuncts) is an existential, NF2's left side must be a *single*
+  name — so a multi-conjunct `sub` does get a fresh name there
+  (`conjuncts ⊑ F` as NF1, then `F ⊑ ∃r.B` as NF2), introduced in
+  exactly that case and no other.
 - `EquivalentClasses(ops)`: expanded into a cycle of pairwise
   `SubClassOf` axioms (`ops[0]⊑ops[1]`, `ops[1]⊑ops[2]`, …,
   `ops[n-1]⊑ops[0]`) — sufficient for full mutual subsumption to fall out
@@ -119,7 +125,10 @@ table above), `EquivalentClasses`, `ObjectIntersectionOf`,
 **Not yet implemented** — never silently treated as if it contributed no
 axioms without saying so; `classify` reports every skipped construct via
 `ClassificationReport::skipped`, one [`SkippedConstruct`] entry per
-occurrence:
+occurrence. (The `SkippedConstruct` enum is shared with spec/14's
+`necessary_normal_form`, which adds a fourth variant —
+`UnmodeledAttributeShape` — that `classify` itself never emits; the
+three below are the complete set for classification proper.)
 
 - **`ReflexiveObjectProperty`**: EL can express reflexivity (it would
   seed `R(r) ∋ (X,X)` for every `X`, plus an extra completion rule), but

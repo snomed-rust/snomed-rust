@@ -242,11 +242,11 @@ fn evaluate_attribute_constraint(
                 within_cardinality
             }
         }
-        // `stringComparisonOperator concreteString`: count active
-        // inferred `RelationshipConcreteValue` rows of this type whose
-        // `String` exactly matches one of `values` (only ever one entry
-        // until `concreteStringSet` is implemented, spec/10) — a
-        // `Number` value never matches. `negated` negates the aggregate
+        // `stringComparisonOperator (concreteString | concreteStringSet)`:
+        // count active inferred `RelationshipConcreteValue` rows of this
+        // type whose `String` exactly matches ANY entry of `values`
+        // (2+ entries for a `concreteStringSet`, spec/10) — a `Number`
+        // value never matches. `negated` negates the aggregate
         // cardinality check, same pattern as `Expression`.
         AttributeComparison::String { negated, values } => {
             let count = store

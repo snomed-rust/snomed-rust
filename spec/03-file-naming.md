@@ -36,8 +36,8 @@ column's type:
 | letter | column type |
 |---|---|
 | `c` | component SCTID reference |
-| `s` | UTF-8 string |
-| `i` | signed integer |
+| `s` | anything that isn't an SCTID or integer — string, time, or UUID (spec/08's confirmed reading; e.g. ModuleDependency's `ssRefset` columns are `effectiveTime`s, MemberAnnotation's first `s` is a UUID) |
+| `i` | integer (non-negative in every column this workspace parses — parsed as `u32`) |
 
 So `cRefset` = one extra component column (e.g. Language, Association,
 AttributeValue), `sRefset` = one string column (SimpleMap, OWLExpression),

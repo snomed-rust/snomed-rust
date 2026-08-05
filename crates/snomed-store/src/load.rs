@@ -135,8 +135,11 @@ impl SnapshotStoreBuilder {
 /// for callers that want to route each file somewhere other than a
 /// `SnapshotStoreBuilder` — e.g. `snomed-cli export`'s whole-directory mode.
 /// Files that aren't `.txt`, don't parse as an RF2 release name, or belong
-/// to a different release view are silently omitted (not an error — same
-/// as `load_release_dir`'s treatment of those cases).
+/// to a different release view are silently omitted — a deliberate
+/// divergence from `load_release_dir`, which records unparseable-name
+/// files in [`LoadReport::skipped`] (spec/02); this function's return
+/// shape has no report, so callers needing skip visibility should use
+/// `load_release_dir` instead.
 pub fn list_release_files(
     dir: &Path,
     release_type: ReleaseType,

@@ -10,11 +10,11 @@ scope. Depends on `snomed-core` only.
 
 **This is a parser, not a reasoner.** It turns an `owlExpression` column
 value into a structured `Axiom` — it does not classify concepts, infer a
-hierarchy, or otherwise reason over axioms. A DL classifier is a large
-undertaking (SNOMED International's own reference implementation,
-[`snomed-owl-toolkit`](https://github.com/IHTSDO/snomed-owl-toolkit),
-wraps the full OWL API plus the ELK reasoner) and is out of scope for this
-zero-dependency workspace.
+hierarchy, or otherwise reason over axioms. That half lives in
+[`snomed-classify`](../snomed-classify) (spec/13), which consumes this
+crate's `Axiom` output and implements EL-profile subsumption
+classification plus necessary normal form generation — reasoning is out
+of scope for *this crate*, not the workspace.
 
 ## Quick example
 

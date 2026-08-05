@@ -102,8 +102,11 @@ let result = lookup(
     &["normalForm", "normalFormTerse"],
     Some(nnf_report),
 )?;
-// result.property -> compositional grammar text, e.g.
-// "22298006 |Myocardial infarction| : 116676008 |Associated morphology| = ..."
+// result.property -> compositional grammar text. The focus concepts are
+// the looked-up concept's PROXIMAL PARENTS (its necessary normal form),
+// not the concept itself — e.g. looking up 22298006 |Myocardial
+// infarction| renders something like
+// "57809008 |Myocardial disease| : { 116676008 |Associated morphology| = ... }"
 # Ok(()) }
 ```
 
@@ -164,9 +167,11 @@ apart from "1 total".
 Scoped in `spec/11-fhir.md`, not yet built (see the root `tasks.md`):
 
 - `$lookup`'s SNOMED concept-model-attribute properties (e.g.
-  `272741003 |Laterality|` surfaced as its own property code) — needs
-  attribute-group-aware traversal of OWL/relationship data this crate
-  doesn't do yet.
+  `272741003 |Laterality|` surfaced as its own property code). The
+  underlying data already flows in via `nnf_report`
+  (`NecessaryNormalForm::attributes`); the gap is surfacing individual
+  attribute types as dynamic FHIR property codes rather than this
+  crate's fixed property-name set.
 - `$expand`'s `context`-based expansion and inline `valueSet` expansion
   (a `ValueSet` resource body given directly in the request rather than
   referenced by `url`).

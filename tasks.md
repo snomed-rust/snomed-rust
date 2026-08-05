@@ -94,9 +94,11 @@ current: check items off in the same change that completes them.
       has enormous headroom versus any plausible query budget. Revisit if
       a real-release run or a downstream consumer's profile says
       otherwise. Rationale and numbers in `plan.md`.
-- [ ] Re-run the benchmark against a real International Edition Snapshot
-      if/when one is available, to sanity-check the synthetic numbers
-      (real poly-hierarchy likely raises ancestors-per-concept).
+- [x] ~~Re-run the benchmark against a real International Edition
+      Snapshot~~ — not a Done item; moved to the final "Next up" list
+      (where it already lives), since it stays blocked until licensed
+      release data is available. Kept here only so this section has no
+      dangling open checkbox.
 
 ## Done (2026-08-03, Phase 5 started)
 
@@ -176,10 +178,12 @@ current: check items off in the same change that completes them.
       spec), and the narrowed "Not yet implemented" list (cardinality,
       reverse flag, attribute groups, non-plain-concept attribute names,
       concrete value comparisons). 99 tests passing, clippy clean.
-- [ ] Attribute cardinality (`[min..max]`), reverse flag (`R`), attribute
-      groups (`{ }`), concrete value comparisons, hierarchy-prefixed/
-      memberOf attribute names — tracked as the next ECL increment(s) if
-      needed; grammar already in hand (spec/10-ecl.md sources note).
+- [x] Attribute cardinality (`[min..max]`), reverse flag (`R`), attribute
+      groups (`{ }`), concrete value comparisons, hierarchy-prefixed
+      attribute names — forecast here as "the next ECL increment(s)";
+      every one has since landed (see the 2026-08-04/05 Done sections
+      below). Checked off retroactively so no stale open item claims
+      these are still pending.
 
 ## Done (2026-08-03, history/audit queries — Phase 5 closed)
 
@@ -1308,7 +1312,9 @@ This closes Phase 7 (see `plan.md`).
 - [x] Tests: 2 new parser (concreteStringSet AST shape incl. negation and
       a single-element set; a regression check that `= (<< X)` still
       parses as a parenthesized expression, not a string set), 1 new eval
-      (set membership matches on any element, not just the first).
+      (set membership matches on any element, not just the first) — the
+      first parser test *replaced* the old `concrete_string_set_is_not_yet_implemented`
+      rejection test, so the net count moved +2, not +3.
       269 tests passing workspace-wide (up from 267). `cargo fmt --all
       -- --check` and `cargo clippy --all-targets` both clean.
 - [x] Docs: spec/10-ecl.md (grammar's `comparison`/`concreteStringSet`
@@ -1409,8 +1415,8 @@ This closes Phase 7 (see `plan.md`).
       `defined` are keyword tokens that can never start a
       `subExpressionConstraint`, so seeing `(` after `definitionStatus
       (=|!=)` is unambiguous — the only production listed there.
-- [x] Tests: 2 new parser (single token + `!=`, plus the token-set form),
-      1 new eval (primitive/defined restriction incl. negation and the
+- [x] Tests: 1 new parser test fn (covering the single token, `!=`, and
+      the token-set form), 1 new eval (primitive/defined restriction incl. negation and the
       no-op two-value set). 277 tests passing workspace-wide (up from
       275). `cargo fmt --all -- --check` and `cargo clippy --all-targets`
       both clean.
@@ -1453,8 +1459,8 @@ This closes Phase 7 (see `plan.md`).
       existing parser already resolves that correctly by construction.
 - [x] New lexer token (`ModuleIdKeyword`), added the same unconditional
       way as every other `{{ }}`-related keyword before it.
-- [x] Tests: 2 new parser (plain concept reference + `!=`/hierarchy
-      value), 1 new eval (module-id restriction incl. negation and an
+- [x] Tests: 1 new parser test fn (plain concept reference + `!=`/
+      hierarchy value), 1 new eval (module-id restriction incl. negation and an
       OR'd hierarchy expression as the value). 279 tests passing
       workspace-wide (up from 277). `cargo fmt --all -- --check` and
       `cargo clippy --all-targets` both clean.
@@ -1498,8 +1504,9 @@ This closes Phase 7 (see `plan.md`).
       `parse_time_comparison_operator` is a fresh helper (not a reuse of
       `parse_boolean_comparison_operator`, which only covers `=`/`!=` —
       `effectiveTimeFilter` needs all six `timeComparisonOperator` symbols).
-- [x] Tests: 3 new parser (all six operators, the `timeValueSet` form,
-      malformed-date rejection via the new named error), 1 new eval
+- [x] Tests: 2 new parser test fns (one covering all six operators plus
+      the `timeValueSet` form; one for malformed-date rejection via the
+      new named error), 1 new eval
       (comparison restriction incl. `<`/`>=` and an OR'd `timeValueSet`).
       282 tests passing workspace-wide (up from 279). `cargo fmt --all
       -- --check` and `cargo clippy --all-targets` both clean.
@@ -1610,7 +1617,7 @@ This closes Phase 7 (see `plan.md`).
       2 new in `lookup.rs` (missing-report rejection for both property
       names; a full report-supplied round trip proving `normalForm`
       includes `|term|` and `normalFormTerse` doesn't, plus the
-      absent-from-report empty-string case) — 6 new tests, plus the 8
+      absent-from-report empty-string case) — 6 new tests, plus the 10
       pre-existing `lookup()` call sites across `lookup.rs`'s own test
       module updated for the new parameter (mechanical, no behavior
       change) and one test (`rejects_an_unsupported_property`) switched
@@ -1629,21 +1636,144 @@ This closes Phase 7 (see `plan.md`).
       out the still-genuine concept-model-attribute-properties gap from
       the now-closed `normalForm` one).
 
+## Done (2026-08-06, comprehensive documentation audit — plan.md, tasks.md, spec/*, AGENTS/*, crate READMEs, code doc comments)
+
+- [x] Ran five parallel audits (spec/01-09+spec/README vs
+      core/rf2/store; spec/10 vs snomed-ecl; spec/11-14 vs
+      fhir/owl/classify; plan.md; tasks.md), each verifying doc claims
+      against code with exact quotes — ~30 confirmed discrepancies, all
+      fixed; everything else verified accurate.
+- [x] plan.md: annotated the two unannotated stale forward references
+      (ordered/annotation refsets; `{{ }}` filters after
+      parenthesized/`^ memberOf` focus), fixed the present-tense "All 11
+      RF2 record types this workspace parses" (11 was Phase 4's count;
+      22 now), and corrected the stale description of spec/11's
+      not-yet-implemented list.
+- [x] spec/09 (biggest single-file rewrite): `component_at` →
+      `concept_at`/`description_at`/`relationship_at`; rule 2 now
+      credits `HistoryStoreBuilder::load_release_dir` with filtering to
+      Full by file name itself (the silent-incompleteness caveat only
+      applies to the manual add path); rule 4 now distinguishes
+      query-time active filtering (component types) from build-time
+      dropping (refset members — "was X ever a member" is a HistoryStore
+      question); the derived-indexes list grew the four missing entries
+      (`relationships_to`, `relationship_concrete_values_of`,
+      `acceptability`, the unified refset index); rule 5 names the
+      `RelationshipConcreteValues` history gap alongside refset members.
+- [x] spec/02: heading de-parameterized (fixing `load.rs`'s anchor
+      link), rule 4's path corrected to
+      `SnapshotStoreBuilder::load_release_dir`, and `list_release_files`
+      documented including its deliberate no-skip-report divergence
+      (the function's own doc comment falsely claimed "same as
+      `load_release_dir`" — fixed there too).
+- [x] spec/01 ("full version history" → scoped to the three component
+      types with named gaps), spec/03 (pattern-letter table: `s` =
+      anything non-SCTID/non-integer incl. Time/UUID per spec/08's
+      confirmed reading; `i` parsed as `u32` here, not "signed"),
+      spec/05/06/07 (rule-1 partition MUSTs annotated as
+      data-requirements this workspace doesn't yet enforce per-file;
+      spec/07 rule 2's orphan invariant annotated as not
+      `validate()`-checked — both added to Next up).
+- [x] spec/10: rewrote the false "Deliberate leniency" paragraph (an
+      unparenthesized refined expression as a LEFT operand of top-level
+      `AND`/`OR` is a parse error, not a lenient parse — only `MINUS`
+      and last-operand positions are lenient; errs, never misparses);
+      moved the history supplement and the non-`active` marker-less
+      `{{ ... }}` forms from the named-error bucket to the generic one
+      (no `HISTORY` handling exists anywhere in the crate); grammar
+      block gained the trailing-refinement leniency note and six `1*`
+      productions corrected to `*` (single-element sets/bare refinements
+      are accepted); documented the `A#B`-vs-keyword-table collision
+      exception and the `{ }` concrete-value-only group candidacy
+      limitation (new "Known limitation" note + Next up entry).
+- [x] spec/11 (concept-model-attribute rationale: the traversal now
+      exists in snomed-classify — the gap is surfacing property codes,
+      not the traversal), spec/12 (rule 4's "classifier is out of scope
+      for this workspace" → for this crate; `prefixedName` production
+      corrected to match the lexer's actual letter-first local part),
+      spec/13 (sources note no longer says NNF "is not attempted";
+      documented the fresh-name exception for multi-conjunct GCI left
+      sides under an existential `sup`; noted the shared
+      `SkippedConstruct` enum's fourth variant), spec/14 (no changes
+      needed — verified accurate).
+- [x] Stale code doc comments fixed (doc-only, no behavior change):
+      snomed-ecl `lib.rs` front page (claimed cardinality/groups/
+      concrete values/filters "not yet implemented"),
+      `parse_concept_filter_kind` (claimed only `activeFilter`),
+      `eval.rs` String-comparison comment (claimed `concreteStringSet`
+      unimplemented), `error.rs` `NotYetImplemented` examples (listed
+      "refinements"), `lexer.rs` module doc + `LBrace2` doc;
+      snomed-owl `parser.rs` role-group test comment (asserted the
+      opposite of spec/14's single-attribute-group rule);
+      snomed-fhir `error.rs` `UnsupportedValueSet` doc (claimed bare
+      `?fhir_vs=refset` unimplemented).
+- [x] READMEs: snomed-rf2 (3+8 record types → 4+18=22), snomed-owl
+      (classifier "out of scope for this zero-dependency workspace" →
+      lives in snomed-classify), snomed-ecl (history supplement moved to
+      the generic-error list; `relationships_to` correctly credited to
+      the reverse flag, not attribute groups), snomed-fhir (`normalForm`
+      example now shows the focus as the concept's proximal PARENTS —
+      verified `57809008 |Myocardial disease|` via `SctId::parse` before
+      writing it — and the concept-model-attribute gap restated
+      accurately).
+- [x] AGENTS files: fhir-engineer.md (benchmark citation corrected — the
+      370k-concept synthetic benchmark measures `classify` at ~1.7s; the
+      old text cited "seconds on 20k" which was the *bug* description,
+      and "two orders of magnitude larger" which is ~18×);
+      ecl-engineer.md (dead lexer example replaced, both NYI inventories
+      corrected and now defer to spec/10's authoritative two-bucket
+      list).
+- [x] tasks.md itself: the two unchecked `[ ]` items inside Done
+      sections resolved (one moved to Next up where it already lived,
+      one checked off retroactively with pointers to the sections that
+      closed it); four test-count itemizations reconciled with the
+      actual test functions (definitionStatus/moduleId = 1 parser fn
+      each, effectiveTime = 2, concreteStringSet's +2 explained by the
+      replaced rejection test); "8 pre-existing `lookup()` call sites" →
+      10.
+- [x] Verified after all edits: `cargo test --workspace` still 289
+      passing, `cargo fmt --all -- --check` and
+      `cargo clippy --all-targets` clean.
+
 ## Next up
 
 - [ ] Nothing currently scoped. Candidate future work (not yet
       decided/planned): a `snomed-fhir` HTTP server crate (would need a
       new external dependency — needs explicit user direction against
       the zero-dependency policy, not an autonomous pick); `snomed-fhir`'s
-      `$lookup` concept-model-attribute properties (needs attribute-
-      group-aware OWL/relationship traversal) and `$expand`'s `context`-
+      `$lookup` concept-model-attribute properties (the underlying data
+      already flows in via `nnf_report` — the gap is surfacing attribute
+      types as dynamic FHIR property codes) and `$expand`'s `context`-
       based/inline-`valueSet` expansion; `snomed-ecl`'s remaining smaller
       documented gaps (boolean concrete comparisons, the
       `definitionStatusIdFilter` concept filter kind, `moduleId`'s
       `eclConceptReferenceSet` alternative, `{{ D ... }}`/`{{ M ... }}`
-      description/member filters, the history supplement);
+      description/member filters and the non-`active` marker-less
+      `{{ ... }}` named error, the history supplement);
       property-chain/transitive-property redundancy elimination for
       `necessary_normal_form` (spec/14's documented, conservative scope
       cut); re-running the Phase 4 `snomed-store` benchmark (and the
       Phase 7 `snomed-classify` one) against a real International
       Edition release if one becomes available.
+- [ ] Small gaps surfaced by the 2026-08-06 audit (each independently
+      pickable):
+      - `snomed-ecl`: `{ }` attribute-group candidacy only considers
+        `Relationship` rows — a role group whose only rows are
+        `RelationshipConcreteValue`s can never satisfy `{ attr > #500 }`
+        (spec/10 "Known limitation" note; fix = union concrete-value
+        rows' nonzero groups into the candidate set, plus a test).
+      - `snomed-ecl`: spec/10 rule 6 (inferred-only matching) has no
+        regression test — no fixture ever includes a *stated*
+        relationship, so a regressed `is_inferred()` filter would pass
+        the suite undetected.
+      - `snomed-rf2`: per-file partition enforcement (spec/05/06/07 rule
+        1) — a Concept row whose `id` carries a description partition
+        parses successfully today; `SctId::component_type()` exists but
+        no parser consults it.
+      - `snomed-store`: orphan/rootless-concept check in `validate()`
+        (spec/07 rule 2 — every active concept except the root should
+        have an active IS-A row; rules 3/5's siblings are checked, this
+        one isn't).
+      - `snomed-store`: `RelationshipConcreteValues` history in
+        `HistoryStore` (skip-and-reported today; spec/09 rule 5 names it
+        a gap alongside refset-member history).

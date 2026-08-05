@@ -1,8 +1,10 @@
 # snomed-rf2
 
 Parses SNOMED CT **RF2** release files: file name decoding, a streaming
-typed reader with header validation and line-numbered errors, the three
-core component record types, and eight reference set member types.
+typed reader with header validation and line-numbered errors, the four
+core component record types (Concept, Description, Relationship,
+RelationshipConcreteValue), and all eighteen reference set member types
+this workspace tracks (spec/08's full table) — 22 record types in total.
 
 Depends only on `snomed-core`.
 

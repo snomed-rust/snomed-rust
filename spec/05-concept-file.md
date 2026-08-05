@@ -32,6 +32,10 @@ Each row is one version of one concept.
 
 ## Rules
 
-1. `id` MUST carry a concept partition identifier (00 or 10).
+1. `id` MUST carry a concept partition identifier (00 or 10). *(A
+   requirement on the released data. This workspace's parser validates
+   the SCTID fully — length, partition validity, check digit — but does
+   not yet reject a row whose partition names a different component type
+   than its file; tracked as a candidate check in `tasks.md`.)*
 2. Inactive concepts remain in Snapshot views; consumers MUST check `active`.
 3. All five columns are mandatory; no column may be empty.

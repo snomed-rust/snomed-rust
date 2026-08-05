@@ -27,9 +27,9 @@ pub enum FhirError {
     /// [`FhirError::UnsupportedProperty`]: the property genuinely *is*
     /// supported, it just needs input this particular call didn't supply.
     MissingClassification(String),
-    /// A `$expand` `url` that isn't one of the implicit value set forms
-    /// spec/11 documents (or is the bare `?fhir_vs=refset` form, which is
-    /// a documented not-yet-implemented gap, not a malformed URL).
+    /// A `$expand` `url` that isn't one of the five implicit value set
+    /// forms spec/11 documents (all five are implemented, including the
+    /// bare `?fhir_vs=refset` form).
     UnsupportedValueSet(String),
     /// The `ecl/` form of an implicit value set failed to parse as ECL —
     /// wraps `snomed_ecl::EclError`'s message rather than the error type

@@ -115,8 +115,13 @@ above).
 **Not yet implemented** (rejected with `FhirError::UnsupportedProperty`
 naming the property, never silently omitted): SNOMED concept-model-
 attribute properties (e.g. `272741003 |Laterality|` surfaced as its own
-property code — needs attribute-group-aware traversal of the OWL/
-relationship data this workspace doesn't do yet).
+property code). The underlying attribute-group-aware traversal *does*
+exist now — `snomed-classify`'s stated-profile extraction and
+`NecessaryNormalForm::attributes` carry exactly this data, and `lookup`
+already receives it via `nnf_report` — so the remaining gap is purely
+surfacing individual attribute types as their own FHIR property codes
+(one `LookupProperty` entry per attribute type, dynamic codes rather
+than this crate's current fixed set), not the traversal itself.
 
 ## `$subsumes` ✅
 

@@ -39,7 +39,11 @@ Let `rows(id)` be all rows sharing a component id.
   well-formed release never contains two different rows with the same
   (id, effectiveTime). Parsers MAY treat a conflicting duplicate as an error.
 
-## Loading a release directory (normative for `snomed-store::load_release_dir`)
+## Loading a release directory
+
+Normative for `snomed-store`'s two directory loaders:
+`SnapshotStoreBuilder::load_release_dir` (takes a `ReleaseType`) and
+`HistoryStoreBuilder::load_release_dir` (always Full — spec/09).
 
 Real RF2 releases nest files under a directory tree, typically:
 
@@ -73,10 +77,20 @@ SnomedCT_InternationalRF2_PRODUCTION_<date>/
    recognized, dispatched file that fails RF2 parsing (spec/01's format
    rules) — malformed data in a file the loader claims to understand is a
    hard error, not a skip.
-4. `snomed-store::load_release_dir` dispatches every component type
-   (Concept, Description/TextDefinition, Relationship/StatedRelationship,
-   RelationshipConcreteValues) and every refset type this workspace parses
-   — spec/08's full table, including all four MRCM types and the current
-   Ordered/Annotation variants (spec/05..08). No refset pattern this
-   workspace tracks is recognized-but-not-loaded; a genuinely unrecognized
-   (content type, summary) combination still skip-and-reports per rule 3.
+4. `SnapshotStoreBuilder::load_release_dir` dispatches every component
+   type (Concept, Description/TextDefinition,
+   Relationship/StatedRelationship, RelationshipConcreteValues) and every
+   refset type this workspace parses — spec/08's full table, including
+   all four MRCM types and the current Ordered/Annotation variants
+   (spec/05..08). No refset pattern this workspace tracks is
+   recognized-but-not-loaded; a genuinely unrecognized (content type,
+   summary) combination still skip-and-reports per rule 3.
+
+A second public entry point, `list_release_files(dir, release_type)`,
+implements rules 1-2's *file selection* half only (recurse, parse names,
+filter by release type) and returns the matched `(path, ReleaseFileName)`
+pairs without loading them — `snomed-cli export` uses it. One deliberate
+divergence from rule 3: it silently omits files it filters out and
+reports nothing (there is no `LoadReport` in its return shape), unlike
+`load_release_dir`, which records skipped files. Callers needing the
+skip report must use `load_release_dir`.

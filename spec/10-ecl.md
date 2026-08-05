@@ -66,8 +66,20 @@ subExpressionConstraint
                         -- grammar; this crate only recognizes
                         -- conceptFilterConstraint's marker (`C`) here, and
                         -- names the other two as NotYetImplemented when
-                        -- their marker (`D`/`M`) or the marker-less
-                        -- description-filter default is seen
+                        -- their marker (`D`/`M`) is seen — a MARKER-LESS
+                        -- `{{ ... }}` gets the named error only when its
+                        -- first token is `active`; any other first token
+                        -- falls to a generic error (see "Not yet
+                        -- implemented")
+                        -- NOTE: the parser applies this same trailing
+                        -- structure (filters, then an optional ":"
+                        -- refinement, and the named dot-notation
+                        -- rejection) after EVERY subExpressionConstraint
+                        -- position — including nested ones like attribute
+                        -- names/values and moduleId filter values — so a
+                        -- refinement is accepted in nested positions the
+                        -- official grammar reserves for the top level; a
+                        -- deliberate leniency, never a misparse
 memberOf              := "^" conceptReference
 simpleExpressionConstraint
                       := [hierarchyPrefix] focusConcept
@@ -79,7 +91,7 @@ term                  := "|" <any text except "|"> "|"
 sctid                 := digit+                         -- validated as an SctId (spec/04)
 
 conceptFilterConstraint
-                      := "{{" ws "C" ws conceptFilter 1*(ws "," ws conceptFilter) ws "}}"
+                      := "{{" ws "C" ws conceptFilter *(ws "," ws conceptFilter) ws "}}"
                         -- the `C` marker is mandatory for a concept filter
                         -- (unlike descriptionFilterConstraint's optional
                         -- `D`, which is why a marker-less `{{ ... }}`
@@ -103,7 +115,9 @@ definitionStatusTokenFilter
                          (definitionStatusToken | definitionStatusTokenSet)
 definitionStatusToken := "primitive" | "defined"
 definitionStatusTokenSet
-                      := "(" definitionStatusToken 1*(ws definitionStatusToken) ")"
+                      := "(" definitionStatusToken *(ws definitionStatusToken) ")"
+                        -- a single-element set `(primitive)` is accepted
+                        -- (the official ABNF requires 2+; leniency)
 moduleFilter          := "moduleId" ws booleanComparisonOp ws subExpressionConstraint
                         -- the official grammar also allows
                         -- eclConceptReferenceSet (`moduleId = (id1 id2)`)
@@ -114,14 +128,15 @@ effectiveTimeFilter   := "effectiveTime" ws timeComparisonOp ws
                          (timeValue | timeValueSet)
 timeComparisonOp      := "=" | "!=" | "<=" | "<" | ">=" | ">"
 timeValue             := '"' YYYYMMDD '"'
-timeValueSet          := "(" timeValue 1*(ws timeValue) ")"
+timeValueSet          := "(" timeValue *(ws timeValue) ")"
+                        -- single-element sets accepted (leniency, as above)
 
-eclRefinement         := subRefinement 1*(("AND" | "OR") subRefinement)
+eclRefinement         := subRefinement *(("AND" | "OR") subRefinement)
                         -- one level only: every operator at one level must
                         -- be the same kind (rule 5, same as top-level)
 subRefinement         := attributeGroup | attributeConstraint | "(" eclRefinement ")"
 attributeGroup        := [cardinality] "{" eclAttributeSet "}"
-eclAttributeSet       := subAttributeSet 1*(("AND" | "OR") subAttributeSet)
+eclAttributeSet       := subAttributeSet *(("AND" | "OR") subAttributeSet)
                         -- a group's body: same AND/OR shape as eclRefinement,
                         -- restricted to attributes (no nested groups — the
                         -- official grammar never nests eclAttributeGroup)
@@ -142,7 +157,8 @@ comparison            := ("=" | "!=") subExpressionConstraint      -- expression
 numericComparisonOp   := "=" | "!=" | "<=" | "<" | ">=" | ">"
 numericValue          := ["-" | "+"] digit+ ["." digit+]
 concreteString        := '"' <any char except unescaped '"'> '"'  -- \" and \\ are escapes
-concreteStringSet     := "(" concreteString 1*(ws concreteString) ")"
+concreteStringSet     := "(" concreteString *(ws concreteString) ")"
+                        -- single-element sets accepted (leniency, as above)
                         -- an OR'd set of strings, e.g. ("mild" "moderate")
 cardinality           := "[" minValue ".." maxValue "]"
 minValue              := nonNegativeInteger
@@ -287,17 +303,23 @@ the same level as `AND`/`OR`/`MINUS`.
   `"(" eclRefinement ")"` alternative) are supported, e.g.
   `focus : (a = x OR a = y) AND b = z`.
 
-Deliberate leniency versus the strict grammar: this implementation allows
-an *unparenthesized* refined expression to be combined with top-level
-`AND`/`OR`/`MINUS` (e.g. `focus : a = x AND otherExpr`, read as
-`(focus : a = x) AND otherExpr`), where the strict grammar would require
-explicit parentheses around the refined part. This is unambiguous in
-practice — the refinement-level `AND`/`OR` loop only ever accepts attribute
-constraints as operands, so it can never accidentally swallow a top-level
-operand that isn't one — and never produces a different (let alone wrong)
-parse from what the parenthesized form would. If you rely on strict
-grammar conformance, parenthesize anyway; both spellings parse identically
-here.
+Combining an *unparenthesized* refined expression with top-level
+compound operators is asymmetric in this implementation (the strict
+grammar requires parentheses around the refined part in every case):
+
+- `focus : a = x MINUS otherExpr` parses as `(focus : a = x) MINUS
+  otherExpr` — leniency, since the refinement level has no `MINUS`, so
+  the refinement loop returns before the `MINUS` is consumed.
+- `otherExpr AND focus : a = x` (the refined expression as the *last*
+  operand) parses too, for the same reason.
+- `focus : a = x AND otherExpr` / `... OR otherExpr` (the refined
+  expression as an earlier operand of `AND`/`OR`) is a **parse error**,
+  not a lenient parse: the refinement-level `AND`/`OR` loop greedily
+  consumes the operand after the operator as another attribute
+  constraint, then fails on `otherExpr`'s missing comparison operator.
+  This errs rather than misparses — nothing silently gets the wrong
+  meaning — but it is not accepted; parenthesize the refined part
+  (`(focus : a = x) AND otherExpr`) as the strict grammar requires.
 
 ### Cardinality (`[min..max]`)
 
@@ -359,6 +381,17 @@ and treating it as a matchable `{ }` candidate would be inventing meaning
 the field doesn't carry. This is a documented judgment call, not a literal
 citation, the same category as `spec/08`'s `iRefset`/`ciRefset`
 file-pattern-letter derivation.
+
+**Known limitation: candidate groups come from `Relationship` rows
+only.** The set of candidate group ids for a `{ }` constraint is
+collected from the concept's relationships; a role group whose *only*
+rows are `RelationshipConcreteValue`s never becomes a candidate, so
+`focus : { attr > #500 }` cannot match a concrete-value-only group even
+though the per-group concrete-value matching itself honors group scope.
+Real SNOMED content groups a concrete value alongside ordinary
+relationships (a strength alongside its substance), so this hasn't
+bitten in practice — tracked as a candidate fix in `tasks.md`, not
+silently claimed to work.
 
 ### Concrete value comparisons
 
@@ -508,11 +541,12 @@ a named error without checking `parser.rs`/`lexer.rs` first.
 Rejected with a named `EclError::NotYetImplemented`:
 
 - `{{ D ... }}` description filter constraints, `{{ M ... }}` member
-  filter constraints, and a bare `{{ ... }}` (no marker — defaults to a
-  description filter per the grammar); the history supplement
-  (`{{+HISTORY}}`). `{{ C ... }}` concept filter constraints *are*
-  implemented (`active`/`definitionStatus`/`moduleId`/`effectiveTime`)
-  — see "Concept filter constraint" above.
+  filter constraints, and a bare `{{ ... }}` whose first token is
+  `active` (the named error covers only that spelling — see the generic
+  bucket below for other marker-less forms). `{{ C ... }}` concept
+  filter constraints *are* implemented
+  (`active`/`definitionStatus`/`moduleId`/`effectiveTime`) — see
+  "Concept filter constraint" above.
 - `^ *` (member of any refset) and a hierarchy prefix combined with `^`
   (e.g. `< ^ 447562003`).
 - Dot notation (`.` / `dottedExpressionConstraint`) — a lone `.` lexes as
@@ -526,6 +560,11 @@ Rejected with a named `EclError::NotYetImplemented`:
 - `A#B` alternate identifiers — detected at the lexer, by an alpha run
   (extended through any trailing digits/dashes, matching
   `altIdentifierSchemeAlias`'s real grammar) immediately followed by `#`.
+  (Exception: an alias spelled exactly like a recognized keyword —
+  `R#...`, `C#...`, `ACTIVE#...`, etc. — matches the keyword table first
+  and never reaches the `#` lookahead, so it fails generically instead;
+  an accepted tradeoff of lexing filter keywords unconditionally, see
+  `AGENTS/ecl-engineer.md`.)
 - `!!>` / `!!<` (`top`/`bottom` — part of `constraintOperator`).
 - `^R` (refsetContainingAny) and `^ [A, B]` (member of, with field
   selection).
@@ -538,6 +577,14 @@ token shape:
 - Boolean concrete value comparisons — see "Concrete value comparisons"
   above for why (numeric and string comparisons, including
   `concreteStringSet`, *are* implemented).
+- The history supplement (`{{+HISTORY}}`) — `{{` followed by `+` falls
+  to `parse_filter_constraint`'s catch-all (`+` isn't a recognized
+  filter marker), a generic `UnexpectedToken`.
+- A marker-less `{{ ... }}` whose first token is anything other than
+  `active` (e.g. `{{ effectiveTime >= "20200101" }}` with no `C`) —
+  only the `active` spelling gets the named
+  bare-`{{ }}`-defaults-to-a-description-filter error; every other
+  first token falls to the same catch-all.
 - Concept filter kinds other than
   `active`/`definitionStatus`/`moduleId`/`effectiveTime`
   (`definitionStatusIdFilter`) — its keyword isn't tokenized, so a

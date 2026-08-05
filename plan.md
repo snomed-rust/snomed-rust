@@ -47,9 +47,12 @@ the spec's normative rules. Day-to-day execution items live in `tasks.md`.
 - Directory walker: given an unzipped release, route each file via
   `ReleaseFileName` to the right record type and load a full snapshot.
   `SnapshotStoreBuilder::load_release_dir` (spec/02).
-- All 11 RF2 record types this workspace parses (3 core components, 8
-  refset types) are wired into both parsing (`snomed-rf2`) and storage
-  (`snomed-store`) — see `tasks.md` for the incremental history.
+- All 11 RF2 record types this workspace parsed *at this phase* (3 core
+  components, 8 refset types) were wired into both parsing (`snomed-rf2`)
+  and storage (`snomed-store`) — see `tasks.md` for the incremental
+  history. Later phases grew this to 22 (adding
+  `RelationshipConcreteValue`, the 4 MRCM refsets, and the 4
+  ordered/annotation refsets — see Phase 6 below).
 - Benchmarked with a synthetic, structurally-representative release
   (`crates/snomed-store/examples/benchmark_synthetic_release.rs` — real
   RF2 file names/columns/SCTIDs, fictional content, since real release
@@ -68,10 +71,11 @@ the spec's normative rules. Day-to-day execution items live in `tasks.md`.
     is already 3+ orders of magnitude faster than would matter for typical
     interactive or batch use; revisit only if a real-release run (or a
     profiled downstream consumer) shows otherwise.
-- Remaining refset patterns *not yet implemented* (tracked, not urgent):
-  ordered/annotation refset variants (spec/08). The four MRCM refsets
-  listed here as a gap were implemented later — see the Phase 6 entry
-  below.
+- Remaining refset patterns flagged *not yet implemented* at this point:
+  ordered/annotation refset variants and the four MRCM refsets (spec/08).
+  Both groups were implemented later — see the Phase 6 entries below
+  ("Ordered/annotation refset variants ✅" closes the last tracked refset
+  gap); nothing from this list remains open.
 
 ## Phase 5 — Query layer ✅
 
@@ -220,9 +224,11 @@ the spec's normative rules. Day-to-day execution items live in `tasks.md`.
   just a parse-order detail. `{{ D ... }}`/`{{ M ... }}`/a bare `{{ ... }}`
   (which defaults to a description filter per the grammar) are
   recognized and rejected by name; filters after a parenthesized
-  expression or `^ memberOf` aren't supported yet, matching this
-  feature's pre-existing detection scope. 6 new tests plus a new facade
-  integration test. 275 tests passing workspace-wide (up from 269).
+  expression or `^ memberOf` weren't supported at this point — closed by
+  the "`:` refinements and `{{ }}` filters after any
+  `subExpressionConstraint` form" entry below. 6 new tests plus a new
+  facade integration test. 275 tests passing workspace-wide (up from
+  269).
 - Concept filter constraint extended: `definitionStatus` (2026-08-05) ✅
   — a second `{{ C ... }}` filter kind, `{{ C definitionStatus =
   primitive|defined }}` (plus `!=` and the `(primitive defined)`
@@ -351,8 +357,11 @@ fix it surfaced, and `HistoryStore`.
   URIs, the five implicit value set forms, standard properties) and scopes
   exactly what each operation maps onto existing `SnapshotStore`/
   `snomed-ecl` primitives, with a "not yet implemented" section for what
-  doesn't (SNOMED classification-dependent properties, `context`-based
-  expansion, the bare `?fhir_vs=refset` implicit value set). `$subsumes` ✅
+  doesn't. (That list has since narrowed: classification-dependent
+  properties and the bare `?fhir_vs=refset` form both landed in later
+  entries below; spec/11's current open items are concept-model-attribute
+  properties, `context`-based expansion, and `valueSet` inline
+  expansion.) `$subsumes` ✅
   — a thin, direct wrapper around `SnapshotStore::subsumes` (spec/09's
   reflexive subsumption primitive already *is* this operation). `$lookup`
   ✅ — `display`/`designation`/`definition` from descriptions and language

@@ -2,10 +2,10 @@
 //!
 //! [`Lexer`] pulls one token at a time rather than tokenizing the whole
 //! input upfront. This matters for error quality: the parser stops asking
-//! for tokens as soon as it hits unsupported syntax (e.g. `{{` starting a
-//! description/concept/member filter, which this version doesn't parse
-//! further), so it never lexes — and never chokes on — the unsupported
-//! content past that point.
+//! for tokens as soon as it hits unsupported syntax (e.g. `{{ D` starting
+//! a description filter, which this version doesn't parse further), so it
+//! never lexes — and never chokes on — the unsupported content past that
+//! point.
 
 use crate::error::EclError;
 
@@ -28,7 +28,9 @@ pub enum TokenKind {
     Minus,
     /// `:` — starts a refinement.
     Colon,
-    /// `{{` — description/concept/member filters (not yet implemented).
+    /// `{{` — a filter constraint: `{{ C ... }}` concept filters are
+    /// implemented; `{{ D ... }}`/`{{ M ... }}` description/member
+    /// filters are rejected by name (spec/10).
     LBrace2,
     /// `{` alone — starts an attribute group.
     LBrace,
