@@ -92,6 +92,9 @@ pub enum TokenKind {
     DefinedToken,
     /// `moduleId` — a concept/description/member filter's `moduleFilter`.
     ModuleIdKeyword,
+    /// `effectiveTime` — a concept/description/member filter's
+    /// `effectiveTimeFilter`.
+    EffectiveTimeKeyword,
     Eof,
 }
 
@@ -151,6 +154,7 @@ pub fn describe(kind: &TokenKind) -> String {
         TokenKind::PrimitiveToken => "`primitive`".to_string(),
         TokenKind::DefinedToken => "`defined`".to_string(),
         TokenKind::ModuleIdKeyword => "`moduleId`".to_string(),
+        TokenKind::EffectiveTimeKeyword => "`effectiveTime`".to_string(),
         TokenKind::Eof => "end of input".to_string(),
     }
 }
@@ -403,6 +407,7 @@ impl Lexer {
                     "PRIMITIVE" => TokenKind::PrimitiveToken,
                     "DEFINED" => TokenKind::DefinedToken,
                     "MODULEID" => TokenKind::ModuleIdKeyword,
+                    "EFFECTIVETIME" => TokenKind::EffectiveTimeKeyword,
                     _ => {
                         // Could this be the start of an `A#B` alternate
                         // identifier (`altIdentifierSchemeAlias "#" ...`)?

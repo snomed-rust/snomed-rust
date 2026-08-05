@@ -255,6 +255,24 @@ the spec's normative rules. Day-to-day execution items live in `tasks.md`.
   resolves that correctly by construction (a genuine 2-element set fails
   there with a generic, not named, error). 3 new tests. 279 tests
   passing workspace-wide (up from 277).
+- Concept filter constraint extended: `effectiveTime` (2026-08-05) ✅ —
+  a fourth `{{ C ... }}` filter kind, `effectiveTimeFilter`:
+  `{{ C effectiveTime (=|!=|<=|<|>=|>) "YYYYMMDD" }}` (plus the
+  `timeValueSet` form, `("YYYYMMDD" "YYYYMMDD")`), comparing against the
+  concept's own `effectiveTime`. `ConceptFilterKind` gained an
+  `EffectiveTime` variant backed by a new `TimeComparisonOp` — kept
+  deliberately separate from `NumericComparisonOp` even though the two
+  productions share the same six operator symbols, because a concept has
+  exactly one `effectiveTime` (unlike a `RelationshipConcreteValue`,
+  which can repeat), so `Eq`/`NotEq` are plain equality/inequality here
+  with none of `Numeric`'s aggregate-negation complexity (spec/10 rule
+  10) — reusing that type would have wrongly implied the same rule
+  applied. A malformed `timeValue` rejects via a new
+  `EclError::InvalidEffectiveTime`, wrapping `EffectiveTime::parse`'s
+  own `EffectiveTimeError` — the same "reuse the authoritative RF2
+  parser's error" pattern `InvalidSctId` already established for
+  malformed SCTIDs. 4 new tests. 282 tests passing workspace-wide (up
+  from 279).
 - History/audit queries over Full-view data ✅: `snomed-store::HistoryStore`
   keeps every version of a Concept/Description/Relationship (spec/09's new
   "History construction" section), built from Full-view files only —

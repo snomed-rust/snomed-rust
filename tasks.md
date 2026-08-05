@@ -1468,6 +1468,51 @@ This closes Phase 7 (see `plan.md`).
       kinds now, plus a note on why `eclConceptReferenceSet` isn't
       handled the way the other two sets were).
 
+## Done (2026-08-05, snomed-ecl concept filter: `effectiveTime`)
+
+- [x] Extended `{{ C ... }}` with a fourth filter kind: `effectiveTimeFilter`
+      (`{{ C effectiveTime (=|!=|<=|<|>=|>) "YYYYMMDD" }}`, plus the
+      `("YYYYMMDD" "YYYYMMDD")` `timeValueSet` form), comparing against
+      the concept's own `effectiveTime` (spec/09) — e.g.
+      `{{ C effectiveTime >= "20200101" }}`.
+- [x] `ConceptFilterKind` gained an `EffectiveTime(EffectiveTimeFilter {
+      operator: TimeComparisonOp, values: Vec<EffectiveTime> })` variant.
+      `TimeComparisonOp` is a deliberately *separate* type from
+      `NumericComparisonOp`, even though `timeComparisonOperator` and
+      `numericComparisonOperator` share the same six symbols: a concept
+      has exactly one `effectiveTime` (never several rows to count, the
+      way a `RelationshipConcreteValue` can repeat), so `Eq`/`NotEq` here
+      are plain equality/inequality — none of `Numeric`'s "count matching
+      rows, negate the aggregate for `NotEq`" complexity (spec/10 rule
+      10) applies, and reusing that type would have wrongly implied it
+      did. `time_comparison_matches` in `eval.rs` is a plain 6-arm match
+      on `EffectiveTime`'s existing `Ord`/`PartialEq`.
+- [x] A malformed `timeValue` rejects via a new `EclError::InvalidEffectiveTime
+      { pos, source: EffectiveTimeError }`, mirroring the existing
+      `InvalidSctId` pattern exactly — `parse_time_value` calls
+      `EffectiveTime::parse` (the same RF2-column parser spec/09 already
+      requires) rather than hand-rolling a fresh date validator. New
+      spec/10 rule 13 makes this normative.
+- [x] New lexer token (`EffectiveTimeKeyword`), added the same
+      unconditional way as every other `{{ }}`-related keyword before it.
+      `parse_time_comparison_operator` is a fresh helper (not a reuse of
+      `parse_boolean_comparison_operator`, which only covers `=`/`!=` —
+      `effectiveTimeFilter` needs all six `timeComparisonOperator` symbols).
+- [x] Tests: 3 new parser (all six operators, the `timeValueSet` form,
+      malformed-date rejection via the new named error), 1 new eval
+      (comparison restriction incl. `<`/`>=` and an OR'd `timeValueSet`).
+      282 tests passing workspace-wide (up from 279). `cargo fmt --all
+      -- --check` and `cargo clippy --all-targets` both clean.
+- [x] Docs: spec/10-ecl.md (grammar's `effectiveTimeFilter`/
+      `timeComparisonOp`/`timeValue`/`timeValueSet` productions,
+      "Concept filter constraint" section extended, "Not yet
+      implemented" list updated, new rule 13); `crates/snomed-ecl/README.md`
+      (table row, quick example); `AGENTS/ecl-engineer.md` (updated the
+      `{{ }}` scoping section for four implemented filter kinds now,
+      plus notes on why `TimeComparisonOp` stays separate from
+      `NumericComparisonOp` and why malformed dates reuse
+      `EffectiveTimeError`).
+
 ## Next up
 
 - [ ] Nothing currently scoped. Candidate future work (not yet
@@ -1475,8 +1520,7 @@ This closes Phase 7 (see `plan.md`).
       new external dependency — needs explicit user direction against
       the zero-dependency policy, not an autonomous pick); `snomed-ecl`'s
       remaining smaller documented gaps (boolean concrete comparisons,
-      concept filter kinds other than `active`/`definitionStatus`/`moduleId`
-      (`definitionStatusId`/`effectiveTime`), `moduleId`'s
+      the `definitionStatusIdFilter` concept filter kind, `moduleId`'s
       `eclConceptReferenceSet` alternative, `{{ D ... }}`/`{{ M ... }}`
       description/member filters, `{{ }}` filters after a parenthesized
       expression or `^ memberOf`, the history supplement);

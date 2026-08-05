@@ -1,12 +1,13 @@
 //! Recursive-descent parser for the ECL subset in `spec/10-ecl.md`.
 
 use snomed_core::sctid::SctId;
+use snomed_core::time::EffectiveTime;
 
 use crate::ast::{
     ActiveFilter, ActiveValue, AttributeComparison, AttributeConstraint, AttributeGroup,
     Cardinality, ConceptFilterKind, DefinitionStatusFilter, DefinitionStatusValue,
-    ExpressionConstraint, FocusConcept, HierarchyOp, ModuleFilter, NumericComparisonOp,
-    RefinementConstraint, SimpleExpressionConstraint,
+    EffectiveTimeFilter, ExpressionConstraint, FocusConcept, HierarchyOp, ModuleFilter,
+    NumericComparisonOp, RefinementConstraint, SimpleExpressionConstraint, TimeComparisonOp,
 };
 use crate::error::EclError;
 use crate::lexer::{describe, Lexer, Token, TokenKind};
@@ -327,16 +328,100 @@ impl Parser {
                     value: Box::new(value),
                 }))
             }
+            TokenKind::EffectiveTimeKeyword => {
+                self.advance()?;
+                let operator = self.parse_time_comparison_operator()?;
+                let values = match &self.peek().kind {
+                    TokenKind::QuotedString(_) => vec![self.parse_time_value()?],
+                    TokenKind::LParen => {
+                        self.advance()?;
+                        let mut values = vec![self.parse_time_value()?];
+                        while matches!(self.peek().kind, TokenKind::QuotedString(_)) {
+                            values.push(self.parse_time_value()?);
+                        }
+                        self.expect(TokenKind::RParen, "`)`")?;
+                        values
+                    }
+                    _ => {
+                        let tok = self.peek().clone();
+                        return Err(EclError::UnexpectedToken {
+                            pos: tok.pos,
+                            found: describe(&tok.kind),
+                            expected: "a quoted `\"YYYYMMDD\"` date or `(`",
+                        });
+                    }
+                };
+                Ok(ConceptFilterKind::EffectiveTime(EffectiveTimeFilter {
+                    operator,
+                    values,
+                }))
+            }
             _ => {
                 let tok = self.peek().clone();
                 Err(EclError::UnexpectedToken {
                     pos: tok.pos,
                     found: describe(&tok.kind),
-                    expected:
-                        "a supported concept filter (`active`, `definitionStatus`, `moduleId`)",
+                    expected: "a supported concept filter (`active`, `definitionStatus`, `moduleId`, `effectiveTime`)",
                 })
             }
         }
+    }
+
+    /// `timeComparisonOperator = "=" / "!=" / "<=" / "<" / ">=" / ">"`.
+    fn parse_time_comparison_operator(&mut self) -> Result<TimeComparisonOp, EclError> {
+        match &self.peek().kind {
+            TokenKind::Eq => {
+                self.advance()?;
+                Ok(TimeComparisonOp::Eq)
+            }
+            TokenKind::NotEq => {
+                self.advance()?;
+                Ok(TimeComparisonOp::NotEq)
+            }
+            TokenKind::LtEq => {
+                self.advance()?;
+                Ok(TimeComparisonOp::Le)
+            }
+            TokenKind::Lt => {
+                self.advance()?;
+                Ok(TimeComparisonOp::Lt)
+            }
+            TokenKind::GtEq => {
+                self.advance()?;
+                Ok(TimeComparisonOp::Ge)
+            }
+            TokenKind::Gt => {
+                self.advance()?;
+                Ok(TimeComparisonOp::Gt)
+            }
+            _ => {
+                let tok = self.peek().clone();
+                Err(EclError::UnexpectedToken {
+                    pos: tok.pos,
+                    found: describe(&tok.kind),
+                    expected: "`=`, `!=`, `<=`, `<`, `>=`, or `>`",
+                })
+            }
+        }
+    }
+
+    /// `timeValue = QM [ year month day ] QM` — a quoted `YYYYMMDD` date,
+    /// validated the same way RF2 `effectiveTime` columns are (spec/09).
+    fn parse_time_value(&mut self) -> Result<EffectiveTime, EclError> {
+        let tok = self.peek().clone();
+        let TokenKind::QuotedString(s) = &tok.kind else {
+            return Err(EclError::UnexpectedToken {
+                pos: tok.pos,
+                found: describe(&tok.kind),
+                expected: "a quoted `\"YYYYMMDD\"` date",
+            });
+        };
+        let value = EffectiveTime::parse(s).map_err(|source| EclError::InvalidEffectiveTime {
+            pos: tok.pos,
+            source,
+        })?;
+        self.advance()?;
+        Ok(value)
     }
 
     /// `booleanComparisonOperator = "=" / "!="`, returning `true` for `!=`.
@@ -1208,6 +1293,78 @@ mod tests {
             },
             other => panic!("expected ConceptFilter, got {other:?}"),
         }
+    }
+
+    #[test]
+    fn parses_concept_filter_effective_time() {
+        let expr = parse("404684003 {{ C effectiveTime = \"20190731\" }}").unwrap();
+        match expr {
+            EC::ConceptFilter { filters, .. } => match &filters[0] {
+                crate::ast::ConceptFilterKind::EffectiveTime(crate::ast::EffectiveTimeFilter {
+                    operator,
+                    values,
+                }) => {
+                    assert!(matches!(operator, crate::ast::TimeComparisonOp::Eq));
+                    assert_eq!(values, &[EffectiveTime::parse("20190731").unwrap()]);
+                }
+                other => panic!("expected EffectiveTime, got {other:?}"),
+            },
+            other => panic!("expected ConceptFilter, got {other:?}"),
+        }
+
+        // All six comparison operators parse.
+        for (src, expect_op) in [
+            ("!=", crate::ast::TimeComparisonOp::NotEq),
+            ("<=", crate::ast::TimeComparisonOp::Le),
+            ("<", crate::ast::TimeComparisonOp::Lt),
+            (">=", crate::ast::TimeComparisonOp::Ge),
+            (">", crate::ast::TimeComparisonOp::Gt),
+        ] {
+            let expr = parse(&format!(
+                "404684003 {{{{ C effectiveTime {src} \"20190731\" }}}}"
+            ))
+            .unwrap();
+            match expr {
+                EC::ConceptFilter { filters, .. } => match &filters[0] {
+                    crate::ast::ConceptFilterKind::EffectiveTime(
+                        crate::ast::EffectiveTimeFilter { operator, .. },
+                    ) => assert_eq!(*operator, expect_op, "operator for {src}"),
+                    other => panic!("expected EffectiveTime, got {other:?}"),
+                },
+                other => panic!("expected ConceptFilter, got {other:?}"),
+            }
+        }
+
+        // A `timeValueSet`.
+        let expr = parse("404684003 {{ C effectiveTime >= (\"20190731\" \"20200131\") }}").unwrap();
+        match expr {
+            EC::ConceptFilter { filters, .. } => match &filters[0] {
+                crate::ast::ConceptFilterKind::EffectiveTime(crate::ast::EffectiveTimeFilter {
+                    values,
+                    ..
+                }) => assert_eq!(
+                    values,
+                    &[
+                        EffectiveTime::parse("20190731").unwrap(),
+                        EffectiveTime::parse("20200131").unwrap()
+                    ]
+                ),
+                other => panic!("expected EffectiveTime, got {other:?}"),
+            },
+            other => panic!("expected ConceptFilter, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn rejects_malformed_effective_time_filter_value() {
+        assert!(matches!(
+            parse("404684003 {{ C effectiveTime = \"2019073\" }}"),
+            Err(EclError::InvalidEffectiveTime { .. })
+        ));
+        assert!(matches!(
+            parse("404684003 {{ C effectiveTime = \"20191331\" }}"),
+            Err(EclError::InvalidEffectiveTime { .. })
+        ));
     }
 
     #[test]

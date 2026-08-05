@@ -3,6 +3,7 @@
 use std::fmt;
 
 use snomed_core::sctid::SctIdError;
+use snomed_core::time::EffectiveTimeError;
 
 /// A lex or parse error. `pos` is a 0-based character index into the input.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -28,6 +29,12 @@ pub enum EclError {
     InvalidSctId {
         pos: usize,
         source: SctIdError,
+    },
+    /// A `timeValue` (`"YYYYMMDD"`, spec/10's `effectiveTimeFilter`) that
+    /// isn't a well-formed `effectiveTime` (spec/09).
+    InvalidEffectiveTime {
+        pos: usize,
+        source: EffectiveTimeError,
     },
     UnexpectedToken {
         pos: usize,
@@ -90,6 +97,9 @@ impl fmt::Display for EclError {
             EclError::InvalidSctId { pos, source } => {
                 write!(f, "invalid SCTID at position {pos}: {source}")
             }
+            EclError::InvalidEffectiveTime { pos, source } => {
+                write!(f, "invalid effectiveTime at position {pos}: {source}")
+            }
             EclError::UnexpectedToken {
                 pos,
                 found,
@@ -123,6 +133,7 @@ impl std::error::Error for EclError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
             EclError::InvalidSctId { source, .. } => Some(source),
+            EclError::InvalidEffectiveTime { source, .. } => Some(source),
             _ => None,
         }
     }

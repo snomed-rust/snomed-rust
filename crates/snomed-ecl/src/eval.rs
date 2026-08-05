@@ -7,13 +7,14 @@ use snomed_core::sctid::SctId;
 use snomed_store::SnapshotStore;
 
 use snomed_core::concrete_value::ConcreteValue;
+use snomed_core::time::EffectiveTime;
 use snomed_core::{constants, Concept};
 
 use crate::ast::{
     ActiveFilter, ActiveValue, AttributeComparison, AttributeConstraint, AttributeGroup,
     Cardinality, ConceptFilterKind, DefinitionStatusFilter, DefinitionStatusValue,
-    ExpressionConstraint, FocusConcept, HierarchyOp, ModuleFilter, NumericComparisonOp,
-    RefinementConstraint, SimpleExpressionConstraint,
+    EffectiveTimeFilter, ExpressionConstraint, FocusConcept, HierarchyOp, ModuleFilter,
+    NumericComparisonOp, RefinementConstraint, SimpleExpressionConstraint, TimeComparisonOp,
 };
 
 /// Evaluates `expr` against `store`, returning the matching concept ids.
@@ -110,6 +111,28 @@ fn concept_filter_matches(
                 matches
             }
         }
+        ConceptFilterKind::EffectiveTime(EffectiveTimeFilter { operator, values }) => values
+            .iter()
+            .any(|v| time_comparison_matches(*operator, concept.effective_time, *v)),
+    }
+}
+
+/// The per-value predicate for `effectiveTimeFilter` — a plain
+/// equality/ordering check, unlike `Numeric`'s `Eq`/`NotEq` (see
+/// `TimeComparisonOp`'s own doc for why no aggregate-negation trick is
+/// needed here).
+fn time_comparison_matches(
+    op: TimeComparisonOp,
+    actual: EffectiveTime,
+    value: EffectiveTime,
+) -> bool {
+    match op {
+        TimeComparisonOp::Eq => actual == value,
+        TimeComparisonOp::NotEq => actual != value,
+        TimeComparisonOp::Le => actual <= value,
+        TimeComparisonOp::Lt => actual < value,
+        TimeComparisonOp::Ge => actual >= value,
+        TimeComparisonOp::Gt => actual > value,
     }
 }
 
@@ -1181,6 +1204,64 @@ mod tests {
                 &store
             ),
             HashSet::from([ROOT, FINDING, DISEASE])
+        );
+    }
+
+    /// ROOT is 2019-01-31; FINDING is 2019-07-31; DISEASE is 2020-07-31.
+    fn effective_time_store() -> SnapshotStore {
+        let mut b = SnapshotStore::builder();
+        b.add_concept(Concept {
+            effective_time: EffectiveTime::new_unchecked(20190131),
+            ..concept(ROOT)
+        });
+        b.add_concept(concept(FINDING));
+        b.add_concept(Concept {
+            effective_time: EffectiveTime::new_unchecked(20200731),
+            ..concept(DISEASE)
+        });
+        b.add_relationship(is_a(1, FINDING, ROOT));
+        b.add_relationship(is_a(2, DISEASE, FINDING));
+        b.build()
+    }
+
+    #[test]
+    fn concept_filter_effective_time_restricts_by_comparison() {
+        let store = effective_time_store();
+        assert_eq!(
+            eval(
+                &format!("<< {ROOT} {{{{ C effectiveTime = \"20190731\" }}}}"),
+                &store
+            ),
+            HashSet::from([FINDING])
+        );
+        assert_eq!(
+            eval(
+                &format!("<< {ROOT} {{{{ C effectiveTime != \"20190731\" }}}}"),
+                &store
+            ),
+            HashSet::from([ROOT, DISEASE])
+        );
+        assert_eq!(
+            eval(
+                &format!("<< {ROOT} {{{{ C effectiveTime < \"20190731\" }}}}"),
+                &store
+            ),
+            HashSet::from([ROOT])
+        );
+        assert_eq!(
+            eval(
+                &format!("<< {ROOT} {{{{ C effectiveTime >= \"20190731\" }}}}"),
+                &store
+            ),
+            HashSet::from([FINDING, DISEASE])
+        );
+        // A `timeValueSet` ORs across the values.
+        assert_eq!(
+            eval(
+                &format!("<< {ROOT} {{{{ C effectiveTime = (\"20190131\" \"20200731\") }}}}"),
+                &store
+            ),
+            HashSet::from([ROOT, DISEASE])
         );
     }
 }

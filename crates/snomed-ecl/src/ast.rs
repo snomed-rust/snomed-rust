@@ -1,6 +1,7 @@
 //! The ECL abstract syntax tree, per `spec/10-ecl.md`.
 
 use snomed_core::sctid::SctId;
+use snomed_core::time::EffectiveTime;
 
 /// A hierarchy prefix, per `spec/10-ecl.md`'s operator table. `SelfOnly`
 /// means no prefix was written.
@@ -89,9 +90,9 @@ pub enum ExpressionConstraint {
 }
 
 /// One filter inside a `{{ C ... }}` concept filter constraint. Currently
-/// `activeFilter`, `definitionStatusTokenFilter`, and the
-/// `subExpressionConstraint` form of `moduleFilter` — see
-/// [`ExpressionConstraint::ConceptFilter`].
+/// `activeFilter`, `definitionStatusTokenFilter`, the
+/// `subExpressionConstraint` form of `moduleFilter`, and
+/// `effectiveTimeFilter` — see [`ExpressionConstraint::ConceptFilter`].
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ConceptFilterKind {
     /// `active (=|!=) (true|false|*)` — spec/10.
@@ -106,6 +107,9 @@ pub enum ConceptFilterKind {
     /// `eclConceptReferenceSet` alternative (`moduleId = (id1 id2)`) is
     /// not implemented — see [`ExpressionConstraint::ConceptFilter`].
     Module(ModuleFilter),
+    /// `effectiveTime timeComparisonOperator (timeValue | timeValueSet)`
+    /// — spec/10.
+    EffectiveTime(EffectiveTimeFilter),
 }
 
 /// `activeKeyword ws booleanComparisonOperator ws activeValue`.
@@ -151,6 +155,34 @@ pub struct ModuleFilter {
     /// `true` for `!=`.
     pub negated: bool,
     pub value: Box<ExpressionConstraint>,
+}
+
+/// `effectiveTimeKeyword ws timeComparisonOperator ws (timeValue | timeValueSet)`.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct EffectiveTimeFilter {
+    pub operator: TimeComparisonOp,
+    /// 1+ entries; 2+ only for a `timeValueSet` (`("20200101" "20210101")`)
+    /// — matching is OR'd across the set (true if `operator` holds
+    /// against *any* value), same shape as `AttributeComparison::String.values`.
+    pub values: Vec<EffectiveTime>,
+}
+
+/// `timeComparisonOperator = "=" / "!=" / "<=" / "<" / ">=" / ">"`. A
+/// deliberately separate type from [`NumericComparisonOp`], even though
+/// the two grammar productions share the same six symbols: a concept's
+/// `effectiveTime` is a single field (unlike a relationship type, which
+/// can repeat), so `Eq`/`NotEq` here are plain equality/inequality —
+/// none of `NumericComparisonOp`'s "count matching rows, then negate the
+/// aggregate for `NotEq`" complexity applies, and reusing that type would
+/// wrongly suggest it does.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum TimeComparisonOp {
+    Eq,
+    NotEq,
+    Le,
+    Lt,
+    Ge,
+    Gt,
 }
 
 /// `[min..max]` — an attribute or attribute group's cardinality

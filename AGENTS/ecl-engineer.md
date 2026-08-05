@@ -13,10 +13,11 @@ memberOf, wildcard, AND/OR/MINUS — plus refinements: `attributeId
 comparisons including `concreteStringSet`, AND/OR, parenthesized groups,
 attribute cardinality `[min..max]`, the reverse flag `R`, and attribute
 groups `{ }`; plus a `{{ C ... }}` concept filter constraint —
-`active = true|false|*`, `definitionStatus = primitive|defined`, and
-`moduleId = subExpressionConstraint`) and lists what is explicitly **not
-yet implemented** (boolean concrete value comparisons, concept filter
-kinds other than `active`/`definitionStatus`/`moduleId`, `moduleId`'s
+`active = true|false|*`, `definitionStatus = primitive|defined`,
+`moduleId = subExpressionConstraint`, and `effectiveTime
+(=|!=|<=|<|>=|>) "YYYYMMDD"`) and lists what is explicitly **not yet
+implemented** (boolean concrete value comparisons, the
+`definitionStatusIdFilter` concept filter kind, `moduleId`'s
 `eclConceptReferenceSet` alternative, `{{ D ... }}`/`{{ M ... }}`
 description/member filters, `^ *`, `!!>`/`!!<`, history supplement,
 alternate identifiers, a hierarchy prefix combined with `^`, dot
@@ -49,11 +50,10 @@ parsing — never be silently accepted and evaluated as something else,
 and never panic. Naming the specific feature via
 `EclError::NotYetImplemented { feature, .. }` is strongly preferred (most
 of spec/10's list gets this now) but isn't yet universal: boolean
-concrete value comparisons and concept filter kinds other than
-`active`/`definitionStatus`/`moduleId` still surface as a generic
-`UnexpectedToken`/`UnexpectedKeyword` because recognizing their shape
-well enough to name them isn't as simple as matching a fixed token
-sequence — see spec/10 rule 9. Moving one from
+concrete value comparisons and the `definitionStatusIdFilter` concept
+filter kind still surface as a generic `UnexpectedToken`/`UnexpectedKeyword`
+because recognizing their shape well enough to name them isn't as simple
+as matching a fixed token sequence — see spec/10 rule 9. Moving one from
 generic to named, without implementing the underlying feature, is a
 welcome, low-risk improvement on its own; see the recent
 `Dot`/`Top`/`Bottom`/`A#B`-detection additions in `lexer.rs`/`parser.rs`
@@ -181,32 +181,61 @@ concept, and member filter constraints, each with several filter kinds
 `definitionStatus`/refset field), most needing their own value-set
 grammar. Implementing all of it in one increment isn't realistic; this
 crate has so far implemented `conceptFilterConstraint`'s `activeFilter`,
-`definitionStatusTokenFilter`, and `moduleFilter`'s
-`subExpressionConstraint` alternative (three separate increments, each
-its own commit) and left the rest as documented gaps — the same
-incremental strategy used for refinements (cardinality, then reverse
-flag, then groups, then concrete values, then attribute names, then
-`concreteStringSet`). If you're extending this further, add one filter
-kind or one filter constraint type (`{{ D ... }}`) at a time, not all of
-them at once. `parse_boolean_comparison_operator` (factored out during
-the `definitionStatus` increment) is shared by every `booleanComparisonOperator`
-filter — reuse it rather than re-inlining the `=`/`!=` match.
+`definitionStatusTokenFilter`, `moduleFilter`'s
+`subExpressionConstraint` alternative, and `effectiveTimeFilter` (four
+separate increments, each its own commit) and left the rest as
+documented gaps — the same incremental strategy used for refinements
+(cardinality, then reverse flag, then groups, then concrete values, then
+attribute names, then `concreteStringSet`). If you're extending this
+further, add one filter kind or one filter constraint type
+(`{{ D ... }}`) at a time, not all of them at once.
+`parse_boolean_comparison_operator` (factored out during the
+`definitionStatus` increment) is shared by every
+`booleanComparisonOperator` filter (`active`/`definitionStatus`/
+`moduleId`) — reuse it rather than re-inlining the `=`/`!=` match.
+`effectiveTimeFilter` does *not* use it, since `timeComparisonOperator`
+has four more symbols (`<=`/`<`/`>=`/`>`) than `booleanComparisonOperator`
+does — it gets its own `parse_time_comparison_operator` instead.
 
 **New single-letter/keyword tokens are lexed unconditionally, not just
 inside `{{ }}`.** `ConceptFilterMarker`/`DescriptionFilterMarker`/
 `MemberFilterMarker` (`C`/`D`/`M`), `ActiveKeyword`/`True`/`False`
 (`active`/`true`/`false`), `DefinitionStatusKeyword`/`PrimitiveToken`/
-`DefinedToken` (`definitionStatus`/`primitive`/`defined`), and
-`ModuleIdKeyword` (`moduleId`) were all added to the same
-case-insensitive keyword table `AND`/`OR`/`MINUS`/`R` already use — the
-lexer has no notion of "only recognize this token right after `{{`",
-and doesn't need one: nothing outside `{{ }}` can legally contain these
-bare words in this grammar subset, so recognizing them everywhere is
-safe. This does shadow those exact strings as potential `A#B`
-alternate-identifier scheme aliases (e.g. a hypothetical `ACTIVE#123` or
-`MODULEID#123`) — an existing, accepted tradeoff already made for `R`
-(see the `A#B`-lookahead code in `lexer.rs`); don't treat this as a new
-problem to solve.
+`DefinedToken` (`definitionStatus`/`primitive`/`defined`),
+`ModuleIdKeyword` (`moduleId`), and `EffectiveTimeKeyword`
+(`effectiveTime`) were all added to the same case-insensitive keyword
+table `AND`/`OR`/`MINUS`/`R` already use — the lexer has no notion of
+"only recognize this token right after `{{`", and doesn't need one:
+nothing outside `{{ }}` can legally contain these bare words in this
+grammar subset, so recognizing them everywhere is safe. This does
+shadow those exact strings as potential `A#B` alternate-identifier
+scheme aliases (e.g. a hypothetical `ACTIVE#123` or `EFFECTIVETIME#123`)
+— an existing, accepted tradeoff already made for `R` (see the
+`A#B`-lookahead code in `lexer.rs`); don't treat this as a new problem
+to solve.
+
+**`effectiveTimeFilter`'s `Eq`/`NotEq` are plain equality/inequality —
+no aggregate-negation trick, unlike `AttributeComparison::Numeric`.**
+`TimeComparisonOp` is a deliberately separate type from
+`NumericComparisonOp`, even though `timeComparisonOperator` and
+`numericComparisonOperator` share the same six symbols: a
+`RelationshipConcreteValue`'s `Numeric` comparison can match *multiple*
+rows per concept (hence `NotEq`'s "count equal rows, negate the
+aggregate" rule — spec/10 rule 10), but a concept has exactly *one*
+`effectiveTime`, so there's no aggregation to get right or wrong.
+`time_comparison_matches` in `eval.rs` is a plain 6-arm match against
+`Ord`/`PartialEq` on `EffectiveTime` — don't "simplify" this by reusing
+`NumericComparisonOp` and copy-pasting the aggregate-negation logic; it
+would be solving a problem `effectiveTimeFilter` doesn't have, and the
+type-level separation exists specifically to keep that distinction
+visible to the next reader.
+
+**Malformed `timeValue`s reuse `EffectiveTimeError`, mirroring
+`InvalidSctId`.** `parse_time_value` calls `EffectiveTime::parse` (the
+same RF2-column parser spec/09 already normatively requires) and maps a
+failure straight into `EclError::InvalidEffectiveTime { pos, source }`
+— don't hand-roll a fresh `YYYYMMDD` regex/validator in `snomed-ecl`;
+the authoritative one already exists in `snomed-core::time`.
 
 **`moduleFilter` reuses `parse_sub_expression_constraint` directly, no
 new value parsing at all.** `moduleId (=|!=) subExpressionConstraint` is
