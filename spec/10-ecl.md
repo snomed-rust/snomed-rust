@@ -32,12 +32,12 @@ concrete value comparisons including `concreteStringSet`, `AND`/`OR`,
 attribute cardinality `[min..max]`, the reverse flag `R`, and attribute
 groups `{ }`) plus a **concept filter constraint** (`{{ C ... }}`,
 restricting a set to concepts whose own row matches — `active =
-true|false|*` and `definitionStatus = primitive|defined`), evaluated
-against a [`SnapshotStore`]. Boolean concrete value comparisons, every
-concept filter kind other than `active`/`definitionStatus`, description
-and member filter constraints (`{{ D ... }}`/`{{ M ... }}`), the history
-supplement, and alternate identifiers are **out of scope for this
-version** — see
+true|false|*`, `definitionStatus = primitive|defined`, and `moduleId =
+subExpressionConstraint`), evaluated against a [`SnapshotStore`].
+Boolean concrete value comparisons, every concept filter kind other than
+`active`/`definitionStatus`/`moduleId`, description and member filter
+constraints (`{{ D ... }}`/`{{ M ... }}`), the history supplement, and
+alternate identifiers are **out of scope for this version** — see
 [Not yet implemented](#not-yet-implemented).
 
 ## Grammar (this subset only, derived from `syntax/abnf-brief.txt`)
@@ -83,13 +83,13 @@ conceptFilterConstraint
                         -- (unlike descriptionFilterConstraint's optional
                         -- `D`, which is why a marker-less `{{ ... }}`
                         -- defaults to a description filter, not this)
-conceptFilter         := activeFilter | definitionStatusTokenFilter
+conceptFilter         := activeFilter | definitionStatusTokenFilter | moduleFilter
                         -- `definitionStatusIdFilter` (matching by concept
                         -- reference instead of a `primitive`/`defined`
-                        -- keyword), `moduleFilter`, and `effectiveTimeFilter`
-                        -- are grammar alternatives not yet implemented;
-                        -- attempting one fails at the lexer (its keyword
-                        -- isn't tokenized), not with a named error
+                        -- keyword) and `effectiveTimeFilter` are grammar
+                        -- alternatives not yet implemented; attempting
+                        -- one fails at the lexer (its keyword isn't
+                        -- tokenized), not with a named error
 activeFilter          := "active" ws booleanComparisonOp ws activeValue
 booleanComparisonOp   := "=" | "!="
 activeValue           := "true" | "false" | "*"
@@ -102,6 +102,12 @@ definitionStatusTokenFilter
 definitionStatusToken := "primitive" | "defined"
 definitionStatusTokenSet
                       := "(" definitionStatusToken 1*(ws definitionStatusToken) ")"
+moduleFilter          := "moduleId" ws booleanComparisonOp ws subExpressionConstraint
+                        -- the official grammar also allows
+                        -- eclConceptReferenceSet (`moduleId = (id1 id2)`)
+                        -- here; not implemented — `(` after `moduleId
+                        -- (=|!=)` is always treated as a parenthesized
+                        -- subExpressionConstraint
 
 eclRefinement         := subRefinement 1*(("AND" | "OR") subRefinement)
                         -- one level only: every operator at one level must
@@ -393,7 +399,8 @@ restriction, unlike refinements (which examine a concept's
 wraps the already-filtered result), and multiple `{{ }}` blocks chain,
 each seeing only what the previous one let through.
 
-`activeFilter` and `definitionStatusTokenFilter` are implemented:
+`activeFilter`, `definitionStatusTokenFilter`, and `moduleFilter`'s
+`subExpressionConstraint` alternative are implemented:
 
 - `active = true` / `active = false` keep only active/inactive concepts
   respectively (per spec/09, `store.concept(id)` returns both — a
@@ -414,15 +421,27 @@ each seeing only what the previous one let through.
   `concreteStringSet`, `primitive`/`defined` are keyword tokens that
   never start a `subExpressionConstraint`, so there's nothing to
   disambiguate against).
+- `moduleId (=|!=) subExpressionConstraint` matches concepts whose
+  `moduleId` is in the evaluated set — the same treatment attribute
+  names/values already get, reusing `parse_sub_expression_constraint`
+  directly, so `moduleId = << 900000000000012004` (a whole module
+  hierarchy, if one existed) works as naturally as a single concept
+  reference. The official grammar's `eclConceptReferenceSet` alternative
+  (`moduleId = (id1 id2)`) is **not implemented** — `(` right after
+  `moduleId (=|!=)` is always treated as the start of a parenthesized
+  `subExpressionConstraint`; a genuine `eclConceptReferenceSet` with 2+
+  bare concept references fails (correctly rejected, just with a
+  generic error) once the parenthesized-expression parser hits the
+  second bare reference with no operator before it.
 - A comma inside `{{ }}` (`conceptFilter *(ws "," ws conceptFilter)`)
   lexes as `TokenKind::And` — the same alternate-AND-spelling token used
   everywhere else in this lexer — so multiple filters in one block need
   no new separator handling; they're ANDed together.
 
 **Not implemented:** `definitionStatusIdFilter` (matching by concept
-reference/set instead of the `primitive`/`defined` keyword), `moduleFilter`,
-and `effectiveTimeFilter` — their keywords aren't tokenized, so
-attempting one fails at the lexer with a generic error, not a named one.
+reference/set instead of the `primitive`/`defined` keyword) and
+`effectiveTimeFilter` — their keywords aren't tokenized, so attempting
+one fails at the lexer with a generic error, not a named one.
 Description filter constraints (`{{ D ... }}`, or a bare `{{ ... }}` with
 no marker — the official grammar's `descriptionFilterConstraint` has an
 *optional* `D`, defaulting to a description filter when omitted, which
@@ -454,8 +473,8 @@ Rejected with a named `EclError::NotYetImplemented`:
   filter constraints, and a bare `{{ ... }}` (no marker — defaults to a
   description filter per the grammar); the history supplement
   (`{{+HISTORY}}`). `{{ C ... }}` concept filter constraints *are*
-  implemented (`active`/`definitionStatus`) — see "Concept filter
-  constraint" above.
+  implemented (`active`/`definitionStatus`/`moduleId`) — see "Concept
+  filter constraint" above.
 - `^ *` (member of any refset) and a hierarchy prefix combined with `^`
   (e.g. `< ^ 447562003`).
 - Dot notation (`.` / `dottedExpressionConstraint`) — a lone `.` lexes as
@@ -481,11 +500,14 @@ token shape:
 - Boolean concrete value comparisons — see "Concrete value comparisons"
   above for why (numeric and string comparisons, including
   `concreteStringSet`, *are* implemented).
-- Concept filter kinds other than `active`/`definitionStatus`
-  (`definitionStatusIdFilter`/`moduleFilter`/`effectiveTimeFilter`) —
-  their keywords aren't tokenized yet, so a `{{ C ... }}` block
-  attempting one fails inside the lexer before `parse_concept_filter_kind`
-  is ever reached.
+- Concept filter kinds other than `active`/`definitionStatus`/`moduleId`
+  (`definitionStatusIdFilter`/`effectiveTimeFilter`) — their keywords
+  aren't tokenized yet, so a `{{ C ... }}` block attempting one fails
+  inside the lexer before `parse_concept_filter_kind` is ever reached.
+  `moduleFilter`'s `eclConceptReferenceSet` alternative is a separate,
+  narrower gap — its keyword *is* tokenized, but the `(id1 id2)` form is
+  rejected once the parenthesized-expression parser hits a second bare
+  concept reference (see "Concept filter constraint" above).
 
 ## Rules (normative for `snomed-ecl`)
 

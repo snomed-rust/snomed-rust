@@ -12,8 +12,8 @@ use snomed_core::{constants, Concept};
 use crate::ast::{
     ActiveFilter, ActiveValue, AttributeComparison, AttributeConstraint, AttributeGroup,
     Cardinality, ConceptFilterKind, DefinitionStatusFilter, DefinitionStatusValue,
-    ExpressionConstraint, FocusConcept, HierarchyOp, NumericComparisonOp, RefinementConstraint,
-    SimpleExpressionConstraint,
+    ExpressionConstraint, FocusConcept, HierarchyOp, ModuleFilter, NumericComparisonOp,
+    RefinementConstraint, SimpleExpressionConstraint,
 };
 
 /// Evaluates `expr` against `store`, returning the matching concept ids.
@@ -58,7 +58,9 @@ pub fn evaluate(expr: &ExpressionConstraint, store: &SnapshotStore) -> HashSet<S
             .into_iter()
             .filter(|&c| {
                 store.concept(c).is_some_and(|concept| {
-                    filters.iter().all(|f| concept_filter_matches(f, concept))
+                    filters
+                        .iter()
+                        .all(|f| concept_filter_matches(f, concept, store))
                 })
             })
             .collect(),
@@ -67,7 +69,11 @@ pub fn evaluate(expr: &ExpressionConstraint, store: &SnapshotStore) -> HashSet<S
 
 /// A single `{{ C ... }}` filter against a concept's own row — see
 /// [`ConceptFilterKind`] for which kinds are implemented.
-fn concept_filter_matches(filter: &ConceptFilterKind, concept: &Concept) -> bool {
+fn concept_filter_matches(
+    filter: &ConceptFilterKind,
+    concept: &Concept,
+    store: &SnapshotStore,
+) -> bool {
     match filter {
         ConceptFilterKind::Active(ActiveFilter { negated, value }) => {
             let matches = match value {
@@ -90,6 +96,14 @@ fn concept_filter_matches(filter: &ConceptFilterKind, concept: &Concept) -> bool
                     concept.definition_status_id == constants::DEFINED
                 }
             });
+            if *negated {
+                !matches
+            } else {
+                matches
+            }
+        }
+        ConceptFilterKind::Module(ModuleFilter { negated, value }) => {
+            let matches = evaluate(value, store).contains(&concept.module_id);
             if *negated {
                 !matches
             } else {
@@ -1101,6 +1115,69 @@ mod tests {
         assert_eq!(
             eval(
                 &format!("<< {ROOT} {{{{ C definitionStatus = (primitive defined) }}}}"),
+                &store
+            ),
+            HashSet::from([ROOT, FINDING, DISEASE])
+        );
+    }
+
+    /// ROOT is in module_a; FINDING and DISEASE are in module_b.
+    fn module_filter_store() -> (SnapshotStore, SctId, SctId) {
+        let module_a = SctId::compose(9160, ComponentType::Concept, None).unwrap();
+        let module_b = SctId::compose(9161, ComponentType::Concept, None).unwrap();
+
+        let mut b = SnapshotStore::builder();
+        for c in [module_a, module_b] {
+            b.add_concept(concept(c));
+        }
+        b.add_concept(Concept {
+            module_id: module_a,
+            ..concept(ROOT)
+        });
+        b.add_concept(Concept {
+            module_id: module_b,
+            ..concept(FINDING)
+        });
+        b.add_concept(Concept {
+            module_id: module_b,
+            ..concept(DISEASE)
+        });
+        b.add_relationship(is_a(1, FINDING, ROOT));
+        b.add_relationship(is_a(2, DISEASE, FINDING));
+        (b.build(), module_a, module_b)
+    }
+
+    #[test]
+    fn concept_filter_module_restricts_by_module_id() {
+        let (store, module_a, module_b) = module_filter_store();
+        assert_eq!(
+            eval(
+                &format!("<< {ROOT} {{{{ C moduleId = {module_a} }}}}"),
+                &store
+            ),
+            HashSet::from([ROOT])
+        );
+        assert_eq!(
+            eval(
+                &format!("<< {ROOT} {{{{ C moduleId = {module_b} }}}}"),
+                &store
+            ),
+            HashSet::from([FINDING, DISEASE])
+        );
+        // `!=` negates.
+        assert_eq!(
+            eval(
+                &format!("<< {ROOT} {{{{ C moduleId != {module_a} }}}}"),
+                &store
+            ),
+            HashSet::from([FINDING, DISEASE])
+        );
+        // The value can be a full hierarchy expression, not just a plain
+        // concept reference — same `subExpressionConstraint` treatment
+        // as attribute names/values.
+        assert_eq!(
+            eval(
+                &format!("<< {ROOT} {{{{ C moduleId = ({module_a} OR {module_b}) }}}}"),
                 &store
             ),
             HashSet::from([ROOT, FINDING, DISEASE])

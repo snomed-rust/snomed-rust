@@ -11,7 +11,8 @@ operators, `memberOf`, wildcard, boolean set operators) plus **refinements**
 `AND`/`OR` and parenthesized grouping, attribute cardinality
 `[min..max]`, the reverse flag `R`, and attribute groups `{ }`) plus a
 **concept filter constraint** (`{{ C active = true|false|* }}`,
-`{{ C definitionStatus = primitive|defined }}`). See
+`{{ C definitionStatus = primitive|defined }}`,
+`{{ C moduleId = subExpressionConstraint }}`). See
 [`spec/10-ecl.md`](../../spec/10-ecl.md) — the normative spec, including
 the full grammar, what's out of scope, and where the official grammar
 lives if you need to extend this crate.
@@ -64,6 +65,10 @@ let matches = evaluate(&expr, store);
 // Only primitive concepts.
 let expr = parse("<< 404684003 {{ C definitionStatus = primitive }}")?;
 let matches = evaluate(&expr, store);
+
+// Only concepts in the SNOMED CT core module.
+let expr = parse("<< 404684003 {{ C moduleId = 900000000000207008 }}")?;
+let matches = evaluate(&expr, store);
 # Ok(()) }
 ```
 
@@ -80,7 +85,7 @@ let matches = evaluate(&expr, store);
 | Reverse flag | `R attr = value` — matches by the relationship's *source* instead of its destination |
 | Attribute groups | `[cardinality] { attr = x AND attr2 = y }` — requires one role group (nonzero `relationshipGroup`) to satisfy every attribute together |
 | Concrete values | `attr > #500`, `attr <= #-2.5`, `attr = "E10.9"`, `attr = ("E10.9" "E11.9")` — numeric (`=`/`!=`/`<=`/`<`/`>=`/`>`) and string (`=`/`!=`, incl. an OR'd `concreteStringSet`) comparisons against a `RelationshipConcreteValue` |
-| Concept filter | `{{ C active = true }}`, `{{ C active != false }}`, `{{ C active = * }}`, `{{ C definitionStatus = primitive }}`, `{{ C definitionStatus = (primitive defined) }}` — restricts a set to concepts whose own row matches; multiple filters/blocks AND together |
+| Concept filter | `{{ C active = true }}`, `{{ C active != false }}`, `{{ C active = * }}`, `{{ C definitionStatus = primitive }}`, `{{ C definitionStatus = (primitive defined) }}`, `{{ C moduleId = 900000000000207008 }}`, `{{ C moduleId = << 900000000000012004 }}` — restricts a set to concepts whose own row matches; multiple filters/blocks AND together |
 | Syntax details | pipe-delimited terms (`73211009 \|Diabetes mellitus\|`, non-semantic), case-insensitive keywords, `,` as an alternate spelling for `AND`, `/* comments */` |
 
 Not yet implemented, never silently mishandled: `{{ D ... }}` description
@@ -89,11 +94,12 @@ description filter), the history supplement, `!!>`/`!!<`, `^ *`, a
 hierarchy prefix combined with `^`, `^R`, `^ [A, B]` (member of with
 field selection), alternate identifiers (`A#B`), and dot notation are
 all rejected with a specific `EclError::NotYetImplemented { feature, .. }`
-naming what's missing. Boolean concrete value comparisons and concept
-filter kinds other than `active`/`definitionStatus` are rejected too,
-but currently with a generic parse error rather than a named one
-(spec/10 rule 9) — genuinely unimplemented constructs, not just missing
-a label.
+naming what's missing. Boolean concrete value comparisons, concept
+filter kinds other than `active`/`definitionStatus`/`moduleId`, and
+`moduleId`'s `eclConceptReferenceSet` alternative (`moduleId = (id1
+id2)`) are rejected too, but currently with a generic parse error rather
+than a named one (spec/10 rule 9) — genuinely unimplemented constructs,
+not just missing a label.
 
 ## Design notes worth knowing before you extend this crate
 

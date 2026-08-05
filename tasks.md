@@ -1422,6 +1422,52 @@ This closes Phase 7 (see `plan.md`).
       `{{ }}` scoping section to reflect two implemented filter kinds now,
       plus a note on why the token-set form needed no ambiguity handling).
 
+## Done (2026-08-05, snomed-ecl concept filter: `moduleId`)
+
+- [x] Extended `{{ C ... }}` with a third filter kind: `moduleFilter`'s
+      `subExpressionConstraint` alternative (`{{ C moduleId =
+      subExpressionConstraint }}`, plus `!=`), matching concepts whose
+      `moduleId` is in the evaluated set — e.g.
+      `{{ C moduleId = 900000000000207008 }}` or
+      `{{ C moduleId = << 900000000000012004 }}` (a whole module
+      hierarchy, if one existed). Deliberately only this alternative —
+      the grammar's `eclConceptReferenceSet` form (`moduleId = (id1
+      id2)`) is not implemented, see below.
+- [x] `ConceptFilterKind` gained a `Module(ModuleFilter { negated, value:
+      Box<ExpressionConstraint> })` variant. No new parsing logic beyond
+      reusing `parse_sub_expression_constraint()` directly for the value
+      — structurally identical to how attribute names/values already
+      work; `eval.rs` needed `concept_filter_matches` to take `store`
+      (previously only needed the concept's own row) so `Module` can
+      call `evaluate(value, store)` and check `contains(&concept.module_id)`.
+- [x] `eclConceptReferenceSet` deliberately not special-cased: `(`
+      after `moduleId (=|!=)` always goes through the existing
+      parenthesized-`subExpressionConstraint` path, which already
+      correctly rejects a genuine `(id1 id2)` (two bare concept
+      references with no operator between them isn't valid
+      `expressionConstraint`) — just with a generic error, not a named
+      one. Considered and rejected hand-rolling `concreteStringSet`-style
+      set detection: unlike strings/tokens, a single-element `(id)` is
+      genuinely ambiguous between the set form (invalid per the
+      grammar's 2+ requirement) and a parenthesized expression, and the
+      existing parser already resolves that correctly by construction.
+- [x] New lexer token (`ModuleIdKeyword`), added the same unconditional
+      way as every other `{{ }}`-related keyword before it.
+- [x] Tests: 2 new parser (plain concept reference + `!=`/hierarchy
+      value), 1 new eval (module-id restriction incl. negation and an
+      OR'd hierarchy expression as the value). 279 tests passing
+      workspace-wide (up from 277). `cargo fmt --all -- --check` and
+      `cargo clippy --all-targets` both clean.
+- [x] Docs: spec/10-ecl.md (grammar's `moduleFilter` production,
+      "Concept filter constraint" section extended, "Not yet
+      implemented" list updated); `crates/snomed-ecl/README.md` (table
+      row, quick example — `900000000000207008`/`900000000000012004`
+      both already-verified well-known module SCTIDs in
+      `snomed_core::constants`, not newly guessed); `AGENTS/ecl-engineer.md`
+      (updated the `{{ }}` scoping section for three implemented filter
+      kinds now, plus a note on why `eclConceptReferenceSet` isn't
+      handled the way the other two sets were).
+
 ## Next up
 
 - [ ] Nothing currently scoped. Candidate future work (not yet
@@ -1429,10 +1475,11 @@ This closes Phase 7 (see `plan.md`).
       new external dependency — needs explicit user direction against
       the zero-dependency policy, not an autonomous pick); `snomed-ecl`'s
       remaining smaller documented gaps (boolean concrete comparisons,
-      concept filter kinds other than `active`/`definitionStatus`
-      (`definitionStatusId`/`module`/`effectiveTime`), `{{ D ... }}`/
-      `{{ M ... }}` description/member filters, `{{ }}` filters after a
-      parenthesized expression or `^ memberOf`, the history supplement);
+      concept filter kinds other than `active`/`definitionStatus`/`moduleId`
+      (`definitionStatusId`/`effectiveTime`), `moduleId`'s
+      `eclConceptReferenceSet` alternative, `{{ D ... }}`/`{{ M ... }}`
+      description/member filters, `{{ }}` filters after a parenthesized
+      expression or `^ memberOf`, the history supplement);
       property-chain/transitive-property redundancy elimination for
       `necessary_normal_form` (spec/14's documented, conservative scope
       cut); re-running the Phase 4 `snomed-store` benchmark (and the

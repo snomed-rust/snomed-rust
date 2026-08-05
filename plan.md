@@ -238,6 +238,23 @@ the spec's normative rules. Day-to-day execution items live in `tasks.md`.
   token form only — `definitionStatusIdFilter` (matching by concept
   reference) stays a documented gap. 3 new tests. 277 tests passing
   workspace-wide (up from 275).
+- Concept filter constraint extended: `moduleId` (2026-08-05) ✅ — a
+  third `{{ C ... }}` filter kind, `moduleFilter`'s
+  `subExpressionConstraint` alternative: `{{ C moduleId =
+  subExpressionConstraint }}` (plus `!=`), matching concepts whose
+  `moduleId` is in the evaluated set. `ConceptFilterKind` gained a
+  `Module` variant; no new parsing logic needed beyond reusing
+  `parse_sub_expression_constraint()` directly for the value — the same
+  treatment attribute names/values already get. The grammar's
+  `eclConceptReferenceSet` alternative (`moduleId = (id1 id2)`, 2+ bare
+  concept references) is deliberately not special-cased: unlike
+  `concreteStringSet`/`definitionStatusTokenSet`, a single-element
+  `(id)` here is genuinely ambiguous between the set form (invalid per
+  the grammar's 2+ requirement) and a parenthesized expression — and the
+  *existing* parenthesized-`subExpressionConstraint` parser already
+  resolves that correctly by construction (a genuine 2-element set fails
+  there with a generic, not named, error). 3 new tests. 279 tests
+  passing workspace-wide (up from 277).
 - History/audit queries over Full-view data ✅: `snomed-store::HistoryStore`
   keeps every version of a Concept/Description/Relationship (spec/09's new
   "History construction" section), built from Full-view files only —

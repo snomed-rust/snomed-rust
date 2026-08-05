@@ -89,7 +89,8 @@ pub enum ExpressionConstraint {
 }
 
 /// One filter inside a `{{ C ... }}` concept filter constraint. Currently
-/// `activeFilter` and `definitionStatusTokenFilter` — see
+/// `activeFilter`, `definitionStatusTokenFilter`, and the
+/// `subExpressionConstraint` form of `moduleFilter` — see
 /// [`ExpressionConstraint::ConceptFilter`].
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ConceptFilterKind {
@@ -100,6 +101,11 @@ pub enum ConceptFilterKind {
     /// form (matching by concept reference instead of the `primitive`/
     /// `defined` keyword) is not implemented.
     DefinitionStatus(DefinitionStatusFilter),
+    /// `moduleId (=|!=) subExpressionConstraint` — spec/10. Matches
+    /// concepts whose `moduleId` is in the evaluated set. The
+    /// `eclConceptReferenceSet` alternative (`moduleId = (id1 id2)`) is
+    /// not implemented — see [`ExpressionConstraint::ConceptFilter`].
+    Module(ModuleFilter),
 }
 
 /// `activeKeyword ws booleanComparisonOperator ws activeValue`.
@@ -137,6 +143,14 @@ pub struct DefinitionStatusFilter {
 pub enum DefinitionStatusValue {
     Primitive,
     Defined,
+}
+
+/// `moduleIdKeyword ws booleanComparisonOperator ws subExpressionConstraint`.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ModuleFilter {
+    /// `true` for `!=`.
+    pub negated: bool,
+    pub value: Box<ExpressionConstraint>,
 }
 
 /// `[min..max]` — an attribute or attribute group's cardinality

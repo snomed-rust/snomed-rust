@@ -5,8 +5,8 @@ use snomed_core::sctid::SctId;
 use crate::ast::{
     ActiveFilter, ActiveValue, AttributeComparison, AttributeConstraint, AttributeGroup,
     Cardinality, ConceptFilterKind, DefinitionStatusFilter, DefinitionStatusValue,
-    ExpressionConstraint, FocusConcept, HierarchyOp, NumericComparisonOp, RefinementConstraint,
-    SimpleExpressionConstraint,
+    ExpressionConstraint, FocusConcept, HierarchyOp, ModuleFilter, NumericComparisonOp,
+    RefinementConstraint, SimpleExpressionConstraint,
 };
 use crate::error::EclError;
 use crate::lexer::{describe, Lexer, Token, TokenKind};
@@ -313,12 +313,27 @@ impl Parser {
                     DefinitionStatusFilter { negated, values },
                 ))
             }
+            TokenKind::ModuleIdKeyword => {
+                self.advance()?;
+                let negated = self.parse_boolean_comparison_operator()?;
+                // Only the `subExpressionConstraint` alternative — the
+                // official grammar's `eclConceptReferenceSet` (`moduleId
+                // = (id1 id2)`) isn't implemented; `(` here is always
+                // treated as a parenthesized expression, same scoping
+                // call already made for attribute names/values.
+                let value = self.parse_sub_expression_constraint()?;
+                Ok(ConceptFilterKind::Module(ModuleFilter {
+                    negated,
+                    value: Box::new(value),
+                }))
+            }
             _ => {
                 let tok = self.peek().clone();
                 Err(EclError::UnexpectedToken {
                     pos: tok.pos,
                     found: describe(&tok.kind),
-                    expected: "a supported concept filter (`active`, `definitionStatus`)",
+                    expected:
+                        "a supported concept filter (`active`, `definitionStatus`, `moduleId`)",
                 })
             }
         }
@@ -1139,6 +1154,57 @@ mod tests {
                     ]
                 ),
                 other => panic!("expected DefinitionStatus, got {other:?}"),
+            },
+            other => panic!("expected ConceptFilter, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn parses_concept_filter_module() {
+        let expr = parse("404684003 {{ C moduleId = 900000000000207008 }}").unwrap();
+        match expr {
+            EC::ConceptFilter { filters, .. } => match &filters[0] {
+                crate::ast::ConceptFilterKind::Module(crate::ast::ModuleFilter {
+                    negated,
+                    value,
+                }) => {
+                    assert!(!negated);
+                    assert_eq!(
+                        **value,
+                        EC::Simple(SimpleExpressionConstraint {
+                            op: HierarchyOp::SelfOnly,
+                            focus: FocusConcept::Concept {
+                                id: concept("900000000000207008"),
+                                term: None
+                            },
+                        })
+                    );
+                }
+                other => panic!("expected Module, got {other:?}"),
+            },
+            other => panic!("expected ConceptFilter, got {other:?}"),
+        }
+
+        // `!=`, and a full hierarchy expression as the value (not just a
+        // plain concept reference — same `subExpressionConstraint`
+        // treatment as attribute names/values).
+        let expr = parse("404684003 {{ C moduleId != << 900000000000207008 }}").unwrap();
+        match expr {
+            EC::ConceptFilter { filters, .. } => match &filters[0] {
+                crate::ast::ConceptFilterKind::Module(crate::ast::ModuleFilter {
+                    negated,
+                    value,
+                }) => {
+                    assert!(negated);
+                    assert!(matches!(
+                        **value,
+                        EC::Simple(SimpleExpressionConstraint {
+                            op: HierarchyOp::DescendantOrSelfOf,
+                            ..
+                        })
+                    ));
+                }
+                other => panic!("expected Module, got {other:?}"),
             },
             other => panic!("expected ConceptFilter, got {other:?}"),
         }
