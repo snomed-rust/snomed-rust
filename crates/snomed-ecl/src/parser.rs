@@ -132,11 +132,20 @@ impl Parser {
         })
     }
 
+    /// `subExpressionConstraint := (simpleExpressionConstraint | memberOf |
+    /// "(" expressionConstraint ")") *(conceptFilterConstraint)`, and the
+    /// outer `refinedExpressionConstraint`/`dottedExpressionConstraint`
+    /// alternatives that wrap the *whole* `subExpressionConstraint`
+    /// (spec/10's grammar). All three focus forms (parenthesized, `^
+    /// memberOf`, and a plain hierarchy expression) go through the same
+    /// trailing `{{ }}`/`:`/`.` handling below — they aren't special-cased
+    /// per branch, since none of that trailing syntax is specific to one
+    /// focus shape.
     fn parse_sub_expression_constraint(&mut self) -> Result<ExpressionConstraint, EclError> {
-        match &self.peek().kind {
+        let mut expr = match &self.peek().kind {
             TokenKind::LParen => {
                 self.advance()?;
-                self.parse_parenthesized_expression_constraint_tail()
+                self.parse_parenthesized_expression_constraint_tail()?
             }
             TokenKind::Caret => {
                 self.advance()?;
@@ -159,35 +168,35 @@ impl Parser {
                         feature: "`^ [A, B]` (member of, with field selection)",
                     });
                 }
-                Ok(ExpressionConstraint::MemberOf { refset_id, term })
+                ExpressionConstraint::MemberOf { refset_id, term }
             }
             _ => {
                 let simple = self.parse_simple_expression_constraint()?;
-                // `*(ws (descriptionFilterConstraint / conceptFilterConstraint))`
-                // — filters apply to the focus concept itself, before any
-                // `:` refinement wraps the result (they're part of
-                // subExpressionConstraint, not eclRefinement).
-                let mut expr = ExpressionConstraint::Simple(simple);
-                while matches!(self.peek().kind, TokenKind::LBrace2) {
-                    expr = self.parse_filter_constraint(expr)?;
-                }
-                if matches!(self.peek().kind, TokenKind::Dot) {
-                    return Err(EclError::NotYetImplemented {
-                        pos: self.peek().pos,
-                        feature: "dot notation (`.`)",
-                    });
-                }
-                if matches!(self.peek().kind, TokenKind::Colon) {
-                    self.advance()?;
-                    let refinement = self.parse_refinement()?;
-                    return Ok(ExpressionConstraint::Refined {
-                        focus: Box::new(expr),
-                        refinement,
-                    });
-                }
-                Ok(expr)
+                ExpressionConstraint::Simple(simple)
             }
+        };
+        // `*(ws (descriptionFilterConstraint / conceptFilterConstraint))`
+        // — filters apply to the focus concept itself, before any `:`
+        // refinement wraps the result (they're part of
+        // subExpressionConstraint, not eclRefinement).
+        while matches!(self.peek().kind, TokenKind::LBrace2) {
+            expr = self.parse_filter_constraint(expr)?;
         }
+        if matches!(self.peek().kind, TokenKind::Dot) {
+            return Err(EclError::NotYetImplemented {
+                pos: self.peek().pos,
+                feature: "dot notation (`.`)",
+            });
+        }
+        if matches!(self.peek().kind, TokenKind::Colon) {
+            self.advance()?;
+            let refinement = self.parse_refinement()?;
+            return Ok(ExpressionConstraint::Refined {
+                focus: Box::new(expr),
+                refinement,
+            });
+        }
+        Ok(expr)
     }
 
     /// Parses one `{{ ... }}` filter constraint applied to `inner`. Only
@@ -1903,6 +1912,38 @@ mod tests {
     fn rejects_hierarchy_prefix_combined_with_member_of() {
         let err = parse("< ^ 447562003").unwrap_err();
         assert!(matches!(err, EclError::NotYetImplemented { .. }), "{err}");
+    }
+
+    #[test]
+    fn refinement_and_concept_filter_apply_after_parenthesized_or_member_of_focus() {
+        // `refinedExpressionConstraint`/`{{ }}` filters wrap the *whole*
+        // subExpressionConstraint, not just a plain focus concept — a
+        // parenthesized expression or `^ memberOf` are equally valid
+        // bases for a trailing `:` refinement or `{{ C ... }}` filter.
+        let expr = parse("(<< 404684003) : 116676008 = 79654002").unwrap();
+        match expr {
+            EC::Refined { focus, .. } => {
+                assert!(matches!(*focus, EC::Simple(_)));
+            }
+            other => panic!("expected Refined, got {other:?}"),
+        }
+
+        let expr = parse("^ 447562003 : 116676008 = 79654002").unwrap();
+        match expr {
+            EC::Refined { focus, .. } => {
+                assert!(matches!(*focus, EC::MemberOf { .. }));
+            }
+            other => panic!("expected Refined, got {other:?}"),
+        }
+
+        let expr = parse("(<< 404684003) {{ C active = true }}").unwrap();
+        assert!(matches!(expr, EC::ConceptFilter { .. }));
+
+        let expr = parse("^ 447562003 {{ C active = true }}").unwrap();
+        match expr {
+            EC::ConceptFilter { inner, .. } => assert!(matches!(*inner, EC::MemberOf { .. })),
+            other => panic!("expected ConceptFilter, got {other:?}"),
+        }
     }
 
     #[test]

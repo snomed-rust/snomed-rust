@@ -251,6 +251,13 @@ grammar, `refinedExpressionConstraint` is a distinct top-level alternative
 of `expressionConstraint` — a refinement isn't "just another operator" at
 the same level as `AND`/`OR`/`MINUS`.
 
+- `focus` is any `subExpressionConstraint` — a plain hierarchy expression
+  (`404684003 : ...`), a parenthesized expression
+  (`(<< 404684003 MINUS << 64572001) : ...`), or a `^ memberOf`
+  expression (`^ 447562003 : ...`) all work, since `refinedExpressionConstraint`
+  wraps whichever `subExpressionConstraint` form preceded the `:` — not
+  just a plain focus concept. Likewise, `{{ C ... }}` concept filters
+  (see below) apply after any of those three forms too.
 - `attributeId` (`eclAttributeName`) is any `subExpressionConstraint`, per
   the official grammar — not just a plain concept reference. A bare
   concept reference is simply the common case: `parse_sub_expression_constraint`
@@ -400,11 +407,14 @@ model as this project has encountered it — a deeper gap than just
 `inner {{ C filter (, filter)* }}` restricts `inner`'s evaluated set to
 concepts whose own `Concept` row matches every filter — a set-level
 restriction, unlike refinements (which examine a concept's
-*relationships*, not its own fields). Filters apply before any trailing
-`:` refinement (they're part of `subExpressionConstraint`, and
-`refinedExpressionConstraint := subExpressionConstraint ":" eclRefinement`
-wraps the already-filtered result), and multiple `{{ }}` blocks chain,
-each seeing only what the previous one let through.
+*relationships*, not its own fields). `inner` may be any
+`subExpressionConstraint` form (plain focus concept, parenthesized
+expression, or `^ memberOf`) — filters aren't specific to a plain focus
+concept. Filters apply before any trailing `:` refinement (they're part
+of `subExpressionConstraint`, and `refinedExpressionConstraint :=
+subExpressionConstraint ":" eclRefinement` wraps the already-filtered
+result), and multiple `{{ }}` blocks chain, each seeing only what the
+previous one let through.
 
 `activeFilter`, `definitionStatusTokenFilter`, `moduleFilter`'s
 `subExpressionConstraint` alternative, and `effectiveTimeFilter` are

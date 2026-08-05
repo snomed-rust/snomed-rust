@@ -74,6 +74,13 @@ let matches = evaluate(&expr, store);
 // Only concepts released on or after a given date.
 let expr = parse("<< 404684003 {{ C effectiveTime >= \"20200101\" }}")?;
 let matches = evaluate(&expr, store);
+
+// `:` refinements and `{{ }}` filters both work after a parenthesized
+// expression or `^ memberOf` too, not just a plain focus concept.
+let expr = parse("(<< 404684003 MINUS << 64572001) {{ C active = true }}")?;
+let matches = evaluate(&expr, store);
+let expr = parse("^ 447562003 : 116676008 = 79654002")?;
+let matches = evaluate(&expr, store);
 # Ok(()) }
 ```
 
@@ -85,12 +92,12 @@ let matches = evaluate(&expr, store);
 | Wildcard | `*` — every concept the store knows about |
 | Member of | `^ 447562003` — active membership in *any* refset type |
 | Boolean sets | `AND` (chains freely), `OR` (chains freely), `MINUS` (exactly two operands — parenthesize to chain further) |
-| Refinements | `attr = value`, `attr != value`, `AND`/`OR` at refinement level, parenthesized groups; `attr` and `value` may each be a full hierarchy expression, not just a plain concept reference |
+| Refinements | `attr = value`, `attr != value`, `AND`/`OR` at refinement level, parenthesized groups; `attr` and `value` may each be a full hierarchy expression, not just a plain concept reference; the focus before `:` may be a parenthesized expression or `^ memberOf`, not just a plain focus concept |
 | Cardinality | `[min..max] attr = value` — counts matches instead of just checking "any"; defaults to `[1..*]` when omitted |
 | Reverse flag | `R attr = value` — matches by the relationship's *source* instead of its destination |
 | Attribute groups | `[cardinality] { attr = x AND attr2 = y }` — requires one role group (nonzero `relationshipGroup`) to satisfy every attribute together |
 | Concrete values | `attr > #500`, `attr <= #-2.5`, `attr = "E10.9"`, `attr = ("E10.9" "E11.9")` — numeric (`=`/`!=`/`<=`/`<`/`>=`/`>`) and string (`=`/`!=`, incl. an OR'd `concreteStringSet`) comparisons against a `RelationshipConcreteValue` |
-| Concept filter | `{{ C active = true }}`, `{{ C active != false }}`, `{{ C active = * }}`, `{{ C definitionStatus = primitive }}`, `{{ C definitionStatus = (primitive defined) }}`, `{{ C moduleId = 900000000000207008 }}`, `{{ C moduleId = << 900000000000012004 }}`, `{{ C effectiveTime >= "20200101" }}`, `{{ C effectiveTime = ("20200101" "20210101") }}` — restricts a set to concepts whose own row matches; multiple filters/blocks AND together |
+| Concept filter | `{{ C active = true }}`, `{{ C active != false }}`, `{{ C active = * }}`, `{{ C definitionStatus = primitive }}`, `{{ C definitionStatus = (primitive defined) }}`, `{{ C moduleId = 900000000000207008 }}`, `{{ C moduleId = << 900000000000012004 }}`, `{{ C effectiveTime >= "20200101" }}`, `{{ C effectiveTime = ("20200101" "20210101") }}` — restricts a set to concepts whose own row matches; multiple filters/blocks AND together; works after a parenthesized expression or `^ memberOf` too, not just a plain focus concept |
 | Syntax details | pipe-delimited terms (`73211009 \|Diabetes mellitus\|`, non-semantic), case-insensitive keywords, `,` as an alternate spelling for `AND`, `/* comments */` |
 
 Not yet implemented, never silently mishandled: `{{ D ... }}` description

@@ -278,23 +278,25 @@ own `AND` chain does. Don't add a dedicated comma token for this; it
 would duplicate logic the lexer already has for a token that means the
 same thing in both places.
 
-**Filters apply to `subExpressionConstraint`, before `:` wraps it in a
-refinement.** `refinedExpressionConstraint := subExpressionConstraint ":"
-eclRefinement`, and `{{ }}` filters are part of `subExpressionConstraint`
-itself (see the grammar's `subExpressionConstraint` production in
-spec/10) — so `parse_sub_expression_constraint`'s `_` arm parses the
-focus concept, then loops consuming `{{ }}` blocks, and only *then*
-checks for a trailing `:`. Getting this ordering backwards (checking `:`
-first) would make `X {{ C active = true }} : attr = value`'s refinement
-see the *unfiltered* `X` as its focus — a real, silent correctness bug,
-not just a parse-order cosmetic issue.
-
-**Only `parse_simple_expression_constraint`'s branch supports trailing
-filters right now** — not the `LParen` (parenthesized) or `Caret`
-(`^ memberOf`) branches of `parse_sub_expression_constraint`, even
-though the official grammar allows `{{ }}` after those too (and
-`memberFilterConstraint` specifically only ever follows `^`). This
-mirrors the pre-existing scope: `{{ }}` was only ever detected in the
-plain-focus-concept branch before this increment. Extending filter
-support to those other two positions is a distinct, not-yet-scoped
-future increment — don't assume it's covered.
+**Filters and `:` refinements apply to the *whole* `subExpressionConstraint`,
+after any of its three focus forms — not just a plain focus concept.**
+`refinedExpressionConstraint := subExpressionConstraint ":" eclRefinement`,
+and `{{ }}` filters are part of `subExpressionConstraint` itself (see
+its grammar production in spec/10); `subExpressionConstraint`'s own
+choice of focus (`simpleExpressionConstraint | memberOf | "(" ... ")"`)
+is a *separate* alternative from that trailing structure. Concretely,
+`parse_sub_expression_constraint` computes `expr` from whichever of the
+three branches (`LParen`, `Caret`, or plain focus) matched, and only
+*after that* loops consuming `{{ }}` blocks and checks for a trailing
+`:`/`.` — uniformly, not per-branch. This used to be done inside the
+plain-focus branch only (an undocumented, undiscovered gap fixed
+2026-08-05, not a deliberate scope decision like the boolean-comparison
+or `{{ D }}` gaps are) — `(<< 404684003) : attr = value` and
+`^ 447562003 {{ C active = true }}` both silently failed to parse before
+that fix, even though both are valid per the grammar. If you add another
+"trailing `subExpressionConstraint` modifier" in the future, add it to
+this shared tail, not inside one specific focus-form branch — getting
+the ordering backwards (checking `:` before filters, in particular)
+would make `X {{ C active = true }} : attr = value`'s refinement see
+the *unfiltered* `X` as its focus, a real, silent correctness bug, not
+just a parse-order cosmetic issue.

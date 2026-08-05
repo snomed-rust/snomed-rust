@@ -1513,6 +1513,47 @@ This closes Phase 7 (see `plan.md`).
       `NumericComparisonOp` and why malformed dates reuse
       `EffectiveTimeError`).
 
+## Done (2026-08-05, snomed-ecl: `:` refinements and `{{ }}` filters after any subExpressionConstraint form)
+
+- [x] Fixed a real, previously-undiscovered parsing bug (not a
+      documented scope decision like the `{{ D }}`/boolean-comparison
+      gaps): `(<< 404684003) : attr = value` and
+      `^ 447562003 {{ C active = true }}` both silently failed to parse
+      even though the official grammar allows a `:` refinement or
+      `{{ }}` filter after *any* `subExpressionConstraint` form (plain
+      focus concept, parenthesized expression, or `^ memberOf`) — the
+      trailing `{{ }}`/`:`/`.` handling had only ever lived inside
+      `parse_sub_expression_constraint`'s plain-focus-concept branch.
+      Found while about to extend `{{ }}` filter support to those other
+      two positions (the next item on last session's "Next up" list) —
+      manually probed current behavior first and discovered both
+      constructs already failed today, for `:` refinements too, not
+      just `{{ }}`.
+- [x] Restructured `parse_sub_expression_constraint`: the three focus
+      forms (`LParen`, `Caret`, plain) now each just compute the base
+      `expr`, and the `{{ }}`-loop / `.`-check / `:`-refinement-check
+      that used to live inside the plain-focus branch moved to a single
+      shared tail applied uniformly afterward — matching the grammar's
+      own structure, where `subExpressionConstraint`'s trailing
+      `*(conceptFilterConstraint)` and the outer
+      `refinedExpressionConstraint`/`dottedExpressionConstraint`
+      alternatives are independent of which focus form preceded them.
+      No new AST/lexer/eval changes — purely a parser restructuring.
+- [x] Tests: 1 new parser test covering all four newly-working
+      combinations (refinement after parenthesized, refinement after
+      `^ memberOf`, `{{ }}` filter after parenthesized, `{{ }}` filter
+      after `^ memberOf`). 283 tests passing workspace-wide (up from
+      282). `cargo fmt --all -- --check` and `cargo clippy --all-targets`
+      both clean.
+- [x] Docs: spec/10-ecl.md (new bullets in "Refinements" and "Concept
+      filter constraint" stating `focus`/`inner` may be any
+      `subExpressionConstraint` form); `crates/snomed-ecl/README.md`
+      (table rows + quick example); `AGENTS/ecl-engineer.md` (rewrote
+      the section that used to document this as a deliberate,
+      not-yet-scoped gap — it was actually an undiscovered bug, not a
+      scope decision, so the write-up needed to say what was fixed and
+      why, not just narrate the old limitation).
+
 ## Next up
 
 - [ ] Nothing currently scoped. Candidate future work (not yet
@@ -1522,8 +1563,7 @@ This closes Phase 7 (see `plan.md`).
       remaining smaller documented gaps (boolean concrete comparisons,
       the `definitionStatusIdFilter` concept filter kind, `moduleId`'s
       `eclConceptReferenceSet` alternative, `{{ D ... }}`/`{{ M ... }}`
-      description/member filters, `{{ }}` filters after a parenthesized
-      expression or `^ memberOf`, the history supplement);
+      description/member filters, the history supplement);
       property-chain/transitive-property redundancy elimination for
       `necessary_normal_form` (spec/14's documented, conservative scope
       cut); re-running the Phase 4 `snomed-store` benchmark (and the

@@ -273,6 +273,21 @@ the spec's normative rules. Day-to-day execution items live in `tasks.md`.
   parser's error" pattern `InvalidSctId` already established for
   malformed SCTIDs. 4 new tests. 282 tests passing workspace-wide (up
   from 279).
+- `:` refinements and `{{ }}` filters after any `subExpressionConstraint`
+  form (2026-08-05) ✅ — a bug fix, discovered while about to extend
+  `{{ }}` filter support beyond the plain-focus-concept case (the
+  planned next step): `(<< 404684003) : attr = value` and
+  `^ 447562003 {{ C active = true }}` both silently failed to parse,
+  even though the grammar allows a `:` refinement or `{{ }}` filter
+  after *any* of `subExpressionConstraint`'s three focus forms (plain,
+  parenthesized, `^ memberOf`), not just a plain focus concept.
+  `parse_sub_expression_constraint` restructured so all three branches
+  compute just the base `expr`, with a single shared tail (the
+  `{{ }}`-loop, then `.`-check, then `:`-refinement-check) applied
+  uniformly afterward — matching the grammar's actual structure, where
+  that trailing syntax is independent of which focus form preceded it.
+  No AST/lexer/eval changes, purely a parser restructuring. 1 new test.
+  283 tests passing workspace-wide (up from 282).
 - History/audit queries over Full-view data ✅: `snomed-store::HistoryStore`
   keeps every version of a Concept/Description/Relationship (spec/09's new
   "History construction" section), built from Full-view files only —
