@@ -12,9 +12,10 @@ memberOf, wildcard, AND/OR/MINUS — plus refinements: `attributeId
 (not just a plain concept reference), numeric/string concrete value
 comparisons including `concreteStringSet`, AND/OR, parenthesized groups,
 attribute cardinality `[min..max]`, the reverse flag `R`, and attribute
-groups `{ }`; plus `{{ C active = true|false|* }}`, a concept filter
-constraint) and lists what is explicitly **not yet implemented** (boolean
-concrete value comparisons, concept filter kinds other than `active`,
+groups `{ }`; plus a `{{ C ... }}` concept filter constraint —
+`active = true|false|*` and `definitionStatus = primitive|defined`) and
+lists what is explicitly **not yet implemented** (boolean concrete value
+comparisons, concept filter kinds other than `active`/`definitionStatus`,
 `{{ D ... }}`/`{{ M ... }}` description/member filters, `^ *`, `!!>`/`!!<`,
 history supplement, alternate identifiers, a hierarchy prefix combined
 with `^`, dot notation).
@@ -46,8 +47,9 @@ parsing — never be silently accepted and evaluated as something else,
 and never panic. Naming the specific feature via
 `EclError::NotYetImplemented { feature, .. }` is strongly preferred (most
 of spec/10's list gets this now) but isn't yet universal: boolean
-concrete value comparisons and concept filter kinds other than `active`
-still surface as a generic `UnexpectedToken`/`UnexpectedKeyword` because
+concrete value comparisons and concept filter kinds other than
+`active`/`definitionStatus` still surface as a generic
+`UnexpectedToken`/`UnexpectedKeyword` because
 recognizing their shape well enough to name them isn't as simple as
 matching a fixed token sequence — see spec/10 rule 9. Moving one from
 generic to named, without implementing the underlying feature, is a
@@ -169,34 +171,48 @@ needs 2 tokens of lookahead: check whether the *very next* token after
 consuming the ambiguous one actually settles it, before assuming real
 backtracking is required.
 
-## `{{ }}` filters: scoped to `{{ C active = ... }}` only, deliberately
+## `{{ }}` filters: scoped to `{{ C ... }}` concept filters only, deliberately
 
 The official grammar's `{{ }}` filter subsystem is large — description,
 concept, and member filter constraints, each with several filter kinds
 (`term`/`language`/`type`/`dialect`/`module`/`effectiveTime`/`active`/
 `definitionStatus`/refset field), most needing their own value-set
 grammar. Implementing all of it in one increment isn't realistic; this
-crate deliberately implemented exactly one slice —
-`conceptFilterConstraint`'s `activeFilter` — and left the rest as
-documented gaps, the same incremental strategy used for refinements
-(cardinality, then reverse flag, then groups, then concrete values, then
-attribute names, then `concreteStringSet`, each its own commit). If
-you're extending this further, add one filter kind or one filter
-constraint type (`{{ D ... }}`) at a time, not all of them at once.
+crate has so far implemented `conceptFilterConstraint`'s `activeFilter`
+and `definitionStatusTokenFilter` (two separate increments, each its own
+commit) and left the rest as documented gaps — the same incremental
+strategy used for refinements (cardinality, then reverse flag, then
+groups, then concrete values, then attribute names, then
+`concreteStringSet`). If you're extending this further, add one filter
+kind or one filter constraint type (`{{ D ... }}`) at a time, not all of
+them at once. `parse_boolean_comparison_operator` (factored out during
+the `definitionStatus` increment) is shared by every `booleanComparisonOperator`
+filter — reuse it rather than re-inlining the `=`/`!=` match.
 
 **New single-letter/keyword tokens are lexed unconditionally, not just
 inside `{{ }}`.** `ConceptFilterMarker`/`DescriptionFilterMarker`/
-`MemberFilterMarker` (`C`/`D`/`M`) and `ActiveKeyword`/`True`/`False`
-(`active`/`true`/`false`) were added to the same case-insensitive
-keyword table `AND`/`OR`/`MINUS`/`R` already use — the lexer has no
-notion of "only recognize this token right after `{{`", and doesn't
-need one: nothing outside `{{ }}` can legally contain a bare `C`, `D`,
-`M`, `active`, `true`, or `false` in this grammar subset, so recognizing
-them everywhere is safe. This does shadow those exact strings as
-potential `A#B` alternate-identifier scheme aliases (e.g. a
-hypothetical `ACTIVE#123`) — an existing, accepted tradeoff already
-made for `R` (see the `A#B`-lookahead code in `lexer.rs`); don't treat
-this as a new problem to solve.
+`MemberFilterMarker` (`C`/`D`/`M`), `ActiveKeyword`/`True`/`False`
+(`active`/`true`/`false`), and `DefinitionStatusKeyword`/`PrimitiveToken`/
+`DefinedToken` (`definitionStatus`/`primitive`/`defined`) were all added
+to the same case-insensitive keyword table `AND`/`OR`/`MINUS`/`R` already
+use — the lexer has no notion of "only recognize this token right after
+`{{`", and doesn't need one: nothing outside `{{ }}` can legally contain
+these bare words in this grammar subset, so recognizing them everywhere
+is safe. This does shadow those exact strings as potential `A#B`
+alternate-identifier scheme aliases (e.g. a hypothetical `ACTIVE#123` or
+`PRIMITIVE#123`) — an existing, accepted tradeoff already made for `R`
+(see the `A#B`-lookahead code in `lexer.rs`); don't treat this as a new
+problem to solve.
+
+**`definitionStatusTokenSet` needed no ambiguity resolution**, unlike
+`concreteStringSet`. `(primitive defined)` looks like the same
+`(` shape that was hard to disambiguate for string sets, but
+`primitive`/`defined` are dedicated keyword tokens that can never start
+a `subExpressionConstraint` — so `parse_concept_filter_kind`'s `LParen`
+branch just peeks for `PrimitiveToken`/`DefinedToken` directly, no
+`concreteStringSet`-style "consume `(`, then check what's next" dance
+needed. Don't add one; it would be solving a problem that doesn't exist
+here.
 
 **`,` inside `{{ }}` reuses `TokenKind::And`, not a new comma token.**
 The official grammar's `conceptFilter *(ws "," ws conceptFilter)` looks

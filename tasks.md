@@ -1382,6 +1382,46 @@ This closes Phase 7 (see `plan.md`).
       decision, and the filters-before-refinement ordering — all
       non-obvious enough to re-derive wrong later).
 
+## Done (2026-08-05, snomed-ecl concept filter: `definitionStatus`)
+
+- [x] Extended `{{ C ... }}` with a second filter kind:
+      `definitionStatusTokenFilter` (`{{ C definitionStatus =
+      primitive|defined }}`, plus `!=` and the `(primitive defined)`
+      token-set form), restricting a set to concepts whose
+      `definitionStatusId` matches `snomed_core::constants::PRIMITIVE`/
+      `DEFINED`. Deliberately only the token form —
+      `definitionStatusIdFilter` (matching by concept reference instead
+      of the `primitive`/`defined` keyword) stays a documented gap, same
+      scoping call as `activeFilter` before it.
+- [x] `ConceptFilterKind` gained a `DefinitionStatus(DefinitionStatusFilter
+      { negated, values: Vec<DefinitionStatusValue> })` variant — the enum
+      shape added specifically so a second filter kind wouldn't need a
+      second breaking AST change paid off immediately.
+- [x] New lexer tokens (`DefinitionStatusKeyword`/`PrimitiveToken`/
+      `DefinedToken`), added the same unconditional way as `C`/`D`/`M`/
+      `active`/`true`/`false` before them.
+- [x] `parse_boolean_comparison_operator` factored out of
+      `parse_concept_filter_kind`'s `active` branch and reused by the new
+      `definitionStatus` branch — the `=`/`!=` parsing was identical, no
+      reason to duplicate it a second time.
+- [x] `definitionStatusTokenSet` (`(primitive defined)`) needed no
+      `concreteStringSet`-style ambiguity resolution: `primitive`/
+      `defined` are keyword tokens that can never start a
+      `subExpressionConstraint`, so seeing `(` after `definitionStatus
+      (=|!=)` is unambiguous — the only production listed there.
+- [x] Tests: 2 new parser (single token + `!=`, plus the token-set form),
+      1 new eval (primitive/defined restriction incl. negation and the
+      no-op two-value set). 277 tests passing workspace-wide (up from
+      275). `cargo fmt --all -- --check` and `cargo clippy --all-targets`
+      both clean.
+- [x] Docs: spec/10-ecl.md (grammar's `definitionStatusTokenFilter`/
+      `definitionStatusToken`/`definitionStatusTokenSet` productions,
+      "Concept filter constraint" section extended, "Not yet
+      implemented" list updated, new rule 12); `crates/snomed-ecl/README.md`
+      (table row, quick example); `AGENTS/ecl-engineer.md` (updated the
+      `{{ }}` scoping section to reflect two implemented filter kinds now,
+      plus a note on why the token-set form needed no ambiguity handling).
+
 ## Next up
 
 - [ ] Nothing currently scoped. Candidate future work (not yet
@@ -1389,9 +1429,10 @@ This closes Phase 7 (see `plan.md`).
       new external dependency — needs explicit user direction against
       the zero-dependency policy, not an autonomous pick); `snomed-ecl`'s
       remaining smaller documented gaps (boolean concrete comparisons,
-      concept filter kinds other than `active`, `{{ D ... }}`/`{{ M ... }}`
-      description/member filters, `{{ }}` filters after a parenthesized
-      expression or `^ memberOf`, the history supplement);
+      concept filter kinds other than `active`/`definitionStatus`
+      (`definitionStatusId`/`module`/`effectiveTime`), `{{ D ... }}`/
+      `{{ M ... }}` description/member filters, `{{ }}` filters after a
+      parenthesized expression or `^ memberOf`, the history supplement);
       property-chain/transitive-property redundancy elimination for
       `necessary_normal_form` (spec/14's documented, conservative scope
       cut); re-running the Phase 4 `snomed-store` benchmark (and the

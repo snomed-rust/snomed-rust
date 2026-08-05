@@ -76,12 +76,12 @@ pub enum ExpressionConstraint {
     },
     /// `inner {{ C filter (AND filter)* }}` — a `conceptFilterConstraint`
     /// (spec/10): restricts `inner`'s evaluated set to concepts whose own
-    /// row matches every filter in `filters`. Only [`ConceptFilterKind::Active`]
-    /// is implemented; description filters (`{{ D ... }}`, or a bare
-    /// `{{ ... }}` with no marker, which defaults to a description filter
-    /// per the grammar), member filters (`{{ M ... }}`), and every other
-    /// concept filter kind (`definitionStatus`/`module`/`effectiveTime`)
-    /// are rejected — see spec/10's "Not yet implemented" section.
+    /// row matches every filter in `filters`. See [`ConceptFilterKind`]
+    /// for which filter kinds are implemented. Description filters
+    /// (`{{ D ... }}`, or a bare `{{ ... }}` with no marker, which
+    /// defaults to a description filter per the grammar) and member
+    /// filters (`{{ M ... }}`) are rejected — see spec/10's "Not yet
+    /// implemented" section.
     ConceptFilter {
         inner: Box<ExpressionConstraint>,
         filters: Vec<ConceptFilterKind>,
@@ -89,11 +89,17 @@ pub enum ExpressionConstraint {
 }
 
 /// One filter inside a `{{ C ... }}` concept filter constraint. Currently
-/// only `activeFilter` — see [`ExpressionConstraint::ConceptFilter`].
+/// `activeFilter` and `definitionStatusTokenFilter` — see
+/// [`ExpressionConstraint::ConceptFilter`].
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ConceptFilterKind {
     /// `active (=|!=) (true|false|*)` — spec/10.
     Active(ActiveFilter),
+    /// `definitionStatus (=|!=) (definitionStatusToken | definitionStatusTokenSet)`
+    /// — spec/10. The `definitionStatusId (=|!=) subExpressionConstraint`
+    /// form (matching by concept reference instead of the `primitive`/
+    /// `defined` keyword) is not implemented.
+    DefinitionStatus(DefinitionStatusFilter),
 }
 
 /// `activeKeyword ws booleanComparisonOperator ws activeValue`.
@@ -112,6 +118,25 @@ pub enum ActiveValue {
     /// `*` — matches regardless of active status; a no-op filter on its
     /// own, included for grammar completeness.
     Wildcard,
+}
+
+/// `definitionStatusKeyword ws booleanComparisonOperator ws
+/// (definitionStatusToken / definitionStatusTokenSet)`.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DefinitionStatusFilter {
+    /// `true` for `!=`.
+    pub negated: bool,
+    /// 1+ entries; 2 (both values) only for a `definitionStatusTokenSet`
+    /// (`(primitive defined)`) — matching is OR'd across the set, same
+    /// shape as `AttributeComparison::String.values`.
+    pub values: Vec<DefinitionStatusValue>,
+}
+
+/// `primitiveToken / definedToken`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum DefinitionStatusValue {
+    Primitive,
+    Defined,
 }
 
 /// `[min..max]` — an attribute or attribute group's cardinality

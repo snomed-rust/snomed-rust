@@ -4,8 +4,9 @@ use snomed_core::sctid::SctId;
 
 use crate::ast::{
     ActiveFilter, ActiveValue, AttributeComparison, AttributeConstraint, AttributeGroup,
-    Cardinality, ConceptFilterKind, ExpressionConstraint, FocusConcept, HierarchyOp,
-    NumericComparisonOp, RefinementConstraint, SimpleExpressionConstraint,
+    Cardinality, ConceptFilterKind, DefinitionStatusFilter, DefinitionStatusValue,
+    ExpressionConstraint, FocusConcept, HierarchyOp, NumericComparisonOp, RefinementConstraint,
+    SimpleExpressionConstraint,
 };
 use crate::error::EclError;
 use crate::lexer::{describe, Lexer, Token, TokenKind};
@@ -255,24 +256,7 @@ impl Parser {
         match &self.peek().kind {
             TokenKind::ActiveKeyword => {
                 self.advance()?;
-                let negated = match &self.peek().kind {
-                    TokenKind::Eq => {
-                        self.advance()?;
-                        false
-                    }
-                    TokenKind::NotEq => {
-                        self.advance()?;
-                        true
-                    }
-                    _ => {
-                        let tok = self.peek().clone();
-                        return Err(EclError::UnexpectedToken {
-                            pos: tok.pos,
-                            found: describe(&tok.kind),
-                            expected: "`=` or `!=`",
-                        });
-                    }
-                };
+                let negated = self.parse_boolean_comparison_operator()?;
                 let value = match &self.peek().kind {
                     TokenKind::True => {
                         self.advance()?;
@@ -297,12 +281,87 @@ impl Parser {
                 };
                 Ok(ConceptFilterKind::Active(ActiveFilter { negated, value }))
             }
+            TokenKind::DefinitionStatusKeyword => {
+                self.advance()?;
+                let negated = self.parse_boolean_comparison_operator()?;
+                let values = match &self.peek().kind {
+                    TokenKind::PrimitiveToken | TokenKind::DefinedToken => {
+                        vec![self.parse_definition_status_token()?]
+                    }
+                    TokenKind::LParen => {
+                        self.advance()?;
+                        let mut values = vec![self.parse_definition_status_token()?];
+                        while matches!(
+                            self.peek().kind,
+                            TokenKind::PrimitiveToken | TokenKind::DefinedToken
+                        ) {
+                            values.push(self.parse_definition_status_token()?);
+                        }
+                        self.expect(TokenKind::RParen, "`)`")?;
+                        values
+                    }
+                    _ => {
+                        let tok = self.peek().clone();
+                        return Err(EclError::UnexpectedToken {
+                            pos: tok.pos,
+                            found: describe(&tok.kind),
+                            expected: "`primitive`, `defined`, or `(`",
+                        });
+                    }
+                };
+                Ok(ConceptFilterKind::DefinitionStatus(
+                    DefinitionStatusFilter { negated, values },
+                ))
+            }
             _ => {
                 let tok = self.peek().clone();
                 Err(EclError::UnexpectedToken {
                     pos: tok.pos,
                     found: describe(&tok.kind),
-                    expected: "a supported concept filter (`active`)",
+                    expected: "a supported concept filter (`active`, `definitionStatus`)",
+                })
+            }
+        }
+    }
+
+    /// `booleanComparisonOperator = "=" / "!="`, returning `true` for `!=`.
+    fn parse_boolean_comparison_operator(&mut self) -> Result<bool, EclError> {
+        match &self.peek().kind {
+            TokenKind::Eq => {
+                self.advance()?;
+                Ok(false)
+            }
+            TokenKind::NotEq => {
+                self.advance()?;
+                Ok(true)
+            }
+            _ => {
+                let tok = self.peek().clone();
+                Err(EclError::UnexpectedToken {
+                    pos: tok.pos,
+                    found: describe(&tok.kind),
+                    expected: "`=` or `!=`",
+                })
+            }
+        }
+    }
+
+    fn parse_definition_status_token(&mut self) -> Result<DefinitionStatusValue, EclError> {
+        match &self.peek().kind {
+            TokenKind::PrimitiveToken => {
+                self.advance()?;
+                Ok(DefinitionStatusValue::Primitive)
+            }
+            TokenKind::DefinedToken => {
+                self.advance()?;
+                Ok(DefinitionStatusValue::Defined)
+            }
+            _ => {
+                let tok = self.peek().clone();
+                Err(EclError::UnexpectedToken {
+                    pos: tok.pos,
+                    found: describe(&tok.kind),
+                    expected: "`primitive` or `defined`",
                 })
             }
         }
@@ -1031,6 +1090,56 @@ mod tests {
         let expr = parse("404684003 {{ C active = true, active != false }}").unwrap();
         match expr {
             EC::ConceptFilter { filters, .. } => assert_eq!(filters.len(), 2),
+            other => panic!("expected ConceptFilter, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn parses_concept_filter_definition_status() {
+        let expr = parse("404684003 {{ C definitionStatus = primitive }}").unwrap();
+        match expr {
+            EC::ConceptFilter { filters, .. } => {
+                assert_eq!(filters.len(), 1);
+                assert!(matches!(
+                    filters[0],
+                    crate::ast::ConceptFilterKind::DefinitionStatus(
+                        crate::ast::DefinitionStatusFilter {
+                            negated: false,
+                            ref values,
+                        }
+                    ) if values == &[crate::ast::DefinitionStatusValue::Primitive]
+                ));
+            }
+            other => panic!("expected ConceptFilter, got {other:?}"),
+        }
+
+        // `!=` negates.
+        let expr = parse("404684003 {{ C definitionStatus != defined }}").unwrap();
+        match expr {
+            EC::ConceptFilter { filters, .. } => assert!(matches!(
+                filters[0],
+                crate::ast::ConceptFilterKind::DefinitionStatus(
+                    crate::ast::DefinitionStatusFilter { negated: true, .. }
+                )
+            )),
+            other => panic!("expected ConceptFilter, got {other:?}"),
+        }
+
+        // `definitionStatusTokenSet`: a parenthesized list of both tokens.
+        let expr = parse("404684003 {{ C definitionStatus = (primitive defined) }}").unwrap();
+        match expr {
+            EC::ConceptFilter { filters, .. } => match &filters[0] {
+                crate::ast::ConceptFilterKind::DefinitionStatus(
+                    crate::ast::DefinitionStatusFilter { values, .. },
+                ) => assert_eq!(
+                    values,
+                    &[
+                        crate::ast::DefinitionStatusValue::Primitive,
+                        crate::ast::DefinitionStatusValue::Defined
+                    ]
+                ),
+                other => panic!("expected DefinitionStatus, got {other:?}"),
+            },
             other => panic!("expected ConceptFilter, got {other:?}"),
         }
     }

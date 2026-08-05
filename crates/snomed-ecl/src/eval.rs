@@ -7,12 +7,13 @@ use snomed_core::sctid::SctId;
 use snomed_store::SnapshotStore;
 
 use snomed_core::concrete_value::ConcreteValue;
-use snomed_core::Concept;
+use snomed_core::{constants, Concept};
 
 use crate::ast::{
     ActiveFilter, ActiveValue, AttributeComparison, AttributeConstraint, AttributeGroup,
-    Cardinality, ConceptFilterKind, ExpressionConstraint, FocusConcept, HierarchyOp,
-    NumericComparisonOp, RefinementConstraint, SimpleExpressionConstraint,
+    Cardinality, ConceptFilterKind, DefinitionStatusFilter, DefinitionStatusValue,
+    ExpressionConstraint, FocusConcept, HierarchyOp, NumericComparisonOp, RefinementConstraint,
+    SimpleExpressionConstraint,
 };
 
 /// Evaluates `expr` against `store`, returning the matching concept ids.
@@ -64,9 +65,8 @@ pub fn evaluate(expr: &ExpressionConstraint, store: &SnapshotStore) -> HashSet<S
     }
 }
 
-/// A single `{{ C ... }}` filter against a concept's own row. Only
-/// [`ConceptFilterKind::Active`] exists so far — see
-/// [`ExpressionConstraint::ConceptFilter`].
+/// A single `{{ C ... }}` filter against a concept's own row — see
+/// [`ConceptFilterKind`] for which kinds are implemented.
 fn concept_filter_matches(filter: &ConceptFilterKind, concept: &Concept) -> bool {
     match filter {
         ConceptFilterKind::Active(ActiveFilter { negated, value }) => {
@@ -75,6 +75,21 @@ fn concept_filter_matches(filter: &ConceptFilterKind, concept: &Concept) -> bool
                 ActiveValue::False => !concept.active,
                 ActiveValue::Wildcard => true,
             };
+            if *negated {
+                !matches
+            } else {
+                matches
+            }
+        }
+        ConceptFilterKind::DefinitionStatus(DefinitionStatusFilter { negated, values }) => {
+            let matches = values.iter().any(|v| match v {
+                DefinitionStatusValue::Primitive => {
+                    concept.definition_status_id == constants::PRIMITIVE
+                }
+                DefinitionStatusValue::Defined => {
+                    concept.definition_status_id == constants::DEFINED
+                }
+            });
             if *negated {
                 !matches
             } else {
@@ -1038,6 +1053,57 @@ mod tests {
                 &store
             ),
             HashSet::new()
+        );
+    }
+
+    /// ROOT and DISEASE are primitive; FINDING is defined.
+    fn definition_status_store() -> SnapshotStore {
+        let mut b = SnapshotStore::builder();
+        b.add_concept(concept(ROOT));
+        b.add_concept(Concept {
+            definition_status_id: constants::DEFINED,
+            ..concept(FINDING)
+        });
+        b.add_concept(concept(DISEASE));
+        b.add_relationship(is_a(1, FINDING, ROOT));
+        b.add_relationship(is_a(2, DISEASE, FINDING));
+        b.build()
+    }
+
+    #[test]
+    fn concept_filter_definition_status_restricts_by_primitive_or_defined() {
+        let store = definition_status_store();
+        assert_eq!(
+            eval(
+                &format!("<< {ROOT} {{{{ C definitionStatus = primitive }}}}"),
+                &store
+            ),
+            HashSet::from([ROOT, DISEASE])
+        );
+        assert_eq!(
+            eval(
+                &format!("<< {ROOT} {{{{ C definitionStatus = defined }}}}"),
+                &store
+            ),
+            HashSet::from([FINDING])
+        );
+        // `!=` negates.
+        assert_eq!(
+            eval(
+                &format!("<< {ROOT} {{{{ C definitionStatus != primitive }}}}"),
+                &store
+            ),
+            HashSet::from([FINDING])
+        );
+        // A `definitionStatusTokenSet` with both values is a no-op
+        // (matches everything, since every legal value is primitive or
+        // defined).
+        assert_eq!(
+            eval(
+                &format!("<< {ROOT} {{{{ C definitionStatus = (primitive defined) }}}}"),
+                &store
+            ),
+            HashSet::from([ROOT, FINDING, DISEASE])
         );
     }
 }

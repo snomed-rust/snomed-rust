@@ -205,15 +205,16 @@ the spec's normative rules. Day-to-day execution items live in `tasks.md`.
   concept's own row, unlike refinements which examine relationships).
   New `ExpressionConstraint::ConceptFilter { inner, filters:
   Vec<ConceptFilterKind> }` — an enum for `filters` from the start
-  (currently just `Active`), matching the `AttributeComparison`
+  (at this point just `Active`), matching the `AttributeComparison`
   precedent so a future filter kind doesn't force a second breaking
-  change. New lexer tokens (`C`/`D`/`M` markers, `active`/`true`/`false`
-  keywords) added unconditionally to the same keyword table `AND`/`OR`/
-  `MINUS`/`R` already use — safe, since nothing outside `{{ }}` can
-  legally contain those strings in this grammar subset. `,` inside
-  `{{ }}` reuses the existing `TokenKind::And` rather than a new
-  separator token. Filters are parsed and applied *before* a trailing
-  `:` wraps the result in a refinement (matching the grammar's own
+  change (paid off immediately — see the next entry). New lexer tokens
+  (`C`/`D`/`M` markers, `active`/`true`/`false` keywords) added
+  unconditionally to the same keyword table `AND`/`OR`/`MINUS`/`R`
+  already use — safe, since nothing outside `{{ }}` can legally contain
+  those strings in this grammar subset. `,` inside `{{ }}` reuses the
+  existing `TokenKind::And` rather than a new separator token. Filters
+  are parsed and applied *before* a trailing `:` wraps the result in a
+  refinement (matching the grammar's own
   `subExpressionConstraint`/`refinedExpressionConstraint` layering) —
   getting this backwards would have been a real correctness bug, not
   just a parse-order detail. `{{ D ... }}`/`{{ M ... }}`/a bare `{{ ... }}`
@@ -222,6 +223,21 @@ the spec's normative rules. Day-to-day execution items live in `tasks.md`.
   expression or `^ memberOf` aren't supported yet, matching this
   feature's pre-existing detection scope. 6 new tests plus a new facade
   integration test. 275 tests passing workspace-wide (up from 269).
+- Concept filter constraint extended: `definitionStatus` (2026-08-05) ✅
+  — a second `{{ C ... }}` filter kind, `{{ C definitionStatus =
+  primitive|defined }}` (plus `!=` and the `(primitive defined)`
+  token-set form), checking `definitionStatusId` against
+  `snomed_core::constants::PRIMITIVE`/`DEFINED`. `ConceptFilterKind`
+  gained a `DefinitionStatus` variant — the `=`/`!=` parsing was
+  factored into a shared `parse_boolean_comparison_operator`, reused by
+  both filter kinds now. Unlike `concreteStringSet`, the
+  `(primitive defined)` set form needed no ambiguity resolution:
+  `primitive`/`defined` are dedicated keyword tokens that can never
+  start a `subExpressionConstraint`, so `(` right after `definitionStatus
+  (=|!=)` has only one possible meaning. Deliberately scoped to the
+  token form only — `definitionStatusIdFilter` (matching by concept
+  reference) stays a documented gap. 3 new tests. 277 tests passing
+  workspace-wide (up from 275).
 - History/audit queries over Full-view data ✅: `snomed-store::HistoryStore`
   keeps every version of a Concept/Description/Relationship (spec/09's new
   "History construction" section), built from Full-view files only —

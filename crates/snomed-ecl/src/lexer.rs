@@ -84,6 +84,12 @@ pub enum TokenKind {
     True,
     /// `false` — an `activeValue`/`booleanValue`.
     False,
+    /// `definitionStatus` — a concept filter's `definitionStatusTokenFilter`.
+    DefinitionStatusKeyword,
+    /// `primitive` — a `definitionStatusToken`.
+    PrimitiveToken,
+    /// `defined` — a `definitionStatusToken`.
+    DefinedToken,
     Eof,
 }
 
@@ -139,6 +145,9 @@ pub fn describe(kind: &TokenKind) -> String {
         TokenKind::ActiveKeyword => "`active`".to_string(),
         TokenKind::True => "`true`".to_string(),
         TokenKind::False => "`false`".to_string(),
+        TokenKind::DefinitionStatusKeyword => "`definitionStatus`".to_string(),
+        TokenKind::PrimitiveToken => "`primitive`".to_string(),
+        TokenKind::DefinedToken => "`defined`".to_string(),
         TokenKind::Eof => "end of input".to_string(),
     }
 }
@@ -387,6 +396,9 @@ impl Lexer {
                     "ACTIVE" => TokenKind::ActiveKeyword,
                     "TRUE" => TokenKind::True,
                     "FALSE" => TokenKind::False,
+                    "DEFINITIONSTATUS" => TokenKind::DefinitionStatusKeyword,
+                    "PRIMITIVE" => TokenKind::PrimitiveToken,
+                    "DEFINED" => TokenKind::DefinedToken,
                     _ => {
                         // Could this be the start of an `A#B` alternate
                         // identifier (`altIdentifierSchemeAlias "#" ...`)?
