@@ -20,6 +20,13 @@ pub enum FhirError {
     /// than `&'static str` since the rejected name comes from caller
     /// input, not a fixed set this crate controls.
     UnsupportedProperty(String),
+    /// `normalForm`/`normalFormTerse` was requested from `lookup` without
+    /// a `nnf_report` (spec/11 — these properties need a caller-supplied
+    /// `NecessaryNormalFormReport`, computed once over the whole release
+    /// rather than per `$lookup` call). Distinct from
+    /// [`FhirError::UnsupportedProperty`]: the property genuinely *is*
+    /// supported, it just needs input this particular call didn't supply.
+    MissingClassification(String),
     /// A `$expand` `url` that isn't one of the implicit value set forms
     /// spec/11 documents (or is the bare `?fhir_vs=refset` form, which is
     /// a documented not-yet-implemented gap, not a malformed URL).
@@ -43,6 +50,13 @@ impl fmt::Display for FhirError {
             FhirError::UnknownCode(id) => write!(f, "unknown code `{id}`"),
             FhirError::UnsupportedProperty(property) => {
                 write!(f, "property `{property}` is not yet supported by $lookup")
+            }
+            FhirError::MissingClassification(property) => {
+                write!(
+                    f,
+                    "property `{property}` requires a NecessaryNormalFormReport; \
+                     pass one via `lookup`'s `nnf_report` parameter"
+                )
             }
             FhirError::UnsupportedValueSet(url) => {
                 write!(f, "`{url}` is not a supported implicit value set")

@@ -361,9 +361,11 @@ fix it surfaced, and `HistoryStore`.
   `preferred_term` already built internally rather than adding a new one),
   `property` for `inactive`/`moduleId`/`sufficientlyDefined` with an
   explicit default set when none are requested and a hard
-  `FhirError::UnsupportedProperty` for anything else (`normalForm`,
-  concept-model-attribute properties, typos — all rejected uniformly, not
-  special-cased). `$expand` ✅ — four of SNOMED CT's five implicit value
+  `FhirError::UnsupportedProperty` for anything else at this point
+  (`normalForm`, concept-model-attribute properties, typos — all rejected
+  uniformly; `normalForm`/`normalFormTerse` gained real support in a
+  later increment below, once `snomed-classify` existed). `$expand` ✅ —
+  four of SNOMED CT's five implicit value
   set forms (`?fhir_vs`, `?fhir_vs=isa/[sctid]`, `?fhir_vs=refset/[sctid]`,
   `?fhir_vs=ecl/[ecl]`) parsed by a new public `parse_implicit_value_set`
   and evaluated onto existing `SnapshotStore`/`snomed-ecl` primitives —
@@ -384,6 +386,32 @@ fix it surfaced, and `HistoryStore`.
   for `is_member`/`refset_members`. All five implicit value set forms and
   all three operations spec/11 scoped are now implemented; wired into the
   `snomed` facade's prelude alongside the other query-layer crates.
+- `$lookup`'s `normalForm`/`normalFormTerse` (2026-08-05) ✅ — closed a
+  stale gap: spec/11 had blocked these on "no classifier in this
+  workspace," but `snomed-classify` had existed since 2026-08-03/04 with
+  nothing in `snomed-fhir` ever wired up to it. Investigated the real
+  scope before implementing: `necessary_normal_form` has no per-concept
+  entry point (whole-axiom-set DL classification, no caching), so
+  computing it inside `lookup` per call would silently violate this
+  workspace's own performance discipline against real content — flagged
+  explicitly rather than picked around; user chose the properly-scoped
+  option. `lookup` gained a breaking `nnf_report:
+  Option<&NecessaryNormalFormReport>` parameter — the caller computes
+  the report once (store → OWL axioms → `necessary_normal_form`) and
+  passes the same one into every call, mirroring how `version` is
+  already caller-supplied rather than derived. New
+  `FhirError::MissingClassification`, kept distinct from
+  `UnsupportedProperty` (the property *is* implemented; this call just
+  lacked the input). New `crates/snomed-fhir/src/normal_form.rs` renders
+  a `NecessaryNormalForm` as SNOMED CT Compositional Grammar text
+  (ungrouped attributes first, then each role group in `{ }`) — nothing
+  in this workspace rendered NNF back out as a string before; lives in
+  `snomed-fhir`, not `snomed-classify`, since string rendering is
+  FHIR-specific presentation outside spec/14's own scope.
+  `LookupProperty` lost its `Copy` derive (now owns `String` for the two
+  new variants) — a second, smaller breaking change alongside the
+  signature one, both acceptable pre-1.0. 6 new tests. 289 tests passing
+  workspace-wide (up from 283).
 - New crate `snomed-owl` ✅: a hand-written lexer + recursive-descent
   parser for the OWL 2 functional-syntax subset SNOMED CT actually uses
   in its OWL Expression reference set — six axiom types (`SubClassOf`,

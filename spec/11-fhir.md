@@ -70,18 +70,53 @@ Output, mapped onto what a `SnapshotStore` can answer:
 | `property` — `inactive` | `!Concept::active` |
 | `property` — `moduleId` | `Concept::module_id` |
 | `property` — `sufficientlyDefined` | `Concept::is_sufficiently_defined()` |
+| `property` — `normalForm` | SNOMED CT Compositional Grammar text (with `\|term\|` labels) for the concept's necessary normal form, from a caller-supplied `NecessaryNormalFormReport` — see below |
+| `property` — `normalFormTerse` | same, without `\|term\|` labels or whitespace |
 
 An empty `property` request returns this crate's default set (`inactive`,
 `moduleId`, `sufficientlyDefined`) rather than nothing, mirroring "if no
 properties are specified, the server chooses what to return".
+`normalForm`/`normalFormTerse` are never part of that default set — they
+must be requested explicitly, since they need `nnf_report` (below).
+
+### `normalForm`/`normalFormTerse`
+
+`snomed-classify::necessary_normal_form` has no per-concept entry point —
+it runs full DL classification over an entire axiom set every call, with
+no caching (`AGENTS/classify-engineer.md`). Calling it inside `lookup`
+per request would mean re-classifying the whole release on every
+`$lookup` that asks for `normalForm`, which doesn't scale past small test
+fixtures. So `lookup` takes an optional `nnf_report:
+Option<&NecessaryNormalFormReport>` parameter instead: the caller
+computes it **once** (typically at startup, or whenever the underlying
+release changes) over the store's OWL axioms
+(`store.all_owl_expression_members()` parsed via `snomed_owl::parse`,
+then `snomed_classify::necessary_normal_form`) and passes the same
+report into every `lookup` call — the same "caller supplies context only
+it has" pattern `version` already uses (see "System and version URIs"
+above).
+
+- Requesting `normalForm`/`normalFormTerse` with `nnf_report: None` is
+  rejected with `FhirError::MissingClassification`, distinct from
+  `UnsupportedProperty`: the property genuinely *is* implemented, this
+  particular call just didn't supply what it needs.
+- A concept absent from `nnf_report.forms` (never named by the
+  classified axioms) renders as an empty expression (`""`), not an
+  error — the same "legitimate absence of data" treatment as `display:
+  None` for a description-less concept.
+- Rendering is SNOMED CT Compositional Grammar
+  (`focusConcept [":" refinement]`, `refinement` = an optional
+  ungrouped `attributeSet` followed by zero or more `{ attributeGroup
+  }`s) — implemented in `crate::normal_form`, not part of
+  `snomed-classify` itself (that crate stays free of any string-rendering
+  concern; rendering is FHIR-specific presentation, spec/14's own scope
+  stops at the structured `NecessaryNormalForm`).
 
 **Not yet implemented** (rejected with `FhirError::UnsupportedProperty`
-naming the property, never silently omitted): `normalForm`/
-`normalFormTerse` (require full DL classification of the concept's
-defining relationships — no classifier in this workspace) and SNOMED
-concept-model-attribute properties (e.g. `272741003 |Laterality|`
-surfaced as its own property code — needs attribute-group-aware traversal
-of the OWL/relationship data this workspace doesn't do yet).
+naming the property, never silently omitted): SNOMED concept-model-
+attribute properties (e.g. `272741003 |Laterality|` surfaced as its own
+property code — needs attribute-group-aware traversal of the OWL/
+relationship data this workspace doesn't do yet).
 
 ## `$subsumes` ✅
 
@@ -146,10 +181,17 @@ the request rather than referenced by `url`).
    "not found" outcome (`None`/`not-subsumed`-shaped), not an error, unless
    the caller asked for a related operation that's structurally impossible
    without it existing.
-4. A requested `$lookup` `property` this crate cannot compute MUST be
-   rejected with an error naming that property, not silently dropped from
-   the response — a caller asking for `normalForm` and silently getting
-   nothing back is worse than a clear "not supported" error.
+4. A requested `$lookup` `property` this crate cannot compute at all MUST
+   be rejected with `FhirError::UnsupportedProperty` naming that
+   property, not silently dropped from the response — a caller asking
+   for a concept-model-attribute property and silently getting nothing
+   back is worse than a clear "not supported" error. `normalForm`/
+   `normalFormTerse` without a supplied `nnf_report` is a *different*
+   failure mode — `FhirError::MissingClassification`, not
+   `UnsupportedProperty` — since the property is genuinely implemented
+   and only this particular call is missing required input; conflating
+   the two would make it impossible for a caller to tell "will never
+   work" from "will work if you pass `nnf_report`".
 5. Implicit value set URI parsing MUST reuse `snomed-ecl`'s parser for the
    `ecl/` form and `SnapshotStore`'s existing hierarchy/membership queries
    for `isa/`/`refset/` — never a bespoke re-implementation of either.

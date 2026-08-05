@@ -20,6 +20,7 @@
 mod error;
 mod expand;
 mod lookup;
+mod normal_form;
 mod subsumes;
 
 pub use error::FhirError;

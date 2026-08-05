@@ -11,6 +11,7 @@ categories.workspace = true
 authors.workspace = true
 
 [dependencies]
+snomed-classify.workspace = true
 snomed-core.workspace = true
 snomed-ecl.workspace = true
 snomed-store.workspace = true

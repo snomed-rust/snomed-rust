@@ -13,8 +13,8 @@ bindings](https://www.hl7.org/fhir/R4/snomedct.html).
 `$subsumes`/`$expand` mean for a `SnapshotStore`" as plain Rust functions
 and structs — turning that into a FHIR `Parameters`/`ValueSet` JSON body,
 routing HTTP requests, and combining SNOMED CT with other code systems is a
-hosting server's job. Depends on `snomed-core`, `snomed-ecl`, and
-`snomed-store`.
+hosting server's job. Depends on `snomed-classify`, `snomed-core`,
+`snomed-ecl`, and `snomed-store`.
 
 **Single-system, by design.** Every function takes a `system: &str` and
 rejects anything other than [`SNOMED_CT_SYSTEM`]
@@ -64,6 +64,7 @@ let result = lookup(
     None,                                                   // version: caller-supplied, not tracked by SnapshotStore
     Some(constants::US_ENGLISH_LANGUAGE_REFSET),             // stands in for FHIR's displayLanguage
     &[],                                                     // empty = this crate's default property set
+    None,                                                    // nnf_report: needed only for normalForm/normalFormTerse
 )?;
 result.display;      // -> Option<String>: preferred term in the given refset, else the FSN
 result.designation;  // -> Vec<Designation>: every active FSN/synonym, each with its Preferred/Acceptable/Unspecified use
@@ -74,11 +75,42 @@ result.property;     // -> Vec<LookupProperty>: inactive / moduleId / sufficient
 `display`/`designation` read descriptions and language refset
 acceptability (`SnapshotStore::preferred_term`/`fsn`/`acceptability`);
 `definition` reads the active `TextDefinition` row if one is loaded.
-Requesting a `property` this crate can't compute (`normalForm`,
-`normalFormTerse`, or anything else) returns
+Requesting a `property` this crate can't compute at all (SNOMED
+concept-model-attribute properties, or anything else) returns
 `FhirError::UnsupportedProperty` naming it, rather than silently omitting
-it — SNOMED concept-model-attribute properties and normal forms need a
-classifier this workspace doesn't have.
+it.
+
+`normalForm`/`normalFormTerse` need a `NecessaryNormalFormReport`,
+computed once by the caller over the whole release
+(`snomed_classify::necessary_normal_form`) rather than per `$lookup` call
+— that computation is a full DL classification pass, too expensive to
+redo on every request. Pass it as `lookup`'s last argument:
+
+```rust
+use snomed_fhir::{lookup, SNOMED_CT_SYSTEM};
+# use snomed_store::SnapshotStore;
+# use snomed_core::sctid::SctId;
+# use snomed_classify::NecessaryNormalFormReport;
+# fn f(store: &SnapshotStore, mi: SctId, nnf_report: &NecessaryNormalFormReport) -> Result<(), snomed_fhir::FhirError> {
+
+let result = lookup(
+    store,
+    SNOMED_CT_SYSTEM,
+    mi,
+    None,
+    None,
+    &["normalForm", "normalFormTerse"],
+    Some(nnf_report),
+)?;
+// result.property -> compositional grammar text, e.g.
+// "22298006 |Myocardial infarction| : 116676008 |Associated morphology| = ..."
+# Ok(()) }
+```
+
+Requesting either property with `nnf_report: None` returns
+`FhirError::MissingClassification` naming the property — a distinct
+error from `UnsupportedProperty`, since the property genuinely *is*
+implemented and only needs the report supplied.
 
 ### `$expand`
 
@@ -131,6 +163,10 @@ apart from "1 total".
 
 Scoped in `spec/11-fhir.md`, not yet built (see the root `tasks.md`):
 
+- `$lookup`'s SNOMED concept-model-attribute properties (e.g.
+  `272741003 |Laterality|` surfaced as its own property code) — needs
+  attribute-group-aware traversal of OWL/relationship data this crate
+  doesn't do yet.
 - `$expand`'s `context`-based expansion and inline `valueSet` expansion
   (a `ValueSet` resource body given directly in the request rather than
   referenced by `url`).
@@ -152,3 +188,10 @@ Scoped in `spec/11-fhir.md`, not yet built (see the root `tasks.md`):
   external dependencies) and doesn't add one just for this. A hosting
   server decodes the query string before calling in here — this matters
   most for the `ecl/` form, whose ECL text may contain spaces.
+- **`normalForm`/`normalFormTerse` are caller-computed, like `version`.**
+  `lookup` never calls `snomed_classify::necessary_normal_form` itself —
+  that function has no per-concept entry point and no caching, so
+  calling it per `$lookup` request would mean re-classifying the whole
+  release on every call. The caller computes a `NecessaryNormalFormReport`
+  once and passes the same one into every `lookup` call, mirroring how
+  `version` is supplied rather than derived.

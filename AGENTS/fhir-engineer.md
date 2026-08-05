@@ -47,11 +47,15 @@ delegate to; a server fronting several systems dispatches by `system`
 ## Never let an unsupported operation silently return an incomplete answer
 
 Same discipline as `snomed-ecl`'s `NotYetImplemented` errors, applied
-here: a `$lookup` `property` this crate can't compute (currently
-`normalForm`/`normalFormTerse`, concept-model-attribute properties) MUST
-be rejected with `FhirError::UnsupportedProperty`, never silently dropped
-from the response. A caller asking for something and getting a
-quietly-incomplete answer is worse than a clear error.
+here: a `$lookup` `property` this crate can't compute at all (currently
+just concept-model-attribute properties) MUST be rejected with
+`FhirError::UnsupportedProperty`, never silently dropped from the
+response. `normalForm`/`normalFormTerse` without a supplied `nnf_report`
+is a related but *distinct* failure — `FhirError::MissingClassification`
+— since the property genuinely is implemented; see "`normalForm`/
+`normalFormTerse`" below before conflating the two. A caller asking for
+something and getting a quietly-incomplete answer is worse than a clear
+error, in both cases.
 
 ## `$lookup` is implemented (`src/lookup.rs`)
 
@@ -67,10 +71,74 @@ covers them. Takes `language_refset: Option<SctId>` instead of trying to
 map a BCP-47 `displayLanguage` tag — see spec/11's "Dialect instead of
 `displayLanguage`" note for why that mapping isn't this crate's call to
 make. An empty `properties` slice returns the default set (`inactive`,
-`moduleId`, `sufficientlyDefined`); anything else requested that isn't one
-of those three (including `normalForm`/`normalFormTerse`) is rejected via
-`FhirError::UnsupportedProperty` — don't special-case those two names,
-the catch-all arm already covers every unsupported property uniformly.
+`moduleId`, `sufficientlyDefined`) — `normalForm`/`normalFormTerse` are
+never part of that default, since returning them needs `nnf_report` to
+be `Some`, which the crate can't assume by default. Anything requested
+that isn't one of the five known names is rejected via
+`FhirError::UnsupportedProperty` — the catch-all `match` arm's `other =>
+Err(...)` already covers every genuinely-unsupported property uniformly,
+don't special-case new names there unless they need their own error kind
+(like `normalForm`/`normalFormTerse` do).
+
+## `normalForm`/`normalFormTerse` (`src/normal_form.rs`)
+
+**Why `lookup` takes a precomputed `nnf_report` instead of computing it
+itself.** `snomed_classify::necessary_normal_form` has no per-concept
+entry point and no caching — it's a whole-axiom-set DL classification
+pass, expensive enough that `classify-engineer.md` benchmarks it in
+seconds even on a synthetic 20k-concept ontology, and a real SNOMED CT
+release is two orders of magnitude larger. Computing it fresh inside
+`lookup` per `$lookup` call would silently make this crate's simplest
+operation the slowest one, and violate the same "never do a fresh
+traversal when a shared primitive exists" discipline `$subsumes`/`$expand`
+already follow (this file's `$expand` section, `AGENTS/classify-engineer.md`'s
+own "never clone a growing collection" section). Instead, `lookup`'s
+signature takes `nnf_report: Option<&NecessaryNormalFormReport>` — the
+caller computes it once (store → `all_owl_expression_members()` →
+`snomed_owl::parse` → `snomed_classify::necessary_normal_form`, the same
+pipeline `snomed-cli`'s `load_owl_axioms` already does, though that
+helper isn't `pub` and isn't reused directly — see spec/11's own
+"`normalForm`/`normalFormTerse`" section for the exact steps) and passes
+the *same* report into every `lookup` call, the identical pattern
+`version` already established (spec/11's "System and version URIs" —
+"the caller supplies... the one piece of context only the embedding
+server has"). If you're tempted to make `lookup` "just call
+`necessary_normal_form` itself for convenience," don't — that's the
+exact shortcut this design avoids, and it would silently work fine on
+this crate's tiny test fixtures while being unusable on real content.
+
+**`MissingClassification` vs. `UnsupportedProperty`.** These name two
+different failure modes and MUST stay separate: `UnsupportedProperty`
+means "this crate cannot compute this property, full stop" (e.g.
+concept-model-attribute properties); `MissingClassification` means "this
+property is implemented, but *this call* didn't supply the
+`nnf_report` it needs." Collapsing them would make it impossible for a
+caller to tell "retry with `nnf_report: Some(...)` and it'll work" from
+"this will never work, don't bother."
+
+**A concept missing from `nnf_report.forms` is not an error.**
+`necessary_normal_form`'s `forms` map has one entry per concept the
+classified axioms *named* — a concept genuinely outside that axiom set
+(a narrower classification run than the whole release, or plain missing
+data) has no entry. `normal_form_property` in `lookup.rs` defaults to an
+empty `NecessaryNormalForm` (`is_a: vec![]`, `attributes: vec![]`) via
+`.unwrap_or(&empty)` rather than erroring, which `crate::normal_form::render`
+turns into `""` — mirroring `display: None` for a description-less
+concept (spec/11): a legitimate absence of data, not a lookup failure.
+
+**Rendering lives here, not in `snomed-classify`.** `NecessaryNormalForm`
+is a plain structured value (`is_a: Vec<SctId>`, `attributes:
+Vec<Attribute>`); turning it into SNOMED CT Compositional Grammar text
+is FHIR-specific presentation (`$lookup`'s `normalForm` output is
+specifically a *string*), not part of what spec/14 scopes
+`necessary_normal_form` to compute. `crate::normal_form::render` groups
+`attributes` by `group` (0 = ungrouped, rendered first as a bare
+`attributeSet`; nonzero groups each wrapped in `{ }`) and joins with
+`terse` controlling whether `|term|` labels and inter-token whitespace
+appear at all — `normalFormTerse` is exactly `normalForm` with both
+stripped, not a separately-derived value. Don't move this rendering
+logic into `snomed-classify`; that crate has no FHIR concept and
+shouldn't grow one for this.
 
 ## `$expand` is implemented (`src/expand.rs`) — all five forms
 

@@ -1554,14 +1554,92 @@ This closes Phase 7 (see `plan.md`).
       scope decision, so the write-up needed to say what was fixed and
       why, not just narrate the old limitation).
 
+## Done (2026-08-05, snomed-fhir: `$lookup` `normalForm`/`normalFormTerse`)
+
+- [x] Closed a stale gap: spec/11-fhir.md claimed `normalForm`/
+      `normalFormTerse` were blocked on "no classifier in this
+      workspace" — `snomed-classify`/`necessary_normal_form` have existed
+      since 2026-08-03/04, but `$lookup` itself was never wired up to
+      them. `{{ C ... }}`'s recent completion (`snomed-ecl`) freed up
+      capacity to look at other crates; a workspace-wide survey (not just
+      `snomed-ecl`) surfaced this as the strongest "genuinely new
+      capability, not another isolated grammar slice" candidate.
+- [x] Investigated first, found the real scope was bigger than "wire it
+      up": `necessary_normal_form` has no per-concept entry point — it
+      runs full DL classification over an *entire* axiom set every call,
+      with no caching. Calling it inside `lookup` per `$lookup` request
+      would silently violate this workspace's own performance
+      discipline once used against real (not tiny-fixture) data. Flagged
+      the tradeoff explicitly to the user rather than picking a shortcut
+      unilaterally; user chose "do it properly."
+- [x] `lookup`'s signature gained `nnf_report: Option<&NecessaryNormalFormReport>`
+      — a deliberate breaking change, acceptable pre-1.0. The caller
+      computes the report *once* (store → `all_owl_expression_members()`
+      → `snomed_owl::parse` → `snomed_classify::necessary_normal_form`)
+      and passes the same report into every `lookup` call, the identical
+      pattern `version` already established (spec/11: "the caller
+      supplies... the one piece of context only the embedding server
+      has"). `snomed-fhir` gained a new `snomed-classify` dependency
+      (internal workspace crate, not an `AGENTS.md` rule-3 external
+      dependency — `snomed-cli`/`snomed` already depend on it).
+- [x] New `FhirError::MissingClassification(String)`, distinct from
+      `UnsupportedProperty`: requesting `normalForm`/`normalFormTerse`
+      without a supplied report is "this call is missing required
+      input," not "this crate can never compute this" — collapsing the
+      two would make it impossible for a caller to tell them apart.
+- [x] New `crates/snomed-fhir/src/normal_form.rs`: renders a
+      `NecessaryNormalForm` as SNOMED CT Compositional Grammar text
+      (`focusConcept [":" refinement]`, ungrouped `attributeSet` first,
+      then each nonzero role group wrapped in `{ }`) — nothing in this
+      workspace rendered NNF back out as a string before this.
+      `normalFormTerse` is exactly `normalForm` with `|term|` labels and
+      inter-token whitespace stripped, not separately derived. Lives in
+      `snomed-fhir`, not `snomed-classify` — rendering is FHIR-specific
+      presentation, outside spec/14's own scope (which stops at the
+      structured `NecessaryNormalForm`).
+      `LookupProperty` gained `NormalForm(String)`/`NormalFormTerse(String)`
+      variants — `LookupProperty` lost its `Copy` derive as a result
+      (owns a `String` now), a second small breaking change alongside
+      the signature one.
+- [x] A concept absent from `nnf_report.forms` (never named by the
+      classified axioms) renders as an empty expression, not an error —
+      mirroring `display: None` for a description-less concept: a
+      legitimate absence of data, not a lookup failure.
+- [x] Tests: 4 new in `normal_form.rs` (focus-only, ungrouped+grouped
+      attributes, multi-parent `+`, no-locatable-description fallback),
+      2 new in `lookup.rs` (missing-report rejection for both property
+      names; a full report-supplied round trip proving `normalForm`
+      includes `|term|` and `normalFormTerse` doesn't, plus the
+      absent-from-report empty-string case) — 6 new tests, plus the 8
+      pre-existing `lookup()` call sites across `lookup.rs`'s own test
+      module updated for the new parameter (mechanical, no behavior
+      change) and one test (`rejects_an_unsupported_property`) switched
+      from `"normalForm"` (no longer genuinely unsupported) to a bogus
+      property name. 289 tests passing workspace-wide (up from 283).
+      `cargo fmt --all -- --check` and `cargo clippy --all-targets` both
+      clean.
+- [x] Docs: spec/11-fhir.md (new `$lookup` output-table rows, a new
+      "`normalForm`/`normalFormTerse`" subsection explaining the
+      precomputed-report design, rule 4 rewritten since its own
+      `normalForm`-as-unsupported-example became stale); `AGENTS/fhir-engineer.md`
+      (new section covering the three non-obvious decisions: why
+      precomputed not lazy, why a distinct error, why rendering lives in
+      `snomed-fhir` not `snomed-classify`); `crates/snomed-fhir/README.md`
+      (dependency list, new example, "What's not implemented yet" split
+      out the still-genuine concept-model-attribute-properties gap from
+      the now-closed `normalForm` one).
+
 ## Next up
 
 - [ ] Nothing currently scoped. Candidate future work (not yet
       decided/planned): a `snomed-fhir` HTTP server crate (would need a
       new external dependency — needs explicit user direction against
-      the zero-dependency policy, not an autonomous pick); `snomed-ecl`'s
-      remaining smaller documented gaps (boolean concrete comparisons,
-      the `definitionStatusIdFilter` concept filter kind, `moduleId`'s
+      the zero-dependency policy, not an autonomous pick); `snomed-fhir`'s
+      `$lookup` concept-model-attribute properties (needs attribute-
+      group-aware OWL/relationship traversal) and `$expand`'s `context`-
+      based/inline-`valueSet` expansion; `snomed-ecl`'s remaining smaller
+      documented gaps (boolean concrete comparisons, the
+      `definitionStatusIdFilter` concept filter kind, `moduleId`'s
       `eclConceptReferenceSet` alternative, `{{ D ... }}`/`{{ M ... }}`
       description/member filters, the history supplement);
       property-chain/transitive-property redundancy elimination for

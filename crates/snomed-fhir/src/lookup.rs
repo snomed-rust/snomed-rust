@@ -1,11 +1,13 @@
 //! `CodeSystem/$lookup` (Concept Look Up & Decomposition), per
 //! `spec/11-fhir.md`.
 
+use snomed_classify::{NecessaryNormalForm, NecessaryNormalFormReport};
 use snomed_core::constants;
 use snomed_core::sctid::SctId;
 use snomed_store::SnapshotStore;
 
 use crate::error::FhirError;
+use crate::normal_form;
 use crate::SNOMED_CT_SYSTEM;
 
 /// The `$lookup` output, mapped onto what a `SnapshotStore` can answer
@@ -58,11 +60,17 @@ pub enum DesignationUse {
 }
 
 /// A `$lookup` `property` this crate can compute, with its value.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum LookupProperty {
     Inactive(bool),
     ModuleId(SctId),
     SufficientlyDefined(bool),
+    /// SNOMED CT Compositional Grammar text for the concept's necessary
+    /// normal form, with `|term|` labels (spec/11, `crate::normal_form`).
+    /// Only returned when `lookup`'s `nnf_report` parameter is `Some`.
+    NormalForm(String),
+    /// Same as `NormalForm`, without `|term|` labels or whitespace.
+    NormalFormTerse(String),
 }
 
 impl LookupProperty {
@@ -72,6 +80,8 @@ impl LookupProperty {
             LookupProperty::Inactive(_) => "inactive",
             LookupProperty::ModuleId(_) => "moduleId",
             LookupProperty::SufficientlyDefined(_) => "sufficientlyDefined",
+            LookupProperty::NormalForm(_) => "normalForm",
+            LookupProperty::NormalFormTerse(_) => "normalFormTerse",
         }
     }
 }
@@ -89,6 +99,21 @@ const DEFAULT_PROPERTIES: [&str; 3] = ["inactive", "moduleId", "sufficientlyDefi
 /// return". Any requested name this crate can't compute is rejected with
 /// [`FhirError::UnsupportedProperty`] (spec/11 rule 4) rather than
 /// silently omitted.
+///
+/// `nnf_report` supplies `normalForm`/`normalFormTerse`: a
+/// `NecessaryNormalFormReport` computed *once*, by the caller, over the
+/// whole release's OWL axioms (`snomed_classify::necessary_normal_form`)
+/// — `lookup` never computes classification itself, since doing so per
+/// call would mean re-running full DL saturation on every request (see
+/// `AGENTS/fhir-engineer.md`). Requesting either property with
+/// `nnf_report: None` is rejected with
+/// [`FhirError::MissingClassification`], distinct from
+/// `UnsupportedProperty`: the property *is* supported, this call just
+/// didn't supply what it needs. A concept absent from
+/// `nnf_report.forms` (never named in the classified axioms) renders as
+/// an empty expression, not an error — mirroring `display: None` for a
+/// description-less concept: a legitimate absence of data, not a
+/// lookup failure.
 pub fn lookup(
     store: &SnapshotStore,
     system: &str,
@@ -96,6 +121,7 @@ pub fn lookup(
     version: Option<&str>,
     language_refset: Option<SctId>,
     properties: &[&str],
+    nnf_report: Option<&NecessaryNormalFormReport>,
 ) -> Result<LookupResult, FhirError> {
     if system != SNOMED_CT_SYSTEM {
         return Err(FhirError::UnsupportedSystem(system.to_string()));
@@ -124,6 +150,22 @@ pub fn lookup(
             "sufficientlyDefined" => {
                 LookupProperty::SufficientlyDefined(concept.is_sufficiently_defined())
             }
+            "normalForm" => LookupProperty::NormalForm(normal_form_property(
+                store,
+                language_refset,
+                code,
+                nnf_report,
+                name,
+                false,
+            )?),
+            "normalFormTerse" => LookupProperty::NormalFormTerse(normal_form_property(
+                store,
+                language_refset,
+                code,
+                nnf_report,
+                name,
+                true,
+            )?),
             other => return Err(FhirError::UnsupportedProperty(other.to_string())),
         });
     }
@@ -136,6 +178,27 @@ pub fn lookup(
         designation,
         property,
     })
+}
+
+/// Renders `code`'s necessary normal form as compositional grammar text
+/// (`crate::normal_form`), or rejects with
+/// [`FhirError::MissingClassification`] if `nnf_report` wasn't supplied.
+/// A concept `nnf_report` never named (no entry in `forms`) renders as
+/// an empty `NecessaryNormalForm` — see `lookup`'s own doc comment for
+/// why that's not an error.
+fn normal_form_property(
+    store: &SnapshotStore,
+    language_refset: Option<SctId>,
+    code: SctId,
+    nnf_report: Option<&NecessaryNormalFormReport>,
+    property_name: &str,
+    terse: bool,
+) -> Result<String, FhirError> {
+    let report =
+        nnf_report.ok_or_else(|| FhirError::MissingClassification(property_name.to_string()))?;
+    let empty = NecessaryNormalForm::default();
+    let nnf = report.forms.get(&code).unwrap_or(&empty);
+    Ok(normal_form::render(store, language_refset, nnf, terse))
 }
 
 /// The preferred term in `language_refset` if one was given and found,
@@ -269,7 +332,7 @@ mod tests {
     #[test]
     fn rejects_a_non_snomed_system() {
         let store = fixture();
-        let err = lookup(&store, "http://loinc.org", FINDING, None, None, &[]).unwrap_err();
+        let err = lookup(&store, "http://loinc.org", FINDING, None, None, &[], None).unwrap_err();
         assert!(matches!(err, FhirError::UnsupportedSystem(s) if s == "http://loinc.org"));
     }
 
@@ -277,14 +340,14 @@ mod tests {
     fn rejects_an_unknown_code() {
         let store = fixture();
         let unknown = SctId::compose(9999, ComponentType::Concept, None).unwrap();
-        let err = lookup(&store, SNOMED_CT_SYSTEM, unknown, None, None, &[]).unwrap_err();
+        let err = lookup(&store, SNOMED_CT_SYSTEM, unknown, None, None, &[], None).unwrap_err();
         assert_eq!(err, FhirError::UnknownCode(unknown));
     }
 
     #[test]
     fn display_falls_back_to_fsn_without_a_language_refset() {
         let store = fixture();
-        let result = lookup(&store, SNOMED_CT_SYSTEM, FINDING, None, None, &[]).unwrap();
+        let result = lookup(&store, SNOMED_CT_SYSTEM, FINDING, None, None, &[], None).unwrap();
         assert_eq!(
             result.display.as_deref(),
             Some("SNOMED CT Concept (SNOMED RT+CTV3)")
@@ -301,6 +364,7 @@ mod tests {
             None,
             Some(constants::US_ENGLISH_LANGUAGE_REFSET),
             &[],
+            None,
         )
         .unwrap();
         assert_eq!(result.display.as_deref(), Some("SNOMED CT Concept"));
@@ -309,7 +373,7 @@ mod tests {
     #[test]
     fn definition_reads_the_text_definition_row() {
         let store = fixture();
-        let result = lookup(&store, SNOMED_CT_SYSTEM, FINDING, None, None, &[]).unwrap();
+        let result = lookup(&store, SNOMED_CT_SYSTEM, FINDING, None, None, &[], None).unwrap();
         assert_eq!(
             result.definition.as_deref(),
             Some("The root concept of SNOMED CT.")
@@ -326,6 +390,7 @@ mod tests {
             None,
             Some(constants::US_ENGLISH_LANGUAGE_REFSET),
             &[],
+            None,
         )
         .unwrap();
         assert_eq!(result.designation.len(), 2, "{:?}", result.designation);
@@ -346,7 +411,7 @@ mod tests {
     #[test]
     fn default_properties_are_returned_when_none_requested() {
         let store = fixture();
-        let result = lookup(&store, SNOMED_CT_SYSTEM, FINDING, None, None, &[]).unwrap();
+        let result = lookup(&store, SNOMED_CT_SYSTEM, FINDING, None, None, &[], None).unwrap();
         let codes: Vec<&str> = result.property.iter().map(|p| p.code()).collect();
         assert_eq!(codes, vec!["inactive", "moduleId", "sufficientlyDefined"]);
         assert!(result.property.contains(&LookupProperty::Inactive(false)));
@@ -355,7 +420,16 @@ mod tests {
     #[test]
     fn a_specific_property_can_be_requested() {
         let store = fixture();
-        let result = lookup(&store, SNOMED_CT_SYSTEM, FINDING, None, None, &["moduleId"]).unwrap();
+        let result = lookup(
+            &store,
+            SNOMED_CT_SYSTEM,
+            FINDING,
+            None,
+            None,
+            &["moduleId"],
+            None,
+        )
+        .unwrap();
         assert_eq!(
             result.property,
             vec![LookupProperty::ModuleId(constants::CORE_MODULE)]
@@ -371,12 +445,92 @@ mod tests {
             FINDING,
             None,
             None,
-            &["normalForm"],
+            &["notARealProperty"],
+            None,
         )
         .unwrap_err();
         assert_eq!(
             err,
-            FhirError::UnsupportedProperty("normalForm".to_string())
+            FhirError::UnsupportedProperty("notARealProperty".to_string())
+        );
+    }
+
+    #[test]
+    fn rejects_normal_form_without_a_report() {
+        let store = fixture();
+        for name in ["normalForm", "normalFormTerse"] {
+            let err =
+                lookup(&store, SNOMED_CT_SYSTEM, FINDING, None, None, &[name], None).unwrap_err();
+            assert_eq!(err, FhirError::MissingClassification(name.to_string()));
+        }
+    }
+
+    #[test]
+    fn normal_form_properties_render_when_a_report_is_supplied() {
+        use std::collections::HashMap;
+
+        let mut b = SnapshotStore::builder();
+        b.add_concept(concept(FINDING, true));
+        let parent = SctId::compose(9101, ComponentType::Concept, None).unwrap();
+        b.add_concept(concept(parent, true));
+        b.add_description(description(
+            2010,
+            parent,
+            constants::FULLY_SPECIFIED_NAME,
+            "Parent concept (finding)",
+        ));
+        let store = b.build();
+
+        let mut forms = HashMap::new();
+        forms.insert(
+            FINDING,
+            snomed_classify::NecessaryNormalForm {
+                is_a: vec![parent],
+                attributes: vec![],
+            },
+        );
+        let report = NecessaryNormalFormReport {
+            forms,
+            skipped: Vec::new(),
+        };
+
+        let result = lookup(
+            &store,
+            SNOMED_CT_SYSTEM,
+            FINDING,
+            None,
+            None,
+            &["normalForm", "normalFormTerse"],
+            Some(&report),
+        )
+        .unwrap();
+        assert_eq!(
+            result.property,
+            vec![
+                LookupProperty::NormalForm(format!("{parent} |Parent concept (finding)|")),
+                LookupProperty::NormalFormTerse(parent.to_string()),
+            ]
+        );
+
+        // A concept the report never named renders as an empty
+        // expression, not an error.
+        let unnamed = SctId::compose(9102, ComponentType::Concept, None).unwrap();
+        let mut store2 = SnapshotStore::builder();
+        store2.add_concept(concept(unnamed, true));
+        let store2 = store2.build();
+        let result = lookup(
+            &store2,
+            SNOMED_CT_SYSTEM,
+            unnamed,
+            None,
+            None,
+            &["normalForm"],
+            Some(&report),
+        )
+        .unwrap();
+        assert_eq!(
+            result.property,
+            vec![LookupProperty::NormalForm(String::new())]
         );
     }
 
@@ -390,6 +544,7 @@ mod tests {
             Some("http://snomed.info/sct/900000000000207008/version/20250801"),
             None,
             &[],
+            None,
         )
         .unwrap();
         assert_eq!(
