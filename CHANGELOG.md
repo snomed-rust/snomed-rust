@@ -11,6 +11,44 @@ together, in dependency order (`snomed-core` → `snomed-rf2` → `snomed-owl`
 → `snomed-store` → `snomed-classify` → `snomed-ecl` → `snomed-fhir` →
 `snomed-cli` → `snomed`), not independently.
 
+## [0.5.0] — 2026-08-06
+
+### Added
+
+- `snomed-fhir`: `$lookup` now computes the `normalForm`/`normalFormTerse`
+  properties — SNOMED CT Compositional Grammar renderings of a concept's
+  necessary normal form, from a caller-supplied
+  `snomed_classify::NecessaryNormalFormReport` (computed once over the
+  release, not per call). New `FhirError::MissingClassification` for
+  requesting these without a report. `snomed-fhir` now depends on
+  `snomed-classify`.
+- `snomed-ecl`: the `{{ C ... }}` concept filter constraint, with four
+  filter kinds — `active = true|false|*`, `definitionStatus =
+  primitive|defined` (incl. token sets), `moduleId =
+  subExpressionConstraint`, and `effectiveTime (=|!=|<=|<|>=|>)
+  "YYYYMMDD"` (incl. time-value sets). New AST types
+  (`ExpressionConstraint::ConceptFilter`, `ConceptFilterKind`, …) and a
+  new `EclError::InvalidEffectiveTime`.
+- `snomed-ecl`: `concreteStringSet` string comparisons
+  (`attr = ("a" "b")`, OR'd across the set).
+
+### Changed
+
+- `snomed-fhir` (breaking): `lookup()` takes a new seventh parameter,
+  `nnf_report: Option<&NecessaryNormalFormReport>`; `LookupProperty`
+  gained `NormalForm(String)`/`NormalFormTerse(String)` variants and no
+  longer derives `Copy`.
+
+### Fixed
+
+- `snomed-ecl`: `:` refinements and `{{ }}` filters are now accepted
+  after a parenthesized expression or `^ memberOf` focus, not just a
+  plain focus concept — `(<< X) : attr = value` and
+  `^ refset {{ C active = true }}` previously failed to parse.
+- Documentation: a comprehensive audit corrected ~30 stale claims across
+  spec/*, plan.md, tasks.md, AGENTS/*, crate READMEs, and rustdoc
+  comments (doc-only; no behavior changes).
+
 ## [0.4.0] — 2026-08-04
 
 ### Changed
