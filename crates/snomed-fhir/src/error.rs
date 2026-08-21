@@ -8,6 +8,7 @@ use snomed_core::sctid::SctId;
 /// `OperationOutcome` — this crate hands the hosting server a plain Rust
 /// error to translate into one, per spec/11's "not an HTTP server" scope.
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[non_exhaustive]
 pub enum FhirError {
     /// `system` was anything other than `http://snomed.info/sct`
     /// (spec/11 rule 1 — this crate is single-system by design).

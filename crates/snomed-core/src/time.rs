@@ -5,6 +5,7 @@ use std::str::FromStr;
 
 /// Error parsing an RF2 effective time.
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[non_exhaustive]
 pub enum EffectiveTimeError {
     /// Not exactly 8 ASCII digits.
     Format,

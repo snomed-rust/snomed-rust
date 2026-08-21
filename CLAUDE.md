@@ -81,6 +81,9 @@ classification with necessary normal form generation.
   order-independent in content (spec/09 rules 5-6): anything built by
   iterating a `HashMap` is sorted before it is exposed. Two runs of the
   same command on the same input produce byte-identical output.
+- Public **error** enums carry `#[non_exhaustive]`; the ECL/OWL AST enums
+  deliberately do not, so a new grammar form fails a consumer's build
+  instead of being silently skipped (spec/rust-api-stability.md).
 - No public API may panic on input its own type allows — including
   `SctId::new_unchecked` values and hand-built `snomed_owl::Axiom`s
   (spec/04 rule 5, spec/13 rule 6). The `fuzz/` targets enforce this.

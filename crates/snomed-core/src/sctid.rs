@@ -25,6 +25,7 @@ impl fmt::Display for ComponentType {
 
 /// Errors from SCTID parsing or generation.
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[non_exhaustive]
 pub enum SctIdError {
     /// Length outside 6..=18 digits.
     InvalidLength(usize),

@@ -10,7 +10,7 @@ Start here rather than guessing which file to open:
 | **Role playbooks** | "I'm about to change this crate — what conventions/gotchas apply?" | [`AGENTS/*.md`](AGENTS.md) |
 | **Tutorial** | "I'm new — walk me through it step by step." | [`docs/tutorial.md`](docs/tutorial.md) |
 | **Troubleshooting** | "I hit an error / something looks wrong — is this expected?" | [`docs/troubleshooting.md`](docs/troubleshooting.md) |
-| **Project policies** | "What Rust version, and how is this verified beyond unit tests?" | [`spec/rust-msrv-n-minus-3.md`](spec/rust-msrv-n-minus-3.md), [`spec/rust-fuzz.md`](spec/rust-fuzz.md), [`spec/rust-bench.md`](spec/rust-bench.md) |
+| **Project policies** | "What Rust version, how is this verified beyond unit tests, what breaks downstream?" | [`spec/rust-msrv-n-minus-3.md`](spec/rust-msrv-n-minus-3.md), [`spec/rust-fuzz.md`](spec/rust-fuzz.md), [`spec/rust-bench.md`](spec/rust-bench.md), [`spec/rust-api-stability.md`](spec/rust-api-stability.md) |
 
 Plus two process documents that aren't reference material: [`plan.md`](plan.md)
 (the roadmap, organized by phase, with the *why* behind non-obvious
@@ -51,6 +51,7 @@ of an external specification, and bind the same way:
 | [rust-msrv-n-minus-3.md](spec/rust-msrv-n-minus-3.md) | MSRV = current stable Rust minus three | `Cargo.toml`, CI `msrv` job |
 | [rust-fuzz.md](spec/rust-fuzz.md) | fuzz targets, the no-panic invariant, seed corpora | `fuzz/` (outside the workspace) |
 | [rust-bench.md](spec/rust-bench.md) | criterion benchmarks: what is measured, and how | `benches/` (outside the workspace) |
+| [rust-api-stability.md](spec/rust-api-stability.md) | which public enums are `#[non_exhaustive]` | every crate's public enums |
 
 `snomed` (the facade) and `snomed-cli` (the terminal binary) both sit on
 top of every crate above rather than implementing a spec of their own —

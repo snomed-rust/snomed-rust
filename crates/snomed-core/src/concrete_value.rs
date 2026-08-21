@@ -16,6 +16,7 @@ pub enum ConcreteValue {
 
 /// Errors parsing a `value` column.
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[non_exhaustive]
 pub enum ConcreteValueError {
     Empty,
     InvalidNumber(String),

@@ -7,6 +7,7 @@ use snomed_core::time::EffectiveTimeError;
 
 /// A lex or parse error. `pos` is a 0-based character index into the input.
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[non_exhaustive]
 pub enum EclError {
     UnexpectedChar {
         pos: usize,
