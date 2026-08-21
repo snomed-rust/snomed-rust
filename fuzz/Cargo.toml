@@ -103,6 +103,13 @@ doc = false
 bench = false
 
 [[bin]]
+name = "fhir_value_set_url"
+path = "fuzz_targets/fhir_value_set_url.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
 name = "classify_axioms"
 path = "fuzz_targets/classify_axioms.rs"
 test = false

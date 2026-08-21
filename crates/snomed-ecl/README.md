@@ -98,21 +98,24 @@ let matches = evaluate(&expr, store);
 | Attribute groups | `[cardinality] { attr = x AND attr2 = y }` — requires one role group (nonzero `relationshipGroup`) to satisfy every attribute together |
 | Concrete values | `attr > #500`, `attr <= #-2.5`, `attr = "E10.9"`, `attr = ("E10.9" "E11.9")` — numeric (`=`/`!=`/`<=`/`<`/`>=`/`>`) and string (`=`/`!=`, incl. an OR'd `concreteStringSet`) comparisons against a `RelationshipConcreteValue` |
 | Concept filter | `{{ C active = true }}`, `{{ C active != false }}`, `{{ C active = * }}`, `{{ C definitionStatus = primitive }}`, `{{ C definitionStatus = (primitive defined) }}`, `{{ C moduleId = 900000000000207008 }}`, `{{ C moduleId = << 900000000000012004 }}`, `{{ C effectiveTime >= "20200101" }}`, `{{ C effectiveTime = ("20200101" "20210101") }}` — restricts a set to concepts whose own row matches; multiple filters/blocks AND together; works after a parenthesized expression or `^ memberOf` too, not just a plain focus concept |
+| Description filter | `{{ D term = "heart att" }}`, `{{ term = "heart" }}` (the `D` is optional), `{{ D term = ("heart" "cardiac") }}`, `{{ D type = fsn }}`, `{{ D type = (fsn syn) }}`, `{{ D active = * }}` — keeps concepts having **one description** that satisfies every filter in the block; active-only unless the block writes an `active` filter; `term` uses the grammar's default `match:` word-prefix semantics (`"att heart"` matches "Heart attack", `"eart"` doesn't) |
 | Syntax details | pipe-delimited terms (`73211009 \|Diabetes mellitus\|`, non-semantic), case-insensitive keywords, `,` as an alternate spelling for `AND`, `/* comments */` |
 
-Not yet implemented, never silently mishandled: `{{ D ... }}` description
-filters, `{{ M ... }}` member filters, a bare `{{ active ... }}`,
+Not yet implemented, never silently mishandled: `{{ M ... }}` member
+filters, `moduleId`/`effectiveTime` *inside* a description filter,
 `!!>`/`!!<`, `^ *`, a hierarchy prefix combined with `^`, `^R`,
 `^ [A, B]` (member of with field selection), alternate identifiers
 (`A#B`), and dot notation are all rejected with a specific
 `EclError::NotYetImplemented { feature, .. }` naming what's missing.
 Boolean concrete value comparisons, the history supplement
-(`{{+HISTORY}}`), a bare `{{ ... }}` starting with anything other than
-`active`, the `definitionStatusIdFilter` concept filter kind, and
-`moduleId`'s `eclConceptReferenceSet` alternative (`moduleId = (id1
-id2)`) are rejected too, but currently with a generic parse error rather
-than a named one (spec/10 rule 9) — genuinely unimplemented constructs,
-not just missing a label.
+(`{{+HISTORY}}`), the remaining description filter kinds (`language`,
+dialects, the `typeId` form of `type`, and the
+`match:`/`wild:`/`regex:`/`exact:` search-term prefixes), the
+`definitionStatusIdFilter` concept filter kind, and `moduleId`'s
+`eclConceptReferenceSet` alternative (`moduleId = (id1 id2)`) are
+rejected too, but currently with a generic parse error rather than a
+named one (spec/10 rule 9) — genuinely unimplemented constructs, not
+just missing a label.
 
 ## Design notes worth knowing before you extend this crate
 

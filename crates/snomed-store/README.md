@@ -21,7 +21,7 @@ sets (spec/09 rules 5-6).
 | Spec | Covers |
 |---|---|
 | [`spec/02-release-types.md`](../../spec/02-release-types.md) | Directory-loading rules (`load_release_dir`) |
-| [`spec/07-relationship-file.md`](../../spec/07-relationship-file.md) | IS-A hierarchy = active + inferred + `typeId 116680003` rows, and only those; acyclicity + referential integrity via `validate()` |
+| [`spec/07-relationship-file.md`](../../spec/07-relationship-file.md) | IS-A hierarchy = active + inferred + `typeId 116680003` rows, and only those; acyclicity, referential integrity, and rootless-concept detection via `validate()` |
 | [`spec/08-refset-files.md`](../../spec/08-refset-files.md) | Refset membership = `refsetId` + `referencedComponentId` + active, uniform across every refset type |
 | [`spec/09-versioning.md`](../../spec/09-versioning.md) | Snapshot construction (latest wins) and History construction (keep every version) |
 
@@ -94,7 +94,8 @@ relationship data hierarchy queries are built on top of.
 
 ### Validation
 
-`store.validate()` checks referential integrity and IS-A acyclicity and
+`store.validate()` checks referential integrity, IS-A acyclicity, and
+whether every active concept is attached to the hierarchy at all, and
 returns a `ValidationReport`:
 
 ```rust
@@ -106,6 +107,7 @@ if !report.is_clean() {
     for id in &report.dangling_description_concepts { /* description ids whose conceptId doesn't resolve */ }
     for id in &report.dangling_relationship_sources { /* relationship ids whose sourceId doesn't resolve */ }
     for id in &report.dangling_relationship_destinations { /* ... destinationId ... */ }
+    for id in &report.rootless_concepts { /* active concepts with no IS-A parent */ }
 }
 # }
 ```
@@ -142,11 +144,15 @@ let as_of = store.concept_at(mi, EffectiveTime::parse("20200101")?); // -> Optio
 `HistoryStoreBuilder::load_release_dir` has no `release_type` parameter —
 it always filters to Full, because history built from Snapshot or Delta
 rows would be silently incomplete (spec/09 rule 2). `concept_at`/
-`description_at`/`relationship_at` return the version with the greatest
-`effectiveTime <= at`, i.e. "what was true as of this date" — `None` if the
-component didn't exist yet, or is unknown entirely. Scope for now: Concept,
-Description, Relationship history only; refset member history isn't
-implemented (documented gap, root `tasks.md`).
+`description_at`/`relationship_at`/`relationship_concrete_value_at` return
+the version with the greatest `effectiveTime <= at`, i.e. "what was true as
+of this date" — `None` if the component didn't exist yet, or is unknown
+entirely. Scope: all four component types, including
+`RelationshipConcreteValues` (kept separate from ordinary relationships —
+same partition, different component type, so one method never answers for
+the other). Refset member history isn't implemented; those are keyed by
+member UUID rather than SCTID, so it is a parallel structure rather than a
+fifth entry here (documented gap, root `tasks.md`).
 
 ## Design notes
 

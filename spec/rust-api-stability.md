@@ -42,7 +42,7 @@ change for consumers whatever this attribute says.
 
 ## Current membership (normative)
 
-`#[non_exhaustive]`:
+`#[non_exhaustive]` (enums):
 
 | Enum | Crate | Kind |
 |---|---|---|
@@ -60,6 +60,16 @@ change for consumers whatever this attribute says.
 
 Every other public enum is deliberately exhaustive.
 
+`#[non_exhaustive]` (structs):
+
+| Struct | Crate | Why |
+|---|---|---|
+| `ValidationReport` | `snomed-store` | one field per validation category |
+| `LoadReport` | `snomed-store` | one field per load outcome |
+| `ClassificationReport` | `snomed-classify` | classification plus what it skipped |
+
+Every other public struct is deliberately constructible.
+
 ## Rules (normative)
 
 1. A new public **error** enum MUST be `#[non_exhaustive]`. Every spec
@@ -70,8 +80,22 @@ Every other public enum is deliberately exhaustive.
 3. Adding the attribute to an existing enum is itself a breaking change:
    it goes in a minor release (pre-1.0 convention, see `CHANGELOG.md`)
    with a `### Changed` entry naming the enums.
-4. `#[non_exhaustive]` is for enums only. The component structs
-   (`Concept`, `Description`, `Relationship`, the refset member types)
-   stay literal-constructible: building one field-by-field is how tests,
-   examples, and callers assembling a store all work, and RF2's column
-   sets are fixed by the specification anyway (spec/05–08).
+4. A struct takes `#[non_exhaustive]` only when this workspace is its
+   sole producer and a consumer never has a reason to build one:
+   `ValidationReport`, `LoadReport`, `ClassificationReport`. Each grows a
+   field whenever a new check or category is added — `ValidationReport`
+   gained `rootless_concepts` for spec/07 rule 2 — and that must not be a
+   breaking change.
+5. Every other struct stays literal-constructible. Two groups, for two
+   different reasons:
+   - The component records (`Concept`, `Description`, `Relationship`, the
+     refset member types): building one field-by-field is how tests,
+     examples, and callers assembling a store all work, and RF2's column
+     sets are fixed by the specification anyway (spec/05–08).
+   - The result types a consumer may legitimately construct rather than
+     only receive — `NecessaryNormalFormReport`, `LookupResult`,
+     `Expansion`, `ExpansionContains`, `Designation`. A FHIR server
+     embedding this crate builds and adapts these, and `snomed-fhir`'s
+     own tests build a `NecessaryNormalFormReport` by hand, which is the
+     evidence: if this workspace needs to construct one from outside the
+     defining crate, so will someone else.

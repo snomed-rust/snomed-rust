@@ -6,8 +6,9 @@ use snomed_core::time::EffectiveTime;
 use crate::ast::{
     ActiveFilter, ActiveValue, AttributeComparison, AttributeConstraint, AttributeGroup,
     Cardinality, ConceptFilterKind, DefinitionStatusFilter, DefinitionStatusValue,
-    EffectiveTimeFilter, ExpressionConstraint, FocusConcept, HierarchyOp, ModuleFilter,
-    NumericComparisonOp, RefinementConstraint, SimpleExpressionConstraint, TimeComparisonOp,
+    DescriptionFilterKind, DescriptionTypeValue, EffectiveTimeFilter, ExpressionConstraint,
+    FocusConcept, HierarchyOp, ModuleFilter, NumericComparisonOp, RefinementConstraint,
+    SimpleExpressionConstraint, TermFilter, TimeComparisonOp, TypeFilter,
 };
 use crate::error::EclError;
 use crate::lexer::{describe, Lexer, Token, TokenKind};
@@ -221,27 +222,178 @@ impl Parser {
                     filters,
                 })
             }
-            TokenKind::DescriptionFilterMarker => Err(EclError::NotYetImplemented {
-                pos: brace_pos,
-                feature: "description filters (`{{ D ... }}`)",
-            }),
+            TokenKind::DescriptionFilterMarker => {
+                self.advance()?;
+                self.parse_description_filter_tail(inner)
+            }
             TokenKind::MemberFilterMarker => Err(EclError::NotYetImplemented {
                 pos: brace_pos,
                 feature: "member filters (`{{ M ... }}`)",
             }),
-            TokenKind::ActiveKeyword => Err(EclError::NotYetImplemented {
-                pos: brace_pos,
-                feature: "description filters (a bare `{{ ... }}` with no `C`/`D`/`M` marker defaults to a description filter)",
+            // No marker: the grammar's `descriptionFilterConstraint` has
+            // an *optional* `D`, so an unmarked block is a description
+            // filter (spec/10) — not an error, and not a concept filter.
+            _ => self.parse_description_filter_tail(inner),
+        }
+    }
+
+    /// `activeValue = activeTrueValue / activeFalseValue / wildCard` —
+    /// shared by the concept and description filters, which spell it
+    /// identically.
+    fn parse_active_value(&mut self) -> Result<ActiveValue, EclError> {
+        let value = match &self.peek().kind {
+            TokenKind::True => ActiveValue::True,
+            TokenKind::False => ActiveValue::False,
+            TokenKind::Star => ActiveValue::Wildcard,
+            _ => {
+                let tok = self.peek().clone();
+                return Err(EclError::UnexpectedToken {
+                    pos: tok.pos,
+                    found: describe(&tok.kind),
+                    expected: "`true`, `false`, or `*`",
+                });
+            }
+        };
+        self.advance()?;
+        Ok(value)
+    }
+
+    /// One quoted string, or a parenthesized set of them (the shape
+    /// `concreteStringSet` and `typedSearchTermSet` share), OR'd by the
+    /// caller.
+    fn parse_quoted_string_set(&mut self) -> Result<Vec<String>, EclError> {
+        let take_one = |p: &mut Self| -> Result<String, EclError> {
+            let tok = p.advance()?;
+            match tok.kind {
+                TokenKind::QuotedString(s) => Ok(s),
+                other => Err(EclError::UnexpectedToken {
+                    pos: tok.pos,
+                    found: describe(&other),
+                    expected: "a quoted search term",
+                }),
+            }
+        };
+        if matches!(self.peek().kind, TokenKind::LParen) {
+            self.advance()?;
+            let mut values = vec![take_one(self)?];
+            while !matches!(self.peek().kind, TokenKind::RParen) {
+                values.push(take_one(self)?);
+            }
+            self.expect(TokenKind::RParen, "`)`")?;
+            Ok(values)
+        } else {
+            Ok(vec![take_one(self)?])
+        }
+    }
+
+    /// The body of a `{{ [D] ... }}` block, after any marker: a
+    /// comma-separated `descriptionFilter` list and the closing braces.
+    fn parse_description_filter_tail(
+        &mut self,
+        inner: ExpressionConstraint,
+    ) -> Result<ExpressionConstraint, EclError> {
+        let filters = self.parse_description_filter_list()?;
+        self.expect(TokenKind::RBrace, "`}`")?;
+        self.expect(TokenKind::RBrace, "`}`")?;
+        Ok(ExpressionConstraint::DescriptionFilter {
+            inner: Box::new(inner),
+            filters,
+        })
+    }
+
+    /// `descriptionFilter *(ws "," ws descriptionFilter)` — `,` lexes as
+    /// `TokenKind::And`, exactly as in the concept filter list.
+    fn parse_description_filter_list(&mut self) -> Result<Vec<DescriptionFilterKind>, EclError> {
+        let mut filters = vec![self.parse_description_filter_kind()?];
+        while matches!(self.peek().kind, TokenKind::And) {
+            self.advance()?;
+            filters.push(self.parse_description_filter_kind()?);
+        }
+        Ok(filters)
+    }
+
+    /// A single `descriptionFilter`: `termFilter`, the token form of
+    /// `typeFilter`, or `activeFilter` — spec/10's three implemented
+    /// kinds. `moduleId`/`effectiveTime` are tokenized (the concept
+    /// filter uses them) so they are rejected here by name; `language`,
+    /// `dialect`, and the `typeId` form of `typeFilter` are not
+    /// tokenized at all and fail earlier with a generic lexer error, the
+    /// bucket spec/10 rule 9 describes.
+    fn parse_description_filter_kind(&mut self) -> Result<DescriptionFilterKind, EclError> {
+        match &self.peek().kind {
+            TokenKind::TermKeyword => {
+                self.advance()?;
+                let negated = self.parse_boolean_comparison_operator()?;
+                let values = self.parse_quoted_string_set()?;
+                Ok(DescriptionFilterKind::Term(TermFilter { negated, values }))
+            }
+            TokenKind::TypeKeyword => {
+                self.advance()?;
+                let negated = self.parse_boolean_comparison_operator()?;
+                let values = self.parse_description_type_set()?;
+                Ok(DescriptionFilterKind::Type(TypeFilter { negated, values }))
+            }
+            TokenKind::ActiveKeyword => {
+                self.advance()?;
+                let negated = self.parse_boolean_comparison_operator()?;
+                let value = self.parse_active_value()?;
+                Ok(DescriptionFilterKind::Active(ActiveFilter {
+                    negated,
+                    value,
+                }))
+            }
+            TokenKind::ModuleIdKeyword => Err(EclError::NotYetImplemented {
+                pos: self.peek().pos,
+                feature: "`moduleId` inside a description filter (`{{ D moduleId = ... }}`)",
+            }),
+            TokenKind::EffectiveTimeKeyword => Err(EclError::NotYetImplemented {
+                pos: self.peek().pos,
+                feature:
+                    "`effectiveTime` inside a description filter (`{{ D effectiveTime = ... }}`)",
             }),
             _ => {
                 let tok = self.peek().clone();
                 Err(EclError::UnexpectedToken {
                     pos: tok.pos,
                     found: describe(&tok.kind),
-                    expected: "`C` (concept filter — the only kind implemented)",
+                    expected: "`term`, `type`, or `active`",
                 })
             }
         }
+    }
+
+    /// `typeToken / typeTokenSet` — one `fsn`/`syn`/`def`, or a
+    /// parenthesized set of them, OR'd.
+    fn parse_description_type_set(&mut self) -> Result<Vec<DescriptionTypeValue>, EclError> {
+        if matches!(self.peek().kind, TokenKind::LParen) {
+            self.advance()?;
+            let mut values = vec![self.parse_description_type_token()?];
+            while !matches!(self.peek().kind, TokenKind::RParen) {
+                values.push(self.parse_description_type_token()?);
+            }
+            self.expect(TokenKind::RParen, "`)`")?;
+            Ok(values)
+        } else {
+            Ok(vec![self.parse_description_type_token()?])
+        }
+    }
+
+    fn parse_description_type_token(&mut self) -> Result<DescriptionTypeValue, EclError> {
+        let value = match &self.peek().kind {
+            TokenKind::FsnToken => DescriptionTypeValue::Fsn,
+            TokenKind::SynToken => DescriptionTypeValue::Synonym,
+            TokenKind::DefToken => DescriptionTypeValue::Definition,
+            _ => {
+                let tok = self.peek().clone();
+                return Err(EclError::UnexpectedToken {
+                    pos: tok.pos,
+                    found: describe(&tok.kind),
+                    expected: "`fsn`, `syn`, or `def`",
+                });
+            }
+        };
+        self.advance()?;
+        Ok(value)
     }
 
     /// `conceptFilter *(ws "," ws conceptFilter)` — `,` lexes as
@@ -269,28 +421,7 @@ impl Parser {
             TokenKind::ActiveKeyword => {
                 self.advance()?;
                 let negated = self.parse_boolean_comparison_operator()?;
-                let value = match &self.peek().kind {
-                    TokenKind::True => {
-                        self.advance()?;
-                        ActiveValue::True
-                    }
-                    TokenKind::False => {
-                        self.advance()?;
-                        ActiveValue::False
-                    }
-                    TokenKind::Star => {
-                        self.advance()?;
-                        ActiveValue::Wildcard
-                    }
-                    _ => {
-                        let tok = self.peek().clone();
-                        return Err(EclError::UnexpectedToken {
-                            pos: tok.pos,
-                            found: describe(&tok.kind),
-                            expected: "`true`, `false`, or `*`",
-                        });
-                    }
-                };
+                let value = self.parse_active_value()?;
                 Ok(ConceptFilterKind::Active(ActiveFilter { negated, value }))
             }
             TokenKind::DefinitionStatusKeyword => {
@@ -1087,13 +1218,7 @@ mod tests {
     }
 
     #[test]
-    fn rejects_filters_and_member_of_wildcard() {
-        // `term` isn't a tokenized filter keyword yet, so it's rejected
-        // generically at the lexer, before the parser ever sees `{{`.
-        assert!(matches!(
-            parse("404684003 {{ term = \"x\" }}"),
-            Err(EclError::UnexpectedKeyword { .. })
-        ));
+    fn rejects_member_of_wildcard() {
         assert!(matches!(
             parse("^ *"),
             Err(EclError::NotYetImplemented {
@@ -1104,21 +1229,73 @@ mod tests {
     }
 
     #[test]
-    fn rejects_description_and_member_filters_with_named_errors() {
-        // `D`/`M` markers, and the marker-less default (which the
-        // grammar defines as a description filter), are all recognized
-        // and named — only `{{ C ... }}` is actually implemented.
-        assert!(matches!(
-            parse("404684003 {{ D active = true }}"),
-            Err(EclError::NotYetImplemented { .. })
-        ));
+    fn parses_description_filters_with_and_without_the_d_marker() {
+        // The grammar's `D` is optional, and an unmarked block is a
+        // description filter — so both spellings parse to the same tree.
+        let marked = parse("404684003 {{ D term = \"heart\" }}").unwrap();
+        let unmarked = parse("404684003 {{ term = \"heart\" }}").unwrap();
+        assert_eq!(marked, unmarked);
+        match marked {
+            EC::DescriptionFilter { filters, .. } => assert_eq!(
+                filters,
+                vec![DescriptionFilterKind::Term(TermFilter {
+                    negated: false,
+                    values: vec!["heart".to_string()],
+                })]
+            ),
+            other => panic!("expected a description filter, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn parses_description_filter_type_and_sets() {
+        let expr =
+            parse("404684003 {{ D type = (fsn syn), term != (\"old\" \"legacy\"), active = * }}")
+                .unwrap();
+        match expr {
+            EC::DescriptionFilter { filters, .. } => assert_eq!(
+                filters,
+                vec![
+                    DescriptionFilterKind::Type(TypeFilter {
+                        negated: false,
+                        values: vec![DescriptionTypeValue::Fsn, DescriptionTypeValue::Synonym],
+                    }),
+                    DescriptionFilterKind::Term(TermFilter {
+                        negated: true,
+                        values: vec!["old".to_string(), "legacy".to_string()],
+                    }),
+                    DescriptionFilterKind::Active(ActiveFilter {
+                        negated: false,
+                        value: ActiveValue::Wildcard,
+                    }),
+                ]
+            ),
+            other => panic!("expected a description filter, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn rejects_unimplemented_filter_kinds_by_name() {
+        // Member filters, and the description-filter kinds whose keywords
+        // *are* tokenized, get a feature-naming error (spec/10 rule 9).
         assert!(matches!(
             parse("404684003 {{ M active = true }}"),
             Err(EclError::NotYetImplemented { .. })
         ));
+        for input in [
+            "404684003 {{ D moduleId = 900000000000207008 }}",
+            "404684003 {{ D effectiveTime = \"20240101\" }}",
+        ] {
+            assert!(
+                matches!(parse(input), Err(EclError::NotYetImplemented { .. })),
+                "{input} should be rejected by name"
+            );
+        }
+        // A filter keyword this lexer doesn't tokenize at all still falls
+        // in the generic bucket, as spec/10 documents.
         assert!(matches!(
-            parse("404684003 {{ active = true }}"),
-            Err(EclError::NotYetImplemented { .. })
+            parse("404684003 {{ D language = \"en\" }}"),
+            Err(EclError::UnexpectedKeyword { .. })
         ));
     }
 

@@ -108,6 +108,12 @@ pub fn parse_implicit_value_set(url: &str) -> Result<ImplicitValueSet, FhirError
     let Some(value) = query.strip_prefix("fhir_vs=") else {
         return Err(FhirError::UnsupportedValueSet(url.to_string()));
     };
+    // A URL is percent-encoded by definition (RFC 3986), and the forms
+    // that carry ECL are unusable without decoding: FHIR's own published
+    // example is `?fhir_vs=ecl/%3C%3C%2027624003`. Decoding happens after
+    // the `?` and `fhir_vs=` splits, so an encoded `%3F`/`%3D` in the
+    // payload can never be mistaken for a real delimiter (spec/11).
+    let value = &percent_decode(value, url)?;
     if value == "refset" {
         return Ok(ImplicitValueSet::AllRefsets);
     }
@@ -177,6 +183,34 @@ pub fn expand(
         offset,
         contains,
     })
+}
+
+/// Decodes `%XX` escapes in one query-parameter value.
+///
+/// `+` is left alone: that spelling of a space belongs to
+/// `application/x-www-form-urlencoded` form bodies, not to URI query
+/// syntax (RFC 3986), and ECL uses `+` in its own right — decoding it
+/// would corrupt a concrete numeric value like `#+5`.
+fn percent_decode(value: &str, url: &str) -> Result<String, FhirError> {
+    if !value.contains('%') {
+        return Ok(value.to_string());
+    }
+    let malformed = || FhirError::MalformedUrlEncoding(url.to_string());
+    let bytes = value.as_bytes();
+    let mut out: Vec<u8> = Vec::with_capacity(bytes.len());
+    let mut i = 0;
+    while i < bytes.len() {
+        if bytes[i] != b'%' {
+            out.push(bytes[i]);
+            i += 1;
+            continue;
+        }
+        let hex = bytes.get(i + 1..i + 3).ok_or_else(malformed)?;
+        let digit = |b: u8| (b as char).to_digit(16).ok_or_else(malformed);
+        out.push((digit(hex[0])? * 16 + digit(hex[1])?) as u8);
+        i += 3;
+    }
+    String::from_utf8(out).map_err(|_| malformed())
 }
 
 fn evaluate(
@@ -503,5 +537,61 @@ mod tests {
         .unwrap();
         let codes: Vec<SctId> = result.contains.iter().map(|c| c.code).collect();
         assert_eq!(codes, vec![DISEASE]);
+    }
+
+    #[test]
+    fn percent_encoded_urls_decode() {
+        // FHIR's own published example spelling of the ECL form, from the
+        // R4 SNOMED CT page: the operators and spaces arrive encoded.
+        let expected = ImplicitValueSet::Ecl("<< 27624003".to_string());
+        assert_eq!(
+            parse_implicit_value_set("http://snomed.info/sct?fhir_vs=ecl/%3C%3C%2027624003"),
+            Ok(expected.clone())
+        );
+        // Lowercase hex digits are equally valid (RFC 3986).
+        assert_eq!(
+            parse_implicit_value_set("http://snomed.info/sct?fhir_vs=ecl/%3c%3c%2027624003"),
+            Ok(expected)
+        );
+        // An already-decoded url still works — decoding is idempotent for
+        // payloads that contain no `%`.
+        assert_eq!(
+            parse_implicit_value_set("http://snomed.info/sct?fhir_vs=ecl/<< 27624003"),
+            Ok(ImplicitValueSet::Ecl("<< 27624003".to_string()))
+        );
+        // Non-ECL forms decode the same way.
+        assert_eq!(
+            parse_implicit_value_set("http://snomed.info/sct?fhir_vs=isa%2f138875005"),
+            Ok(ImplicitValueSet::IsA(constants::ROOT_CONCEPT))
+        );
+    }
+
+    #[test]
+    fn plus_is_a_literal_plus_not_a_space() {
+        // `+` for space is form-encoding, not URI syntax — and ECL uses
+        // `+` in concrete numeric values, so decoding it would corrupt
+        // the expression rather than merely alter it.
+        assert_eq!(
+            parse_implicit_value_set("http://snomed.info/sct?fhir_vs=ecl/*:1142135004=%23+5"),
+            Ok(ImplicitValueSet::Ecl("*:1142135004=#+5".to_string()))
+        );
+    }
+
+    #[test]
+    fn malformed_percent_encoding_is_its_own_error() {
+        // A truncated or non-hex escape is a malformed *url*, which a
+        // hosting server reports differently from an unsupported value set.
+        for url in [
+            "http://snomed.info/sct?fhir_vs=ecl/%",
+            "http://snomed.info/sct?fhir_vs=ecl/%3",
+            "http://snomed.info/sct?fhir_vs=ecl/%zz",
+            "http://snomed.info/sct?fhir_vs=ecl/%ff%fe",
+        ] {
+            assert_eq!(
+                parse_implicit_value_set(url),
+                Err(FhirError::MalformedUrlEncoding(url.to_string())),
+                "{url} should be rejected as malformed percent-encoding"
+            );
+        }
     }
 }

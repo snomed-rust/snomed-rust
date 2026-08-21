@@ -97,6 +97,16 @@ pub enum TokenKind {
     /// `effectiveTime` — a concept/description/member filter's
     /// `effectiveTimeFilter`.
     EffectiveTimeKeyword,
+    /// `term` — a description filter's `termFilter`.
+    TermKeyword,
+    /// `type` — a description filter's `typeTokenFilter`.
+    TypeKeyword,
+    /// `fsn` — a `typeToken` (fully specified name).
+    FsnToken,
+    /// `syn` — a `typeToken` (synonym).
+    SynToken,
+    /// `def` — a `typeToken` (text definition).
+    DefToken,
     Eof,
 }
 
@@ -157,6 +167,11 @@ pub fn describe(kind: &TokenKind) -> String {
         TokenKind::DefinedToken => "`defined`".to_string(),
         TokenKind::ModuleIdKeyword => "`moduleId`".to_string(),
         TokenKind::EffectiveTimeKeyword => "`effectiveTime`".to_string(),
+        TokenKind::TermKeyword => "`term`".to_string(),
+        TokenKind::TypeKeyword => "`type`".to_string(),
+        TokenKind::FsnToken => "`fsn`".to_string(),
+        TokenKind::SynToken => "`syn`".to_string(),
+        TokenKind::DefToken => "`def`".to_string(),
         TokenKind::Eof => "end of input".to_string(),
     }
 }
@@ -410,6 +425,11 @@ impl Lexer {
                     "DEFINED" => TokenKind::DefinedToken,
                     "MODULEID" => TokenKind::ModuleIdKeyword,
                     "EFFECTIVETIME" => TokenKind::EffectiveTimeKeyword,
+                    "TERM" => TokenKind::TermKeyword,
+                    "TYPE" => TokenKind::TypeKeyword,
+                    "FSN" => TokenKind::FsnToken,
+                    "SYN" => TokenKind::SynToken,
+                    "DEF" => TokenKind::DefToken,
                     _ => {
                         // Could this be the start of an `A#B` alternate
                         // identifier (`altIdentifierSchemeAlias "#" ...`)?

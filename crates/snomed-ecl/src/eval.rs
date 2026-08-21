@@ -8,13 +8,14 @@ use snomed_store::SnapshotStore;
 
 use snomed_core::concrete_value::ConcreteValue;
 use snomed_core::time::EffectiveTime;
-use snomed_core::{constants, Concept};
+use snomed_core::{constants, Concept, Description};
 
 use crate::ast::{
     ActiveFilter, ActiveValue, AttributeComparison, AttributeConstraint, AttributeGroup,
     Cardinality, ConceptFilterKind, DefinitionStatusFilter, DefinitionStatusValue,
-    EffectiveTimeFilter, ExpressionConstraint, FocusConcept, HierarchyOp, ModuleFilter,
-    NumericComparisonOp, RefinementConstraint, SimpleExpressionConstraint, TimeComparisonOp,
+    DescriptionFilterKind, DescriptionTypeValue, EffectiveTimeFilter, ExpressionConstraint,
+    FocusConcept, HierarchyOp, ModuleFilter, NumericComparisonOp, RefinementConstraint,
+    SimpleExpressionConstraint, TermFilter, TimeComparisonOp, TypeFilter,
 };
 
 /// Evaluates `expr` against `store`, returning the matching concept ids.
@@ -65,7 +66,93 @@ pub fn evaluate(expr: &ExpressionConstraint, store: &SnapshotStore) -> HashSet<S
                 })
             })
             .collect(),
+        // A description filter keeps a concept when **one** of its
+        // descriptions satisfies every filter in the block — not when the
+        // filters are satisfied piecemeal across different descriptions
+        // (spec/10).
+        ExpressionConstraint::DescriptionFilter { inner, filters } => evaluate(inner, store)
+            .into_iter()
+            .filter(|&c| {
+                store
+                    .descriptions_of(c)
+                    .any(|d| description_matches(filters, d))
+            })
+            .collect(),
     }
+}
+
+/// True when `description` satisfies every filter in one `{{ D ... }}`
+/// block.
+///
+/// **Only active descriptions match unless the block says otherwise.**
+/// Every other matching path in this crate is active-only (spec/10 rule
+/// 6, spec/07's hierarchy convention), and an inactive description is
+/// retired text a search should not surface by default. An explicit
+/// `active` filter — including `active = *` — replaces that default, which
+/// is what makes the retired text reachable when a caller actually wants
+/// it. This is a judgment call: neither the official grammar nor the
+/// guide states the default (spec/10).
+fn description_matches(filters: &[DescriptionFilterKind], description: &Description) -> bool {
+    let states_active = filters
+        .iter()
+        .any(|f| matches!(f, DescriptionFilterKind::Active(_)));
+    if !states_active && !description.active {
+        return false;
+    }
+    filters
+        .iter()
+        .all(|f| description_filter_matches(f, description))
+}
+
+/// One `{{ D ... }}` filter against one description.
+fn description_filter_matches(filter: &DescriptionFilterKind, description: &Description) -> bool {
+    match filter {
+        DescriptionFilterKind::Term(TermFilter { negated, values }) => {
+            let matches = values.iter().any(|v| term_matches(&description.term, v));
+            matches != *negated
+        }
+        DescriptionFilterKind::Type(TypeFilter { negated, values }) => {
+            let matches = values.iter().any(|v| {
+                description.type_id
+                    == match v {
+                        DescriptionTypeValue::Fsn => constants::FULLY_SPECIFIED_NAME,
+                        DescriptionTypeValue::Synonym => constants::SYNONYM,
+                        DescriptionTypeValue::Definition => constants::TEXT_DEFINITION,
+                    }
+            });
+            matches != *negated
+        }
+        DescriptionFilterKind::Active(ActiveFilter { negated, value }) => {
+            let matches = match value {
+                ActiveValue::True => description.active,
+                ActiveValue::False => !description.active,
+                ActiveValue::Wildcard => true,
+            };
+            matches != *negated
+        }
+    }
+}
+
+/// The grammar's default `match:` search type: every whitespace-separated
+/// word of the search term must be a case-insensitive **prefix of some
+/// word** in the description term, in any order (spec/10). So `"heart
+/// att"` matches "Heart attack", and `"att heart"` matches it too, but
+/// `"eart"` does not — that is what distinguishes `match:` from a plain
+/// substring search, and from the `wild:`/`regex:` types this crate
+/// doesn't implement.
+fn term_matches(term: &str, search: &str) -> bool {
+    let term_words: Vec<String> = term.split_whitespace().map(|w| w.to_lowercase()).collect();
+    let mut search_words = search.split_whitespace().peekable();
+    if search_words.peek().is_none() {
+        // An empty search term constrains nothing rather than matching
+        // nothing — `all` over an empty set is vacuously true, and
+        // spelling that out keeps the intent legible.
+        return true;
+    }
+    search_words.all(|needle| {
+        let needle = needle.to_lowercase();
+        term_words.iter().any(|w| w.starts_with(&needle))
+    })
 }
 
 /// A single `{{ C ... }}` filter against a concept's own row — see
@@ -299,10 +386,20 @@ fn numeric_matches(operator: NumericComparisonOp, actual: &str, target: &str) ->
 /// candidacy here; the official ECL guide doesn't state this explicitly,
 /// this crate's own already-established `relationshipGroup` semantics do.
 fn evaluate_attribute_group(g: &AttributeGroup, concept: SctId, store: &SnapshotStore) -> bool {
+    // Candidate groups come from both relationship views: a role group can
+    // hold ordinary relationships, concrete values, or a mix (a substance
+    // alongside its strength), and `{ attr > #500 }` must be able to match
+    // a group whose only rows are concrete values (spec/10).
     let mut group_ids: Vec<u32> = store
         .relationships_of(concept)
         .filter(|r| r.active && r.is_inferred() && r.relationship_group != 0)
         .map(|r| r.relationship_group)
+        .chain(
+            store
+                .relationship_concrete_values_of(concept)
+                .filter(|r| r.active && r.is_inferred() && r.relationship_group != 0)
+                .map(|r| r.relationship_group),
+        )
         .collect();
     group_ids.sort_unstable();
     group_ids.dedup();
@@ -1262,6 +1359,226 @@ mod tests {
                 &store
             ),
             HashSet::from([ROOT, DISEASE])
+        );
+    }
+
+    #[test]
+    fn stated_relationships_never_match_a_refinement() {
+        // spec/10 rule 6: attribute matching uses active *inferred* rows
+        // only. Stated axioms live in the OWL refset (spec/07), and a
+        // release ships both views of the same concept — so a fixture with
+        // only a stated row is what proves the filter is doing work. Every
+        // other fixture in this file is inferred-only, which would let a
+        // regressed `is_inferred()` check pass unnoticed.
+        let attr_type = SctId::compose(9150, ComponentType::Concept, None).unwrap();
+        let value = SctId::compose(9151, ComponentType::Concept, None).unwrap();
+
+        let mut b = SnapshotStore::builder();
+        for c in [ROOT, MI, attr_type, value] {
+            b.add_concept(concept(c));
+        }
+        b.add_relationship(is_a(1, MI, ROOT));
+        b.add_relationship(Relationship {
+            id: SctId::compose(4400, ComponentType::Relationship, None).unwrap(),
+            effective_time: EffectiveTime::new_unchecked(20190731),
+            active: true,
+            module_id: constants::CORE_MODULE,
+            source_id: MI,
+            destination_id: value,
+            relationship_group: 0,
+            type_id: attr_type,
+            characteristic_type_id: constants::STATED_RELATIONSHIP,
+            modifier_id: constants::EXISTENTIAL_MODIFIER,
+        });
+        // Same shape as the stated row, but concrete-valued.
+        let numeric_attr = SctId::compose(9152, ComponentType::Concept, None).unwrap();
+        b.add_concept(concept(numeric_attr));
+        b.add_relationship_concrete_value(RelationshipConcreteValue {
+            id: SctId::compose(4401, ComponentType::Relationship, None).unwrap(),
+            effective_time: EffectiveTime::new_unchecked(20190731),
+            active: true,
+            module_id: constants::CORE_MODULE,
+            source_id: MI,
+            value: ConcreteValue::Number("10".to_string()),
+            relationship_group: 0,
+            type_id: numeric_attr,
+            characteristic_type_id: constants::STATED_RELATIONSHIP,
+            modifier_id: constants::EXISTENTIAL_MODIFIER,
+        });
+        let store = b.build();
+
+        assert!(
+            eval(&format!("<< {ROOT} : {attr_type} = {value}"), &store).is_empty(),
+            "a stated relationship must not satisfy a refinement"
+        );
+        assert!(
+            eval(&format!("<< {ROOT} : {numeric_attr} = #10"), &store).is_empty(),
+            "a stated concrete value must not satisfy a refinement"
+        );
+        // The negated form is the mirror image: with zero *inferred*
+        // matches, `!=` with its default [1..*] cardinality holds.
+        assert_eq!(
+            eval(&format!("<< {ROOT} : {attr_type} != {value}"), &store),
+            HashSet::from([ROOT, MI])
+        );
+    }
+
+    #[test]
+    fn a_group_of_only_concrete_values_can_satisfy_an_attribute_group() {
+        // spec/10: candidate role groups come from both relationship views.
+        // A group whose only rows are `RelationshipConcreteValue`s — a drug
+        // strength with no co-grouped substance row — used to be invisible
+        // to `{ }`, since candidacy was collected from `Relationship` rows
+        // alone.
+        let strength = SctId::compose(9160, ComponentType::Concept, None).unwrap();
+        let mut b = SnapshotStore::builder();
+        for c in [ROOT, MI, strength] {
+            b.add_concept(concept(c));
+        }
+        b.add_relationship(is_a(1, MI, ROOT));
+        b.add_relationship_concrete_value(RelationshipConcreteValue {
+            id: SctId::compose(4410, ComponentType::Relationship, None).unwrap(),
+            effective_time: EffectiveTime::new_unchecked(20190731),
+            active: true,
+            module_id: constants::CORE_MODULE,
+            source_id: MI,
+            value: ConcreteValue::Number("750".to_string()),
+            relationship_group: 1,
+            type_id: strength,
+            characteristic_type_id: constants::INFERRED_RELATIONSHIP,
+            modifier_id: constants::EXISTENTIAL_MODIFIER,
+        });
+        let store = b.build();
+
+        assert_eq!(
+            eval(&format!("<< {ROOT} : {{ {strength} > #500 }}"), &store),
+            HashSet::from([MI])
+        );
+        // The group scope still bites: a value the comparison excludes
+        // leaves no satisfying group.
+        assert!(eval(&format!("<< {ROOT} : {{ {strength} > #900 }}"), &store).is_empty());
+        // Group 0 is "ungrouped", never a candidate group — unchanged.
+        assert!(eval(&format!("<< {ROOT} : {{ {strength} = #750 }}"), &store).len() == 1);
+    }
+
+    fn description_store() -> SnapshotStore {
+        let mut b = SnapshotStore::builder();
+        for c in [ROOT, FINDING, MI] {
+            b.add_concept(concept(c));
+        }
+        b.add_relationship(is_a(1, FINDING, ROOT));
+        b.add_relationship(is_a(2, MI, FINDING));
+        let described =
+            |item: u64, concept_id: SctId, type_id: SctId, term: &str, active: bool| Description {
+                id: SctId::compose(item, ComponentType::Description, None).unwrap(),
+                effective_time: EffectiveTime::new_unchecked(20190731),
+                active,
+                module_id: constants::CORE_MODULE,
+                concept_id,
+                language_code: "en".to_string(),
+                type_id,
+                term: term.to_string(),
+                case_significance_id: constants::CASE_INSENSITIVE,
+            };
+        b.add_descriptions([
+            described(
+                5001,
+                MI,
+                constants::FULLY_SPECIFIED_NAME,
+                "Myocardial infarction (disorder)",
+                true,
+            ),
+            described(5002, MI, constants::SYNONYM, "Heart attack", true),
+            described(5003, MI, constants::SYNONYM, "Cardiac infarct", false),
+            described(
+                5004,
+                FINDING,
+                constants::FULLY_SPECIFIED_NAME,
+                "Clinical finding (finding)",
+                true,
+            ),
+        ]);
+        b.build()
+    }
+
+    #[test]
+    fn description_filter_term_matching() {
+        let store = description_store();
+        // The grammar's default `match:` type: each search word must
+        // prefix some word of the term, in any order.
+        assert_eq!(
+            eval("<< 138875005 {{ term = \"heart\" }}", &store),
+            HashSet::from([MI])
+        );
+        assert_eq!(
+            eval("<< 138875005 {{ D term = \"att heart\" }}", &store),
+            HashSet::from([MI]),
+            "word order doesn't matter"
+        );
+        assert_eq!(
+            eval("<< 138875005 {{ D term = \"myocard\" }}", &store),
+            HashSet::from([MI]),
+            "a prefix of a word matches"
+        );
+        assert!(
+            eval("<< 138875005 {{ D term = \"eart\" }}", &store).is_empty(),
+            "mid-word substrings do not — that's what `match:` means"
+        );
+        assert_eq!(
+            eval(
+                "<< 138875005 {{ D term = (\"finding\" \"heart\") }}",
+                &store
+            ),
+            HashSet::from([FINDING, MI]),
+            "a term set is OR'd"
+        );
+    }
+
+    #[test]
+    fn description_filter_is_active_only_by_default() {
+        let store = description_store();
+        // "Cardiac infarct" is an inactive description, so it doesn't
+        // surface unless the block says something about `active`.
+        assert!(eval("<< 138875005 {{ D term = \"cardiac\" }}", &store).is_empty());
+        assert_eq!(
+            eval(
+                "<< 138875005 {{ D term = \"cardiac\", active = false }}",
+                &store
+            ),
+            HashSet::from([MI])
+        );
+        assert_eq!(
+            eval(
+                "<< 138875005 {{ D term = \"cardiac\", active = * }}",
+                &store
+            ),
+            HashSet::from([MI])
+        );
+    }
+
+    #[test]
+    fn description_filter_type_and_conjunction() {
+        let store = description_store();
+        assert_eq!(
+            eval("<< 138875005 {{ D type = fsn }}", &store),
+            HashSet::from([FINDING, MI])
+        );
+        assert_eq!(
+            eval("<< 138875005 {{ D type = syn }}", &store),
+            HashSet::from([MI])
+        );
+        // Both filters must hold of the *same* description: MI has an FSN
+        // and a description matching "heart", but no FSN matching "heart".
+        assert!(eval("<< 138875005 {{ D type = fsn, term = \"heart\" }}", &store).is_empty());
+        assert_eq!(
+            eval("<< 138875005 {{ D type = syn, term = \"heart\" }}", &store),
+            HashSet::from([MI])
+        );
+        // `!=` applies per description: some active description of MI is
+        // not an FSN.
+        assert_eq!(
+            eval("<< 138875005 {{ D type != fsn }}", &store),
+            HashSet::from([MI])
         );
     }
 }

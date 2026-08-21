@@ -78,15 +78,77 @@ pub enum ExpressionConstraint {
     /// `inner {{ C filter (AND filter)* }}` — a `conceptFilterConstraint`
     /// (spec/10): restricts `inner`'s evaluated set to concepts whose own
     /// row matches every filter in `filters`. See [`ConceptFilterKind`]
-    /// for which filter kinds are implemented. Description filters
-    /// (`{{ D ... }}`, or a bare `{{ ... }}` with no marker, which
-    /// defaults to a description filter per the grammar) and member
-    /// filters (`{{ M ... }}`) are rejected — see spec/10's "Not yet
+    /// for which filter kinds are implemented. Member filters
+    /// (`{{ M ... }}`) are rejected — see spec/10's "Not yet
     /// implemented" section.
     ConceptFilter {
         inner: Box<ExpressionConstraint>,
         filters: Vec<ConceptFilterKind>,
     },
+    /// `inner {{ D filter (AND filter)* }}` — a
+    /// `descriptionFilterConstraint` (spec/10): keeps the concepts of
+    /// `inner` that have **one description** satisfying every filter in
+    /// `filters`. The `D` marker is optional in the grammar (an unmarked
+    /// `{{ ... }}` is a description filter), and both spellings parse
+    /// here. See [`DescriptionFilterKind`] for which filter kinds are
+    /// implemented.
+    DescriptionFilter {
+        inner: Box<ExpressionConstraint>,
+        filters: Vec<DescriptionFilterKind>,
+    },
+}
+
+/// One filter inside a `{{ D ... }}` description filter constraint —
+/// spec/10. Every filter in one block must be satisfied by the **same**
+/// description, which is what makes `{{ D term = "left", type = fsn }}`
+/// mean "an FSN whose term matches", not "some FSN and some matching
+/// description".
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum DescriptionFilterKind {
+    /// `term (=|!=) (typedSearchTerm | typedSearchTermSet)` — spec/10.
+    /// Matching is the grammar's default `match:` search type; the
+    /// `wild:`/`regex:`/`exact:` prefixes are not implemented.
+    Term(TermFilter),
+    /// `type (=|!=) (typeToken | typeTokenSet)` — spec/10, the
+    /// `fsn`/`syn`/`def` keyword form. The `typeId (=|!=)
+    /// subExpressionConstraint` form is not implemented.
+    Type(TypeFilter),
+    /// `active (=|!=) (true|false|*)` — the same filter the concept
+    /// constraint has, applied to the description's own `active` column.
+    /// Its presence also turns off the active-only default (spec/10).
+    Active(ActiveFilter),
+}
+
+/// `termKeyword ws stringComparisonOperator ws (typedSearchTerm /
+/// typedSearchTermSet)`.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct TermFilter {
+    /// `true` for `!=`.
+    pub negated: bool,
+    /// 1+ search terms; 2+ for a `typedSearchTermSet`, matched OR-wise
+    /// across the set — same shape as `AttributeComparison::String.values`.
+    pub values: Vec<String>,
+}
+
+/// `typeKeyword ws booleanComparisonOperator ws (typeToken / typeTokenSet)`.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct TypeFilter {
+    /// `true` for `!=`.
+    pub negated: bool,
+    /// 1+ entries; 2+ for a `typeTokenSet`, matched OR-wise.
+    pub values: Vec<DescriptionTypeValue>,
+}
+
+/// `fsnToken / synonymToken / definitionToken` — spec/06's three
+/// description types, spelled as ECL's keywords.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum DescriptionTypeValue {
+    /// `fsn` — `900000000000003001 |Fully specified name|`.
+    Fsn,
+    /// `syn` — `900000000000013009 |Synonym|`.
+    Synonym,
+    /// `def` — `900000000000550004 |Text definition|`.
+    Definition,
 }
 
 /// One filter inside a `{{ C ... }}` concept filter constraint. Currently

@@ -105,10 +105,14 @@ Snapshot can't answer ("what did this concept look like a year ago",
    yet) or the id has no history at all. This is exactly spec/02's "any
    two releases" Delta-derivation idea, generalized to an arbitrary date
    instead of just the two dates a real Delta file would span.
-5. Scope for the current version: Concept, Description (incl.
-   TextDefinition), and Relationship (incl. StatedRelationship) history
-   only. Two documented gaps (`tasks.md`): refset member history (the
-   `RefsetMemberCore` types would need the same treatment) and
-   `RelationshipConcreteValues` history (a component type `SnapshotStore`
-   loads but `HistoryStore` skip-and-reports) — neither is implemented
-   yet.
+5. Scope for the current version: all four **component** types — Concept,
+   Description (incl. TextDefinition), Relationship (incl.
+   StatedRelationship), and RelationshipConcreteValues. Concrete-value
+   relationships keep a history of their own rather than being folded in
+   with ordinary relationships: the two share the relationship partition
+   but are separate component types with separate rows, so asking for one
+   by the other's method returns empty rather than a mixed answer. One
+   documented gap remains (`tasks.md`): refset member history, which
+   would need the same treatment applied to the `RefsetMemberCore`
+   types — those are keyed by member UUID, not SCTID, so it is a
+   parallel structure rather than a fifth entry in this one.

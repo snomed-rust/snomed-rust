@@ -63,9 +63,9 @@ the spec's normative rules. Day-to-day execution items live in `tasks.md`.
   and their caveats are kept current in `agents/store-engineer.md`;
   per-operation regression tracking now lives in `benches/` (Phase 8).
   - **Decision: no precomputed transitive closure for now.** On-demand BFS
-    is already 3+ orders of magnitude faster than would matter for typical
-    interactive or batch use; revisit only if a real-release run (or a
-    profiled downstream consumer) shows otherwise.
+    is already far faster than typical interactive or batch use needs;
+    revisit only if a real-release run, or a profiled downstream
+    consumer, shows otherwise.
 - Refset patterns flagged *not yet implemented* at this point — the
   ordered/annotation variants and the four MRCM refsets (spec/08) — were
   both implemented in Phase 6 below; nothing from that list remains open.
@@ -571,9 +571,10 @@ fix it surfaced, and `HistoryStore`.
   Rust version is the current stable release minus three, a rolling
   ~18-week window. Recorded in `[workspace.package].rust-version` and
   verified by a dedicated CI job rather than merely declared.
-- **Fuzzing** (`spec/rust-fuzz.md`, `fuzz/`): 10 libFuzzer targets over
-  every text input the workspace accepts, each asserting the `spec/`
-  properties for its input rather than only checking for panics.
+- **Fuzzing** (`spec/rust-fuzz.md`, `fuzz/`): a libFuzzer target per text
+  input the workspace accepts (10 at this phase, growing with the
+  parsers), each asserting the `spec/` properties for its input rather
+  than only checking for panics.
 - **Benchmarking** (`spec/rust-bench.md`, `benches/`): criterion
   benchmarks over a seeded synthetic release, covering SCTID validation,
   RF2 parsing, store construction and queries, ECL, classification/NNF,
@@ -597,8 +598,8 @@ fix it surfaced, and `HistoryStore`.
 ## Current status
 
 All eight phases above are closed. The workspace is 9 published crates at
-0.7.0 with zero dependencies, 295 tests, a clean
-`cargo clippy --all-targets`, 10 fuzz targets, and six criterion
+0.8.0 with zero dependencies, 314 tests, a clean
+`cargo clippy --all-targets`, 11 fuzz targets, and six criterion
 benchmark files. What is *not* done is tracked in two places and nowhere
 else: `tasks.md`'s "Next up" (scoped work and known gaps, each with the
 spec section that documents it) and the "Not yet implemented" sections of

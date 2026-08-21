@@ -51,16 +51,21 @@ Identical to Relationship/StatedRelationship except column 6:
 
 ## Rules
 
-1. `id` MUST carry a relationship partition identifier (02 or 12). *(A
-   requirement on the released data; not yet enforced per-file by this
-   workspace's parser — see spec/05 rule 1's identical note.)*
+1. `id` MUST carry a relationship partition identifier (02 or 12),
+   enforced per file exactly as in [05-concept-file.md](05-concept-file.md)
+   rule 1. The same check applies to `RelationshipConcreteValues` rows,
+   whose ids are relationship ids too.
 2. The subtype hierarchy is the set of **active** rows with
    `typeId = 116680003` in the **inferred** file: `sourceId` is the child,
    `destinationId` the parent. Every active concept except the root
-   `138875005` has at least one active IS-A row. *(A property of the
-   released data — unlike rules 3 and 5, `SnapshotStore::validate()` does
-   not currently check for orphaned/rootless concepts; tracked as a
-   candidate check in `tasks.md`.)*
+   `138875005` has at least one active IS-A row.
+   `SnapshotStore::validate()` reports the ones that don't as
+   `rootless_concepts`: such a concept is unreachable from the root, so no
+   hierarchy query — and no ECL expression built on one — can ever find
+   it. The check is exactly "active, not the root, and `parents()` is
+   empty", since `parents` already *is* the active-inferred-IS-A edge set
+   this rule defines. Inactive concepts are out of scope, and an
+   inactivated IS-A row does not attach a concept.
 3. The hierarchy MUST be acyclic; `snomed-store` treats a detected cycle as
    data corruption. Traversal (`ancestors`/`descendants`/`subsumes`) is
    cycle-safe by construction (bounded BFS) so a cycle can never hang a

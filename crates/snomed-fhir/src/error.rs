@@ -32,6 +32,13 @@ pub enum FhirError {
     /// forms spec/11 documents (all five are implemented, including the
     /// bare `?fhir_vs=refset` form).
     UnsupportedValueSet(String),
+    /// A `$expand` `url` whose percent-encoding is malformed: a `%` not
+    /// followed by two hex digits, or an escape sequence that decodes to
+    /// invalid UTF-8. A URL is percent-encoded by definition (RFC 3986),
+    /// so this is a malformed URL rather than an unsupported value set —
+    /// a distinction a hosting server wants when deciding what to tell
+    /// its client.
+    MalformedUrlEncoding(String),
     /// The `ecl/` form of an implicit value set failed to parse as ECL —
     /// wraps `snomed_ecl::EclError`'s message rather than the error type
     /// itself, so this crate's error type doesn't leak `snomed-ecl` as a
@@ -49,6 +56,9 @@ impl fmt::Display for FhirError {
                 )
             }
             FhirError::UnknownCode(id) => write!(f, "unknown code `{id}`"),
+            FhirError::MalformedUrlEncoding(url) => {
+                write!(f, "malformed percent-encoding in url `{url}`")
+            }
             FhirError::UnsupportedProperty(property) => {
                 write!(f, "property `{property}` is not yet supported by $lookup")
             }

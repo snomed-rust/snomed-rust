@@ -6,6 +6,7 @@
 
 use std::collections::HashMap;
 
+use snomed_core::constants;
 use snomed_core::sctid::SctId;
 
 use super::SnapshotStore;
@@ -15,6 +16,7 @@ use super::SnapshotStore;
 /// `dangling_description_concepts` holds description ids whose
 /// `conceptId` doesn't resolve, not the missing concept id itself.
 #[derive(Debug, Default, Clone, PartialEq, Eq)]
+#[non_exhaustive]
 pub struct ValidationReport {
     /// Description ids whose `conceptId` isn't a known concept.
     pub dangling_description_concepts: Vec<SctId>,
@@ -27,6 +29,12 @@ pub struct ValidationReport {
     /// whose only IS-A path merely leads into a cycle elsewhere is not
     /// itself cyclic and is not included.
     pub cyclic_concepts: Vec<SctId>,
+    /// Active concept ids with no active inferred IS-A row of their own,
+    /// excluding the root `138875005` (spec/07 rule 2: every active concept
+    /// but the root has at least one). Such a concept is unreachable from
+    /// the root, so no hierarchy query — and no ECL expression built on
+    /// one — can ever find it.
+    pub rootless_concepts: Vec<SctId>,
 }
 
 impl ValidationReport {
@@ -36,6 +44,7 @@ impl ValidationReport {
             && self.dangling_relationship_sources.is_empty()
             && self.dangling_relationship_destinations.is_empty()
             && self.cyclic_concepts.is_empty()
+            && self.rootless_concepts.is_empty()
     }
 
     /// Total finding count across every category.
@@ -44,12 +53,15 @@ impl ValidationReport {
             + self.dangling_relationship_sources.len()
             + self.dangling_relationship_destinations.len()
             + self.cyclic_concepts.len()
+            + self.rootless_concepts.len()
     }
 }
 
 impl SnapshotStore {
     /// Checks referential integrity (description → concept, relationship
-    /// source/destination → concept) and IS-A hierarchy acyclicity.
+    /// source/destination → concept), IS-A hierarchy acyclicity, and that
+    /// every active concept but the root is attached to the hierarchy
+    /// (spec/07 rule 2).
     ///
     /// Scope: refset `referencedComponentId` dangling checks are not
     /// included — a refset member can legitimately reference a concept,
@@ -76,6 +88,18 @@ impl SnapshotStore {
                 report.dangling_relationship_destinations.push(r.id);
             }
         }
+
+        // spec/07 rule 2. `parents` is already exactly the active inferred
+        // IS-A edges (spec/07's hierarchy definition), so "no parents" is
+        // the whole check — no separate relationship scan needed.
+        report.rootless_concepts = self
+            .concepts
+            .values()
+            .filter(|c| c.active && c.id != constants::ROOT_CONCEPT)
+            .filter(|c| self.parents(c.id).is_empty())
+            .map(|c| c.id)
+            .collect();
+        report.rootless_concepts.sort_unstable();
 
         report.dangling_description_concepts.sort_unstable();
         report.dangling_relationship_sources.sort_unstable();
@@ -268,5 +292,52 @@ mod tests {
         b.add_relationship(is_a(1, FINDING, FINDING));
         let report = b.build().validate();
         assert_eq!(report.cyclic_concepts, vec![FINDING]);
+    }
+
+    #[test]
+    fn rootless_active_concepts_are_reported() {
+        // spec/07 rule 2: every active concept but the root has at least one
+        // active inferred IS-A row. One that doesn't is unreachable from the
+        // root, so no hierarchy query can ever find it.
+        let mut b = SnapshotStore::builder();
+        for c in [ROOT, FINDING, DISEASE, MI] {
+            b.add_concept(concept(c));
+        }
+        b.add_relationship(is_a(1, FINDING, ROOT));
+        b.add_relationship(is_a(2, DISEASE, FINDING));
+        // MI is deliberately left unattached.
+        let report = b.build().validate();
+        assert_eq!(report.rootless_concepts, vec![MI]);
+        assert!(!report.is_clean());
+        assert_eq!(report.issue_count(), 1);
+    }
+
+    #[test]
+    fn the_root_and_inactive_concepts_are_not_rootless() {
+        // The root legitimately has no parent, and an inactive concept is
+        // outside the rule — spec/07 rule 2 scopes it to active concepts.
+        let mut b = SnapshotStore::builder();
+        b.add_concept(concept(ROOT));
+        b.add_concept(Concept {
+            active: false,
+            ..concept(MI)
+        });
+        let report = b.build().validate();
+        assert!(report.rootless_concepts.is_empty());
+        assert!(report.is_clean());
+    }
+
+    #[test]
+    fn an_inactive_is_a_row_does_not_attach_a_concept() {
+        // The hierarchy is active inferred IS-A rows only (spec/07), so an
+        // inactivated parent link leaves the child rootless.
+        let mut b = SnapshotStore::builder();
+        b.add_concept(concept(ROOT));
+        b.add_concept(concept(MI));
+        b.add_relationship(Relationship {
+            active: false,
+            ..is_a(1, MI, ROOT)
+        });
+        assert_eq!(b.build().validate().rootless_concepts, vec![MI]);
     }
 }

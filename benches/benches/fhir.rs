@@ -26,18 +26,21 @@ fn bench_fhir(c: &mut Criterion) {
     group.bench_function("lookup", |b| {
         b.iter(|| {
             for id in &sample {
-                black_box(
-                    lookup(
-                        &store,
-                        SYSTEM,
-                        black_box(*id),
-                        None,
-                        Some(constants::US_ENGLISH_LANGUAGE_REFSET),
-                        &["display", "designation", "parent"],
-                        None,
-                    )
-                    .is_ok(),
-                );
+                // `display`/`designation` are output fields, not property
+                // codes: naming them here would return
+                // `UnsupportedProperty` immediately and time an error path
+                // instead of the lookup. They come back in every result.
+                let result = lookup(
+                    &store,
+                    SYSTEM,
+                    black_box(*id),
+                    None,
+                    Some(constants::US_ENGLISH_LANGUAGE_REFSET),
+                    &["inactive", "moduleId", "parent"],
+                    None,
+                )
+                .expect("every sampled id is a concept in the store");
+                black_box(result);
             }
         })
     });

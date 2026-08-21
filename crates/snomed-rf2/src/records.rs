@@ -3,11 +3,12 @@
 //! `spec/07-relationship-file.md`).
 
 use snomed_core::components::{Concept, Description, Relationship, RelationshipConcreteValue};
+use snomed_core::sctid::ComponentType;
 
 use crate::error::FieldError;
 use crate::record::{
-    parse_active, parse_concrete_value, parse_effective_time, parse_nonempty, parse_sctid,
-    parse_u32, Rf2Record,
+    parse_active, parse_component_sctid, parse_concrete_value, parse_effective_time,
+    parse_nonempty, parse_sctid, parse_u32, Rf2Record,
 };
 
 impl Rf2Record for Concept {
@@ -21,7 +22,7 @@ impl Rf2Record for Concept {
 
     fn parse_fields(f: &[&str]) -> Result<Self, FieldError> {
         Ok(Concept {
-            id: parse_sctid(f[0], "id")?,
+            id: parse_component_sctid(f[0], "id", ComponentType::Concept)?,
             effective_time: parse_effective_time(f[1], "effectiveTime")?,
             active: parse_active(f[2], "active")?,
             module_id: parse_sctid(f[3], "moduleId")?,
@@ -45,7 +46,7 @@ impl Rf2Record for Description {
 
     fn parse_fields(f: &[&str]) -> Result<Self, FieldError> {
         Ok(Description {
-            id: parse_sctid(f[0], "id")?,
+            id: parse_component_sctid(f[0], "id", ComponentType::Description)?,
             effective_time: parse_effective_time(f[1], "effectiveTime")?,
             active: parse_active(f[2], "active")?,
             module_id: parse_sctid(f[3], "moduleId")?,
@@ -74,7 +75,7 @@ impl Rf2Record for Relationship {
 
     fn parse_fields(f: &[&str]) -> Result<Self, FieldError> {
         Ok(Relationship {
-            id: parse_sctid(f[0], "id")?,
+            id: parse_component_sctid(f[0], "id", ComponentType::Relationship)?,
             effective_time: parse_effective_time(f[1], "effectiveTime")?,
             active: parse_active(f[2], "active")?,
             module_id: parse_sctid(f[3], "moduleId")?,
@@ -104,7 +105,7 @@ impl Rf2Record for RelationshipConcreteValue {
 
     fn parse_fields(f: &[&str]) -> Result<Self, FieldError> {
         Ok(RelationshipConcreteValue {
-            id: parse_sctid(f[0], "id")?,
+            id: parse_component_sctid(f[0], "id", ComponentType::Relationship)?,
             effective_time: parse_effective_time(f[1], "effectiveTime")?,
             active: parse_active(f[2], "active")?,
             module_id: parse_sctid(f[3], "moduleId")?,

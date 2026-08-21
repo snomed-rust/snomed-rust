@@ -47,10 +47,11 @@ delegate to; a server fronting several systems dispatches by `system`
 ## Never let an unsupported operation silently return an incomplete answer
 
 Same discipline as `snomed-ecl`'s `NotYetImplemented` errors, applied
-here: a `$lookup` `property` this crate can't compute at all (currently
-just concept-model-attribute properties) MUST be rejected with
-`FhirError::UnsupportedProperty`, never silently dropped from the
-response. `normalForm`/`normalFormTerse` without a supplied `nnf_report`
+here: a `$lookup` `property` this crate can't compute at all MUST be
+rejected with `FhirError::UnsupportedProperty`, never silently dropped
+from the response. Note what that no longer covers: a property code that
+parses as an SCTID is a concept model attribute (spec/11), so the
+catch-all arm now tries `SctId::parse` before rejecting. `normalForm`/`normalFormTerse` without a supplied `nnf_report`
 is a related but *distinct* failure — `FhirError::MissingClassification`
 — since the property genuinely is implemented; see "`normalForm`/
 `normalFormTerse`" below before conflating the two. A caller asking for
@@ -74,11 +75,14 @@ make. An empty `properties` slice returns the default set (`inactive`,
 `moduleId`, `sufficientlyDefined`) — `normalForm`/`normalFormTerse` are
 never part of that default, since returning them needs `nnf_report` to
 be `Some`, which the crate can't assume by default. Anything requested
-that isn't one of the five known names is rejected via
-`FhirError::UnsupportedProperty` — the catch-all `match` arm's `other =>
-Err(...)` already covers every genuinely-unsupported property uniformly,
-don't special-case new names there unless they need their own error kind
-(like `normalForm`/`normalFormTerse` do).
+that isn't a known name and isn't a valid SCTID is rejected via
+`FhirError::UnsupportedProperty` — the catch-all `match` arm covers every
+genuinely-unsupported property uniformly, so don't special-case new names
+there unless they need their own error kind (like
+`normalForm`/`normalFormTerse` do). A requested name can also yield
+*several* entries (`parent`, or an attribute with two values) or none at
+all, which is why the loop pushes into `property` rather than mapping
+one-to-one.
 
 ## `normalForm`/`normalFormTerse` (`src/normal_form.rs`)
 
@@ -112,8 +116,9 @@ this crate's tiny test fixtures while being unusable on real content.
 
 **`MissingClassification` vs. `UnsupportedProperty`.** These name two
 different failure modes and MUST stay separate: `UnsupportedProperty`
-means "this crate cannot compute this property, full stop" (e.g.
-concept-model-attribute properties); `MissingClassification` means "this
+means "this crate cannot compute this property, full stop" (a name that
+is neither a fixed property nor an SCTID); `MissingClassification` means
+"this
 property is implemented, but *this call* didn't supply the
 `nnf_report` it needs." Collapsing them would make it impossible for a
 caller to tell "retry with `nnf_report: Some(...)` and it'll work" from
@@ -154,6 +159,15 @@ concept as its focus rather than a leading bare `:`; a form with neither
 parents nor attributes still renders `""` (spec/11). Any new rendering
 branch gets the same question: *is this output parseable as the grammar
 it claims to be?*
+
+### The url is decoded here, not by the caller
+
+`parse_implicit_value_set` percent-decodes the `fhir_vs=` payload itself
+(spec/11). Order matters and is load-bearing: split on `?`, strip
+`fhir_vs=`, *then* decode — so an encoded `%3F` or `%3D` inside an ECL
+expression can never be read as a delimiter. `+` stays a literal `+`
+(form-encoding is not URI syntax, and ECL's `#+5` needs it), and a
+malformed escape is `MalformedUrlEncoding`, not `UnsupportedValueSet`.
 
 ## `$expand` is implemented (`src/expand.rs`) — all five forms
 

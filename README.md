@@ -45,7 +45,7 @@ the published crates keep zero dependencies — dev-dependencies included — an
 
 | Package | Purpose |
 |---|---|
-| [`fuzz/`](fuzz) | 10 libFuzzer targets over every text input the workspace accepts, each asserting its spec's properties, not just the absence of panics ([`spec/rust-fuzz.md`](spec/rust-fuzz.md)) |
+| [`fuzz/`](fuzz) | 11 libFuzzer targets over every text input the workspace accepts, each asserting its spec's properties, not just the absence of panics ([`spec/rust-fuzz.md`](spec/rust-fuzz.md)) |
 | [`benches/`](benches) | criterion benchmarks over a seeded synthetic release: SCTID/Verhoeff, RF2 parsing, store build and queries, ECL, classification, FHIR operations ([`spec/rust-bench.md`](spec/rust-bench.md)) |
 
 Supporting documents:

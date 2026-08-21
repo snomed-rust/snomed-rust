@@ -87,6 +87,7 @@ pub fn read_all<R: BufRead, T: Rf2Record>(reader: R) -> Result<Vec<T>, Rf2Error>
 mod tests {
     use super::*;
     use snomed_core::components::Concept;
+    use snomed_core::sctid::{ComponentType, SctId};
 
     const HEADER: &str = "id\teffectiveTime\tactive\tmoduleId\tdefinitionStatusId";
 
@@ -141,5 +142,24 @@ mod tests {
                 found: 3
             }
         ));
+    }
+
+    #[test]
+    fn rejects_a_row_whose_id_partition_names_another_component_type() {
+        // spec/05 rule 1 via the reader: a description id (partition 01) in
+        // a Concept file is a malformed file, and the error names the column.
+        let description_id = SctId::compose(1001, ComponentType::Description, None).unwrap();
+        let file = format!(
+            "id\teffectiveTime\tactive\tmoduleId\tdefinitionStatusId\n\
+             {description_id}\t20240101\t1\t900000000000207008\t900000000000074008\n"
+        );
+        let mut reader = Rf2Reader::<_, Concept>::new(file.as_bytes()).unwrap();
+        match reader.next() {
+            Some(Err(Rf2Error::Field { line, column, .. })) => {
+                assert_eq!(line, 2);
+                assert_eq!(column, "id");
+            }
+            other => panic!("expected a field error on line 2, got {other:?}"),
+        }
     }
 }

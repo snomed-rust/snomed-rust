@@ -55,7 +55,8 @@ queries.
 ## Validation (`store/validate.rs`)
 
 `SnapshotStore::validate() -> ValidationReport` is the one place cyclic
-hierarchy and dangling references get *surfaced* rather than merely
+hierarchy, dangling references, and concepts detached from the hierarchy
+(spec/07 rule 2's `rootless_concepts`) get *surfaced* rather than merely
 survived. Keep the split clear: invariant 3 above (cycle-safe BFS) means
 traversal never hangs on corrupt data; `validate()` is the separate,
 explicit "tell me what's wrong" pass — don't fold reporting logic into the

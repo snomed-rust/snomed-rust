@@ -81,6 +81,7 @@ impl std::error::Error for LoadError {
 /// The outcome of [`SnapshotStoreBuilder::load_release_dir`]: which files
 /// were loaded, and which were recognized-but-skipped, with a reason.
 #[derive(Debug, Default)]
+#[non_exhaustive]
 pub struct LoadReport {
     pub loaded: Vec<PathBuf>,
     pub skipped: Vec<(PathBuf, String)>,
