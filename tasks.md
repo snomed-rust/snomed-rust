@@ -419,7 +419,7 @@ both when asking "has this come up before".
 ## Next up
 
 - [ ] Nothing currently scoped. State as of 2026-08-20: 9 crates at
-      0.7.0, 295 tests, clippy/fmt clean on both stable and the pinned
+      0.8.0, 314 tests, clippy/fmt clean on both stable and the pinned
       MSRV toolchain, 11 fuzz targets, 6 criterion benchmark files.
       Candidate future work (not yet decided/planned): a `snomed-fhir` HTTP server crate (would need a
       new external dependency — needs explicit user direction against

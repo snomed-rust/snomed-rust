@@ -598,7 +598,7 @@ fix it surfaced, and `HistoryStore`.
 ## Current status
 
 All eight phases above are closed. The workspace is 9 published crates at
-0.7.0 with zero dependencies, 295 tests, a clean
+0.8.0 with zero dependencies, 314 tests, a clean
 `cargo clippy --all-targets`, 11 fuzz targets, and six criterion
 benchmark files. What is *not* done is tracked in two places and nowhere
 else: `tasks.md`'s "Next up" (scoped work and known gaps, each with the
