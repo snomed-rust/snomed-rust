@@ -13,7 +13,7 @@ a few lines of argument parsing plus calls into `snomed-core`, `snomed-rf2`,
 find yourself writing real domain logic here (RF2 parsing rules, hierarchy
 semantics, ECL evaluation, refset handling, OWL parsing, EL completion) —
 stop, that belongs in the library crate it's about, with a spec/*.md
-citation, tests, and its own `AGENTS/*-engineer.md` rules. The CLI should
+citation, tests, and its own `agents/*-engineer.md` rules. The CLI should
 never be the only place a piece of behavior exists.
 
 ## Structure
@@ -64,7 +64,7 @@ a `plan.md` decision explicitly — don't just add the dependency.
 - `validate` (backed by `SnapshotStore::validate()`) checks dangling
   description/relationship references and IS-A cycles, but not refset
   `referencedComponentId` references — documented gap, see
-  `AGENTS/store-engineer.md`.
+  `agents/store-engineer.md`.
 - ECL expressions must be passed as a single (shell-quoted) argument; no
   multi-arg reassembly.
 

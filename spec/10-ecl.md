@@ -577,7 +577,7 @@ Rejected with a named `EclError::NotYetImplemented`:
   `R#...`, `C#...`, `ACTIVE#...`, etc. — matches the keyword table first
   and never reaches the `#` lookahead, so it fails generically instead;
   an accepted tradeoff of lexing filter keywords unconditionally, see
-  `AGENTS/ecl-engineer.md`.)
+  `agents/ecl-engineer.md`.)
 - `!!>` / `!!<` (`top`/`bottom` — part of `constraintOperator`).
 - `^R` (refsetContainingAny) and `^ [A, B]` (member of, with field
   selection).

@@ -121,7 +121,7 @@ not just missing a label.
   useful error: the parser stops asking for tokens the moment it decides a
   construct isn't supported, so it never reaches (and never chokes on) an
   unrecognized character further along in the string. See the module docs
-  in `lexer.rs` and `AGENTS/ecl-engineer.md` before "simplifying" this back
+  in `lexer.rs` and `agents/ecl-engineer.md` before "simplifying" this back
   to eager tokenization.
 - **Grammar questions go to the ABNF, not the prose guide.**
   docs.snomed.org's Specification and Guide doesn't state operator

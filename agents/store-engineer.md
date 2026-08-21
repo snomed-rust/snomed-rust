@@ -80,7 +80,7 @@ file-selection half of `load_release_dir` (recursive walk +
 so callers that want to route recognized files somewhere other than a
 `SnapshotStoreBuilder` — e.g. `snomed-cli export`'s whole-directory mode —
 don't have to reimplement directory walking (which would be exactly the
-kind of domain-logic duplication `AGENTS/cli-engineer.md` warns against).
+kind of domain-logic duplication `agents/cli-engineer.md` warns against).
 If `load_release_dir`'s file-selection rules change, `list_release_files`
 must change with them; they share `collect_txt_files` so most of that is
 automatic.

@@ -7,7 +7,7 @@ Start here rather than guessing which file to open:
 |---|---|---|
 | **Specs** | "What is this format/language/algorithm supposed to do, normatively?" | [`spec/*.md`](spec/README.md) |
 | **Crate READMEs** | "How do I use this crate's API?" (with runnable examples) | `crates/*/README.md` |
-| **Role playbooks** | "I'm about to change this crate — what conventions/gotchas apply?" | [`AGENTS/*.md`](AGENTS.md) |
+| **Role playbooks** | "I'm about to change this crate — what conventions/gotchas apply?" | [`agents/*.md`](agents) |
 | **Tutorial** | "I'm new — walk me through it step by step." | [`docs/tutorial.md`](docs/tutorial.md) |
 | **Troubleshooting** | "I hit an error / something looks wrong — is this expected?" | [`docs/troubleshooting.md`](docs/troubleshooting.md) |
 | **Project policies** | "What Rust version, how is this verified beyond unit tests, what breaks downstream?" | [`spec/rust-msrv-n-minus-3.md`](spec/rust-msrv-n-minus-3.md), [`spec/rust-fuzz.md`](spec/rust-fuzz.md), [`spec/rust-bench.md`](spec/rust-bench.md), [`spec/rust-api-stability.md`](spec/rust-api-stability.md) |
@@ -20,7 +20,7 @@ done and what's next, in more granular detail than `plan.md`).
 `spec/*.md` is the **normative single source of truth**: when code and a
 spec disagree, one of them is a bug — fix the spec first if the official
 SNOMED CT specification actually says something different, otherwise fix
-the code. Crate READMEs and AGENTS/*.md exist to make that source of
+the code. Crate READMEs and agents/*.md exist to make that source of
 truth *usable*; they should never state something spec/*.md doesn't
 already establish.
 
@@ -52,6 +52,7 @@ of an external specification, and bind the same way:
 | [rust-fuzz.md](spec/rust-fuzz.md) | fuzz targets, the no-panic invariant, seed corpora | `fuzz/` (outside the workspace) |
 | [rust-bench.md](spec/rust-bench.md) | criterion benchmarks: what is measured, and how | `benches/` (outside the workspace) |
 | [rust-api-stability.md](spec/rust-api-stability.md) | which public enums are `#[non_exhaustive]` | every crate's public enums |
+| [agents-directory-name-is-lowercase.md](spec/agents-directory-name-is-lowercase.md) | agent instruction directories are named `agents`, lowercase | `agents/` |
 
 `snomed` (the facade) and `snomed-cli` (the terminal binary) both sit on
 top of every crate above rather than implementing a spec of their own —
@@ -124,7 +125,7 @@ which you can actually run: `cargo run --example tutorial -p snomed`.
   it's a bug — many "errors" here are intentional (typed, never silent)
   rejections of unsupported input.
 - About to change behavior? Read that crate's `spec/NN-*.md` first (it's
-  normative), then its `AGENTS/*-engineer.md` (conventions/gotchas
+  normative), then its `agents/*-engineer.md` (conventions/gotchas
   specific to that crate), then its `crates/*/README.md` (so your change
   doesn't silently make the README's examples stop compiling).
 - Changing a parser or an algorithm? There is probably a fuzz target for

@@ -50,7 +50,7 @@ the published crates keep zero dependencies — dev-dependencies included — an
 
 Supporting documents:
 
-- [`index.md`](index.md) — documentation map (spec/crate-README/AGENTS
+- [`index.md`](index.md) — documentation map (spec/crate-README/agents
   layers, a spec-to-crate table, and a worked example spanning five
   crates in one pipeline).
 - [`docs/tutorial.md`](docs/tutorial.md) — a guided, runnable, six-step
@@ -67,7 +67,7 @@ Supporting documents:
   checklist; [`CHANGELOG.md`](CHANGELOG.md) — what changed per published
   version.
 - [`CLAUDE.md`](CLAUDE.md) / [`AGENTS.md`](AGENTS.md) /
-  [`AGENTS/`](AGENTS) — instructions for AI coding agents.
+  [`agents/`](agents) — instructions for AI coding agents.
 
 ## Quick start
 

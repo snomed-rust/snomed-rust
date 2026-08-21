@@ -206,7 +206,7 @@ impl HistoryStore {
 /// `versions` MUST be sorted ascending by `time_of`. Returns the last
 /// element whose time is `<= at` (a linear scan from the end: real
 /// per-component history lists are short, so this isn't worth a binary
-/// search — see `AGENTS/store-engineer.md`'s "measure before optimizing").
+/// search — see `agents/store-engineer.md`'s "measure before optimizing").
 fn point_in_time<T>(
     versions: &[T],
     at: EffectiveTime,

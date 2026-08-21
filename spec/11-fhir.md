@@ -83,7 +83,7 @@ must be requested explicitly, since they need `nnf_report` (below).
 
 `snomed-classify::necessary_normal_form` has no per-concept entry point —
 it runs full DL classification over an entire axiom set every call, with
-no caching (`AGENTS/classify-engineer.md`). Calling it inside `lookup`
+no caching (`agents/classify-engineer.md`). Calling it inside `lookup`
 per request would mean re-classifying the whole release on every
 `$lookup` that asks for `normalForm`, which doesn't scale past small test
 fixtures. So `lookup` takes an optional `nnf_report:

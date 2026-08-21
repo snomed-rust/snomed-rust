@@ -8,7 +8,7 @@ Entries older than 2026-08-06 live in
 keep this file inside the repository's 40 KB per-document budget. Search
 both when asking "has this come up before".
 
-## Done (2026-08-06, comprehensive documentation audit — plan.md, tasks.md, spec/*, AGENTS/*, crate READMEs, code doc comments)
+## Done (2026-08-06, comprehensive documentation audit — plan.md, tasks.md, spec/*, agents/*, crate READMEs, code doc comments)
 
 - [x] Ran five parallel audits (spec/01-09+spec/README vs
       core/rf2/store; spec/10 vs snomed-ecl; spec/11-14 vs
@@ -88,7 +88,7 @@ both when asking "has this come up before".
       verified `57809008 |Myocardial disease|` via `SctId::parse` before
       writing it — and the concept-model-attribute gap restated
       accurately).
-- [x] AGENTS files: fhir-engineer.md (benchmark citation corrected — the
+- [x] agents/ files: fhir-engineer.md (benchmark citation corrected — the
       370k-concept synthetic benchmark measures `classify` at ~1.7s; the
       old text cited "seconds on 20k" which was the *bug* description,
       and "two orders of magnitude larger" which is ~18×);
@@ -237,6 +237,25 @@ both when asking "has this come up before".
 - [x] Breaking change, so the next release is 0.7.0 — `CHANGELOG.md` has
       an `[Unreleased]` entry naming the 11 enums. 295 tests pass;
       clippy/fmt clean.
+
+## Done (2026-08-21, `AGENTS/` renamed to `agents/`)
+
+- [x] `spec/agents-directory-name-is-lowercase.md` (new): directories of
+      AI agent instructions are named `agents`, lowercase, at any depth —
+      the fifth project policy, indexed in `spec/README.md` and
+      `index.md`. Scoped to *directories*: the root `AGENTS.md` keeps its
+      uppercase name, since that spelling is the file-level convention
+      agent tooling looks for, like `README.md` beside `docs/`.
+- [x] Renamed `AGENTS/` to `agents/` and updated all 26 referencing files
+      (docs, specs, crate READMEs, and the four `.rs` doc comments that
+      cite a playbook). The rename needed the two-step
+      `git mv AGENTS agents-tmp && git mv agents-tmp agents` that the new
+      spec documents: macOS's case-insensitive filesystem treats the two
+      names as one path, so the direct form no-ops.
+- [x] The `docs/tasks-archive-*.md` files were included: their headers now
+      say the path rename is the one mechanical edit applied since the
+      move, so "moved verbatim" stays true and the paths they quote still
+      resolve. Link check clean across all 50 markdown files.
 
 ## Next up
 

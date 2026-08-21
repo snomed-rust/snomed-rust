@@ -96,7 +96,7 @@ change.
    `parse_sub_expression_constraint` → …).
 5. Add the evaluation rule to `eval.rs`, implemented in terms of
    `SnapshotStore`'s existing query primitives — never a fresh traversal
-   (mirrors `AGENTS/store-engineer.md`'s invariant 2 about hierarchy
+   (mirrors `agents/store-engineer.md`'s invariant 2 about hierarchy
    staying in one place).
 6. Move the construct out of spec/10's "Not yet implemented" list into the
    normative grammar/operator sections, in the same change.

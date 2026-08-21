@@ -2,7 +2,9 @@
 
 Completed-work entries moved verbatim out of [`tasks.md`](../tasks.md) when
 that file outgrew this repository's 40 KB per-document budget. Nothing was
-edited in the move.
+edited in the move; the only change since is the mechanical
+`AGENTS/` -> `agents/` path rename
+([`spec/agents-directory-name-is-lowercase.md`](../spec/agents-directory-name-is-lowercase.md)).
 
 Index: [`docs/tasks-archive.md`](tasks-archive.md). Current tasks and
 everything still open: [`tasks.md`](../tasks.md). Why any of it was built
@@ -98,7 +100,7 @@ that way: [`plan.md`](../plan.md). What the behavior normatively is:
       — non-plain-concept attribute names, concrete value comparisons —
       stay generic because they're genuinely unimplemented features, not
       just missing a label, so naming them isn't a fixed-token-shape
-      fix); `crates/snomed-ecl/README.md`; `AGENTS/ecl-engineer.md`'s
+      fix); `crates/snomed-ecl/README.md`; `agents/ecl-engineer.md`'s
       "one rule that matters most" (no longer overclaims every NYI
       construct gets a named error).
 - [x] Tests: 6 new (2 lexer — `!!>`/`!!<` tokenization,
@@ -142,7 +144,7 @@ that way: [`plan.md`](../plan.md). What the behavior normatively is:
       Worked through the alternative (redefining "matches" per operator)
       and confirmed it gives the wrong answer whenever a concept has
       *multiple* values for the same attribute — documented as spec/10
-      rule 10 and in `AGENTS/ecl-engineer.md`, not left implicit.
+      rule 10 and in `agents/ecl-engineer.md`, not left implicit.
 - [x] Reverse flag (`R`) combined with a concrete value comparison is
       rejected at parse time with a named `NotYetImplemented` — legal per
       the official grammar (reverseFlag precedes the whole comparison
@@ -172,7 +174,7 @@ that way: [`plan.md`](../plan.md). What the behavior normatively is:
       rules); `crates/snomed-ecl/README.md` (table row, quick example,
       NYI paragraph — every SCTID used was check-digit-verified before
       being written down, none claimed to be a specific real SNOMED
-      attribute unless it actually is); `AGENTS/ecl-engineer.md` (two new
+      attribute unless it actually is); `agents/ecl-engineer.md` (two new
       sections capturing the two load-bearing, non-obvious decisions
       above, so they don't get "simplified away" later).
 - [x] 265 tests passing workspace-wide (up from 257). `cargo fmt --all
@@ -220,7 +222,7 @@ that way: [`plan.md`](../plan.md). What the behavior normatively is:
       "Refinements" prose, "Not yet implemented" list narrowed to just
       `concreteStringSet`/boolean comparisons now); `crates/snomed-ecl/README.md`
       (table row, new quick example — `246090004`/`409774005` both
-      check-digit-verified before being written down); `AGENTS/ecl-engineer.md`
+      check-digit-verified before being written down); `agents/ecl-engineer.md`
       (new section on the attribute-name-is-an-expression design and its
       test-fixture consequence, "one rule that matters most" narrowed to
       match).
@@ -262,7 +264,7 @@ that way: [`plan.md`](../plan.md). What the behavior normatively is:
       productions, "Concrete value comparisons" section, "Not yet
       implemented" narrowed to just boolean comparisons now);
       `crates/snomed-ecl/README.md` (table row, new quick example);
-      `AGENTS/ecl-engineer.md` (the old "genuinely ambiguous" section
+      `agents/ecl-engineer.md` (the old "genuinely ambiguous" section
       rewritten into a design note on how it was actually resolved, since
       the write-up of *why it's hard* was no longer true and would have
       misled the next person into assuming backtracking is required).
@@ -298,7 +300,7 @@ that way: [`plan.md`](../plan.md). What the behavior normatively is:
       and a bare `{{ ... }}` (which the grammar defaults to a description
       filter) are all recognized and rejected by name; only the `LParen`/
       `Caret` branches of `parse_sub_expression_constraint` don't support
-      trailing filters yet — a scoped, documented gap (`AGENTS/ecl-engineer.md`),
+      trailing filters yet — a scoped, documented gap (`agents/ecl-engineer.md`),
       matching the feature's pre-existing detection scope.
 - [x] `,` inside `{{ }}` (`conceptFilter *(ws "," ws conceptFilter)`)
       reuses the existing `TokenKind::And` (the same alternate-AND-spelling
@@ -324,7 +326,7 @@ that way: [`plan.md`](../plan.md). What the behavior normatively is:
       `activeFilter` productions, new "Concept filter constraint"
       section, "Not yet implemented" list updated, new rule 11);
       `crates/snomed-ecl/README.md` (table row, quick example, NYI
-      paragraph); `AGENTS/ecl-engineer.md` (new section covering the
+      paragraph); `agents/ecl-engineer.md` (new section covering the
       unconditional-keyword-lexing tradeoff, the comma-reuses-AND
       decision, and the filters-before-refinement ordering — all
       non-obvious enough to re-derive wrong later).
@@ -365,7 +367,7 @@ that way: [`plan.md`](../plan.md). What the behavior normatively is:
       `definitionStatusToken`/`definitionStatusTokenSet` productions,
       "Concept filter constraint" section extended, "Not yet
       implemented" list updated, new rule 12); `crates/snomed-ecl/README.md`
-      (table row, quick example); `AGENTS/ecl-engineer.md` (updated the
+      (table row, quick example); `agents/ecl-engineer.md` (updated the
       `{{ }}` scoping section to reflect two implemented filter kinds now,
       plus a note on why the token-set form needed no ambiguity handling).
 
@@ -410,7 +412,7 @@ that way: [`plan.md`](../plan.md). What the behavior normatively is:
       implemented" list updated); `crates/snomed-ecl/README.md` (table
       row, quick example — `900000000000207008`/`900000000000012004`
       both already-verified well-known module SCTIDs in
-      `snomed_core::constants`, not newly guessed); `AGENTS/ecl-engineer.md`
+      `snomed_core::constants`, not newly guessed); `agents/ecl-engineer.md`
       (updated the `{{ }}` scoping section for three implemented filter
       kinds now, plus a note on why `eclConceptReferenceSet` isn't
       handled the way the other two sets were).
@@ -455,7 +457,7 @@ that way: [`plan.md`](../plan.md). What the behavior normatively is:
       `timeComparisonOp`/`timeValue`/`timeValueSet` productions,
       "Concept filter constraint" section extended, "Not yet
       implemented" list updated, new rule 13); `crates/snomed-ecl/README.md`
-      (table row, quick example); `AGENTS/ecl-engineer.md` (updated the
+      (table row, quick example); `agents/ecl-engineer.md` (updated the
       `{{ }}` scoping section for four implemented filter kinds now,
       plus notes on why `TimeComparisonOp` stays separate from
       `NumericComparisonOp` and why malformed dates reuse
@@ -496,7 +498,7 @@ that way: [`plan.md`](../plan.md). What the behavior normatively is:
 - [x] Docs: spec/10-ecl.md (new bullets in "Refinements" and "Concept
       filter constraint" stating `focus`/`inner` may be any
       `subExpressionConstraint` form); `crates/snomed-ecl/README.md`
-      (table rows + quick example); `AGENTS/ecl-engineer.md` (rewrote
+      (table rows + quick example); `agents/ecl-engineer.md` (rewrote
       the section that used to document this as a deliberate,
       not-yet-scoped gap — it was actually an undiscovered bug, not a
       scope decision, so the write-up needed to say what was fixed and
@@ -569,7 +571,7 @@ that way: [`plan.md`](../plan.md). What the behavior normatively is:
 - [x] Docs: spec/11-fhir.md (new `$lookup` output-table rows, a new
       "`normalForm`/`normalFormTerse`" subsection explaining the
       precomputed-report design, rule 4 rewritten since its own
-      `normalForm`-as-unsupported-example became stale); `AGENTS/fhir-engineer.md`
+      `normalForm`-as-unsupported-example became stale); `agents/fhir-engineer.md`
       (new section covering the three non-obvious decisions: why
       precomputed not lazy, why a distinct error, why rendering lives in
       `snomed-fhir` not `snomed-classify`); `crates/snomed-fhir/README.md`

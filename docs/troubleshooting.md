@@ -166,5 +166,5 @@ cargo test --workspace                           # everything
   what broke, and how it got fixed — genuinely useful for "has this
   exact problem come up before" (search it before assuming something is
   a new bug).
-- Each `AGENTS/*-engineer.md` file documents the gotchas specific to the
+- Each `agents/*-engineer.md` file documents the gotchas specific to the
   crate it covers, written for exactly this situation.

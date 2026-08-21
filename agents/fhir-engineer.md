@@ -64,7 +64,7 @@ comes from `SnapshotStore::acceptability` (a public accessor added to
 `snomed-store` for this — it exposes the same `(language_refset_id,
 description_id) -> acceptabilityId` index `preferred_term` already used
 internally, rather than duplicating it here; see
-`AGENTS/store-engineer.md`). `definition` reads the active
+`agents/store-engineer.md`). `definition` reads the active
 `TextDefinition` description (spec/06) if present; `designation`
 deliberately excludes `TextDefinition` rows since `definition` already
 covers them. Takes `language_refset: Option<SctId>` instead of trying to
@@ -94,7 +94,7 @@ property is not viable. Computing it fresh inside
 `lookup` per `$lookup` call would silently make this crate's simplest
 operation the slowest one, and violate the same "never do a fresh
 traversal when a shared primitive exists" discipline `$subsumes`/`$expand`
-already follow (this file's `$expand` section, `AGENTS/classify-engineer.md`'s
+already follow (this file's `$expand` section, `agents/classify-engineer.md`'s
 own "never clone a growing collection" section). Instead, `lookup`'s
 signature takes `nnf_report: Option<&NecessaryNormalFormReport>` — the
 caller computes it once (store → `all_owl_expression_members()` →

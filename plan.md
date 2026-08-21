@@ -60,7 +60,7 @@ the spec's normative rules. Day-to-day execution items live in `tasks.md`.
   ~800ms for ~1.85M rows (~2.3M rows/sec), `build()` ~170ms,
   `ancestors`/`descendants`/`subsumes` ~2µs average over 2000 random
   concepts, `is_active`/`fsn`/`preferred_term` sub-microsecond. Numbers
-  and their caveats are kept current in `AGENTS/store-engineer.md`;
+  and their caveats are kept current in `agents/store-engineer.md`;
   per-operation regression tracking now lives in `benches/` (Phase 8).
   - **Decision: no precomputed transitive closure for now.** On-demand BFS
     is already 3+ orders of magnitude faster than would matter for typical
@@ -140,7 +140,7 @@ the spec's normative rules. Day-to-day execution items live in `tasks.md`.
   error. Numeric `Eq`/`NotEq` both count *equal* rows and let `NotEq`
   negate the aggregate cardinality check afterward — mirroring
   `Expression`'s existing `negated` semantics exactly, rather than
-  redefining "matches" per operator (`AGENTS/ecl-engineer.md` says why
+  redefining "matches" per operator (`agents/ecl-engineer.md` says why
   the alternative would be wrong, not merely different). Reverse
   flag combined with a concrete comparison is rejected at parse time
   (grammatically legal, semantically empty — a concrete value has no
@@ -207,7 +207,7 @@ the spec's normative rules. Day-to-day execution items live in `tasks.md`.
   (`C`/`D`/`M` markers, `active`/`true`/`false`) joined the same keyword
   table `AND`/`OR`/`MINUS`/`R` already use, and `,` inside `{{ }}` reuses
   `TokenKind::And` rather than a new separator token
-  (`AGENTS/ecl-engineer.md` for why both are safe here). Filters
+  (`agents/ecl-engineer.md` for why both are safe here). Filters
   are parsed and applied *before* a trailing `:` wraps the result in a
   refinement (matching the grammar's own
   `subExpressionConstraint`/`refinedExpressionConstraint` layering) —
@@ -310,7 +310,7 @@ fix it surfaced, and `HistoryStore`.
   lines. Hand-rolled argument parsing *and*
   hand-rolled JSON serialization, no `clap`/`serde` — a deliberate
   continuation of the zero-dependency stance, not an oversight (see
-  `AGENTS/cli-engineer.md`). `export` also has a whole-release-directory
+  `agents/cli-engineer.md`). `export` also has a whole-release-directory
   mode (`export <release-dir> <output-dir> [--full]`, auto-detected by
   whether the first argument is a directory), built on a new
   `snomed_store::list_release_files` — the file-selection half of
@@ -328,7 +328,7 @@ fix it surfaced, and `HistoryStore`.
   <release-dir> [--full]`. Deliberately out of scope: refset
   `referencedComponentId` dangling checks, too type-ambiguous to validate
   generically without per-refset-type plumbing (documented gap,
-  `AGENTS/store-engineer.md`).
+  `agents/store-engineer.md`).
 - New crate `snomed-fhir` ✅: semantic building blocks for FHIR
   terminology service operations over a `SnapshotStore` — explicitly
   *not* an HTTP server or FHIR resource (de)serializer, and single-system
@@ -388,7 +388,7 @@ fix it surfaced, and `HistoryStore`.
   `nnf_report: Option<&NecessaryNormalFormReport>` parameter: the caller
   computes the report once (store → OWL axioms → `necessary_normal_form`)
   and passes the same one into every call, mirroring `version`'s existing
-  caller-supplied shape (`AGENTS/fhir-engineer.md` has the full
+  caller-supplied shape (`agents/fhir-engineer.md` has the full
   argument). New `FhirError::MissingClassification`, kept distinct from
   `UnsupportedProperty` (the property *is* implemented; this call just
   lacked the input). New `crates/snomed-fhir/src/normal_form.rs` renders
@@ -473,7 +473,7 @@ fix it surfaced, and `HistoryStore`.
   reasoner dependency, consistent with the zero-external-dependency
   stance. `snomed-owl` parses syntax; this crate reasons over the
   result — kept as separate crates deliberately
-  (`AGENTS/classify-engineer.md`).
+  (`agents/classify-engineer.md`).
 - Scope: `SubClassOf` (general concept inclusion falls out for free, same
   as `snomed-owl`'s parser — no special-case needed once the normal
   forms are right), `EquivalentClasses`, `ObjectIntersectionOf`,
@@ -521,7 +521,7 @@ fix it surfaced, and `HistoryStore`.
   member via a new `SnapshotStore::all_owl_expression_members()`
   accessor (the first "give me everything, regardless of refset/
   component" escape hatch alongside the existing per-`(refsetId,
-  componentId)` lookups — see `AGENTS/store-engineer.md`), parses each
+  componentId)` lookups — see `agents/store-engineer.md`), parses each
   with `snomed-owl`, classifies the result, and reports both parse
   failures and skipped constructs (capped at 5 + a "... and N more"
   tail) rather than hard-failing on either. With a concept id, prints

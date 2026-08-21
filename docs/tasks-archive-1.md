@@ -2,7 +2,9 @@
 
 Completed-work entries moved verbatim out of [`tasks.md`](../tasks.md) when
 that file outgrew this repository's 40 KB per-document budget. Nothing was
-edited in the move.
+edited in the move; the only change since is the mechanical
+`AGENTS/` -> `agents/` path rename
+([`spec/agents-directory-name-is-lowercase.md`](../spec/agents-directory-name-is-lowercase.md)).
 
 Index: [`docs/tasks-archive.md`](tasks-archive.md). Current tasks and
 everything still open: [`tasks.md`](../tasks.md). Why any of it was built
@@ -25,7 +27,7 @@ that way: [`plan.md`](../plan.md). What the behavior normatively is:
       FSN/preferred-term, ancestors/descendants/subsumes, cycle-safe BFS.
 - [x] `snomed` facade + prelude + end-to-end integration test.
 - [x] `cargo test` green (39 tests), `cargo clippy --all-targets` clean.
-- [x] Project docs: README, CLAUDE.md, AGENTS.md, AGENTS/*, plan.md, tasks.md.
+- [x] Project docs: README, CLAUDE.md, AGENTS.md, agents/*, plan.md, tasks.md.
 
 ## Done (2026-08-02, continued)
 
@@ -161,7 +163,7 @@ that way: [`plan.md`](../plan.md). What the behavior normatively is:
         categorization of `!!>`/`!!<` (they're `constraintOperator`
         variants, i.e. hierarchy-prefix-like, not a filter construct as
         previously miscategorized).
-      spec/10-ecl.md and `AGENTS/ecl-engineer.md` rewritten with the
+      spec/10-ecl.md and `agents/ecl-engineer.md` rewritten with the
       confirmed grammar and a pointer to the ABNF source (which already
       contains the full refinement grammar — save re-deriving it later).
       87 tests passing, clippy clean.
@@ -218,8 +220,8 @@ This closes Phase 5 (`snomed-ecl` simple constraints + basic refinements,
       subprocess spawning); `src/main.rs` is a ~10-line wrapper that prints
       the result and sets the exit code. Hand-rolled argument parsing —
       no `clap`, matching the workspace's zero-external-dependency stance
-      (documented as deliberate in `AGENTS/cli-engineer.md`, not revisit-
-      on-a-whim). New `AGENTS/cli-engineer.md` playbook: the load-bearing
+      (documented as deliberate in `agents/cli-engineer.md`, not revisit-
+      on-a-whim). New `agents/cli-engineer.md` playbook: the load-bearing
       rule is "stays a thin presentation layer — new domain logic belongs
       in the library crate it's about". 115 tests passing (11 new),
       clippy clean.
@@ -236,7 +238,7 @@ This closes Phase 5 (`snomed-ecl` simple constraints + basic refinements,
       `snomed-rf2`, `snomed-store`, `snomed-ecl`, `snomed-cli`): what it
       implements (with spec citations), full query/API surface, usage
       examples, and (where relevant) the design notes a contributor needs
-      before extending it — same content that's in `AGENTS/*-engineer.md`
+      before extending it — same content that's in `agents/*-engineer.md`
       but framed for a reader who just wants to use the crate, not
       necessarily modify it.
 
@@ -283,7 +285,7 @@ This closes Phase 5 (`snomed-ecl` simple constraints + basic refinements,
       Refset `referencedComponentId` dangling checks are explicitly out of
       scope — too type-ambiguous without per-refset-type plumbing this
       check doesn't have (documented in `crates/snomed-store/README.md`
-      and `AGENTS/store-engineer.md`, not silently skipped).
+      and `agents/store-engineer.md`, not silently skipped).
 - [x] `snomed-cli validate <release-dir> [--full]`: reuses the existing
       `load`/`parse_load_args` helpers, prints "no issues found (<N>
       concepts checked)" or an itemized per-category breakdown. New
@@ -313,7 +315,7 @@ This closes Phase 5 (`snomed-ecl` simple constraints + basic refinements,
       written per exported file, flattened into the output directory.
       Built on `list_release_files` rather than reimplementing directory
       walking in the CLI crate (would have been exactly the kind of
-      domain-logic duplication `AGENTS/cli-engineer.md` warns against).
+      domain-logic duplication `agents/cli-engineer.md` warns against).
       135 tests passing (4 new), clippy clean.
 
 ## Done (2026-08-03, snomed-fhir crate decision + $subsumes)
@@ -342,7 +344,7 @@ This closes Phase 5 (`snomed-ecl` simple constraints + basic refinements,
       already *is* this operation) — `equivalent`/`subsumes`/
       `subsumed-by`/`not-subsumed`, with `SubsumeOutcome::as_fhir_code()`
       giving the exact wire value. `FhirError` rejects an unsupported
-      `system` or an unknown code, never panics. New `AGENTS/
+      `system` or an unknown code, never panics. New `agents/
       fhir-engineer.md` playbook records the fetch gotchas above plus
       concrete next-step notes for `$lookup`/`$expand`. Wired into the
       `snomed` facade's prelude. 141 tests passing (6 new), clippy clean.
@@ -370,7 +372,7 @@ This closes Phase 5 (`snomed-ecl` simple constraints + basic refinements,
       special-cased). spec/11-fhir.md's `$lookup` section marked ✅ and
       tightened to match the implemented `display`-vs-`UnknownCode`
       semantics precisely. `crates/snomed-fhir/README.md` and
-      `AGENTS/fhir-engineer.md` updated; the latter's "implementing next"
+      `agents/fhir-engineer.md` updated; the latter's "implementing next"
       section rewritten into an "as-implemented" reference for future
       extension. 152 tests passing (11 new), clippy clean.
 
@@ -403,7 +405,7 @@ This closes Phase 5 (`snomed-ecl` simple constraints + basic refinements,
       `FhirError::UnsupportedValueSet` rather than silently returning
       nothing. This crate does **no URL percent-decoding** (zero
       dependencies) — callers must pass an already-decoded query string,
-      documented in spec/11, the crate README, and `AGENTS/
+      documented in spec/11, the crate README, and `agents/
       fhir-engineer.md`. All three operations spec/11 originally scoped
       are now implemented. Wired into the `snomed` facade's prelude.
       165 tests passing (13 new), clippy clean.
@@ -425,7 +427,7 @@ This closes Phase 5 (`snomed-ecl` simple constraints + basic refinements,
       handles it via `store.refset_ids()`. All five implicit value set
       forms spec/11 documents, and all three FHIR operations it scopes,
       are now implemented. spec/11-fhir.md, the crate README, and
-      `AGENTS/fhir-engineer.md`/`AGENTS/store-engineer.md`-adjacent docs
+      `agents/fhir-engineer.md`/`agents/store-engineer.md`-adjacent docs
       updated — the fhir-engineer note explicitly flags the lesson (check
       whether an existing index's keys already answer a "need enumeration"
       question before assuming new storage is required). 168 tests passing
@@ -461,7 +463,7 @@ This closes Phase 5 (`snomed-ecl` simple constraints + basic refinements,
       `sub` field is typed as the general `ClassExpression`, so a compound
       sub-expression just works. Deliberately **eager** tokenization
       (unlike `snomed-ecl`'s pull-based lexer) — documented in both the
-      module doc and `AGENTS/owl-engineer.md` why that's correct here and
+      module doc and `agents/owl-engineer.md` why that's correct here and
       not an inconsistency to fix (OWL's fully bracketed grammar doesn't
       have ECL's context-sensitive-error-masking problem).
 - [x] Tests use **real** axiom strings copied verbatim from
@@ -475,7 +477,7 @@ This closes Phase 5 (`snomed-ecl` simple constraints + basic refinements,
 - [x] `spec/12-owl.md` written (grammar, real examples, GCI note, "not
       yet implemented" list: any other OWL 2 axiom/class-expression
       keyword, classification/reasoning, the separate OWL Ontology
-      refset, string literal escape sequences). New `AGENTS/
+      refset, string literal escape sequences). New `agents/
       owl-engineer.md` playbook. Wired into the `snomed` facade's prelude
       (`parse_owl`, `Axiom`, `ClassExpression`, `ObjectPropertyExpression`,
       `OwlLiteral`, `OwlError`). Root `AGENTS.md`/`README.md` updated.

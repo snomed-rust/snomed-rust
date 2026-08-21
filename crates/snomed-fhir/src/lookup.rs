@@ -109,7 +109,7 @@ const DEFAULT_PROPERTIES: [&str; 3] = ["inactive", "moduleId", "sufficientlyDefi
 /// whole release's OWL axioms (`snomed_classify::necessary_normal_form`)
 /// — `lookup` never computes classification itself, since doing so per
 /// call would mean re-running full DL saturation on every request (see
-/// `AGENTS/fhir-engineer.md`). Requesting either property with
+/// `agents/fhir-engineer.md`). Requesting either property with
 /// `nnf_report: None` is rejected with
 /// [`FhirError::MissingClassification`], distinct from
 /// `UnsupportedProperty`: the property *is* supported, this call just

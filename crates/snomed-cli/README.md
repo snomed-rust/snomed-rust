@@ -151,7 +151,7 @@ exporter yet are skipped and reported by name, exactly like `load`'s
 like `load`. This mode is a thin wrapper around `snomed_store::
 list_release_files` plus the same per-file dispatch single-file mode uses —
 the directory-walking and release-view-filtering logic itself lives in
-`snomed-store`, not duplicated here (see `AGENTS/cli-engineer.md`).
+`snomed-store`, not duplicated here (see `agents/cli-engineer.md`).
 
 ### `validate`
 
@@ -272,7 +272,7 @@ error message, set the exit code.
 This crate is deliberately a thin presentation layer. Argument parsing is
 hand-rolled (no `clap`) — a continuation of the workspace's
 zero-external-dependency stance, not an oversight. See
-`AGENTS/cli-engineer.md` in the repo root before adding a subcommand or a
+`agents/cli-engineer.md` in the repo root before adding a subcommand or a
 dependency.
 
 ## Known gaps
