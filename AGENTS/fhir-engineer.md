@@ -143,6 +143,18 @@ stripped, not a separately-derived value. Don't move this rendering
 logic into `snomed-classify`; that crate has no FHIR concept and
 shouldn't grow one for this.
 
+### Rendering must always produce a legal expression
+
+`normal_form.rs::render` emits SNOMED CT Compositional Grammar, whose
+shape is `focusConcept [":" refinement]` — a refinement with nothing in
+front of it is not an expression. A form with attributes but no proximal
+named parent (possible when a concept's only entailed superclass
+information is an existential restriction) therefore renders the root
+concept as its focus rather than a leading bare `:`; a form with neither
+parents nor attributes still renders `""` (spec/11). Any new rendering
+branch gets the same question: *is this output parseable as the grammar
+it claims to be?*
+
 ## `$expand` is implemented (`src/expand.rs`) — all five forms
 
 `parse_implicit_value_set(url)` classifies the `url` into

@@ -1,6 +1,14 @@
 /target
+/fuzz/target/
+/benches/target/
 Cargo.lock
 *.zip
+
+# Fuzzing output: the working corpus and crash reproducers are generated.
+# Hand-written seeds live in fuzz/seeds/ and ARE committed (spec/rust-fuzz.md).
+/fuzz/corpus/
+/fuzz/artifacts/
+/fuzz/coverage/
 
 # SNOMED CT release content is licensed material — never commit RF2 data files.
 /data/

@@ -198,14 +198,14 @@ fn evaluate_attribute_constraint(
                 store
                     .relationships_to(concept)
                     .filter(|r| r.active && r.is_inferred() && attribute_types.contains(&r.type_id))
-                    .filter(|r| group_scope.map_or(true, |g| r.relationship_group == g))
+                    .filter(|r| group_scope.is_none_or(|g| r.relationship_group == g))
                     .filter(|r| value_set.contains(&r.source_id))
                     .count() as u32
             } else {
                 store
                     .relationships_of(concept)
                     .filter(|r| r.active && r.is_inferred() && attribute_types.contains(&r.type_id))
-                    .filter(|r| group_scope.map_or(true, |g| r.relationship_group == g))
+                    .filter(|r| group_scope.is_none_or(|g| r.relationship_group == g))
                     .filter(|r| value_set.contains(&r.destination_id))
                     .count() as u32
             };
@@ -229,7 +229,7 @@ fn evaluate_attribute_constraint(
             let count = store
                 .relationship_concrete_values_of(concept)
                 .filter(|r| r.active && r.is_inferred() && attribute_types.contains(&r.type_id))
-                .filter(|r| group_scope.map_or(true, |g| r.relationship_group == g))
+                .filter(|r| group_scope.is_none_or(|g| r.relationship_group == g))
                 .filter(|r| match &r.value {
                     ConcreteValue::Number(n) => numeric_matches(*operator, n, value),
                     ConcreteValue::String(_) => false,
@@ -252,7 +252,7 @@ fn evaluate_attribute_constraint(
             let count = store
                 .relationship_concrete_values_of(concept)
                 .filter(|r| r.active && r.is_inferred() && attribute_types.contains(&r.type_id))
-                .filter(|r| group_scope.map_or(true, |g| r.relationship_group == g))
+                .filter(|r| group_scope.is_none_or(|g| r.relationship_group == g))
                 .filter(|r| match &r.value {
                     ConcreteValue::String(s) => values.iter().any(|v| v == s),
                     ConcreteValue::Number(_) => false,
@@ -316,7 +316,7 @@ fn evaluate_attribute_group(g: &AttributeGroup, concept: SctId, store: &Snapshot
 }
 
 fn cardinality_matches(c: Cardinality, count: u32) -> bool {
-    count >= c.min && c.max.map_or(true, |max| count <= max)
+    count >= c.min && c.max.is_none_or(|max| count <= max)
 }
 
 fn evaluate_simple(s: &SimpleExpressionConstraint, store: &SnapshotStore) -> HashSet<SctId> {

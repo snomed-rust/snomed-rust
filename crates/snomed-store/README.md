@@ -10,7 +10,11 @@ Two in-memory stores built from parsed RF2 rows:
   point-in-time reconstruction. Built from Full-view files specifically.
 
 Both are order-independent: insert rows in any order (any mix of Full,
-Snapshot, and Delta) and get the same result.
+Snapshot, and Delta) and get the same result — and *deterministic*, which
+is the stronger promise: sequences come back in a fixed order (component
+ids ascending, refset members by UUID), so two runs of the same program
+on the same rows produce byte-identical output rather than merely equal
+sets (spec/09 rules 5-6).
 
 ## What it implements
 

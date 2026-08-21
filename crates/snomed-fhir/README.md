@@ -110,6 +110,13 @@ let result = lookup(
 # Ok(()) }
 ```
 
+If a concept's normal form has attributes but no proximal parent at all
+(possible when its only entailed superclass information is an existential
+restriction), the focus falls back to `138875005 |SNOMED CT Concept|` —
+the grammar is `focusConcept [":" refinement]`, so a refinement with
+nothing in front of it would not be a parseable expression. A concept
+with no normal form at all still renders `""`.
+
 Requesting either property with `nnf_report: None` returns
 `FhirError::MissingClassification` naming the property — a distinct
 error from `UnsupportedProperty`, since the property genuinely *is*

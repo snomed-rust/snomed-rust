@@ -39,3 +39,102 @@ jobs:
 
       - name: Test
         run: cargo test --all
+
+  msrv:
+    name: MSRV (current stable minus 3)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Per spec/rust-msrv-n-minus-3.md: MSRV is the current stable release
+      # minus three. Keep this pin and `rust-version` in Cargo.toml in step.
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@1.95
+
+      - name: Cache cargo registry and build artifacts
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-msrv-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-msrv-
+
+      - name: Check with the MSRV toolchain
+        run: cargo check --all-targets --workspace
+
+  fuzz:
+    name: Fuzz targets (build + smoke run)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # libfuzzer-sys needs nightly; see spec/rust-fuzz.md for why `fuzz/`
+      # is its own package outside the workspace.
+      - name: Install Rust nightly
+        uses: dtolnay/rust-toolchain@nightly
+
+      - name: Cache cargo registry and build artifacts
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            ~/.cargo/bin/cargo-fuzz
+            fuzz/target
+          key: ${{ runner.os }}-cargo-fuzz-${{ hashFiles('fuzz/Cargo.toml') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-fuzz-
+
+      - name: Install cargo-fuzz
+        run: cargo install cargo-fuzz --locked || true
+
+      - name: Build every target
+        working-directory: fuzz
+        run: cargo +nightly fuzz build
+
+      # A smoke test over the committed seeds, not a fuzzing campaign
+      # (spec/rust-fuzz.md): it proves the targets still run and the seeds
+      # are clean. Long campaigns run elsewhere.
+      - name: Run each target briefly
+        working-directory: fuzz
+        run: |
+          for target in $(cargo +nightly fuzz list); do
+            echo "::group::$target"
+            # corpus/ is generated and gitignored (spec/rust-fuzz.md), so it
+            # does not exist in a fresh checkout; libFuzzer errors on a
+            # missing corpus directory rather than creating one.
+            mkdir -p "corpus/$target"
+            seeds="seeds/$target"
+            [ -d "$seeds" ] || seeds=""
+            cargo +nightly fuzz run "$target" "corpus/$target" $seeds -- \
+              -max_total_time=20 -rss_limit_mb=4096 -timeout=10
+            echo "::endgroup::"
+          done
+
+  bench:
+    name: Benchmarks (compile + smoke run)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo registry and build artifacts
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            benches/target
+          key: ${{ runner.os }}-cargo-bench-${{ hashFiles('benches/Cargo.toml') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-bench-
+
+      # Shared runners are too noisy to time anything (spec/rust-bench.md):
+      # `--test` runs each case once, proving the benchmarks still work.
+      - name: Smoke-run the benchmarks
+        run: cargo bench --manifest-path benches/Cargo.toml --benches -- --test

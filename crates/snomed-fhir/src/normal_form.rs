@@ -19,6 +19,7 @@
 use std::collections::BTreeMap;
 
 use snomed_classify::{Attribute, NecessaryNormalForm};
+use snomed_core::constants;
 use snomed_core::sctid::SctId;
 use snomed_store::SnapshotStore;
 
@@ -34,8 +35,18 @@ pub(crate) fn render(
     nnf: &NecessaryNormalForm,
     terse: bool,
 ) -> String {
-    let focus = nnf
-        .is_a
+    // The grammar is `focusConcept [":" refinement]` (spec/11): a
+    // refinement with no focus concept in front of it is not a legal
+    // expression. A concept whose only entailed superclass information is
+    // an existential restriction has no proximal *named* parent, so the
+    // focus falls back to the root concept — the one supertype every
+    // SNOMED CT concept has — rather than rendering a leading bare `:`.
+    let focus_ids: &[SctId] = if nnf.is_a.is_empty() && !nnf.attributes.is_empty() {
+        &[constants::ROOT_CONCEPT]
+    } else {
+        &nnf.is_a
+    };
+    let focus = focus_ids
         .iter()
         .map(|&id| render_concept_ref(store, language_refset, id, terse))
         .collect::<Vec<_>>()
@@ -124,7 +135,6 @@ fn render_concept_ref(
 mod tests {
     use super::*;
     use snomed_core::components::{Concept, Description};
-    use snomed_core::constants;
     use snomed_core::sctid::ComponentType;
     use snomed_core::time::EffectiveTime;
 
@@ -258,6 +268,32 @@ mod tests {
         assert_eq!(
             render(&store, None, &nnf, false),
             no_description.to_string()
+        );
+    }
+
+    #[test]
+    fn attributes_without_a_parent_still_render_a_focus_concept() {
+        // spec/11: the grammar is `focusConcept [":" refinement]`, so a
+        // form whose only entailed content is an attribute (no proximal
+        // named parent) falls back to the root concept rather than
+        // emitting a leading bare `:`.
+        let store = SnapshotStore::builder().build();
+        let nnf = NecessaryNormalForm {
+            is_a: Vec::new(),
+            attributes: vec![Attribute {
+                group: 0,
+                type_id: id(1081),
+                destination_id: id(1082),
+            }],
+        };
+        assert_eq!(
+            render(&store, None, &nnf, true),
+            format!("{}:{}={}", constants::ROOT_CONCEPT, id(1081), id(1082))
+        );
+        // An entirely empty form still renders as the empty expression.
+        assert_eq!(
+            render(&store, None, &NecessaryNormalForm::default(), true),
+            ""
         );
     }
 }

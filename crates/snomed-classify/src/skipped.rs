@@ -16,6 +16,11 @@ pub enum SkippedConstruct {
     /// A `DataHasValue` conjunct on `attribute`, dropped from whatever
     /// intersection or existential filler it appeared in.
     ConcreteValue { attribute: SctId },
+    /// A `SubObjectPropertyOf` whose sub-property is an
+    /// `ObjectPropertyChain` with no operands, naming the super-property
+    /// it would have implied. `snomed-owl`'s parser rejects this shape;
+    /// only a hand-built [`snomed_owl::Axiom`] can produce it.
+    EmptyRoleChain(SctId),
     /// A stated axiom shape `necessary_normal_form` couldn't turn into a
     /// `(type, value)` attribute pair — e.g. a role group or ungrouped
     /// existential whose filler isn't a plain concept (spec/14). `concept`
@@ -36,6 +41,12 @@ impl fmt::Display for SkippedConstruct {
                 write!(
                     f,
                     "DataHasValue on attribute :{attribute} was dropped (concrete values aren't classified)"
+                )
+            }
+            SkippedConstruct::EmptyRoleChain(target) => {
+                write!(
+                    f,
+                    "an empty ObjectPropertyChain under :{target} implies nothing and was dropped"
                 )
             }
             SkippedConstruct::UnmodeledAttributeShape { concept } => {

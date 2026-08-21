@@ -114,6 +114,18 @@ input), `A` is subsumed by `B` iff `B ∈ S(A)`. Fresh names introduced
 during normalization are internal — never exposed in
 [`Classification`]'s public API.
 
+## API robustness (normative for `snomed-classify`)
+
+6. `classify`/`necessary_normal_form` MUST NOT panic on any value of
+   `snomed_owl::Axiom`. `Axiom` is public, so callers can build shapes
+   `snomed-owl`'s parser would reject: in particular an
+   `ObjectPropertyChain` with fewer than two operands. One operand is
+   exactly a role hierarchy axiom (`r ⊑ target`) and is handled as such;
+   zero operands imply nothing and are reported as
+   `SkippedConstruct::EmptyRoleChain`. This mirrors `spec/04-sctid.md`
+   rule 5: a type whose invariants the constructor doesn't enforce must
+   not be able to crash a consumer.
+
 ## Scope
 
 **In scope**: `SubClassOf` (including general concept inclusion — a

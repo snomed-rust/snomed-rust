@@ -1,8 +1,7 @@
 # Documentation index
 
-This repository has three layers of documentation, each answering a
-different question. Start here to find the right one rather than
-guessing:
+This repository's documentation is layered by the question it answers.
+Start here rather than guessing which file to open:
 
 | Layer | Answers | Where |
 |---|---|---|
@@ -11,6 +10,7 @@ guessing:
 | **Role playbooks** | "I'm about to change this crate — what conventions/gotchas apply?" | [`AGENTS/*.md`](AGENTS.md) |
 | **Tutorial** | "I'm new — walk me through it step by step." | [`docs/tutorial.md`](docs/tutorial.md) |
 | **Troubleshooting** | "I hit an error / something looks wrong — is this expected?" | [`docs/troubleshooting.md`](docs/troubleshooting.md) |
+| **Project policies** | "What Rust version, and how is this verified beyond unit tests?" | [`spec/rust-msrv-n-minus-3.md`](spec/rust-msrv-n-minus-3.md), [`spec/rust-fuzz.md`](spec/rust-fuzz.md), [`spec/rust-bench.md`](spec/rust-bench.md) |
 
 Plus two process documents that aren't reference material: [`plan.md`](plan.md)
 (the roadmap, organized by phase, with the *why* behind non-obvious
@@ -43,12 +43,21 @@ already establish.
 | [13-classification.md](spec/13-classification.md) — EL subsumption | `snomed-classify` |
 | [14-necessary-normal-form.md](spec/14-necessary-normal-form.md) — RF2 relationship generation | `snomed-classify` |
 
+Three further `spec/` files are project policy rather than a distillation
+of an external specification, and bind the same way:
+
+| Policy | Covers | Lives in |
+|---|---|---|
+| [rust-msrv-n-minus-3.md](spec/rust-msrv-n-minus-3.md) | MSRV = current stable Rust minus three | `Cargo.toml`, CI `msrv` job |
+| [rust-fuzz.md](spec/rust-fuzz.md) | fuzz targets, the no-panic invariant, seed corpora | `fuzz/` (outside the workspace) |
+| [rust-bench.md](spec/rust-bench.md) | criterion benchmarks: what is measured, and how | `benches/` (outside the workspace) |
+
 `snomed` (the facade) and `snomed-cli` (the terminal binary) both sit on
 top of every crate above rather than implementing a spec of their own —
 see [`crates/snomed/README.md`](crates/snomed/README.md) and
 [`crates/snomed-cli/README.md`](crates/snomed-cli/README.md).
 
-## A worked example spanning four crates
+## A worked example spanning five crates
 
 Every crate README shows that crate in isolation. This is the thing none
 of them show individually: loading a release, querying it with ECL,
@@ -117,6 +126,11 @@ which you can actually run: `cargo run --example tutorial -p snomed`.
   normative), then its `AGENTS/*-engineer.md` (conventions/gotchas
   specific to that crate), then its `crates/*/README.md` (so your change
   doesn't silently make the README's examples stop compiling).
+- Changing a parser or an algorithm? There is probably a fuzz target for
+  it in `fuzz/fuzz_targets/` asserting the spec properties your change
+  has to keep, and a criterion benchmark in `benches/benches/` that says
+  what it used to cost — see [`spec/rust-fuzz.md`](spec/rust-fuzz.md) and
+  [`spec/rust-bench.md`](spec/rust-bench.md).
 - Curious why something is the shape it is, or what's planned next?
   [`plan.md`](plan.md) has the phase-by-phase history and reasoning;
   [`tasks.md`](tasks.md) has the granular done/next checklist.

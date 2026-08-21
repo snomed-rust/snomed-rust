@@ -15,7 +15,7 @@ members = [
 [workspace.package]
 version = "0.5.0"
 edition = "2021"
-rust-version = "1.75"
+rust-version = "1.95"
 license = "Apache-2.0 OR MIT"
 repository = "https://github.com/snomed-rust/snomed-rust"
 keywords = ["snomed", "snomed-ct", "healthcare", "terminology", "rf2"]

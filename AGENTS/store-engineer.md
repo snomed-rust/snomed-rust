@@ -15,6 +15,14 @@ queries.
    Never recurse unboundedly.
 4. `active` filtering happens at query time; the store keeps latest versions
    of inactive components so history questions stay answerable.
+5. **Query results are deterministic across processes** (spec/09 rules
+   5–6). Every derived index is filled by iterating a `HashMap`, whose
+   order differs from run to run, so each one is sorted before it is
+   exposed — component id sequences ascending by id, refset member groups
+   by member UUID — and any tie between two rows contending for one slot
+   is broken by id, never by arrival or hash order. If you add an index
+   or an accessor that yields a *sequence*, sort it; if it yields a set,
+   say so in the doc comment so callers know to sort before rendering.
 
 ## Performance posture
 
@@ -22,6 +30,12 @@ queries.
   ~1.5M descriptions, ~3M relationships) loads and queries comfortably in
   memory. Prefer algorithmic wins (precomputed closure, interning) over
   dependencies. Measure before optimizing; record numbers in `plan.md`.
+- Two complementary benchmark surfaces: `cargo bench --manifest-path
+  benches/Cargo.toml --bench store` (criterion, per-operation timings with
+  regression comparison — `spec/rust-bench.md`), and the whole-release
+  load-from-disk example below. Use criterion for "did this query get
+  slower"; use the example for "how long does a real release take to
+  load".
 - Benchmark with `cargo run --release --example benchmark_synthetic_release
   -p snomed-store` (`SNOMED_BENCH_CONCEPTS` overrides the size). It generates
   a synthetic-but-RF2-shaped release rather than using real content, since
@@ -78,9 +92,12 @@ Every per-refset-type accessor (`owl_expression_members`,
 correct for "look up this one thing", useless for a caller (e.g.
 `snomed-cli classify`) that wants *every* active member of a type across
 the whole store, regardless of which refset or component it belongs to.
-`all_owl_expression_members()` is the first of these: a one-line
-`.values().flatten()` over the same grouped map the keyed accessor already
-uses, not a new index. If another consumer needs the same shape for a
+`all_owl_expression_members()` is the first of these: a flatten over the
+same grouped map the keyed accessor already uses, not a new index. It
+visits the map's keys in sorted order rather than raw `HashMap` order,
+because callers *report* what it yields (the CLI caps its parse-failure
+list at five entries — which five must not change between runs; spec/09
+rule 6). If another consumer needs the same shape for a
 different refset type, add its `all_x_members()` the same way rather than
 having the caller reconstruct it externally (which would mean either
 exposing the internal map or duplicating iteration logic outside this

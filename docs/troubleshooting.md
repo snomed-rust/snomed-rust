@@ -102,6 +102,54 @@ every PRNG used in benchmarks, is hand-rolled. Adding a dependency is a
 `plan.md`-level decision, not something to reach for out of convenience;
 see `plan.md`'s "Risks & watch items" for the current thinking on this.
 
+The two places that genuinely need external crates — `libfuzzer-sys` for
+fuzzing and `criterion` for benchmarking — live in packages *outside* the
+workspace (`fuzz/`, `benches/`), each with its own `Cargo.toml` and an
+empty `[workspace]` table. So `cargo build`, `cargo test`, and
+`cargo clippy` still build nothing but this repository's own code, and
+the published crates carry no dependencies at all, dev-dependencies
+included.
+
+## "What Rust version do I need?"
+
+The current stable release minus three — 1.95 at the time of writing,
+with the exact value in the root `Cargo.toml`'s `rust-version` and a CI
+job that checks it. It moves whenever stable does; the policy is
+[`spec/rust-msrv-n-minus-3.md`](../spec/rust-msrv-n-minus-3.md). If
+`cargo build` reports "package requires rustc 1.x or newer", run
+`rustup update`.
+
+Fuzzing is the one exception: `libfuzzer-sys` needs nightly
+(`cargo +nightly fuzz run ...`), which is exactly why `fuzz/` is not a
+workspace member.
+
+## "The same query printed things in a different order last run"
+
+That should be impossible now, and it's worth reporting if you see it.
+Store query results are sorted before they're exposed (component ids
+ascending, refset members by member UUID), specifically so output is
+byte-identical between runs — [`spec/09`](../spec/09-versioning.md)
+rules 5-6. The exception is genuinely *set*-valued results
+(`ancestors`, `descendants`, `refset_members`, ECL's `evaluate`): those
+are `HashSet`s by type, and callers that render them sort first — as
+`snomed-cli ecl` and `$expand` both do.
+
+## "How do I run the fuzz targets or the benchmarks?"
+
+```sh
+cargo install cargo-fuzz                       # once
+cd fuzz && cargo +nightly fuzz list            # what exists
+cargo +nightly fuzz run ecl_parse corpus/ecl_parse seeds/ecl_parse \
+  -- -max_total_time=60
+
+cargo bench --manifest-path benches/Cargo.toml            # measure
+cargo bench --manifest-path benches/Cargo.toml -- --test  # just check they run
+```
+
+Both are documented in [`spec/rust-fuzz.md`](../spec/rust-fuzz.md) and
+[`spec/rust-bench.md`](../spec/rust-bench.md), including what each target
+asserts and what each benchmark measures.
+
 ## Running a specific test / one crate's tests
 
 ```sh
