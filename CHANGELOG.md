@@ -11,6 +11,22 @@ together, in dependency order (`snomed-core` → `snomed-rf2` → `snomed-owl`
 → `snomed-store` → `snomed-classify` → `snomed-ecl` → `snomed-fhir` →
 `snomed-cli` → `snomed`), not independently.
 
+## [0.7.0] — 2026-08-21
+
+### Changed
+
+- **Breaking:** every public *error* enum is now `#[non_exhaustive]`, plus
+  `snomed-classify`'s `SkippedConstruct` and `snomed-fhir`'s
+  `LookupProperty` — 11 enums in total. Downstream `match`es on them need
+  a wildcard arm; in exchange, no future variant is a breaking change.
+  The ECL and OWL AST enums (`ExpressionConstraint`, `Axiom`,
+  `ClassExpression`, `ConceptFilterKind`, `AttributeComparison`,
+  `TokenKind`, `ConcreteValue`) deliberately stay exhaustive: a new
+  grammar form has meaning a consumer must handle, so it should fail
+  their build rather than be silently skipped. New
+  `spec/rust-api-stability.md` records the rule and the current
+  membership list.
+
 ## [0.6.0] — 2026-08-21
 
 ### Fixed

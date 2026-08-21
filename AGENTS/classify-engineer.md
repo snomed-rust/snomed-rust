@@ -43,7 +43,9 @@ rules, and update spec/13's grammar/scope tables in the same change.
 unmodeled shapes (a role-group or ungrouped filler that isn't a plain
 concept) via `SkippedConstruct::UnmodeledAttributeShape` — extend that
 enum, not a bespoke error type, when `normal_form.rs` needs to report
-something new.
+something new. `SkippedConstruct` is `#[non_exhaustive]`
+(`spec/rust-api-stability.md`), so adding a variant no longer breaks
+downstream matches — which removes the last reason to hesitate.
 
 ## `Axiom` is public, so hand-built shapes must not crash you
 

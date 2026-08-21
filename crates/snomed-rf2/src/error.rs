@@ -21,6 +21,7 @@ impl FieldError {
 
 /// Errors from reading an RF2 file.
 #[derive(Debug)]
+#[non_exhaustive]
 pub enum Rf2Error {
     Io(std::io::Error),
     /// The file is empty (no header row).

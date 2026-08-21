@@ -6,7 +6,11 @@ use std::fmt;
 
 use snomed_core::sctid::SctId;
 
+/// `#[non_exhaustive]` per `spec/rust-api-stability.md`: this enum grows
+/// every time a construct is recognized but not modeled, and a consumer
+/// only ever reports what it holds.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[non_exhaustive]
 pub enum SkippedConstruct {
     /// A `ReflexiveObjectProperty` axiom — reflexivity isn't modeled.
     ReflexiveProperty(SctId),

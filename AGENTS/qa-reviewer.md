@@ -20,7 +20,10 @@ You verify changes before they land.
    have their own, deliberately separate dependency sets.
 8. `tasks.md` updated; `plan.md` updated if direction changed.
 9. Public API additions have doc comments with spec citations; error types
-   implement `Display` + `std::error::Error` by hand (house style).
+   implement `Display` + `std::error::Error` by hand (house style) and
+   carry `#[non_exhaustive]`, while grammar/AST enums deliberately do not
+   (`spec/rust-api-stability.md`, which lists current membership — update
+   it in the same change).
 10. Parser or algorithm change: the matching `fuzz/` target still builds
     (`cd fuzz && cargo +nightly fuzz build`) and runs clean over its
     committed seeds, and any *new* invariant the change establishes is

@@ -61,6 +61,10 @@ pub enum DesignationUse {
 
 /// A `$lookup` `property` this crate can compute, with its value.
 #[derive(Debug, Clone, PartialEq, Eq)]
+/// `#[non_exhaustive]` per `spec/rust-api-stability.md`: spec/11's
+/// "Not yet implemented" property list is expected to shrink into new
+/// variants here, and a caller renders whatever it is handed.
+#[non_exhaustive]
 pub enum LookupProperty {
     Inactive(bool),
     ModuleId(SctId),

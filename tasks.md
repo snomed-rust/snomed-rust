@@ -206,10 +206,42 @@ both when asking "has this come up before".
       `cargo fmt --all -- --check` clean, all 10 fuzz targets re-run
       clean against the strengthened invariants.
 
+## Done (2026-08-21, `#[non_exhaustive]` on the enums that grow)
+
+- [x] `spec/rust-api-stability.md` (new): which public enums carry
+      `#[non_exhaustive]` and which deliberately don't, with the reasoning
+      and a normative membership table. Fourth project policy alongside
+      MSRV/fuzz/bench; indexed in `spec/README.md` and `index.md`,
+      restated as AGENTS.md ground rule 9 and a CLAUDE.md gotcha.
+- [x] Applied to 11 enums: the nine public error enums (`SctIdError`,
+      `EffectiveTimeError`, `ConcreteValueError`, `Rf2Error`,
+      `FileNameError`, `LoadError`, `EclError`, `OwlError`, `FhirError`),
+      plus `SkippedConstruct` (the variant that prompted this — see the
+      2026-08-20 bug hunt) and `LookupProperty` (spec/11's property list
+      is expected to grow).
+- [x] Deliberately **not** applied to the grammar/data-shape enums
+      (`ExpressionConstraint`, `ConceptFilterKind`, `AttributeComparison`,
+      `TokenKind`, `Axiom`, `ClassExpression`, `ConcreteValue`) or to the
+      enums whose variant sets an external specification fixes
+      (`HierarchyOp`, `ReleaseType`, `ComponentType`, `SubsumeOutcome`,
+      …). The first attempt marked the OWL AST too and immediately broke
+      four exhaustive matches in `snomed-classify` — which is the feature,
+      not the problem: adding an OWL construct must fail the build until
+      classification decides to model it or report it. That compile error
+      is CLAUDE.md's "never silently accepted" rule applied to consumers,
+      and the policy now says so.
+- [x] No struct got the attribute: the component records stay
+      literal-constructible, since building one field-by-field is how
+      tests, examples, and store-assembling callers all work, and RF2's
+      column sets are fixed by spec/05-08 anyway.
+- [x] Breaking change, so the next release is 0.7.0 — `CHANGELOG.md` has
+      an `[Unreleased]` entry naming the 11 enums. 295 tests pass;
+      clippy/fmt clean.
+
 ## Next up
 
 - [ ] Nothing currently scoped. State as of 2026-08-20: 9 crates at
-      0.6.0, 295 tests, clippy/fmt clean on both stable and the pinned
+      0.7.0, 295 tests, clippy/fmt clean on both stable and the pinned
       MSRV toolchain, 10 fuzz targets, 6 criterion benchmark files.
       Candidate future work (not yet decided/planned): a `snomed-fhir` HTTP server crate (would need a
       new external dependency — needs explicit user direction against
@@ -268,10 +300,6 @@ both when asking "has this come up before".
         (no URL parser, zero dependencies), but percent-decoding is
         ~20 lines of std code; the decision is worth revisiting rather
         than left as a permanent caller burden.
-      - `snomed-classify`: `SkippedConstruct` has no `#[non_exhaustive]`,
-        so adding a variant (as `EmptyRoleChain` did) breaks downstream
-        exhaustive matches. Worth deciding before 1.0 — adding the
-        attribute is itself a one-time break.
       - Fuzzing coverage gaps: no target exercises `snomed-store`'s
         builder (arbitrary row sets → snapshot invariants) or
         `HistoryStore`'s point-in-time reconstruction; both would need

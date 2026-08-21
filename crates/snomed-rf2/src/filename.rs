@@ -36,6 +36,7 @@ impl FileType {
 
 /// Errors from parsing a release file name.
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[non_exhaustive]
 pub enum FileNameError {
     /// Not a `.txt` file.
     Extension,

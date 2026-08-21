@@ -28,6 +28,7 @@ use crate::store::SnapshotStoreBuilder;
 /// Files the loader doesn't recognize are reported in [`LoadReport`], not
 /// raised as errors (spec/02, rule 2-3).
 #[derive(Debug)]
+#[non_exhaustive]
 pub enum LoadError {
     Io {
         path: PathBuf,
