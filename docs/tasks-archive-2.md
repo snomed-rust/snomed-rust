@@ -2,7 +2,9 @@
 
 Completed-work entries moved verbatim out of [`tasks.md`](../tasks.md) when
 that file outgrew this repository's 40 KB per-document budget. Nothing was
-edited in the move.
+edited in the move; the only change since is the mechanical
+`AGENTS/` -> `agents/` path rename
+([`spec/agents-directory-name-is-lowercase.md`](../spec/agents-directory-name-is-lowercase.md)).
 
 Index: [`docs/tasks-archive.md`](tasks-archive.md). Current tasks and
 everything still open: [`tasks.md`](../tasks.md). Why any of it was built
@@ -75,9 +77,9 @@ that way: [`plan.md`](../plan.md). What the behavior normatively is:
       real "active ingredient" pattern, spec/12); `EquivalentClasses`
       mutual subsumption; and that skipped constructs are reported
       without dropping the rest of the axiom they appeared in.
-- [x] New `AGENTS/classify-engineer.md` playbook (the two-phase-loop and
+- [x] New `agents/classify-engineer.md` playbook (the two-phase-loop and
       random-tree-benchmark lessons above are its load-bearing rules, so
-      they don't get "simplified away" later). `AGENTS/owl-engineer.md`
+      they don't get "simplified away" later). `agents/owl-engineer.md`
       and spec/12-owl.md updated to point to this crate instead of
       describing classification as purely hypothetical. Wired into the
       `snomed` facade. 215 tests passing workspace-wide (10 new), clippy
@@ -97,7 +99,7 @@ This closes Phase 7 (see `plan.md`).
       "give me every active member of this refset type across the whole
       store" accessor, alongside the existing per-`(refsetId,
       componentId)`-keyed lookups. Documented the pattern in
-      `AGENTS/store-engineer.md` for future `all_x_members()` additions
+      `agents/store-engineer.md` for future `all_x_members()` additions
       rather than having callers reconstruct the shape externally.
 - [x] Added `Classification::concepts()` to enumerate exactly the
       concept ids the classified axioms named (used for the no-arg
@@ -118,7 +120,7 @@ This closes Phase 7 (see `plan.md`).
 - [x] Docs: `snomed-cli` README gets a full `### classify` section with
       two real captured output blocks; root README's crate table and
       quick-start terminal block; `Cargo.toml` description field;
-      `AGENTS/cli-engineer.md` gets a "`classify` composes three crates,
+      `agents/cli-engineer.md` gets a "`classify` composes three crates,
       owns none of their logic" section; `plan.md`'s Phase 7 entry
       documents the wiring.
 - [x] 220 tests passing workspace-wide (5 new: 1 store, 1 snomed-classify,
@@ -180,7 +182,7 @@ This closes Phase 7 (see `plan.md`).
 - [x] Docs: spec/10-ecl.md's grammar, Refinements section (three new
       subsections with guide citations), Not yet implemented list, and
       Rules (two new normative rules) all updated in the same change;
-      `crates/snomed-ecl/README.md` and `AGENTS/ecl-engineer.md` updated
+      `crates/snomed-ecl/README.md` and `agents/ecl-engineer.md` updated
       to stop describing these as future work.
 - [x] 236 tests passing workspace-wide (up from 220: +1 store, +15 ecl —
       6 lexer, plus net new/rewritten parser and eval tests for
@@ -279,10 +281,10 @@ This closes Phase 7 (see `plan.md`).
       `cargo clippy --all-targets` both clean.
 - [x] Docs: spec/13-classification.md's "Not yet implemented" entry
       struck through with a pointer to spec/14;
-      `AGENTS/classify-engineer.md` (new sections: the layering rule
+      `agents/classify-engineer.md` (new sections: the layering rule
       between `classify`/`necessary_normal_form`, and why
       `stated_profile.rs` doesn't reuse `normalize.rs`'s output);
-      `AGENTS/owl-engineer.md` updated to stop describing NNF as
+      `agents/owl-engineer.md` updated to stop describing NNF as
       hypothetical; `crates/snomed-classify/README.md` gets a full
       "Necessary normal form" section with a real verified example; root
       `README.md`'s crate table row; `spec/README.md`'s sources list and
@@ -327,7 +329,7 @@ This closes Phase 7 (see `plan.md`).
 - [x] Docs: `snomed-cli` README (`### nnf` section, subcommand table,
       intro sentence), root README (crate table row, terminal
       quick-start line), `Cargo.toml` description,
-      `AGENTS/cli-engineer.md` (renamed section to cover both
+      `agents/cli-engineer.md` (renamed section to cover both
       `classify`/`nnf`, notes the shared helper), `plan.md`'s Phase 7
       entry.
 
@@ -335,10 +337,10 @@ This closes Phase 7 (see `plan.md`).
 
 - [x] User-requested: "update, upgrade, harmonize, audit, fix" across
       three areas — spec/* as single source of truth, CLAUDE.md/
-      AGENTS.md/AGENTS/* (kept under 40k bytes each), and README.md/
+      AGENTS.md/agents/* (kept under 40k bytes each), and README.md/
       index.md/examples/tutorials. Ran four parallel read-only audit
       agents (spec/01-09 vs. RF2-core code; spec/10-14 vs. ECL/FHIR/
-      OWL/classify code; CLAUDE.md/AGENTS.md/AGENTS/* internal
+      OWL/classify code; CLAUDE.md/AGENTS.md/agents/* internal
       consistency; README.md + every crate README + docs completeness),
       then fixed every concrete finding myself directly (audits were
       read-only by design — no agent-authored edits landed unreviewed).
@@ -384,24 +386,24 @@ This closes Phase 7 (see `plan.md`).
       root instructions file. Rewrote to list all 9; also added the CLI
       to the Commands section and a Gotchas line about the
       "unsupported construct → typed error, never silent" pattern
-      repeated across `AGENTS/ecl-engineer.md`/`owl-engineer.md`/
+      repeated across `agents/ecl-engineer.md`/`owl-engineer.md`/
       `classify-engineer.md`.
 - [x] AGENTS.md: added a one-line note explaining why `snomed-core` and
-      `snomed` (the facade) have no dedicated `AGENTS/*.md` playbook
+      `snomed` (the facade) have no dedicated `agents/*.md` playbook
       (folded into `rf2-engineer.md`; no domain logic of its own,
       respectively) — previously true but unstated, which the audit
       flagged as an undocumented gap rather than a wrong claim.
-      `AGENTS.md` itself and every other `AGENTS/*.md` file were
+      `AGENTS.md` itself and every other `agents/*.md` file were
       confirmed already accurate (crate lists, spec citations, and the
       "classify"/"necessary_normal_form" shipped-not-hypothetical
       language all checked out) — most of this category needed no fix.
-- [x] AGENTS/cli-engineer.md: added an explicit "current subcommands"
+- [x] agents/cli-engineer.md: added an explicit "current subcommands"
       list near the top (`sctid`, `load`, `lookup`, `ecl`, `export`,
       `validate`, `classify`, `nnf`) — the file discussed several
       individually but never enumerated all eight in one place.
 - [x] Confirmed (not a fix — a check): CLAUDE.md, AGENTS.md, and every
-      `AGENTS/*.md` file are all comfortably under the 40k-byte
-      constraint (largest is `AGENTS/fhir-engineer.md` at 6892 bytes) —
+      `agents/*.md` file are all comfortably under the 40k-byte
+      constraint (largest is `agents/fhir-engineer.md` at 6892 bytes) —
       no splitting was needed.
 - [x] Root README.md: intro paragraph didn't mention FHIR/OWL/classify
       capabilities despite the Quick Start example right below using
@@ -420,7 +422,7 @@ This closes Phase 7 (see `plan.md`).
       instead of re-enumerating every name (avoids the exact drift that
       caused this staleness in the first place).
 - [x] New `index.md` at the repo root: a documentation map (spec/crate-
-      README/AGENTS-playbook layers and when to read which), a
+      README/agents-playbook layers and when to read which), a
       spec-to-crate cross-reference table, and a genuine worked example
       spanning four crates in one pipeline (`snomed-store` load →
       `snomed-ecl` query → `snomed-owl`/`snomed-classify` necessary
@@ -454,7 +456,7 @@ This closes Phase 7 (see `plan.md`).
       gap, not a documentation error to paper over — annotated both
       historical entries honestly (`tasks.md`'s in place, without
       rewriting the historical claim itself) and added it to
-      `AGENTS/cli-engineer.md`'s "Known gaps" and
+      `agents/cli-engineer.md`'s "Known gaps" and
       `crates/snomed-cli/README.md`'s export section with the exact
       scope needed to close it (one `*_to_json` fn + one dispatch arm
       per missing type, following the existing 10's shape).
@@ -507,7 +509,7 @@ This closes Phase 7 (see `plan.md`).
       file name as demonstrating the now-closed gap.
 - [x] Updated every place the gap had just been documented, now that
       it's closed: `crates/snomed-cli/README.md`'s export section (back
-      to "every RF2 record type... is exportable"), `AGENTS/cli-
+      to "every RF2 record type... is exportable"), `agents/cli-
       engineer.md`'s "Known gaps" (entry removed — the gap it described
       is gone, not just append a closure note over stale text), and
       `plan.md`'s Phase 6 `export` bullet.

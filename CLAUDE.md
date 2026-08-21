@@ -48,7 +48,7 @@ classification with necessary normal form generation.
   published crates keep zero dependencies); seeds in `fuzz/seeds/`.
 - `benches/` — criterion benchmarks (outside the workspace, same reason).
 - `plan.md` (phases/direction), `tasks.md` (execution checklist),
-  `AGENTS/` (role playbooks — one per crate with non-trivial domain
+  `agents/` (role playbooks — one per crate with non-trivial domain
   logic).
 
 ## Rules that matter here
@@ -94,5 +94,5 @@ classification with necessary normal form generation.
 - `effectiveTime` compares as an integer; keep it that way.
 - Unsupported syntax/constructs (ECL, OWL, EL classification) MUST fail
   with a typed error naming what's missing, never be silently accepted
-  or misparsed — see `AGENTS/ecl-engineer.md`, `AGENTS/owl-engineer.md`,
-  `AGENTS/classify-engineer.md` for the crate-specific mechanics.
+  or misparsed — see `agents/ecl-engineer.md`, `agents/owl-engineer.md`,
+  `agents/classify-engineer.md` for the crate-specific mechanics.

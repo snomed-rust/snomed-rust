@@ -38,7 +38,7 @@ keeping the rest of the real shape intact (root `CLAUDE.md` convention).
 **This crate parses; it does not reason.** No classification, no
 inferred-hierarchy computation, no DL reasoner — that's
 [`snomed-classify`](../crates/snomed-classify)'s job now (spec/13,
-`AGENTS/classify-engineer.md`), a separate crate that consumes this
+`agents/classify-engineer.md`), a separate crate that consumes this
 one's `Axiom` output. That now includes "given these axioms, compute the
 *necessary normal form*" too (spec/14) — `snomed-classify::
 necessary_normal_form`, a later stage built on top of classification, not
@@ -71,7 +71,7 @@ and the degenerate-case handling there.
 `snomed-ecl`'s lexer is pull-based specifically because ECL has
 context-sensitive constructs where eager tokenization would replace a
 specific "not yet implemented" parse error with a generic lex failure
-(see `AGENTS/ecl-engineer.md`). OWL functional syntax doesn't have that
+(see `agents/ecl-engineer.md`). OWL functional syntax doesn't have that
 problem — it's fully bracketed and keyword-then-parens, so an
 unrecognized keyword is caught the instant its `Ident` token is read,
 regardless of tokenization strategy. `lexer.rs` tokenizes eagerly

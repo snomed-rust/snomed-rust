@@ -27,7 +27,7 @@ infer a hierarchy, or otherwise reason over axioms; that's
 [`snomed-classify`](../crates/snomed-classify)'s job (spec/13), consuming
 this crate's `Axiom` output as its input. Keeping parsing and reasoning in
 separate crates (rather than growing this one into both) is deliberate —
-see `AGENTS/owl-engineer.md`.
+see `agents/owl-engineer.md`.
 
 ## Grammar (this subset only)
 

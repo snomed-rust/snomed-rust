@@ -1,6 +1,6 @@
 //! Minimal hand-rolled JSON object serialization for the `export`
 //! subcommand — no `serde`, matching the workspace's zero-dependency
-//! stance (see `AGENTS/cli-engineer.md`).
+//! stance (see `agents/cli-engineer.md`).
 //!
 //! Every RF2 identifier field (SCTID, UUID, `effectiveTime`) is rendered
 //! as a JSON **string**, not a number: SCTIDs can reach 18 digits, and

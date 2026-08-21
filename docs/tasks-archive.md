@@ -4,7 +4,10 @@
 entries; everything older lives here, split into files that each stay
 inside the repository's 40 KB per-document budget. Entries were moved
 verbatim — this is a historical record, not a summary, and it is worth
-searching before assuming a problem is new.
+searching before assuming a problem is new. The one edit applied since is
+the mechanical `AGENTS/` -> `agents/` path rename
+([`spec/agents-directory-name-is-lowercase.md`](../spec/agents-directory-name-is-lowercase.md)),
+so the paths quoted here still resolve.
 
 | Archive | Covers | Highlights |
 |---|---|---|

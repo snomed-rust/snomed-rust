@@ -4,7 +4,7 @@
 //! This crate is deliberately a thin presentation layer — every subcommand
 //! is a few lines of formatting around calls into `snomed-core`,
 //! `snomed-rf2`, `snomed-store`, and `snomed-ecl`. New domain logic belongs
-//! in those crates, not here (see `AGENTS/cli-engineer.md`).
+//! in those crates, not here (see `agents/cli-engineer.md`).
 //!
 //! [`run`] is the single entry point, returning the formatted output as a
 //! `String` (rather than printing directly) so subcommands are unit- and
@@ -560,7 +560,7 @@ fn cmd_export_file(args: &[String]) -> Result<String, Box<dyn Error>> {
 /// invocation, mirroring `list_release_files` + per-file dispatch rather
 /// than duplicating directory-walking/release-view-filtering logic here —
 /// that's real domain logic and belongs in `snomed-store` (see
-/// `AGENTS/cli-engineer.md`). One `<file-stem>.ndjson` is written per
+/// `agents/cli-engineer.md`). One `<file-stem>.ndjson` is written per
 /// exported file, flattened into `out_dir` (release file names are unique
 /// within one release view, so no collisions). Unsupported content types
 /// are skipped and reported, same as `load`; malformed data in a

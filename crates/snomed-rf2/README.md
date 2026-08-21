@@ -116,7 +116,7 @@ gaps are currently known.
 
 ## Extending this crate
 
-Adding a new record type is mechanical — see `AGENTS/rf2-engineer.md` in
+Adding a new record type is mechanical — see `agents/rf2-engineer.md` in
 the repo root for the exact steps (confirm the column layout against
 `spec/05..08`, implement `Rf2Record`, use the shared parsing helpers in
 `record.rs` so error messages stay uniform, test the happy path plus the

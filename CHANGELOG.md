@@ -122,7 +122,7 @@ together, in dependency order (`snomed-core` → `snomed-rf2` → `snomed-owl`
   plain focus concept — `(<< X) : attr = value` and
   `^ refset {{ C active = true }}` previously failed to parse.
 - Documentation: a comprehensive audit corrected ~30 stale claims across
-  spec/*, plan.md, tasks.md, AGENTS/*, crate READMEs, and rustdoc
+  spec/*, plan.md, tasks.md, agents/*, crate READMEs, and rustdoc
   comments (doc-only; no behavior changes).
 
 ## [0.4.0] — 2026-08-04

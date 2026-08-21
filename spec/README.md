@@ -66,6 +66,7 @@ binding on this workspace in the same way):
 | [rust-fuzz.md](rust-fuzz.md) | Fuzz targets, the no-panic invariant, seed corpora | `fuzz/` |
 | [rust-bench.md](rust-bench.md) | Criterion benchmarks: what is measured and how | `benches/` |
 | [rust-api-stability.md](rust-api-stability.md) | Which public enums are `#[non_exhaustive]`, and why the ASTs are not | every crate's public enums |
+| [agents-directory-name-is-lowercase.md](agents-directory-name-is-lowercase.md) | Agent instruction directories are named `agents`, lowercase | `agents/` |
 
 ## Conventions used in these specs
 

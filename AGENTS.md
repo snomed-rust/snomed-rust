@@ -52,23 +52,25 @@ the workspace so the published crates keep zero dependencies.
 
 ## Role playbooks
 
-Specialized instructions live in `AGENTS/`:
+Specialized instructions live in `agents/` — lowercase, per
+`spec/agents-directory-name-is-lowercase.md`; the `AGENTS.md` file beside
+it keeps its uppercase name, which is the file-level convention:
 
-- `AGENTS/spec-librarian.md` — maintaining `spec/*.md` against the official
+- `agents/spec-librarian.md` — maintaining `spec/*.md` against the official
   specification.
-- `AGENTS/rf2-engineer.md` — extending parsers and record types.
-- `AGENTS/store-engineer.md` — snapshot/hierarchy/query work.
-- `AGENTS/ecl-engineer.md` — extending the ECL lexer/parser/evaluator.
-- `AGENTS/fhir-engineer.md` — extending `snomed-fhir`'s terminology
+- `agents/rf2-engineer.md` — extending parsers and record types.
+- `agents/store-engineer.md` — snapshot/hierarchy/query work.
+- `agents/ecl-engineer.md` — extending the ECL lexer/parser/evaluator.
+- `agents/fhir-engineer.md` — extending `snomed-fhir`'s terminology
   operations.
-- `AGENTS/owl-engineer.md` — extending the OWL axiom lexer/parser.
-- `AGENTS/classify-engineer.md` — extending the EL subsumption
+- `agents/owl-engineer.md` — extending the OWL axiom lexer/parser.
+- `agents/classify-engineer.md` — extending the EL subsumption
   classifier.
-- `AGENTS/cli-engineer.md` — extending the `snomed-cli` binary.
-- `AGENTS/qa-reviewer.md` — review and verification checklist.
+- `agents/cli-engineer.md` — extending the `snomed-cli` binary.
+- `agents/qa-reviewer.md` — review and verification checklist.
 
 `snomed-core` has no dedicated playbook: extending its component structs
-and constants is covered by `AGENTS/rf2-engineer.md`. `snomed` (the
+and constants is covered by `agents/rf2-engineer.md`. `snomed` (the
 facade) has no domain logic of its own — it only re-exports the other
 crates and their `prelude` — so it needs none either.
 
