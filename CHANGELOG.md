@@ -11,7 +11,7 @@ together, in dependency order (`snomed-core` → `snomed-rf2` → `snomed-owl`
 → `snomed-store` → `snomed-classify` → `snomed-ecl` → `snomed-fhir` →
 `snomed-cli` → `snomed`), not independently.
 
-## [Unreleased]
+## [0.7.0] — 2026-08-21
 
 ### Changed
 
