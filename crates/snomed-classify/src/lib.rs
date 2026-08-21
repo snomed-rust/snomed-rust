@@ -98,6 +98,7 @@ impl Classification {
 /// it recognized but couldn't model (spec/13's "Scope" section) —
 /// reported, never silently dropped without a trace.
 #[derive(Debug, Clone)]
+#[non_exhaustive]
 pub struct ClassificationReport {
     pub classification: Classification,
     pub skipped: Vec<SkippedConstruct>,

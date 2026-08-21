@@ -116,9 +116,35 @@ fn ecl_concept_filter_through_the_facade() {
 
 #[test]
 fn ecl_reports_unsupported_syntax_instead_of_a_wrong_result() {
-    // `{{ D ... }}` (description filters) is recognized but not yet
-    // implemented; `{{ C ... }}` (concept filters) *is* implemented, so
-    // this specifically exercises the still-unsupported sibling.
-    let err = parse_ecl("404684003 {{ D term = \"x\" }}").unwrap_err();
+    // `{{ M ... }}` (member filters) is recognized but not yet
+    // implemented; `{{ C ... }}` and `{{ D ... }}` both are, so this
+    // exercises the one still-unsupported sibling.
+    let err = parse_ecl("404684003 {{ M active = true }}").unwrap_err();
     assert!(matches!(err, EclError::NotYetImplemented { .. }), "{err}");
+}
+
+#[test]
+fn ecl_description_filter_matches_across_crates() {
+    // The default `match:` semantics, through the facade: a word prefix,
+    // matched against an active description of the concept.
+    let mut b = SnapshotStore::builder();
+    for c in [ROOT, FINDING] {
+        b.add_concept(concept(c));
+    }
+    b.add_relationship(is_a(1, FINDING, ROOT));
+    b.add_description(Description {
+        id: SctId::compose(5001, ComponentType::Description, None).unwrap(),
+        effective_time: EffectiveTime::new_unchecked(20190731),
+        active: true,
+        module_id: constants::CORE_MODULE,
+        concept_id: FINDING,
+        language_code: "en".to_string(),
+        type_id: constants::FULLY_SPECIFIED_NAME,
+        term: "Clinical finding (finding)".to_string(),
+        case_significance_id: constants::CASE_INSENSITIVE,
+    });
+    let store = b.build();
+
+    let expr = parse_ecl(&format!("<< {ROOT} {{{{ D term = \"clin\" }}}}")).unwrap();
+    assert_eq!(evaluate_ecl(&expr, &store), [FINDING].into_iter().collect());
 }

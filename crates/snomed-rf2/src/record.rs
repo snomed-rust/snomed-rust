@@ -2,7 +2,7 @@
 //! field-parsing helpers shared by component and refset records.
 
 use snomed_core::concrete_value::ConcreteValue;
-use snomed_core::sctid::SctId;
+use snomed_core::sctid::{ComponentType, SctId};
 use snomed_core::time::EffectiveTime;
 
 use crate::error::FieldError;
@@ -21,6 +21,43 @@ pub trait Rf2Record: Sized {
 
 pub fn parse_sctid(value: &str, column: &'static str) -> Result<SctId, FieldError> {
     SctId::parse(value).map_err(|e| FieldError::new(column, e.to_string()))
+}
+
+/// Parses a component `id` and checks that its partition names the
+/// component type the file holds — spec/05, spec/06, and spec/07 rule 1
+/// ("`id` MUST carry a concept/description/relationship partition
+/// identifier"). A row whose id belongs to a different component type is a
+/// malformed file, not a merely unusual one: everything downstream keys on
+/// that id, so accepting it would file a description under a concept id.
+pub fn parse_component_sctid(
+    value: &str,
+    column: &'static str,
+    expected: ComponentType,
+) -> Result<SctId, FieldError> {
+    let id = parse_sctid(value, column)?;
+    match id.component_type() {
+        Some(found) if found == expected => Ok(id),
+        // `parse_sctid` already rejected every partition outside the six
+        // valid ones, so `component_type()` is always `Some` here; the arm
+        // exists because the type system can't say so.
+        found => Err(FieldError::new(
+            column,
+            format!(
+                "partition {:02} identifies a {} id, but this is a {} file",
+                id.partition(),
+                found.map_or("unknown component", |c| match c {
+                    ComponentType::Concept => "concept",
+                    ComponentType::Description => "description",
+                    ComponentType::Relationship => "relationship",
+                }),
+                match expected {
+                    ComponentType::Concept => "concept",
+                    ComponentType::Description => "description",
+                    ComponentType::Relationship => "relationship",
+                }
+            ),
+        )),
+    }
 }
 
 pub fn parse_effective_time(
@@ -96,6 +133,31 @@ mod tests {
         );
         assert!(parse_uuid("800aa109431f4407a4316fe65e9db160", "id").is_err());
         assert!(parse_uuid("800aa109-431f-4407-a431-6fe65e9db16z", "id").is_err());
+    }
+
+    #[test]
+    fn component_id_partition_must_match_its_file() {
+        // spec/05, spec/06, spec/07 rule 1: a component file's `id` column
+        // carries that component type's partition, and only that one.
+        let concept = SctId::compose(1001, ComponentType::Concept, None).unwrap();
+        let description = SctId::compose(1001, ComponentType::Description, None).unwrap();
+
+        assert_eq!(
+            parse_component_sctid(&concept.to_string(), "id", ComponentType::Concept),
+            Ok(concept)
+        );
+        let err = parse_component_sctid(&description.to_string(), "id", ComponentType::Concept)
+            .expect_err("a description id in a concept file must be rejected");
+        assert_eq!(err.column, "id");
+        assert!(
+            err.message.contains("description id") && err.message.contains("concept file"),
+            "the message must name both what was found and what was expected, got: {}",
+            err.message
+        );
+
+        // A malformed id still fails as a malformed id, not as a partition
+        // mismatch — the SCTID rules run first.
+        assert!(parse_component_sctid("nope", "id", ComponentType::Concept).is_err());
     }
 
     #[test]

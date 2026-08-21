@@ -45,9 +45,9 @@ description id as preferred (`900000000000548007`) or acceptable
 
 ## Rules
 
-1. `id` MUST carry a description partition identifier (01 or 11). *(A
-   requirement on the released data; not yet enforced per-file by this
-   workspace's parser — see spec/05 rule 1's identical note.)*
+1. `id` MUST carry a description partition identifier (01 or 11),
+   enforced per file exactly as in [05-concept-file.md](05-concept-file.md)
+   rule 1.
 2. An active description SHOULD reference an existing concept; a store MAY
    accept forward references while loading and verify afterwards —
    `SnapshotStore::validate()` is that verification step, reporting any

@@ -11,6 +11,91 @@ together, in dependency order (`snomed-core` → `snomed-rf2` → `snomed-owl`
 → `snomed-store` → `snomed-classify` → `snomed-ecl` → `snomed-fhir` →
 `snomed-cli` → `snomed`), not independently.
 
+## [Unreleased]
+
+### Fixed
+
+- `snomed-rf2`: the component-file parsers now enforce spec/05, spec/06,
+  and spec/07 rule 1 — a row whose `id` partition names a different
+  component type than the file holds is rejected with a field error on
+  the `id` column, instead of being loaded under a wrong-typed id. Real
+  release files always conform; a hand-built or mis-generated one no
+  longer slips through.
+- `snomed-ecl`: candidate role groups for a `{ }` attribute group now
+  come from `RelationshipConcreteValue` rows as well as `Relationship`
+  rows, so `focus : { attr > #500 }` matches a group whose only rows are
+  concrete values (a drug strength with no co-grouped substance row).
+  Previously such a group was invisible to `{ }` — a documented spec/10
+  limitation, now closed.
+
+### Added
+
+- `snomed-ecl`: `{{ D ... }}` description filter constraints, with the
+  `term`, `type` (`fsn`/`syn`/`def`), and `active` filter kinds, plus the
+  grammar's optional `D` marker — so `{{ term = "heart" }}` and
+  `{{ D term = "heart" }}` both parse. All filters in one block must be
+  satisfied by the *same* description; only active descriptions match
+  unless the block writes an `active` filter; and `term` uses the
+  grammar's default `match:` word-prefix semantics rather than substring
+  search (`"att heart"` matches "Heart attack", `"eart"` does not). New
+  `ExpressionConstraint::DescriptionFilter` and `DescriptionFilterKind`.
+  `moduleId`/`effectiveTime` inside a description filter are rejected by
+  name; `language`, dialects, the `typeId` form of `type`, and the typed
+  search-term prefixes remain unimplemented.
+- `snomed-fhir`: `$lookup` implements SNOMED concept model attribute
+  properties — any SCTID works as a property code, returning one entry
+  per matching active inferred relationship
+  (`LookupProperty::ConceptModelAttribute`) or literal
+  (`ConceptModelConcreteValue`). Values are deduplicated and ordered, a
+  concept lacking the attribute yields no entries rather than an error,
+  and the source is the store's own relationships rather than
+  `nnf_report`, so no classification is required. FHIR's standard
+  `parent`/`child` properties are implemented alongside them. That closes
+  spec/11's last `$lookup` gap.
+- `snomed-store`: `HistoryStore` now keeps `RelationshipConcreteValues`
+  history — `relationship_concrete_value_history` and
+  `relationship_concrete_value_at`, plus builder methods and
+  `load_release_dir` dispatch. That was the last component type it
+  skipped-and-reported (spec/09 rule 5); concrete-value rows keep a
+  history of their own rather than being folded in with ordinary
+  relationships, since they share the relationship partition but are a
+  separate component type.
+- `snomed-fhir`: `parse_implicit_value_set` percent-decodes the
+  `fhir_vs=` payload, so FHIR's own published spelling of the ECL form
+  (`?fhir_vs=ecl/%3C%3C%2027624003`) works without the caller decoding
+  first. `+` stays a literal `+` — that spelling of a space is
+  form-encoding, not URI syntax, and ECL's `#+5` needs the character. A
+  malformed escape is the new `FhirError::MalformedUrlEncoding`, distinct
+  from `UnsupportedValueSet`: the URL is broken, not unsupported. No new
+  dependency; the decoder is ~20 lines of `std`.
+- `fuzz/`: an eleventh target, `fhir_value_set_url`, over that URL parser
+  and its decoder.
+- `snomed-store`: `ValidationReport::rootless_concepts` — active concepts
+  with no active inferred IS-A row of their own, excluding the root
+  (spec/07 rule 2). Such a concept is unreachable from the root, so no
+  hierarchy query or ECL expression can ever find it. `snomed-cli
+  validate` reports them as a new section.
+
+### Changed
+
+- **Breaking:** `ExpressionConstraint` gained a `DescriptionFilter`
+  variant. The ECL AST is deliberately *not* `#[non_exhaustive]`
+  (`spec/rust-api-stability.md`): a new grammar form is something a
+  consumer's interpreter must handle, so it should fail their build
+  rather than be silently skipped.
+- **Breaking:** `LookupProperty::code()` returns `String` instead of
+  `&'static str`. Concept model attribute codes are SCTIDs, decided by
+  the release rather than by this crate, so a borrowed static string can
+  no longer name every property.
+- **Breaking:** `ValidationReport`, `LoadReport`, and
+  `ClassificationReport` are now `#[non_exhaustive]`. Each grows a field
+  whenever a check or category is added — as `ValidationReport` just did
+  — and this workspace is their only producer, so a consumer reads them
+  rather than building them. Result types a caller may legitimately
+  construct (`NecessaryNormalFormReport`, `LookupResult`, `Expansion`,
+  `ExpansionContains`, `Designation`) and the RF2 component records stay
+  literal-constructible; `spec/rust-api-stability.md` records the line.
+
 ## [0.7.0] — 2026-08-21
 
 ### Changed

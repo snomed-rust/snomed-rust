@@ -257,23 +257,180 @@ both when asking "has this come up before".
       move, so "moved verbatim" stays true and the paths they quote still
       resolve. Link check clean across all 50 markdown files.
 
+## Done (2026-08-21, four documented spec-compliance gaps closed)
+
+- [x] **spec/05, spec/06, spec/07 rule 1 enforced** (`snomed-rf2`): a new
+      `parse_component_sctid` checks that a component row's `id` partition
+      names the component type its file holds, so a description id in a
+      Concept file is a field error on `id` naming both what was found and
+      what was expected — not a row loaded under a wrong-typed id. Applies
+      to `RelationshipConcreteValues` too (its ids are relationship ids).
+      Two tests (helper-level and through the reader, which is where files
+      actually enter); the three spec rules dropped their "not yet
+      enforced" notes. Every existing fixture already conformed, which is
+      the check agreeing with real-world shape.
+- [x] **spec/07 rule 2 enforced** (`snomed-store`):
+      `ValidationReport::rootless_concepts` lists active concepts with no
+      active inferred IS-A row, excluding the root. The check is exactly
+      "active, not the root, `parents()` empty" — `parents` already *is*
+      the edge set the rule defines, so no second relationship scan.
+      Three tests (a rootless concept; the root and inactive concepts
+      correctly exempt; an inactivated IS-A row not attaching a child),
+      plus a new `snomed-cli validate` section.
+- [x] **spec/10 rule 6 regression test** (`snomed-ecl`): every prior
+      fixture was inferred-only, so a regressed `is_inferred()` filter
+      would have passed the suite. The new test gives a concept *stated*
+      rows only — one relationship, one concrete value — and asserts
+      neither satisfies a refinement, plus the `!=` mirror image.
+- [x] **spec/10 attribute-group candidacy widened** (`snomed-ecl`):
+      candidate role groups now come from `RelationshipConcreteValue`
+      rows as well as `Relationship` rows, so `{ attr > #500 }` matches a
+      group holding only a drug strength. spec/10's "Known limitation"
+      note becomes a statement of behavior; new test.
+- [x] `#[non_exhaustive]` on `ValidationReport`, `LoadReport`, and
+      `ClassificationReport` — prompted by `rootless_concepts` being a
+      breaking addition to a struct nobody outside this workspace
+      constructs. `spec/rust-api-stability.md` grew rules 4 and 5 and a
+      struct table, drawing the line at result types a consumer may
+      legitimately build: `snomed-fhir`'s own tests construct a
+      `NecessaryNormalFormReport` by hand, which is the evidence that an
+      embedder would too.
+- [x] 302 tests pass (up from 295); clippy and fmt clean. Breaking, so the
+      next release is 0.8.0 — `CHANGELOG.md` has the `[Unreleased]` entry.
+
+## Done (2026-08-21, concrete-value history and FHIR url decoding)
+
+- [x] **spec/09 rule 5, component half closed** (`snomed-store`):
+      `HistoryStore` keeps `RelationshipConcreteValues` history —
+      `relationship_concrete_value_history`/`_at`, builder methods, and
+      `load_release_dir` dispatch — so all four component types are
+      covered and nothing is skip-and-reported any more. Concrete-value
+      rows keep a *separate* history from ordinary relationships: the two
+      share the relationship partition but are different component types
+      with different rows, so one method never answers for the other (the
+      test asserts exactly that). Refset member history remains the one
+      gap, and it is a parallel structure rather than a fifth entry here,
+      being keyed by member UUID instead of SCTID.
+- [x] **`$expand` urls are percent-decoded** (`snomed-fhir`): spec/11 used
+      to declare decoding the caller's job because "this crate has no
+      URL parser". That reasoning didn't survive contact with FHIR's own
+      published example — `?fhir_vs=ecl/%3C%3C%2027624003` — since a crate
+      that takes a `url` and can't read the spec's own spelling of one
+      isn't really taking urls. The decoder is ~20 lines of `std`, so the
+      zero-dependency rule was never the obstacle. Decoding happens
+      *after* the `?` and `fhir_vs=` splits, so an encoded `%3F`/`%3D` in
+      the payload can't be mistaken for a delimiter.
+- [x] Two decisions inside that one, both stated in spec/11 because both
+      could reasonably go the other way: `+` decodes to `+`, not space
+      (form-encoding isn't URI syntax, and ECL's `#+5` needs the
+      character), and a malformed escape is the new
+      `FhirError::MalformedUrlEncoding` rather than
+      `UnsupportedValueSet` — broken, not unsupported, which a hosting
+      server reports differently. Adding the variant cost nothing:
+      `FhirError` became `#[non_exhaustive]` two changes ago.
+- [x] Eleventh fuzz target, `fhir_value_set_url`, over the url parser and
+      its decoder — 12M executions clean. spec/rust-fuzz.md's table grew a
+      row; the count in historical entries stays at what those changes
+      shipped.
+- [x] 306 tests pass (up from 302); clippy and fmt clean.
+
+## Done (2026-08-21, `$lookup` concept model attributes and `parent`/`child`)
+
+- [x] **spec/11's last `$lookup` gap closed** (`snomed-fhir`): any SCTID
+      now works as a property code, naming a concept model attribute —
+      `$lookup?property=363698007` returns that concept's finding sites as
+      `LookupProperty::ConceptModelAttribute` entries, or
+      `ConceptModelConcreteValue` for a `RelationshipConcreteValues` row.
+      FHIR's standard `parent`/`child` properties landed alongside.
+- [x] Source is the store's **active inferred relationships**, not
+      `nnf_report`. spec/11 had assumed the latter ("the data already
+      flows in via `nnf_report`"), but the release states these
+      relationships directly, so requiring a whole-release classification
+      to read them back would be a dependency bought for nothing — and it
+      would make the property unavailable to any caller who hasn't
+      classified. spec/11 now says which source and why.
+- [x] Three behaviors written into spec/11 because each could have gone
+      the other way: values are deduplicated and ordered (the same
+      attribute in two role groups says nothing new at `$lookup`'s level
+      of detail, where grouping isn't represented — `normalForm` is where
+      grouping survives); a concept lacking the attribute yields no
+      entries rather than an error (the `display: None` convention); and
+      IS-A needs no special case, since asking for `116680003` returns
+      supertypes as ordinary attribute entries while `parent`/`child`
+      return the same targets under FHIR's standard codes.
+- [x] `LookupProperty::code()` returns `String` rather than
+      `&'static str` — breaking, and unavoidable: attribute codes come
+      from the release, not from this crate's fixed set.
+- [x] **Fixed a defect in `benches/benches/fhir.rs`** (mine, from the
+      benchmark change): the `lookup` benchmark requested `"display"` and
+      `"designation"` as *properties*. They are output fields, so every
+      call returned `UnsupportedProperty` immediately and the benchmark
+      was timing an error path, not a lookup — and it never noticed
+      because the result was `black_box`ed rather than asserted. It now
+      requests real properties and `expect`s success: 65µs per 200
+      lookups.
+- [x] 308 tests pass (up from 306); clippy and fmt clean.
+
+## Done (2026-08-21, ECL `{{ D ... }}` description filters)
+
+- [x] **`{{ D ... }}` implemented** (`snomed-ecl`), the largest remaining
+      ECL gap: `term`, `type` (`fsn`/`syn`/`def`), and `active` filter
+      kinds, with sets for each. The grammar's `D` marker is optional, so
+      an unmarked `{{ term = "heart" }}` now parses as the description
+      filter it always was — replacing the `NotYetImplemented` error that
+      previously covered exactly that spelling. New
+      `ExpressionConstraint::DescriptionFilter` and
+      `DescriptionFilterKind`; new lexer keywords `term`/`type` and the
+      `fsn`/`syn`/`def` tokens.
+- [x] Three semantics decided and written into spec/10, each a judgment
+      call the official sources leave open:
+      - **All filters in one block apply to the same description.**
+        `{{ D type = fsn, term = "heart" }}` means "has an FSN whose term
+        matches heart". Evaluating the filters independently would make a
+        block strictly weaker than its parts and silently over-match —
+        the failure mode this project cares most about.
+      - **Active descriptions only, unless the block says otherwise.**
+        Consistent with spec/10 rule 6 and spec/07: retired text
+        shouldn't surface by default. Writing any `active` filter — `*`
+        included — replaces the default, which is the deliberate escape
+        hatch.
+      - **`match:` means word-prefix, not substring.** `"att heart"`
+        matches "Heart attack" (order-independent, per-word prefixes);
+        `"eart"` does not. That distinction is why the grammar has
+        separate `wild:`/`regex:` types at all.
+- [x] Unimplemented kinds keep the spec/10 rule 9 discipline: `moduleId`
+      and `effectiveTime` inside a `{{ D }}` block are rejected *by name*
+      (their keywords are tokenized, since the concept filter uses them),
+      while `language`, dialects, the `typeId` form of `type`, and the
+      typed search-term prefixes aren't tokenized and stay in the generic
+      bucket — spec/10, the crate README, and
+      `agents/ecl-engineer.md` all say which is which.
+- [x] Factored `parse_active_value` and `parse_quoted_string_set` out of
+      the concept-filter/concrete-value paths, so the two filter kinds
+      share one spelling of `active` and one of a quoted-string set
+      instead of a second copy each.
+- [x] Two existing tests asserted the *old* rejection behavior and were
+      rewritten rather than deleted: the facade's
+      "unsupported syntax isn't silently wrong" test now exercises
+      `{{ M ... }}`, the one filter kind still unimplemented.
+- [x] 314 tests pass (up from 308); clippy and fmt clean; ECL fuzz
+      targets rebuilt and re-run clean, with five `{{ D }}` seeds added.
+
 ## Next up
 
 - [ ] Nothing currently scoped. State as of 2026-08-20: 9 crates at
       0.7.0, 295 tests, clippy/fmt clean on both stable and the pinned
-      MSRV toolchain, 10 fuzz targets, 6 criterion benchmark files.
+      MSRV toolchain, 11 fuzz targets, 6 criterion benchmark files.
       Candidate future work (not yet decided/planned): a `snomed-fhir` HTTP server crate (would need a
       new external dependency — needs explicit user direction against
       the zero-dependency policy, not an autonomous pick); `snomed-fhir`'s
-      `$lookup` concept-model-attribute properties (the underlying data
-      already flows in via `nnf_report` — the gap is surfacing attribute
-      types as dynamic FHIR property codes) and `$expand`'s `context`-
-      based/inline-`valueSet` expansion; `snomed-ecl`'s remaining smaller
+      `$expand` `context`-based/inline-`valueSet` expansion; `snomed-ecl`'s remaining smaller
       documented gaps (boolean concrete comparisons, the
       `definitionStatusIdFilter` concept filter kind, `moduleId`'s
-      `eclConceptReferenceSet` alternative, `{{ D ... }}`/`{{ M ... }}`
-      description/member filters and the non-`active` marker-less
-      `{{ ... }}` named error, the history supplement);
+      `eclConceptReferenceSet` alternative, `{{ M ... }}` member filters,
+      the remaining description filter kinds — `language`, dialects, the
+      `typeId` form of `type`, and the typed search-term prefixes — and
+      the history supplement);
       property-chain/transitive-property redundancy elimination for
       `necessary_normal_form` (spec/14's documented, conservative scope
       cut); re-running the Phase 4 `snomed-store` benchmark (and the
@@ -281,11 +438,6 @@ both when asking "has this come up before".
       Edition release if one becomes available.
 - [ ] Small gaps surfaced by the 2026-08-06 audit (each independently
       pickable):
-      - `snomed-ecl`: `{ }` attribute-group candidacy only considers
-        `Relationship` rows — a role group whose only rows are
-        `RelationshipConcreteValue`s can never satisfy `{ attr > #500 }`
-        (spec/10 "Known limitation" note; fix = union concrete-value
-        rows' nonzero groups into the candidate set, plus a test).
       - `snomed-ecl`: an attribute group whose attributes carry the
         reverse flag (`{ R attr = value }`) scopes those relationships
         by the *focus* concept's `relationshipGroup`, but a reverse
@@ -295,30 +447,8 @@ both when asking "has this come up before".
         `R ...` matches. Neither the official guide nor spec/10 states
         what `R` inside `{ }` should mean, so this is recorded rather
         than silently redefined (spec/10 "Known limitation" note).
-      - `snomed-ecl`: spec/10 rule 6 (inferred-only matching) has no
-        regression test — no fixture ever includes a *stated*
-        relationship, so a regressed `is_inferred()` filter would pass
-        the suite undetected.
-      - `snomed-rf2`: per-file partition enforcement (spec/05/06/07 rule
-        1) — a Concept row whose `id` carries a description partition
-        parses successfully today; `SctId::component_type()` exists but
-        no parser consults it.
-      - `snomed-store`: orphan/rootless-concept check in `validate()`
-        (spec/07 rule 2 — every active concept except the root should
-        have an active IS-A row; rules 3/5's siblings are checked, this
-        one isn't).
-      - `snomed-store`: `RelationshipConcreteValues` history in
-        `HistoryStore` (skip-and-reported today; spec/09 rule 5 names it
-        a gap alongside refset-member history).
 - [ ] Gaps surfaced by the 2026-08-20 bug hunts (each independently
       pickable):
-      - `snomed-fhir`: `parse_implicit_value_set` does no
-        percent-decoding, so a real client's
-        `?fhir_vs=ecl/%3C%3C%20404684003` fails to parse as ECL — the
-        caller must decode first. spec/11 states this deliberately
-        (no URL parser, zero dependencies), but percent-decoding is
-        ~20 lines of std code; the decision is worth revisiting rather
-        than left as a permanent caller burden.
       - Fuzzing coverage gaps: no target exercises `snomed-store`'s
         builder (arbitrary row sets → snapshot invariants) or
         `HistoryStore`'s point-in-time reconstruction; both would need

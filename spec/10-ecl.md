@@ -34,11 +34,13 @@ groups `{ }`) plus a **concept filter constraint** (`{{ C ... }}`,
 restricting a set to concepts whose own row matches — `active =
 true|false|*`, `definitionStatus = primitive|defined`, `moduleId =
 subExpressionConstraint`, and `effectiveTime (=|!=|<=|<|>=|>) "YYYYMMDD"`),
-evaluated against a [`SnapshotStore`]. Boolean concrete value
-comparisons, `definitionStatusIdFilter` and `moduleId`'s
-`eclConceptReferenceSet` alternative, description and member filter
-constraints (`{{ D ... }}`/`{{ M ... }}`), the history supplement, and
-alternate identifiers are **out of scope for this version** — see
+evaluated against a [`SnapshotStore`]. Description filter
+constraints (`{{ D ... }}`, `term`/`type`/`active`) are implemented too.
+Boolean concrete value comparisons, `definitionStatusIdFilter` and
+`moduleId`'s `eclConceptReferenceSet` alternative, member filter
+constraints (`{{ M ... }}`), the remaining description filter kinds
+(`language`, dialects, `typeId`), the history supplement, and alternate
+identifiers are **out of scope for this version** — see
 [Not yet implemented](#not-yet-implemented).
 
 ## Grammar (this subset only, derived from `syntax/abnf-brief.txt`)
@@ -60,17 +62,11 @@ exclusionExpressionConstraint
                       := subExpressionConstraint "MINUS" subExpressionConstraint
 subExpressionConstraint
                       := (simpleExpressionConstraint | memberOf | "(" expressionConstraint ")")
-                         *(conceptFilterConstraint)
-                        -- memberFilterConstraint/descriptionFilterConstraint
-                        -- also belong in this position per the official
-                        -- grammar; this crate only recognizes
-                        -- conceptFilterConstraint's marker (`C`) here, and
-                        -- names the other two as NotYetImplemented when
-                        -- their marker (`D`/`M`) is seen — a MARKER-LESS
-                        -- `{{ ... }}` gets the named error only when its
-                        -- first token is `active`; any other first token
-                        -- falls to a generic error (see "Not yet
-                        -- implemented")
+                         *(conceptFilterConstraint | descriptionFilterConstraint)
+                        -- conceptFilterConstraint and
+                        -- descriptionFilterConstraint are both recognized
+                        -- here; memberFilterConstraint (`M`) is named as
+                        -- NotYetImplemented
                         -- NOTE: the parser applies this same trailing
                         -- structure (filters, then an optional ":"
                         -- refinement, and the named dot-notation
@@ -98,6 +94,21 @@ conceptFilterConstraint
                         -- defaults to a description filter, not this)
 conceptFilter         := activeFilter | definitionStatusTokenFilter
                         | moduleFilter | effectiveTimeFilter
+
+descriptionFilterConstraint
+                      := "{{" ws ["D" ws] descriptionFilter
+                         *(ws "," ws descriptionFilter) ws "}}"
+                        -- the `D` marker is optional: an unmarked block
+                        -- is a description filter
+descriptionFilter     := termFilter | typeTokenFilter | activeFilter
+termFilter            := "term" ws booleanComparisonOp ws
+                         (searchTerm | "(" ws searchTerm *(mws searchTerm) ws ")")
+searchTerm            := '"' <any text except unescaped '"'> '"'
+                        -- the typed prefixes (match:/wild:/regex:/exact:)
+                        -- are not implemented; matching is `match:`
+typeTokenFilter       := "type" ws booleanComparisonOp ws
+                         (typeToken | "(" ws typeToken *(mws typeToken) ws ")")
+typeToken             := "fsn" | "syn" | "def"
                         -- `definitionStatusIdFilter` (matching by concept
                         -- reference instead of a `primitive`/`defined`
                         -- keyword) is the one grammar alternative still
@@ -267,31 +278,26 @@ grammar, `refinedExpressionConstraint` is a distinct top-level alternative
 of `expressionConstraint` — a refinement isn't "just another operator" at
 the same level as `AND`/`OR`/`MINUS`.
 
-- `focus` is any `subExpressionConstraint` — a plain hierarchy expression
-  (`404684003 : ...`), a parenthesized expression
+- `focus` is any `subExpressionConstraint`: a plain hierarchy expression
+  (`404684003 : ...`), a parenthesized one
   (`(<< 404684003 MINUS << 64572001) : ...`), or a `^ memberOf`
-  expression (`^ 447562003 : ...`) all work, since `refinedExpressionConstraint`
-  wraps whichever `subExpressionConstraint` form preceded the `:` — not
-  just a plain focus concept. Likewise, `{{ C ... }}` concept filters
-  (see below) apply after any of those three forms too.
+  expression (`^ 447562003 : ...`), since `refinedExpressionConstraint`
+  wraps whichever form preceded the `:`. Filter constraints apply after
+  any of the three too.
 - `attributeId` (`eclAttributeName`) is any `subExpressionConstraint`, per
-  the official grammar — not just a plain concept reference. A bare
-  concept reference is simply the common case: `parse_sub_expression_constraint`
-  is reused unmodified for the attribute-name position, so a
-  hierarchy-prefixed attribute name (e.g. `<< 363698007 = value`) matches
-  relationships whose `typeId` is *any* concept in that evaluated set, not
-  just one exact id. Evaluation computes the attribute name's matching set
-  once per constraint and checks `type_id` membership in it, uniformly for
-  the plain-concept-reference case too — no special-casing.
+  the official grammar — a bare concept reference is just the common case.
+  A hierarchy-prefixed attribute name (`<< 363698007 = value`) matches
+  relationships whose `typeId` is *any* concept in that evaluated set.
+  Evaluation computes that set once per constraint and checks `type_id`
+  membership in it, with no special case for a single id.
 - `=` : the concept MUST satisfy `attributeId`'s cardinality (see below) by
   active **inferred** relationships (spec/07's hierarchy-view convention,
   extended here) whose `typeId` is in `attributeId`'s evaluated set and
   whose destination is in `value`'s evaluated set.
-- `!=` : the concept MUST NOT satisfy that cardinality — i.e. `!=` negates
-  the whole cardinality check, not just "has zero matches" (though with the
-  default `[1..*]` cardinality, negating "at least one match" *is* exactly
-  "zero matches" — the pre-cardinality behavior falls out as the default
-  case, not a special one).
+- `!=` : the concept MUST NOT satisfy that cardinality — `!=` negates the
+  whole cardinality check, not just "has zero matches". With the default
+  `[1..*]`, negating "at least one match" *is* "zero matches", so the
+  pre-cardinality behavior falls out as the default case.
 - `value` is any `subExpressionConstraint` — including hierarchy-prefixed
   expressions, e.g. `116676008 |Associated morphology| = << 409774005`.
 - `AND`/`OR` chain attribute constraints at the refinement level, following
@@ -364,23 +370,20 @@ Per the official guide:
 > "there must exist at least one attribute group for which the given
 > cardinality is satisfied by attributes in that group."
 
-So `{ a = x AND b = y }` requires one single group with *both* `a = x`
-*and* `b = y`; without braces, `a = x AND b = y` (still valid, at the
-`eclRefinement` level, not `eclAttributeSet`) allows the two matches to
-come from different groups, or from no group at all (grouping is a
-`{ }`-only concept per the official guide's own group/no-group
-distinction). An attribute inside `{ }` can carry its own cardinality too
-(`{ [2..*] 363698007 = value }`: some one group has at least 2 matching
-`363698007` relationships), independent of the group's own cardinality.
+So `{ a = x AND b = y }` requires one group with *both*; without braces,
+`a = x AND b = y` (valid at `eclRefinement` level, not `eclAttributeSet`)
+lets the two matches come from different groups or none at all — grouping
+is a `{ }`-only concept, per the guide's own group/no-group distinction.
+An attribute inside `{ }` may carry its own cardinality
+(`{ [2..*] 363698007 = value }`), independent of the group's.
 
-**Role group `0` is excluded from candidacy.** The official ECL guide
-doesn't say this explicitly, but spec/07 already documents
-`relationshipGroup`'s own semantics: `0` means "ungrouped", nonzero values
-"group role attributes" — so group `0` isn't a role group to begin with,
-and treating it as a matchable `{ }` candidate would be inventing meaning
-the field doesn't carry. This is a documented judgment call, not a literal
-citation, the same category as `spec/08`'s `iRefset`/`ciRefset`
-file-pattern-letter derivation.
+**Role group `0` is excluded from candidacy.** The official guide doesn't
+say so explicitly, but spec/07 documents `relationshipGroup`'s own
+semantics: `0` means "ungrouped", nonzero values group role attributes —
+so group `0` isn't a role group at all, and treating it as a matchable
+`{ }` candidate would invent meaning the field doesn't carry. A
+documented judgment call, same category as spec/08's `iRefset`/`ciRefset`
+pattern-letter derivation.
 
 **Known limitation: the reverse flag inside `{ }` compares unrelated
 group numbers.** A reverse attribute's relationship belongs to the
@@ -395,16 +398,14 @@ Neither the official ECL specification nor the official guide says what
 would be exactly the guessing this spec forbids elsewhere — so the
 behavior is documented and tracked in `tasks.md`, not quietly redefined.
 
-**Known limitation: candidate groups come from `Relationship` rows
-only.** The set of candidate group ids for a `{ }` constraint is
-collected from the concept's relationships; a role group whose *only*
-rows are `RelationshipConcreteValue`s never becomes a candidate, so
-`focus : { attr > #500 }` cannot match a concrete-value-only group even
-though the per-group concrete-value matching itself honors group scope.
-Real SNOMED content groups a concrete value alongside ordinary
-relationships (a strength alongside its substance), so this hasn't
-bitten in practice — tracked as a candidate fix in `tasks.md`, not
-silently claimed to work.
+**Candidate groups come from both relationship views.** The set of
+candidate group ids for a `{ }` constraint is the union of the concept's
+active inferred `Relationship` rows' nonzero `relationshipGroup` values
+and its `RelationshipConcreteValue` rows'. A role group can legitimately
+hold either kind or a mix (a substance alongside its strength), so
+`focus : { attr > #500 }` matches a group whose only rows are concrete
+values. (This was a documented limitation until the candidate set was
+widened; the per-group matching itself always honored group scope.)
 
 ### Concrete value comparisons
 
@@ -431,17 +432,12 @@ against `cardinality` (default `[1..*]`):
   concrete value comparison: a concrete value has no "other concept" for
   `R` to reverse the source/destination roles of, so the combination is
   syntactically legal per the official grammar but semantically empty.
-- `concreteStringSet` (`("a" "b" ...)`) is an OR'd set: matching is the
-  same per-row `String` equality check as a single `concreteString`,
-  just checked against every value in the set (`values.iter().any(...)`)
-  instead of exactly one — `AttributeComparison::String.values` already
-  carried this shape from the single-string case, so evaluation needed
-  no changes at all, only the parser. Disambiguating `("a" "b")` from a
-  parenthesized `subExpressionConstraint` (both start with `(` right
-  after `=`/`!=`) doesn't need real backtracking despite this crate's
-  one-token-of-lookahead design: once `(` is consumed, the very next
-  token settles it — a `concreteStringSet` always starts with a
-  `concreteString`, a parenthesized expression never does.
+- `concreteStringSet` (`("a" "b" ...)`) is an OR'd set: the same per-row
+  `String` equality check, applied across every value. Disambiguating it
+  from a parenthesized `subExpressionConstraint` (both follow `=`/`!=`
+  with `(`) needs no backtracking despite the one-token lookahead: once
+  `(` is consumed, the next token settles it, since a set always starts
+  with a `concreteString` and a parenthesized expression never does.
 
 **Not implemented: boolean comparisons.** `snomed_core::ConcreteValue`
 has no boolean variant, and neither does SNOMED CT's own concrete domain
@@ -454,13 +450,10 @@ model as this project has encountered it — a deeper gap than just
 concepts whose own `Concept` row matches every filter — a set-level
 restriction, unlike refinements (which examine a concept's
 *relationships*, not its own fields). `inner` may be any
-`subExpressionConstraint` form (plain focus concept, parenthesized
-expression, or `^ memberOf`) — filters aren't specific to a plain focus
-concept. Filters apply before any trailing `:` refinement (they're part
-of `subExpressionConstraint`, and `refinedExpressionConstraint :=
-subExpressionConstraint ":" eclRefinement` wraps the already-filtered
-result), and multiple `{{ }}` blocks chain, each seeing only what the
-previous one let through.
+`subExpressionConstraint` form. Filters apply before any trailing `:`
+refinement — they belong to `subExpressionConstraint`, which
+`refinedExpressionConstraint` then wraps — and multiple `{{ }}` blocks
+chain, each seeing only what the previous one let through.
 
 `activeFilter`, `definitionStatusTokenFilter`, `moduleFilter`'s
 `subExpressionConstraint` alternative, and `effectiveTimeFilter` are
@@ -469,22 +462,17 @@ implemented:
 - `active = true` / `active = false` keep only active/inactive concepts
   respectively (per spec/09, `store.concept(id)` returns both — a
   concept's latest version can itself be inactive).
-- `active != true` negates, same as `active = false`; `active != false`
-  same as `active = true`.
-- `active = *` is a no-op (matches regardless of active status) —
-  included for grammar completeness, since `activeValue` allows a
-  wildcard.
+- `active != true` is `active = false` and vice versa; `active = *` is a
+  no-op, included because `activeValue` allows a wildcard.
 - `definitionStatus = primitive` / `definitionStatus = defined` keep only
   concepts whose `definitionStatusId` is `900000000000074008`/
   `900000000000073002` respectively (`snomed_core::constants::PRIMITIVE`/
   `DEFINED`) — the only two legal values, so a concept never matches
   neither.
 - `definitionStatus = (primitive defined)` (a `definitionStatusTokenSet`)
-  matches either — with only two legal values, this is a no-op, but is
-  supported anyway since parsing it needs no ambiguity resolution (unlike
-  `concreteStringSet`, `primitive`/`defined` are keyword tokens that
-  never start a `subExpressionConstraint`, so there's nothing to
-  disambiguate against).
+  matches either — a no-op with only two legal values, but supported
+  because it needs no ambiguity resolution: unlike `concreteStringSet`,
+  these are keyword tokens that never start a `subExpressionConstraint`.
 - `moduleId (=|!=) subExpressionConstraint` matches concepts whose
   `moduleId` is in the evaluated set — the same treatment attribute
   names/values already get, reusing `parse_sub_expression_constraint`
@@ -525,14 +513,55 @@ implemented:
 **Not implemented:** `definitionStatusIdFilter` (matching by concept
 reference/set instead of the `primitive`/`defined` keyword) — its
 keyword isn't tokenized, so attempting it fails at the lexer with a
-generic error, not a named one. Description filter constraints
-(`{{ D ... }}`, or a bare `{{ ... }}` with no marker — the official
-grammar's `descriptionFilterConstraint` has an *optional* `D`,
-defaulting to a description filter when omitted, which is why an
-unmarked `{{ active = true }}` is rejected rather than silently treated
-as a concept filter) and member filter constraints
-(`{{ M ... }}`) are both recognized and rejected by name, but not
-implemented — see [Not yet implemented](#not-yet-implemented).
+generic error, not a named one. Member filter constraints
+(`{{ M ... }}`) are recognized and rejected by name.
+
+## Description filter constraint (`{{ D ... }}`)
+
+`inner {{ [D] descriptionFilter *("," descriptionFilter) }}` keeps the
+concepts of `inner` that have **one description** satisfying every filter
+in the block. The `D` marker is optional — the official grammar's
+`descriptionFilterConstraint` defaults to a description filter when no
+marker is written — so `{{ term = "heart" }}` and `{{ D term = "heart" }}`
+parse identically.
+
+Implemented filter kinds:
+
+| Filter | Form | Matches |
+|---|---|---|
+| `termFilter` | `term (=\|!=) (searchTerm \| searchTermSet)` | the description's `term`, by the grammar's default `match:` search type |
+| `typeTokenFilter` | `type (=\|!=) (typeToken \| typeTokenSet)`, tokens `fsn`/`syn`/`def` | the description's `typeId` against spec/06's three types |
+| `activeFilter` | `active (=\|!=) (true\|false\|*)` | the description's own `active` column |
+
+Three rules this section fixes, each a judgment call the official sources
+leave open or state only implicitly:
+
+1. **All filters in one block apply to the same description.**
+   `{{ D type = fsn, term = "heart" }}` means "has an FSN whose term
+   matches heart", not "has an FSN *and* has something matching heart".
+   Evaluating them independently would make the block strictly weaker
+   than its parts and silently over-match.
+2. **Only active descriptions match, unless the block says otherwise.**
+   Every other matching path here is active-only (rule 6, spec/07's
+   hierarchy convention), and an inactive description is retired text a
+   search shouldn't surface by default. Writing any `active` filter —
+   including `active = *` — replaces that default, which is how a caller
+   reaches retired text deliberately.
+3. **`match:` means word-prefix, not substring.** Every whitespace-
+   separated word of the search term must be a case-insensitive prefix of
+   *some* word in the description term, in any order: `"att heart"`
+   matches "Heart attack", `"eart"` does not. That is the grammar's
+   default search type, and the distinction is the whole reason
+   `wild:`/`regex:` exist as separate types.
+
+**Not implemented here:** the `typeId` form of `typeFilter` (concept
+reference instead of a token), `languageFilter`, `dialectIdFilter`/
+`dialectAliasFilter` (with their acceptability sets), and the
+`match:`/`wild:`/`regex:`/`exact:` typed-search-term prefixes.
+`moduleId` and `effectiveTime` inside a description filter are rejected
+with a named `NotYetImplemented` (their keywords are tokenized, since the
+concept filter uses them); the rest aren't tokenized and fall in the
+generic-error bucket rule 9 describes.
 
 ## Concept reference terms
 
@@ -543,41 +572,33 @@ never consulted during evaluation; only the SCTID is evaluated).
 ## Not yet implemented
 
 Tracked in `tasks.md`. None of these produce a silently *wrong* result —
-every one is rejected — but only some are rejected with a specific,
-feature-naming `EclError::NotYetImplemented`; the rest currently fall
-through to a generic lexer/parser error (`UnexpectedChar`/
-`UnexpectedToken`) because the parser never reaches a point where it
-recognizes the shape well enough to name it. This distinction is itself
-tracked as a gap (see rule 9 below) — don't assume every item below gets
-a named error without checking `parser.rs`/`lexer.rs` first.
+every one is rejected — but only some get a feature-naming
+`EclError::NotYetImplemented`; the rest fall through to a generic
+lexer/parser error, because the parser never recognizes the shape well
+enough to name it. That distinction is itself a tracked gap (rule 9):
+don't assume an item below is named without checking `parser.rs`/
+`lexer.rs`.
 
 Rejected with a named `EclError::NotYetImplemented`:
 
-- `{{ D ... }}` description filter constraints, `{{ M ... }}` member
-  filter constraints, and a bare `{{ ... }}` whose first token is
-  `active` (the named error covers only that spelling — see the generic
-  bucket below for other marker-less forms). `{{ C ... }}` concept
-  filter constraints *are* implemented
-  (`active`/`definitionStatus`/`moduleId`/`effectiveTime`) — see
-  "Concept filter constraint" above.
+- `{{ M ... }}` member filter constraints, and `moduleId`/
+  `effectiveTime` inside a `{{ D ... }}` block (named because their
+  keywords are already tokenized). `{{ C ... }}` and `{{ D ... }}`
+  themselves are implemented — see their own sections above.
 - `^ *` (member of any refset) and a hierarchy prefix combined with `^`
   (e.g. `< ^ 447562003`).
-- Dot notation (`.` / `dottedExpressionConstraint`) — a lone `.` lexes as
-  its own token (only `..`, the cardinality separator, is a *different*
-  token); the parser rejects a `.` following a complete sub-expression
-  by name. (A `.` in a position no grammar production expects at all —
-  e.g. inside a cardinality, `[0.1]` instead of `[0..1]` — still
-  surfaces as a generic `UnexpectedToken`, not this named error; dot
-  notation is only detected in the one grammar position it would
-  actually appear.)
-- `A#B` alternate identifiers — detected at the lexer, by an alpha run
-  (extended through any trailing digits/dashes, matching
-  `altIdentifierSchemeAlias`'s real grammar) immediately followed by `#`.
-  (Exception: an alias spelled exactly like a recognized keyword —
-  `R#...`, `C#...`, `ACTIVE#...`, etc. — matches the keyword table first
-  and never reaches the `#` lookahead, so it fails generically instead;
-  an accepted tradeoff of lexing filter keywords unconditionally, see
-  `agents/ecl-engineer.md`.)
+- Dot notation (`.` / `dottedExpressionConstraint`) — a lone `.` is its
+  own token (only `..`, the cardinality separator, differs), and the
+  parser names it when it follows a complete sub-expression. A `.` in a
+  position no production expects (`[0.1]` for `[0..1]`) is a generic
+  `UnexpectedToken` instead: dot notation is detected only where it would
+  actually appear.
+- `A#B` alternate identifiers — detected at the lexer by an alpha run
+  (extended through trailing digits/dashes, per
+  `altIdentifierSchemeAlias`) followed by `#`. An alias spelled exactly
+  like a keyword (`R#...`, `C#...`) matches the keyword table first and
+  fails generically instead — an accepted tradeoff of lexing filter
+  keywords unconditionally (`agents/ecl-engineer.md`).
 - `!!>` / `!!<` (`top`/`bottom` — part of `constraintOperator`).
 - `^R` (refsetContainingAny) and `^ [A, B]` (member of, with field
   selection).
@@ -593,11 +614,6 @@ token shape:
 - The history supplement (`{{+HISTORY}}`) — `{{` followed by `+` falls
   to `parse_filter_constraint`'s catch-all (`+` isn't a recognized
   filter marker), a generic `UnexpectedToken`.
-- A marker-less `{{ ... }}` whose first token is anything other than
-  `active` (e.g. `{{ effectiveTime >= "20200101" }}` with no `C`) —
-  only the `active` spelling gets the named
-  bare-`{{ }}`-defaults-to-a-description-filter error; every other
-  first token falls to the same catch-all.
 - Concept filter kinds other than
   `active`/`definitionStatus`/`moduleId`/`effectiveTime`
   (`definitionStatusIdFilter`) — its keyword isn't tokenized, so a
@@ -638,22 +654,20 @@ token shape:
    written explicitly (`AttributeConstraint`/`AttributeGroup`'s
    `cardinality` field is `Cardinality`, not `Option<Cardinality>` — the
    default is a value, not an absent case evaluation has to branch on).
-8. Role group `0` MUST NOT be treated as a candidate group for `{ }`
-   evaluation (see "Attribute groups" above) — every `{ }` evaluation MUST
-   filter it out before counting satisfying groups.
-9. Nothing in "Not yet implemented" above MAY be silently accepted and
+8. Role group `0` MUST NOT be a candidate group for `{ }` evaluation
+   (see "Attribute groups"); candidates come from both the
+   `Relationship` and `RelationshipConcreteValue` views.
+9. Nothing in "Not yet implemented" MAY be silently accepted and
    evaluated as something else, or panic — every one MUST be rejected.
-   Naming the specific missing feature via `EclError::NotYetImplemented`
-   is preferred but not yet required of every item (see the two-group
-   split above); moving an item from "generic error" to "named error" is
-   a welcome, low-risk improvement and does not need a `plan.md` decision.
+   Naming the missing feature via `EclError::NotYetImplemented` is
+   preferred but not required of every item (see the two-group split
+   there); moving an item from generic to named is a welcome, low-risk
+   improvement needing no `plan.md` decision.
 10. For a numeric concrete value comparison's `=`/`!=`, the row-level
-    match predicate MUST always be equality — `!=` negates the
-    **aggregate** cardinality check afterwards (matching the expression
-    form's `negated` semantics exactly), never redefines the per-row
-    predicate to "not equal". A `String`-typed concrete value MUST NOT
-    match a numeric comparison, and a `Number`-typed one MUST NOT match a
-    string comparison — a type mismatch is absence of a match, not an
+    predicate MUST always be equality, with `!=` negating the
+    **aggregate** cardinality check afterwards — never a per-row "not
+    equal" (see "Concrete value comparisons"). A type mismatch between
+    the comparison and the stored value is absence of a match, not an
     error.
 11. `{{ C active ... }}` MUST check a concept's own `active` field via
     `store.concept(id)`, never assume every id `evaluate` can produce is
@@ -671,3 +685,9 @@ token shape:
     `EffectiveTimeError` RF2 parsing uses (spec/09), never a generic
     parse error — the same "reuse the authoritative parser's own error"
     rule 1 already establishes for malformed SCTIDs.
+14. Every filter in one `{{ D ... }}` block MUST be satisfied by the
+    **same** description, and only active descriptions MUST match unless
+    the block writes an `active` filter of its own (see "Description
+    filter constraint"). `term` matching MUST be the grammar's default
+    `match:` word-prefix semantics — never a substring search, which
+    would accept mid-word matches the search type excludes.

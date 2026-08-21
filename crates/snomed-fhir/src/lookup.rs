@@ -2,6 +2,7 @@
 //! `spec/11-fhir.md`.
 
 use snomed_classify::{NecessaryNormalForm, NecessaryNormalFormReport};
+use snomed_core::concrete_value::ConcreteValue;
 use snomed_core::constants;
 use snomed_core::sctid::SctId;
 use snomed_store::SnapshotStore;
@@ -69,6 +70,29 @@ pub enum LookupProperty {
     Inactive(bool),
     ModuleId(SctId),
     SufficientlyDefined(bool),
+    /// One entry per direct supertype, from FHIR's standard `parent`
+    /// property (spec/11). The IS-A relationships this reports are also
+    /// reachable by asking for `116680003` as a property code, which
+    /// returns them as ordinary concept model attributes instead.
+    Parent(SctId),
+    /// One entry per direct subtype, FHIR's standard `child` property.
+    Child(SctId),
+    /// A concept model attribute: the FHIR property *code* is the
+    /// attribute type's own SCTID (spec/11), and the value is the target
+    /// concept. One entry per matching active inferred relationship.
+    ConceptModelAttribute {
+        type_id: SctId,
+        value: SctId,
+    },
+    /// A concept model attribute whose value is a literal rather than a
+    /// concept — spec/07's `RelationshipConcreteValues` rows (a drug
+    /// strength, say). Reported under the same property code as
+    /// [`LookupProperty::ConceptModelAttribute`]; the two differ only in
+    /// what kind of value the release states.
+    ConceptModelConcreteValue {
+        type_id: SctId,
+        value: ConcreteValue,
+    },
     /// SNOMED CT Compositional Grammar text for the concept's necessary
     /// normal form, with `|term|` labels (spec/11, `crate::normal_form`).
     /// Only returned when `lookup`'s `nnf_report` parameter is `Some`.
@@ -79,13 +103,22 @@ pub enum LookupProperty {
 
 impl LookupProperty {
     /// The FHIR property `code` this value would be reported under.
-    pub fn code(&self) -> &'static str {
+    ///
+    /// Returns an owned `String` because concept model attribute codes
+    /// are SCTIDs, decided by the release rather than by this crate
+    /// (spec/11) — the fixed property names are still fixed, they just
+    /// share one return type with the dynamic ones.
+    pub fn code(&self) -> String {
         match self {
-            LookupProperty::Inactive(_) => "inactive",
-            LookupProperty::ModuleId(_) => "moduleId",
-            LookupProperty::SufficientlyDefined(_) => "sufficientlyDefined",
-            LookupProperty::NormalForm(_) => "normalForm",
-            LookupProperty::NormalFormTerse(_) => "normalFormTerse",
+            LookupProperty::Inactive(_) => "inactive".to_string(),
+            LookupProperty::ModuleId(_) => "moduleId".to_string(),
+            LookupProperty::SufficientlyDefined(_) => "sufficientlyDefined".to_string(),
+            LookupProperty::NormalForm(_) => "normalForm".to_string(),
+            LookupProperty::NormalFormTerse(_) => "normalFormTerse".to_string(),
+            LookupProperty::Parent(_) => "parent".to_string(),
+            LookupProperty::Child(_) => "child".to_string(),
+            LookupProperty::ConceptModelAttribute { type_id, .. }
+            | LookupProperty::ConceptModelConcreteValue { type_id, .. } => type_id.to_string(),
         }
     }
 }
@@ -146,32 +179,53 @@ pub fn lookup(
     } else {
         properties
     };
+    // A requested name can yield zero, one, or many entries: `parent` has
+    // one per direct supertype, a concept model attribute one per matching
+    // relationship, and a concept that simply lacks the attribute yields
+    // none (a legitimate absence, like `display: None` — not an error).
     let mut property = Vec::with_capacity(requested.len());
     for &name in requested {
-        property.push(match name {
-            "inactive" => LookupProperty::Inactive(!concept.active),
-            "moduleId" => LookupProperty::ModuleId(concept.module_id),
-            "sufficientlyDefined" => {
-                LookupProperty::SufficientlyDefined(concept.is_sufficiently_defined())
-            }
-            "normalForm" => LookupProperty::NormalForm(normal_form_property(
+        match name {
+            "inactive" => property.push(LookupProperty::Inactive(!concept.active)),
+            "moduleId" => property.push(LookupProperty::ModuleId(concept.module_id)),
+            "sufficientlyDefined" => property.push(LookupProperty::SufficientlyDefined(
+                concept.is_sufficiently_defined(),
+            )),
+            "normalForm" => property.push(LookupProperty::NormalForm(normal_form_property(
                 store,
                 language_refset,
                 code,
                 nnf_report,
                 name,
                 false,
-            )?),
-            "normalFormTerse" => LookupProperty::NormalFormTerse(normal_form_property(
-                store,
-                language_refset,
-                code,
-                nnf_report,
-                name,
-                true,
-            )?),
-            other => return Err(FhirError::UnsupportedProperty(other.to_string())),
-        });
+            )?)),
+            "child" => property.extend(
+                store
+                    .children(code)
+                    .iter()
+                    .copied()
+                    .map(LookupProperty::Child),
+            ),
+            "parent" => property.extend(
+                store
+                    .parents(code)
+                    .iter()
+                    .copied()
+                    .map(LookupProperty::Parent),
+            ),
+            "normalFormTerse" => property.push(LookupProperty::NormalFormTerse(
+                normal_form_property(store, language_refset, code, nnf_report, name, true)?,
+            )),
+            // Anything else must be a concept model attribute, whose FHIR
+            // property code *is* the attribute type's SCTID (spec/11). A
+            // name that isn't a valid SCTID is a property this crate can't
+            // compute, rejected by name as ever (spec/11 rule 4).
+            other => {
+                let type_id = SctId::parse(other)
+                    .map_err(|_| FhirError::UnsupportedProperty(other.to_string()))?;
+                property.extend(concept_model_attributes(store, code, type_id));
+            }
+        }
     }
 
     Ok(LookupResult {
@@ -182,6 +236,50 @@ pub fn lookup(
         designation,
         property,
     })
+}
+
+/// Every active inferred relationship of `concept` whose `typeId` is
+/// `type_id`, as `property` entries — both concept-valued (spec/07's
+/// Relationship file) and literal-valued (`RelationshipConcreteValues`).
+///
+/// Values are deduplicated and ordered: the same attribute stated in two
+/// role groups says the same thing about the concept at `$lookup`'s level
+/// of detail, where role grouping isn't represented at all (`normalForm`
+/// is where grouping survives).
+fn concept_model_attributes(
+    store: &SnapshotStore,
+    concept: SctId,
+    type_id: SctId,
+) -> Vec<LookupProperty> {
+    let mut values: Vec<SctId> = store
+        .relationships_of(concept)
+        .filter(|r| r.active && r.is_inferred() && r.type_id == type_id)
+        .map(|r| r.destination_id)
+        .collect();
+    values.sort_unstable();
+    values.dedup();
+
+    let mut out: Vec<LookupProperty> = values
+        .into_iter()
+        .map(|value| LookupProperty::ConceptModelAttribute { type_id, value })
+        .collect();
+
+    // Concrete values keep the store's (id-ordered) sequence: `ConcreteValue`
+    // is deliberately not `Ord` — it preserves the literal's text, and
+    // ordering "500" against "1000" would have to pick number-or-string
+    // semantics the RF2 column doesn't declare.
+    let mut seen: Vec<&ConcreteValue> = Vec::new();
+    for row in store.relationship_concrete_values_of(concept) {
+        if row.active && row.is_inferred() && row.type_id == type_id && !seen.contains(&&row.value)
+        {
+            seen.push(&row.value);
+            out.push(LookupProperty::ConceptModelConcreteValue {
+                type_id,
+                value: row.value.clone(),
+            });
+        }
+    }
+    out
 }
 
 /// Renders `code`'s necessary normal form as compositional grammar text
@@ -416,7 +514,7 @@ mod tests {
     fn default_properties_are_returned_when_none_requested() {
         let store = fixture();
         let result = lookup(&store, SNOMED_CT_SYSTEM, FINDING, None, None, &[], None).unwrap();
-        let codes: Vec<&str> = result.property.iter().map(|p| p.code()).collect();
+        let codes: Vec<String> = result.property.iter().map(|p| p.code()).collect();
         assert_eq!(codes, vec!["inactive", "moduleId", "sufficientlyDefined"]);
         assert!(result.property.contains(&LookupProperty::Inactive(false)));
     }
@@ -556,5 +654,198 @@ mod tests {
             Some("http://snomed.info/sct/900000000000207008/version/20250801")
         );
         assert_eq!(result.name, "SNOMED CT");
+    }
+
+    #[test]
+    fn parent_and_child_properties() {
+        // FHIR's standard `parent`/`child` properties, one entry each per
+        // direct supertype/subtype (spec/11).
+        use snomed_core::components::Relationship;
+        let child_id = SctId::compose(3001, ComponentType::Concept, None).unwrap();
+        let mut b = SnapshotStore::builder();
+        b.add_concept(concept(FINDING, true));
+        b.add_concept(concept(child_id, true));
+        b.add_relationship(Relationship {
+            id: SctId::compose(3101, ComponentType::Relationship, None).unwrap(),
+            effective_time: EffectiveTime::new_unchecked(20190731),
+            active: true,
+            module_id: constants::CORE_MODULE,
+            source_id: child_id,
+            destination_id: FINDING,
+            relationship_group: 0,
+            type_id: constants::IS_A,
+            characteristic_type_id: constants::INFERRED_RELATIONSHIP,
+            modifier_id: constants::EXISTENTIAL_MODIFIER,
+        });
+        let store = b.build();
+
+        let result = lookup(
+            &store,
+            SNOMED_CT_SYSTEM,
+            child_id,
+            None,
+            None,
+            &["parent"],
+            None,
+        )
+        .unwrap();
+        assert_eq!(result.property, vec![LookupProperty::Parent(FINDING)]);
+
+        let result = lookup(
+            &store,
+            SNOMED_CT_SYSTEM,
+            FINDING,
+            None,
+            None,
+            &["child"],
+            None,
+        )
+        .unwrap();
+        assert_eq!(result.property, vec![LookupProperty::Child(child_id)]);
+
+        // A concept with no parent yields no entries — an absence, not an
+        // error (same convention as `display: None`).
+        let result = lookup(
+            &store,
+            SNOMED_CT_SYSTEM,
+            FINDING,
+            None,
+            None,
+            &["parent"],
+            None,
+        )
+        .unwrap();
+        assert!(result.property.is_empty());
+    }
+
+    #[test]
+    fn concept_model_attributes_are_requested_by_their_sctid() {
+        // spec/11: a concept model attribute's FHIR property code is the
+        // attribute type's own SCTID, and the value is the target concept.
+        use snomed_core::components::{Relationship, RelationshipConcreteValue};
+        use snomed_core::concrete_value::ConcreteValue;
+
+        let finding_site = SctId::compose(3010, ComponentType::Concept, None).unwrap();
+        let strength = SctId::compose(3011, ComponentType::Concept, None).unwrap();
+        let bone = SctId::compose(3012, ComponentType::Concept, None).unwrap();
+        let joint = SctId::compose(3013, ComponentType::Concept, None).unwrap();
+
+        let mut b = SnapshotStore::builder();
+        for c in [FINDING, finding_site, strength, bone, joint] {
+            b.add_concept(concept(c, true));
+        }
+        let attribute = |item: u64, type_id: SctId, value: SctId, group: u32| Relationship {
+            id: SctId::compose(item, ComponentType::Relationship, None).unwrap(),
+            effective_time: EffectiveTime::new_unchecked(20190731),
+            active: true,
+            module_id: constants::CORE_MODULE,
+            source_id: FINDING,
+            destination_id: value,
+            relationship_group: group,
+            type_id,
+            characteristic_type_id: constants::INFERRED_RELATIONSHIP,
+            modifier_id: constants::EXISTENTIAL_MODIFIER,
+        };
+        b.add_relationship(attribute(3110, finding_site, joint, 1));
+        b.add_relationship(attribute(3111, finding_site, bone, 2));
+        // The same attribute repeated in another role group says nothing
+        // new at $lookup's level of detail, where grouping isn't reported.
+        b.add_relationship(attribute(3112, finding_site, bone, 3));
+        // A stated row must not surface (spec/07's inferred-only convention).
+        b.add_relationship(Relationship {
+            characteristic_type_id: constants::STATED_RELATIONSHIP,
+            ..attribute(3113, finding_site, FINDING, 4)
+        });
+        b.add_relationship_concrete_value(RelationshipConcreteValue {
+            id: SctId::compose(3120, ComponentType::Relationship, None).unwrap(),
+            effective_time: EffectiveTime::new_unchecked(20190731),
+            active: true,
+            module_id: constants::CORE_MODULE,
+            source_id: FINDING,
+            value: ConcreteValue::Number("500".to_string()),
+            relationship_group: 1,
+            type_id: strength,
+            characteristic_type_id: constants::INFERRED_RELATIONSHIP,
+            modifier_id: constants::EXISTENTIAL_MODIFIER,
+        });
+        let store = b.build();
+
+        let code = finding_site.to_string();
+        let result = lookup(
+            &store,
+            SNOMED_CT_SYSTEM,
+            FINDING,
+            None,
+            None,
+            &[&code],
+            None,
+        )
+        .unwrap();
+        assert_eq!(
+            result.property,
+            vec![
+                LookupProperty::ConceptModelAttribute {
+                    type_id: finding_site,
+                    value: bone,
+                },
+                LookupProperty::ConceptModelAttribute {
+                    type_id: finding_site,
+                    value: joint,
+                },
+            ],
+            "values are deduplicated and ordered, and the stated row is excluded"
+        );
+        assert_eq!(result.property[0].code(), finding_site.to_string());
+
+        // A literal-valued attribute comes back under the same code.
+        let code = strength.to_string();
+        let result = lookup(
+            &store,
+            SNOMED_CT_SYSTEM,
+            FINDING,
+            None,
+            None,
+            &[&code],
+            None,
+        )
+        .unwrap();
+        assert_eq!(
+            result.property,
+            vec![LookupProperty::ConceptModelConcreteValue {
+                type_id: strength,
+                value: ConcreteValue::Number("500".to_string()),
+            }]
+        );
+
+        // An attribute the concept doesn't have: no entries, no error.
+        let code = joint.to_string();
+        let result = lookup(
+            &store,
+            SNOMED_CT_SYSTEM,
+            FINDING,
+            None,
+            None,
+            &[&code],
+            None,
+        )
+        .unwrap();
+        assert!(result.property.is_empty());
+
+        // A name that is neither a known property nor an SCTID is still
+        // rejected by name (spec/11 rule 4).
+        let err = lookup(
+            &store,
+            SNOMED_CT_SYSTEM,
+            FINDING,
+            None,
+            None,
+            &["definitionStatus"],
+            None,
+        )
+        .unwrap_err();
+        assert_eq!(
+            err,
+            FhirError::UnsupportedProperty("definitionStatus".to_string())
+        );
     }
 }

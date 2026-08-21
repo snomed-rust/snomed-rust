@@ -33,7 +33,8 @@ panics. The properties currently asserted:
 | `ecl_parse` | Parsing is deterministic and total over arbitrary text — `spec/10-ecl.md` |
 | `ecl_evaluate` | Any expression the parser accepts evaluates against a fixed store, deterministically — `spec/10-ecl.md` |
 | `owl_parse` | Parsing is deterministic and total — `spec/12-owl.md` |
-| `classify_axioms` | Completion terminates, and subsumer sets are strict and transitively closed — `spec/13-classification.md`, `spec/14-necessary-normal-form.md` |
+| `classify_axioms` | Completion terminates, subsumer sets are strict and transitively closed, and normal-form parents are entailed, non-redundant, and never empty — `spec/13-classification.md`, `spec/14-necessary-normal-form.md` |
+| `fhir_value_set_url` | Implicit value set URLs parse deterministically, and percent-decoding survives truncated/non-hex escapes — `spec/11-fhir.md` |
 
 ## Layout
 

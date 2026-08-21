@@ -227,6 +227,11 @@ fn cmd_validate(args: &[String]) -> Result<String, Box<dyn Error>> {
         "concepts on a cyclic IS-A path",
         &report.cyclic_concepts,
     )?;
+    write_ids(
+        &mut out,
+        "active concepts with no IS-A parent (spec/07 rule 2)",
+        &report.rootless_concepts,
+    )?;
     Ok(out)
 }
 

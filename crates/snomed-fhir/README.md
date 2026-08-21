@@ -75,10 +75,16 @@ result.property;     // -> Vec<LookupProperty>: inactive / moduleId / sufficient
 `display`/`designation` read descriptions and language refset
 acceptability (`SnapshotStore::preferred_term`/`fsn`/`acceptability`);
 `definition` reads the active `TextDefinition` row if one is loaded.
-Requesting a `property` this crate can't compute at all (SNOMED
-concept-model-attribute properties, or anything else) returns
+Beyond the fixed property names, `parent`/`child` return one entry per
+direct supertype/subtype, and **any SCTID works as a property code**: it
+names a concept model attribute, and the result carries one entry per
+matching active inferred relationship (or literal, for a
+`RelationshipConcreteValues` row). A concept that lacks the attribute
+yields no entries — an absence, not an error. A requested name that is
+neither a fixed property nor a valid SCTID returns
 `FhirError::UnsupportedProperty` naming it, rather than silently omitting
-it.
+it. Since attribute codes come from the release, `LookupProperty::code()`
+returns an owned `String`.
 
 `normalForm`/`normalFormTerse` need a `NecessaryNormalFormReport`,
 computed once by the caller over the whole release
@@ -173,12 +179,6 @@ apart from "1 total".
 
 Scoped in `spec/11-fhir.md`, not yet built (see the root `tasks.md`):
 
-- `$lookup`'s SNOMED concept-model-attribute properties (e.g.
-  `272741003 |Laterality|` surfaced as its own property code). The
-  underlying data already flows in via `nnf_report`
-  (`NecessaryNormalForm::attributes`); the gap is surfacing individual
-  attribute types as dynamic FHIR property codes rather than this
-  crate's fixed property-name set.
 - `$expand`'s `context`-based expansion and inline `valueSet` expansion
   (a `ValueSet` resource body given directly in the request rather than
   referenced by `url`).
@@ -195,11 +195,16 @@ Scoped in `spec/11-fhir.md`, not yet built (see the root `tasks.md`):
   keyed by SCTID. Mapping one to the other is a deployment policy decision
   this crate can't make, so `$lookup`/`$expand` take a language refset
   SCTID directly rather than guessing a BCP-47-to-refset mapping.
-- **No URL percent-decoding.** `expand`'s `url` argument is matched and
-  split as plain text; this crate has no percent-decoding parser (zero
-  external dependencies) and doesn't add one just for this. A hosting
-  server decodes the query string before calling in here — this matters
-  most for the `ecl/` form, whose ECL text may contain spaces.
+- **URLs are percent-decoded here.** `expand` accepts a `url` in the
+  spelling FHIR publishes it —
+  `?fhir_vs=ecl/%3C%3C%2027624003` — decoding the `fhir_vs=` payload
+  after the `?` and `fhir_vs=` splits, so an encoded `%3F`/`%3D` inside
+  an expression is never mistaken for a delimiter. `+` stays a literal
+  `+` (that spelling of a space is form-encoding, not URI syntax, and
+  ECL's `#+5` needs the character), and a malformed escape is
+  `FhirError::MalformedUrlEncoding` rather than `UnsupportedValueSet` —
+  the URL is broken, not unsupported. Still no dependency: the decoder
+  is ~20 lines of `std`.
 - **`normalForm`/`normalFormTerse` are caller-computed, like `version`.**
   `lookup` never calls `snomed_classify::necessary_normal_form` itself —
   that function has no per-concept entry point and no caching, so

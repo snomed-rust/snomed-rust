@@ -70,6 +70,8 @@ Output, mapped onto what a `SnapshotStore` can answer:
 | `property` — `inactive` | `!Concept::active` |
 | `property` — `moduleId` | `Concept::module_id` |
 | `property` — `sufficientlyDefined` | `Concept::is_sufficiently_defined()` |
+| `property` — `parent` / `child` | `SnapshotStore::parents`/`children` — FHIR's standard properties, one entry per direct supertype/subtype |
+| `property` — *`[sctid]`* | a **concept model attribute**: the property code is the attribute type's own SCTID, and the value is the target concept (or the literal, for a `RelationshipConcreteValues` row). One entry per matching active inferred relationship |
 | `property` — `normalForm` | SNOMED CT Compositional Grammar text (with `\|term\|` labels) for the concept's necessary normal form, from a caller-supplied `NecessaryNormalFormReport` — see below |
 | `property` — `normalFormTerse` | same, without `\|term\|` labels or whitespace |
 
@@ -118,16 +120,36 @@ above).
   concern; rendering is FHIR-specific presentation, spec/14's own scope
   stops at the structured `NecessaryNormalForm`).
 
-**Not yet implemented** (rejected with `FhirError::UnsupportedProperty`
-naming the property, never silently omitted): SNOMED concept-model-
-attribute properties (e.g. `272741003 |Laterality|` surfaced as its own
-property code). The underlying attribute-group-aware traversal *does*
-exist now — `snomed-classify`'s stated-profile extraction and
-`NecessaryNormalForm::attributes` carry exactly this data, and `lookup`
-already receives it via `nnf_report` — so the remaining gap is purely
-surfacing individual attribute types as their own FHIR property codes
-(one `LookupProperty` entry per attribute type, dynamic codes rather
-than this crate's current fixed set), not the traversal itself.
+### Concept model attribute properties
+
+A property code that isn't one of the fixed names above is read as an
+SCTID naming a concept model attribute — `$lookup?property=363698007`
+returns that concept's finding sites. The source is the store's own
+**active inferred** relationships (spec/07's convention), not
+`nnf_report`: the release states these directly, so requiring a
+classification to read them back would be a needless dependency. It also
+means the property works for any loaded release, whether or not the
+caller computed a `NecessaryNormalFormReport`.
+
+Three consequences worth stating:
+
+- **Values are deduplicated and ordered.** The same attribute stated in
+  two role groups says the same thing at `$lookup`'s level of detail,
+  where role grouping isn't represented at all — `normalForm` is where
+  grouping survives.
+- **A concept that lacks the attribute yields no entries, not an error.**
+  Same "legitimate absence of data" convention as `display: None`. A
+  requested name that is neither a fixed property nor a valid SCTID is
+  still rejected with `FhirError::UnsupportedProperty` naming it
+  (rule 4).
+- **IS-A needs no special case.** Asking for `116680003` returns the
+  concept's supertypes as ordinary attribute entries; `parent`/`child`
+  are the idiomatic spelling and return the same targets under FHIR's
+  standard codes.
+
+Because concept model attribute codes come from the release rather than
+from this crate, `LookupProperty::code()` returns an owned `String`
+rather than a `&'static str`.
 
 ## `$subsumes` ✅
 
@@ -153,10 +175,27 @@ FHIR's five SNOMED CT **implicit value sets**
 ([R4 SNOMED CT page](https://www.hl7.org/fhir/R4/snomedct.html)) map onto
 existing `snomed-ecl`/`SnapshotStore` primitives. `snomed-fhir` parses the
 `url` itself (`parse_implicit_value_set`) rather than requiring the caller
-to pre-classify it — but does **no percent-decoding**: this crate has no
-URL/percent-decoding parser (zero external dependencies) and doesn't add
-one just for this, so the query portion (in particular the ECL text after
-`ecl/`) must already be decoded by the caller.
+to pre-classify it, **including its percent-encoding**: a URL is
+percent-encoded by definition (RFC 3986), and FHIR's own published
+spelling of the ECL form is
+`http://snomed.info/sct?fhir_vs=ecl/%3C%3C%2027624003`, so a crate that
+accepts a `url` and cannot read that one is not accepting URLs. Decoding
+is ~20 lines of `std`, needs no dependency, and happens *after* the `?`
+and `fhir_vs=` splits, so an encoded `%3F`/`%3D` inside the payload can
+never be mistaken for a real delimiter.
+
+Two decisions worth stating, since both could reasonably go the other
+way:
+
+- **`+` is a literal `+`, never a space.** That spelling belongs to
+  `application/x-www-form-urlencoded` form bodies, not to URI query
+  syntax — and ECL uses `+` in concrete numeric values (`#+5`), so
+  decoding it would corrupt an expression rather than merely alter it.
+- **Malformed encoding is its own error.** A `%` not followed by two hex
+  digits, or an escape that decodes to invalid UTF-8, yields
+  `FhirError::MalformedUrlEncoding`, not `UnsupportedValueSet`: the URL
+  is broken, not unsupported, and a hosting server tells its client
+  different things about those two.
 
 | Implicit value set URI | Meaning | Maps to |
 |---|---|---|

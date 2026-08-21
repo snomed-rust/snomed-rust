@@ -5,7 +5,7 @@
 use std::collections::HashMap;
 use std::path::Path;
 
-use snomed_core::components::{Concept, Description, Relationship};
+use snomed_core::components::{Concept, Description, Relationship, RelationshipConcreteValue};
 use snomed_core::sctid::SctId;
 use snomed_core::time::EffectiveTime;
 use snomed_rf2::filename::{FileNameError, ReleaseFileName};
@@ -21,6 +21,7 @@ pub struct HistoryStoreBuilder {
     concepts: HashMap<SctId, Vec<Concept>>,
     descriptions: HashMap<SctId, Vec<Description>>,
     relationships: HashMap<SctId, Vec<Relationship>>,
+    relationship_concrete_values: HashMap<SctId, Vec<RelationshipConcreteValue>>,
 }
 
 impl HistoryStoreBuilder {
@@ -40,6 +41,14 @@ impl HistoryStoreBuilder {
 
     pub fn add_relationship(&mut self, row: Relationship) -> &mut Self {
         self.relationships.entry(row.id).or_default().push(row);
+        self
+    }
+
+    pub fn add_relationship_concrete_value(&mut self, row: RelationshipConcreteValue) -> &mut Self {
+        self.relationship_concrete_values
+            .entry(row.id)
+            .or_default()
+            .push(row);
         self
     }
 
@@ -64,9 +73,19 @@ impl HistoryStoreBuilder {
         self
     }
 
+    pub fn add_relationship_concrete_values(
+        &mut self,
+        rows: impl IntoIterator<Item = RelationshipConcreteValue>,
+    ) -> &mut Self {
+        rows.into_iter().for_each(|r| {
+            self.add_relationship_concrete_value(r);
+        });
+        self
+    }
+
     /// Recursively loads every Full-view Concept, Description/
-    /// TextDefinition, and Relationship/StatedRelationship file under
-    /// `dir`. Unlike [`crate::SnapshotStoreBuilder::load_release_dir`],
+    /// TextDefinition, Relationship/StatedRelationship, and
+    /// RelationshipConcreteValues file under `dir`. Unlike [`crate::SnapshotStoreBuilder::load_release_dir`],
     /// there's no `release_type` parameter — history only makes sense
     /// built from Full (spec/09 rule 2), so this always filters to Full.
     /// Refset files are recognized-but-not-yet-loaded here (spec/09 rule
@@ -122,6 +141,11 @@ impl HistoryStoreBuilder {
                     self.add_relationship(r);
                 })?;
             }
+            ("RelationshipConcreteValues", _) => {
+                load_rows::<RelationshipConcreteValue, _>(path, |r| {
+                    self.add_relationship_concrete_value(r);
+                })?;
+            }
             (content_type, summary) => {
                 return Ok(Some(format!(
                     "content type `{content_type}` (summary `{summary}`) is not yet loaded into HistoryStore"
@@ -152,6 +176,10 @@ impl HistoryStoreBuilder {
             relationships: sorted(self.relationships, |r: &Relationship| {
                 r.effective_time.as_u32()
             }),
+            relationship_concrete_values: sorted(
+                self.relationship_concrete_values,
+                |r: &RelationshipConcreteValue| r.effective_time.as_u32(),
+            ),
         }
     }
 }
@@ -163,6 +191,7 @@ pub struct HistoryStore {
     concepts: HashMap<SctId, Vec<Concept>>,
     descriptions: HashMap<SctId, Vec<Description>>,
     relationships: HashMap<SctId, Vec<Relationship>>,
+    relationship_concrete_values: HashMap<SctId, Vec<RelationshipConcreteValue>>,
 }
 
 impl HistoryStore {
@@ -200,6 +229,32 @@ impl HistoryStore {
 
     pub fn relationship_at(&self, id: SctId, at: EffectiveTime) -> Option<&Relationship> {
         point_in_time(self.relationship_history(id), at, |r| r.effective_time)
+    }
+
+    /// All known versions of a concrete-value relationship
+    /// (`sct2_RelationshipConcreteValues_*`, spec/07), oldest to newest.
+    /// Empty if the id is unknown.
+    ///
+    /// These ids share the relationship partition with ordinary
+    /// relationships but are a separate component type with their own
+    /// rows, so they get their own history rather than being folded into
+    /// [`relationship_history`](Self::relationship_history) — asking for
+    /// one by the other's method returns empty, not a mixed answer.
+    pub fn relationship_concrete_value_history(&self, id: SctId) -> &[RelationshipConcreteValue] {
+        self.relationship_concrete_values
+            .get(&id)
+            .map(Vec::as_slice)
+            .unwrap_or(&[])
+    }
+
+    pub fn relationship_concrete_value_at(
+        &self,
+        id: SctId,
+        at: EffectiveTime,
+    ) -> Option<&RelationshipConcreteValue> {
+        point_in_time(self.relationship_concrete_value_history(id), at, |r| {
+            r.effective_time
+        })
     }
 }
 
@@ -366,5 +421,65 @@ mod tests {
         assert_eq!(history.len(), 2, "the Snapshot row must not be merged in");
         assert_eq!(history[0].effective_time.as_u32(), 20190731);
         assert_eq!(history[1].effective_time.as_u32(), 20200131);
+    }
+
+    #[test]
+    fn concrete_value_relationships_keep_their_own_history() {
+        // spec/09 rule 5: `RelationshipConcreteValues` is a component type
+        // like the other three, so it gets version history and
+        // point-in-time reconstruction rather than being skip-and-reported.
+        use snomed_core::components::RelationshipConcreteValue;
+        use snomed_core::concrete_value::ConcreteValue;
+        use snomed_core::sctid::ComponentType;
+
+        let id = SctId::compose(1001, ComponentType::Relationship, None).unwrap();
+        let strength = |time: u32, mg: &str, active: bool| RelationshipConcreteValue {
+            id,
+            effective_time: EffectiveTime::new_unchecked(time),
+            active,
+            module_id: constants::CORE_MODULE,
+            source_id: MI,
+            value: ConcreteValue::Number(mg.to_string()),
+            relationship_group: 1,
+            type_id: constants::IS_A,
+            characteristic_type_id: constants::INFERRED_RELATIONSHIP,
+            modifier_id: constants::EXISTENTIAL_MODIFIER,
+        };
+
+        let mut b = HistoryStore::builder();
+        // Out of order on purpose, as with the other component types.
+        b.add_relationship_concrete_value(strength(20200131, "750", true));
+        b.add_relationship_concrete_value(strength(20190731, "500", true));
+        b.add_relationship_concrete_value(strength(20210101, "750", false));
+        let store = b.build();
+
+        let times: Vec<u32> = store
+            .relationship_concrete_value_history(id)
+            .iter()
+            .map(|r| r.effective_time.as_u32())
+            .collect();
+        assert_eq!(times, vec![20190731, 20200131, 20210101]);
+
+        // Between two versions, the earlier one still applies.
+        assert_eq!(
+            store
+                .relationship_concrete_value_at(id, EffectiveTime::new_unchecked(20191101))
+                .unwrap()
+                .value,
+            ConcreteValue::Number("500".to_string())
+        );
+        // Before the first version: nothing yet.
+        assert!(store
+            .relationship_concrete_value_at(id, EffectiveTime::new_unchecked(20190101))
+            .is_none());
+        // The inactivation is the latest version, not a deletion.
+        assert!(
+            !store
+                .relationship_concrete_value_at(id, EffectiveTime::new_unchecked(20300101))
+                .unwrap()
+                .active
+        );
+        // The two relationship kinds share a partition but not a history.
+        assert!(store.relationship_history(id).is_empty());
     }
 }

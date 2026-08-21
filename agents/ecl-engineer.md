@@ -134,6 +134,29 @@ exists alongside the one being excluded. `Le`/`Lt`/`Ge`/`Gt` have no such
 distinction; they define the per-row predicate directly, since there's no
 "aggregate negation" reading of `<=` to preserve consistency with.
 
+## `{{ D ... }}` filters conjoin over one description, not over the concept
+
+`description_matches` asks whether *some* description satisfies **all**
+the filters in the block — evaluating each filter independently against
+the concept would make `{{ D type = fsn, term = "heart" }}` mean "has an
+FSN, and has something matching heart", which is strictly weaker and
+silently over-matches. Two related decisions live in the same function
+and are documented in spec/10 as judgment calls: only active
+descriptions match unless the block writes an `active` filter (any
+`active` filter, `*` included, replaces the default), and `term` uses the
+grammar's default `match:` word-prefix semantics rather than a substring
+search. If you add a filter kind, it slots into the same per-description
+`all`.
+
+## Candidate role groups come from both relationship views
+
+`evaluate_attribute_group` collects candidate group ids from the
+concept's `Relationship` rows *and* its `RelationshipConcreteValue` rows.
+Collecting from only the first was a real gap: a role group holding just
+a drug strength was invisible to `{ attr > #500 }` even though per-group
+concrete-value matching honored group scope perfectly. If you add a third
+kind of grouped row, it joins that union too.
+
 ## `R` inside `{ }` compares group numbers that have nothing to do with each other
 
 A reverse attribute's relationship belongs to the *other* concept, so its
