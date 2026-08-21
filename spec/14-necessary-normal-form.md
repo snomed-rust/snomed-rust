@@ -203,3 +203,11 @@ normalization) and classify each:
    `(type, value)` attribute pair MUST be reported via
    `SkippedConstruct`, never silently dropped — spec/13's "skip and
    report" philosophy, extended here.
+5. Proximal-parent reduction MUST NOT eliminate an entire equivalence
+   class. Two equivalent supertypes each imply the other, so "drop every
+   parent some other parent implies" would drop both and leave the
+   concept parentless — which no RF2 relationship generation can express
+   (spec/07 rule 2: every active concept but the root has an IS-A row).
+   Equivalent supertypes form an equivalence class from which exactly one
+   representative survives, chosen as the lowest SCTID so the result is
+   deterministic.

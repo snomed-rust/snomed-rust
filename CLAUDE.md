@@ -14,6 +14,10 @@ classification with necessary normal form generation.
 - Format: `cargo fmt`
 - Run the CLI: `cargo run -p snomed-cli -- <subcommand> [args...]`
   (`sctid`, `load`, `lookup`, `ecl`, `export`, `validate`, `classify`, `nnf`)
+- Benchmark: `cargo bench --manifest-path benches/Cargo.toml`
+  (add `-- --test` for a smoke run) — see `spec/rust-bench.md`
+- Fuzz: `cargo +nightly fuzz run <target>` from `fuzz/`
+  (`cargo +nightly fuzz list` for the targets) — see `spec/rust-fuzz.md`
 
 ## Layout
 
@@ -40,6 +44,9 @@ classification with necessary normal form generation.
 - `spec/` — project-local distillation of the official RF2 specification
   and the other normative sources this workspace implements (ECL, FHIR,
   OWL, EL classification, necessary normal form).
+- `fuzz/` — libFuzzer targets (nightly-only, outside the workspace so the
+  published crates keep zero dependencies); seeds in `fuzz/seeds/`.
+- `benches/` — criterion benchmarks (outside the workspace, same reason).
 - `plan.md` (phases/direction), `tasks.md` (execution checklist),
   `AGENTS/` (role playbooks — one per crate with non-trivial domain
   logic).
@@ -50,8 +57,12 @@ classification with necessary normal form generation.
    comments cite the spec file they implement (e.g. "per spec/04-sctid.md").
    If code and spec disagree, fix the spec first or fix the code — never let
    them drift.
-2. **Zero external dependencies** in the current crates. Adding a dependency
-   is a design decision for `plan.md`, not a convenience.
+2. **Zero external dependencies** in the current crates — dev-dependencies
+   included. Adding one is a design decision for `plan.md`, not a
+   convenience. The two tools that genuinely need external crates
+   (`fuzz/` → `libfuzzer-sys`, `benches/` → `criterion`) live in their own
+   packages *outside* the workspace, so `cargo build`, `cargo test`, and
+   `cargo clippy` never build them.
 3. **Never commit SNOMED CT release content.** RF2 data is licensed material;
    `.gitignore` blocks `sct2_*`/`der2_*`/`data/`. Tests may use well-known
    metadata SCTIDs and tiny hand-written rows only.
@@ -60,9 +71,19 @@ classification with necessary normal form generation.
 5. Generated SCTIDs in tests use `SctId::compose(...)` with item ≥ 1000 so
    short-format ids meet the 6-digit minimum.
 6. Keep `tasks.md` checked off in the same change that completes the work.
+7. The MSRV is the current stable Rust release minus three
+   (`spec/rust-msrv-n-minus-3.md`); `rust-version` in the root `Cargo.toml`
+   and the CI `msrv` job pin move together.
 
 ## Gotchas
 
+- Query results must be **deterministic across processes**, not just
+  order-independent in content (spec/09 rules 5-6): anything built by
+  iterating a `HashMap` is sorted before it is exposed. Two runs of the
+  same command on the same input produce byte-identical output.
+- No public API may panic on input its own type allows — including
+  `SctId::new_unchecked` values and hand-built `snomed_owl::Axiom`s
+  (spec/04 rule 5, spec/13 rule 6). The `fuzz/` targets enforce this.
 - Hierarchy = active + inferred + `typeId 116680003` rows only
   (spec/07-relationship-file.md). Stated axioms live in the OWL refset.
 - Snapshot resolution must stay order-independent (spec/09); don't "optimize"

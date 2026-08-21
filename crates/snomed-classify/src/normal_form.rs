@@ -98,12 +98,26 @@ fn dedup_unordered<T: PartialEq + Copy>(items: &mut Vec<T>) {
 
 /// `p` survives as a proximal parent of `c` unless some other entailed
 /// supertype `q` of `c` already implies `p` (spec/14 rule 1).
+///
+/// Two *equivalent* supertypes imply each other, so a naive "drop `p` when
+/// some `q` implies it" eliminates both and leaves `c` with no parent at
+/// all (spec/14 rule 5). Equivalent supertypes are therefore an
+/// equivalence class from which exactly one representative survives — the
+/// lowest SCTID, so the choice is deterministic rather than dependent on
+/// iteration order.
 fn proximal_parents(c: SctId, classification: &Classification) -> Vec<SctId> {
     let all: Vec<SctId> = classification.subsumers(c).collect();
     all.iter()
         .filter(|&&p| {
-            !all.iter()
-                .any(|&q| q != p && classification.is_subsumed_by(q, p))
+            !all.iter().any(|&q| {
+                if q == p || !classification.is_subsumed_by(q, p) {
+                    return false;
+                }
+                // `q` implies `p`. If `p` implies `q` back they are
+                // equivalent, and only the lower id survives; otherwise
+                // `q` is strictly more specific and `p` is redundant.
+                !classification.is_subsumed_by(p, q) || q < p
+            })
         })
         .copied()
         .collect()
@@ -571,5 +585,22 @@ mod tests {
                 destination_id: value
             }]
         );
+    }
+
+    #[test]
+    fn equivalent_parents_do_not_eliminate_each_other() {
+        // spec/14 rule 5: `B` and `C` are equivalent, so each implies the
+        // other. Dropping every implied parent would leave `A` with no
+        // parent at all; exactly one representative (the lower SCTID)
+        // must survive.
+        let a = id(1090);
+        let b = id(1091);
+        let c = id(1092);
+        assert!(b < c, "the test relies on b sorting before c");
+        let report = necessary_normal_form(&[
+            ax(&format!("EquivalentClasses(:{b} :{c})")),
+            ax(&format!("SubClassOf(:{a} :{b})")),
+        ]);
+        assert_eq!(report.forms[&a].is_a, vec![b]);
     }
 }

@@ -41,6 +41,12 @@ never be the only place a piece of behavior exists.
    subcommand touches a release directory) an integration test in
    `tests/cli.rs` using the `TempDir` + `write_synthetic_release` pattern
    already there.
+5. Output must be **byte-identical between runs** on the same input. Sort
+   anything that came from a set or a map before printing (spec/09 rule
+   6); every store accessor that yields a sequence is already sorted for
+   you, so the usual failure is a `HashSet` collected in the subcommand
+   itself. A capped list (`write_capped`'s five-entry limit) makes this
+   sharper, not softer: unsorted input changes *which* five you show.
 
 ## Zero dependencies, on purpose
 

@@ -27,3 +27,16 @@ file/record types.
 - Errors carry the 1-based line number and the RF2 column name.
 - BOM and CRLF tolerance must not regress (tests exist).
 - No external dependencies.
+- The reader validates the column count against `HEADER` *before* calling
+  `parse_fields`, which is what makes direct `f[i]` indexing safe. If you
+  ever add a parse path that doesn't go through `Rf2Reader`, it owes the
+  same check — a public API must not panic on malformed input
+  (`AGENTS.md` ground rule 8).
+
+## After a parser change
+
+Rebuild and briefly run the `rf2_reader` fuzz target
+(`cd fuzz && cargo +nightly fuzz run rf2_reader corpus/rf2_reader
+seeds/rf2_reader`): it feeds arbitrary bytes to every record type, so a
+new type is covered the moment you add it to that target's `drain::<T>`
+list. Add a seed file for the new file shape (`spec/rust-fuzz.md`).

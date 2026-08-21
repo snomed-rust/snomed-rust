@@ -174,7 +174,7 @@ driven, single source of truth" means in practice, not just in the docs.
 ## Where to go from here
 
 - [`index.md`](../index.md) — the documentation map: which `spec/*.md`
-  file backs which crate, and a worked example spanning four crates
+  file backs which crate, and a worked example spanning five crates
   (similar to this tutorial, more compressed).
 - Each crate's own `README.md` (`crates/*/README.md`) — full API
   reference and design notes for the crate you're about to extend.
@@ -182,5 +182,9 @@ driven, single source of truth" means in practice, not just in the docs.
   step above, minus writing Rust, from the terminal:
   `snomed-cli sctid`, `load`, `lookup`, `ecl`, `classify`, `nnf`,
   `export`, `validate`.
+- About to change something rather than just use it? Every parser and
+  algorithm here has a fuzz target asserting its spec's properties
+  ([`spec/rust-fuzz.md`](../spec/rust-fuzz.md)) and a criterion benchmark
+  recording what it costs ([`spec/rust-bench.md`](../spec/rust-bench.md)).
 - Stuck, or something looks wrong? See
   [`docs/troubleshooting.md`](troubleshooting.md).

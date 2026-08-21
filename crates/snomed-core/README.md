@@ -54,6 +54,14 @@ an invalid Verhoeff check digit, and unknown partition identifiers.
 `SctId::compose` rejects a zero item identifier and an out-of-range
 namespace, and always produces a value that round-trips through `parse`.
 
+`SctId::new_unchecked` skips all of that — it exists for compile-time
+constants of ids you already know are valid. The accessors stay total
+even so: an id with too few digits to hold a partition reports partition
+`99` (a value no valid SCTID uses), and therefore `None` for
+`component_type()`/`namespace()`, `false` for `is_long_format()`, and `0`
+for `item_identifier()`, rather than panicking
+([`spec/04-sctid.md`](../../spec/04-sctid.md) rule 5).
+
 ## Component records
 
 `Concept`, `Description`, and `Relationship` mirror the RF2 column layout

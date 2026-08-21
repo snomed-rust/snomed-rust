@@ -382,6 +382,19 @@ the field doesn't carry. This is a documented judgment call, not a literal
 citation, the same category as `spec/08`'s `iRefset`/`ciRefset`
 file-pattern-letter derivation.
 
+**Known limitation: the reverse flag inside `{ }` compares unrelated
+group numbers.** A reverse attribute's relationship belongs to the
+*other* concept (the one pointing at the focus), so that row's
+`relationshipGroup` has nothing to do with the focus concept's own role
+group numbering — yet `{ R attr = value }` currently filters those rows
+by the candidate group id taken from the focus's relationships. The
+visible effect: a focus concept with no nonzero role group of its own can
+never satisfy `{ R ... }`, even when the ungrouped `R ...` matches it.
+Neither the official ECL specification nor the official guide says what
+`R` inside an attribute group should mean, and inventing semantics here
+would be exactly the guessing this spec forbids elsewhere — so the
+behavior is documented and tracked in `tasks.md`, not quietly redefined.
+
 **Known limitation: candidate groups come from `Relationship` rows
 only.** The set of candidate group ids for a `{ }` constraint is
 collected from the concept's relationships; a role group whose *only*

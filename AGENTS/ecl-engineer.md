@@ -134,6 +134,19 @@ exists alongside the one being excluded. `Le`/`Lt`/`Ge`/`Gt` have no such
 distinction; they define the per-row predicate directly, since there's no
 "aggregate negation" reading of `<=` to preserve consistency with.
 
+## `R` inside `{ }` compares group numbers that have nothing to do with each other
+
+A reverse attribute's relationship belongs to the *other* concept, so its
+`relationshipGroup` is unrelated to the focus concept's own role group
+numbering — yet `{ R attr = value }` currently filters those rows by a
+candidate group id taken from the focus's relationships, and a focus with
+no nonzero group can never satisfy `{ R ... }` even when the ungrouped
+`R ...` matches. Neither the official specification nor the official
+guide says what `R` inside an attribute group should mean, so the
+behavior is documented as a known limitation in spec/10 and tracked in
+`tasks.md` rather than redefined on a guess. If you fix it, the fix
+starts in spec/10 with a *cited* semantics, not in `eval.rs`.
+
 ## Attribute names are `subExpressionConstraint`, evaluated like any other set
 
 `AttributeConstraint.attribute` is `Box<ExpressionConstraint>`, not

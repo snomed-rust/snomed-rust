@@ -9,6 +9,7 @@ use std::collections::{HashMap, HashSet, VecDeque};
 use snomed_core::components::{Concept, Description, Relationship, RelationshipConcreteValue};
 use snomed_core::constants;
 use snomed_core::sctid::SctId;
+use snomed_core::time::EffectiveTime;
 use snomed_rf2::refset::{
     AssociationRefsetMember, AttributeValueRefsetMember, ComponentAnnotationRefsetMember,
     DescriptionTypeRefsetMember, ExtendedMapRefsetMember, LanguageRefsetMember,
@@ -90,7 +91,8 @@ macro_rules! refset_member_methods {
 }
 
 /// Groups active refset members by `(refsetId, referencedComponentId)`,
-/// consuming the builder's member map. Order within a group is unspecified.
+/// consuming the builder's member map. Each group is ordered by member UUID,
+/// so it does not depend on `HashMap` iteration order.
 fn group_by_refset_and_component<T>(
     members: HashMap<String, T>,
     core_of: impl Fn(&T) -> &RefsetMemberCore,
@@ -108,7 +110,21 @@ fn group_by_refset_and_component<T>(
                 .push(member);
         }
     }
+    // Members arrive in `HashMap` order, which differs between processes;
+    // sorting by member UUID makes each group's order reproducible.
+    for group in grouped.values_mut() {
+        group.sort_by(|a, b| core_of(a).id.cmp(&core_of(b).id));
+    }
     grouped
+}
+
+/// Sorts and dedups every vector of a derived id index, so queries return
+/// components in ascending id order rather than in `HashMap` order.
+fn sort_index(index: &mut HashMap<SctId, Vec<SctId>>) {
+    for ids in index.values_mut() {
+        ids.sort_unstable();
+        ids.dedup();
+    }
 }
 
 impl SnapshotStoreBuilder {
@@ -294,6 +310,12 @@ impl SnapshotStoreBuilder {
                 .or_default()
                 .push(d.id);
         }
+        // Every index below is filled by iterating a `HashMap`, whose order
+        // varies between processes. Sorting makes each index — and therefore
+        // every query built on it — deterministic, which spec/09's
+        // order-independence rule demands of results, not just of which
+        // version wins.
+        sort_index(&mut descriptions_by_concept);
 
         let mut relationships_by_source: HashMap<SctId, Vec<SctId>> = HashMap::new();
         let mut relationships_by_destination: HashMap<SctId, Vec<SctId>> = HashMap::new();
@@ -320,14 +342,10 @@ impl SnapshotStoreBuilder {
                     .push(r.source_id);
             }
         }
-        for v in parents.values_mut() {
-            v.sort_unstable();
-            v.dedup();
-        }
-        for v in children.values_mut() {
-            v.sort_unstable();
-            v.dedup();
-        }
+        sort_index(&mut relationships_by_source);
+        sort_index(&mut relationships_by_destination);
+        sort_index(&mut parents);
+        sort_index(&mut children);
 
         let mut relationship_concrete_values_by_source: HashMap<SctId, Vec<SctId>> = HashMap::new();
         for r in self.relationship_concrete_values.values() {
@@ -336,17 +354,40 @@ impl SnapshotStoreBuilder {
                 .or_default()
                 .push(r.id);
         }
+        sort_index(&mut relationship_concrete_values_by_source);
 
-        // Acceptability by (language refset, description id), active members only.
-        let mut acceptability: HashMap<(SctId, SctId), SctId> = HashMap::new();
+        // Acceptability by (language refset, description id), active members
+        // only. Well-formed data has at most one member per pair, but nothing
+        // in RF2 guarantees it; when two members collide, the later
+        // `effectiveTime` wins and the member UUID breaks a remaining tie, so
+        // the answer never depends on `HashMap` iteration order.
+        let mut resolved: HashMap<(SctId, SctId), (&str, EffectiveTime, SctId)> = HashMap::new();
         for m in self.language_members.values() {
-            if m.core.active {
-                acceptability.insert(
-                    (m.core.refset_id, m.core.referenced_component_id),
-                    m.acceptability_id,
-                );
+            if !m.core.active {
+                continue;
+            }
+            let key = (m.core.refset_id, m.core.referenced_component_id);
+            let candidate = (
+                m.core.id.as_str(),
+                m.core.effective_time,
+                m.acceptability_id,
+            );
+            match resolved.entry(key) {
+                std::collections::hash_map::Entry::Vacant(e) => {
+                    e.insert(candidate);
+                }
+                std::collections::hash_map::Entry::Occupied(mut e) => {
+                    let (uuid, time, _) = *e.get();
+                    if (candidate.1, candidate.0) > (time, uuid) {
+                        e.insert(candidate);
+                    }
+                }
             }
         }
+        let acceptability: HashMap<(SctId, SctId), SctId> = resolved
+            .into_iter()
+            .map(|(key, (_, _, acceptability_id))| (key, acceptability_id))
+            .collect();
 
         let simple_members: HashSet<(SctId, SctId)> = self
             .simple_members
@@ -535,7 +576,8 @@ impl SnapshotStore {
 
     // -- Descriptions ------------------------------------------------------
 
-    /// All (latest-version) descriptions of a concept, in unspecified order.
+    /// All (latest-version) descriptions of a concept, in ascending
+    /// description id order (spec/09-versioning.md rule 6).
     pub fn descriptions_of(&self, concept_id: SctId) -> impl Iterator<Item = &Description> {
         self.descriptions_by_concept
             .get(&concept_id)
@@ -580,7 +622,8 @@ impl SnapshotStore {
 
     // -- Relationships ---------------------------------------------------
 
-    /// All (latest-version) relationships whose source is this concept.
+    /// All (latest-version) relationships whose source is this concept, in
+    /// ascending relationship id order (spec/09-versioning.md rule 6).
     pub fn relationships_of(&self, source_id: SctId) -> impl Iterator<Item = &Relationship> {
         self.relationships_by_source
             .get(&source_id)
@@ -602,7 +645,8 @@ impl SnapshotStore {
     }
 
     /// All (latest-version) concrete-value relationships whose source is
-    /// this concept (spec/07's `RelationshipConcreteValues` file).
+    /// this concept (spec/07's `RelationshipConcreteValues` file), in
+    /// ascending relationship id order (spec/09-versioning.md rule 6).
     pub fn relationship_concrete_values_of(
         &self,
         source_id: SctId,
@@ -775,7 +819,14 @@ impl SnapshotStore {
     /// want to feed all of it to `snomed-owl`/`snomed-classify` rather
     /// than look up one `(refsetId, componentId)` pair at a time.
     pub fn all_owl_expression_members(&self) -> impl Iterator<Item = &OwlExpressionRefsetMember> {
-        self.owl_expression_members.values().flatten()
+        // Ordered by (refsetId, referencedComponentId) — and, within a
+        // group, by member UUID — so callers that report or cap results
+        // (e.g. the CLI's `classify`/`nnf` parse-failure list) see the same
+        // rows in the same order on every run (spec/09 rule 6).
+        let mut keys: Vec<&(SctId, SctId)> = self.owl_expression_members.keys().collect();
+        keys.sort_unstable();
+        keys.into_iter()
+            .flat_map(|key| self.owl_expression_members[key].iter())
     }
 
     /// Active ModuleDependency refset members for `module_id` in
@@ -989,6 +1040,85 @@ mod tests {
         b.add_concept(concept(MI, 20190731, true));
         b.add_concept(concept(MI, 20200131, false));
         assert!(!b.build().is_active(MI), "same result in arrival order");
+    }
+
+    #[test]
+    fn derived_indexes_are_ordered_by_id() {
+        // spec/09 rule 6: results must be reproducible across processes, so
+        // the indexes built by iterating hash maps are sorted by id.
+        let mut b = SnapshotStore::builder();
+        b.add_concept(concept(MI, 20190731, true));
+        let description_ids: Vec<SctId> = (0..8)
+            .map(|i| SctId::compose(2000 + i, ComponentType::Description, None).unwrap())
+            .collect();
+        // Add them in an order that is neither ascending nor descending.
+        for &id in [3, 0, 6, 1, 7, 4, 2, 5].iter() {
+            b.add_description(Description {
+                id: description_ids[id],
+                effective_time: EffectiveTime::new_unchecked(20190731),
+                active: true,
+                module_id: constants::CORE_MODULE,
+                concept_id: MI,
+                language_code: "en".to_string(),
+                type_id: constants::SYNONYM,
+                term: format!("term {id}"),
+                case_significance_id: constants::CASE_INSENSITIVE,
+            });
+        }
+        for (i, &destination) in [ROOT, FINDING, DISEASE].iter().enumerate() {
+            b.add_relationship(is_a(100 - i as u64, MI, destination));
+        }
+        let store = b.build();
+
+        let mut expected_descriptions = description_ids.clone();
+        expected_descriptions.sort();
+        let found: Vec<SctId> = store.descriptions_of(MI).map(|d| d.id).collect();
+        assert_eq!(found, expected_descriptions);
+
+        let relationship_ids: Vec<SctId> = store.relationships_of(MI).map(|r| r.id).collect();
+        let mut sorted = relationship_ids.clone();
+        sorted.sort();
+        assert_eq!(relationship_ids, sorted);
+    }
+
+    #[test]
+    fn duplicate_language_members_resolve_deterministically() {
+        // spec/09 rule 5: two active members for the same (refset,
+        // description) is malformed data, but the winner must still be the
+        // later effectiveTime — not whichever the hash map yielded last.
+        let description_id = SctId::compose(2000, ComponentType::Description, None).unwrap();
+        let member = |uuid: &str, time: u32, acceptability: SctId| LanguageRefsetMember {
+            core: RefsetMemberCore {
+                id: uuid.to_string(),
+                effective_time: EffectiveTime::new_unchecked(time),
+                active: true,
+                module_id: constants::CORE_MODULE,
+                refset_id: constants::US_ENGLISH_LANGUAGE_REFSET,
+                referenced_component_id: description_id,
+            },
+            acceptability_id: acceptability,
+        };
+        let build = |rows: [LanguageRefsetMember; 2]| {
+            let mut b = SnapshotStore::builder();
+            b.add_language_members(rows);
+            b.build()
+                .acceptability(constants::US_ENGLISH_LANGUAGE_REFSET, description_id)
+        };
+        let older = member(
+            "00000000-0000-4000-8000-00000000000a",
+            20190731,
+            constants::ACCEPTABLE,
+        );
+        let newer = member(
+            "00000000-0000-4000-8000-00000000000b",
+            20200131,
+            constants::PREFERRED,
+        );
+        assert_eq!(
+            build([older.clone(), newer.clone()]),
+            Some(constants::PREFERRED)
+        );
+        assert_eq!(build([newer, older]), Some(constants::PREFERRED));
     }
 
     #[test]

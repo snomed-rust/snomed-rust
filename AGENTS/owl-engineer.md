@@ -56,6 +56,16 @@ for becomes this same error uniformly (see `parser.rs`'s `other => ...`
 arms). Keep it that way; don't special-case specific unsupported keywords
 with nicer messages unless you're also adding real support for them.
 
+## The parser enforces arity; downstream crates can't rely on that alone
+
+`ObjectIntersectionOf` and `ObjectPropertyChain` are rejected here with
+fewer than two operands, which is correct — but `Axiom`/`ClassExpression`
+are public types, so `snomed-classify` still receives hand-built values
+this parser would never produce (spec/13 rule 6). Arity checks here are
+about giving good errors on real input, not about establishing an
+invariant another crate may index a slice on. Keep both: the check here,
+and the degenerate-case handling there.
+
 ## Eager tokenization here, pull-based in `snomed-ecl` — both are correct
 
 `snomed-ecl`'s lexer is pull-based specifically because ECL has
@@ -87,3 +97,6 @@ the first place — it doesn't apply here.
 6. Tests: lexer-level (if new token forms), parser-level (happy path with
    the real example, plus at least one rejected malformed case) — same
    split as `snomed-ecl`'s test files.
+7. Rebuild and briefly run the `owl_parse` fuzz target over its committed
+   seeds (`spec/rust-fuzz.md`); add a seed for the new construct so the
+   corpus keeps covering it.

@@ -42,6 +42,19 @@ Given any mix of Full, Snapshot, and Delta rows:
    index is active-only by construction, and the raw member rows are not
    retained afterward — "was this ever a member?" is a `HistoryStore`
    question (below), not a `SnapshotStore` one.
+5. Where two rows contend for one slot and their `effectiveTime`s are
+   equal, the tie MUST be broken deterministically by id (component id, or
+   member UUID for refset members) — never by which row arrived first and
+   never by hash order.
+6. Query results MUST be deterministic across processes, not merely
+   order-independent in their *content*. The derived indexes are built by
+   iterating hash maps, whose order differs from run to run, so each index
+   is sorted before it is exposed: component id sequences ascend by id
+   (`descriptions_of`, `relationships_of`, `relationships_to`,
+   `relationship_concrete_values_of`, `parents`, `children`), and refset
+   member groups ascend by member UUID. Set-valued results
+   (`ancestors`/`descendants`/`refset_members`) are unordered by type;
+   callers that render them MUST sort.
 
 ## Derived indexes
 

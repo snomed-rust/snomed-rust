@@ -306,6 +306,45 @@ mod tests {
     }
 
     #[test]
+    fn degenerate_role_chains_do_not_panic() {
+        // spec/13 rule 6: `Axiom` is public, so a caller can hand-build a
+        // chain the OWL parser would have rejected. A one-operand chain is
+        // exactly a role hierarchy axiom; an empty one implies nothing and
+        // is reported as skipped. Neither may panic.
+        let r = id(1070);
+        let s = id(1071);
+        let subject = id(1072);
+        let filler = id(1073);
+        let target = id(1074);
+
+        let one_operand = vec![
+            Axiom::SubObjectPropertyOf {
+                sub: snomed_owl::ObjectPropertyExpression::Chain(vec![r]),
+                sup: s,
+            },
+            ax(&format!(
+                "SubClassOf(:{subject} ObjectSomeValuesFrom(:{r} :{filler}))"
+            )),
+            ax(&format!(
+                "SubClassOf(ObjectSomeValuesFrom(:{s} :{filler}) :{target})"
+            )),
+        ];
+        let report = classify(&one_operand);
+        assert!(
+            report.classification.is_subsumed_by(subject, target),
+            "a one-operand chain must behave as `r ⊑ s`"
+        );
+        assert!(report.skipped.is_empty());
+
+        let empty = vec![Axiom::SubObjectPropertyOf {
+            sub: snomed_owl::ObjectPropertyExpression::Chain(Vec::new()),
+            sup: s,
+        }];
+        let report = classify(&empty);
+        assert_eq!(report.skipped, vec![SkippedConstruct::EmptyRoleChain(s)]);
+    }
+
+    #[test]
     fn equivalent_classes_are_mutually_subsumed() {
         let a = id(1060);
         let b = id(1061);

@@ -104,6 +104,12 @@ above).
   classified axioms) renders as an empty expression (`""`), not an
   error — the same "legitimate absence of data" treatment as `display:
   None` for a description-less concept.
+- A form with attributes but **no** proximal named parent (possible when
+  a concept's only entailed superclass information is an existential
+  restriction) renders `138875005 |SNOMED CT Concept|` as its focus: the
+  grammar below has no expression without a focus concept, and the root
+  is the one supertype every SNOMED CT concept has. A form with neither
+  parents nor attributes still renders as `""`, per the rule above.
 - Rendering is SNOMED CT Compositional Grammar
   (`focusConcept [":" refinement]`, `refinement` = an optional
   ungrouped `attributeSet` followed by zero or more `{ attributeGroup

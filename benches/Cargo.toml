@@ -1,0 +1,56 @@
+# Criterion benchmarks for this workspace, per spec/rust-bench.md.
+#
+# Like `fuzz/`, this package sits OUTSIDE the workspace (note the empty
+# `[workspace]` table): criterion is an external dependency, and the rule in
+# CLAUDE.md is that the published crates have none — not even a dev one that
+# every `cargo test` would have to build.
+[package]
+name = "snomed-benches"
+version = "0.0.0"
+publish = false
+edition = "2021"
+rust-version = "1.95"
+license = "Apache-2.0 OR MIT"
+
+[workspace]
+
+[dependencies]
+snomed-classify = { path = "../crates/snomed-classify" }
+snomed-core = { path = "../crates/snomed-core" }
+snomed-ecl = { path = "../crates/snomed-ecl" }
+snomed-fhir = { path = "../crates/snomed-fhir" }
+snomed-owl = { path = "../crates/snomed-owl" }
+snomed-rf2 = { path = "../crates/snomed-rf2" }
+snomed-store = { path = "../crates/snomed-store" }
+
+[dev-dependencies]
+criterion = "0.8"
+
+[lib]
+name = "snomed_benches"
+path = "src/lib.rs"
+bench = false
+
+[[bench]]
+name = "sctid"
+harness = false
+
+[[bench]]
+name = "rf2"
+harness = false
+
+[[bench]]
+name = "store"
+harness = false
+
+[[bench]]
+name = "ecl"
+harness = false
+
+[[bench]]
+name = "classify"
+harness = false
+
+[[bench]]
+name = "fhir"
+harness = false

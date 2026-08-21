@@ -110,18 +110,38 @@ impl Normalizer {
     /// compositions, introducing fresh intermediate roles as needed
     /// (length 2 — SNOMED's only observed real usage, spec/12 — needs
     /// none).
+    ///
+    /// `snomed-owl`'s parser rejects a chain with fewer than two operands,
+    /// but `Axiom` is a public type a caller can build by hand, so the
+    /// degenerate lengths are handled rather than left to panic
+    /// (spec/13 rule 6): one operand is exactly a role hierarchy axiom,
+    /// and zero operands say nothing at all and are reported as skipped.
     fn add_role_chain(&mut self, ids: &[SctId], target: RoleId) {
-        debug_assert!(ids.len() >= 2, "ObjectPropertyChain has 2+ operands");
-        let mut acc = RoleId::Named(ids[0]);
-        for &next in &ids[1..ids.len() - 1] {
-            let fresh = self.fresh_role();
-            self.tbox
-                .role_composition
-                .push((acc, RoleId::Named(next), fresh));
-            acc = fresh;
+        match ids {
+            [] => {
+                if let RoleId::Named(t) = target {
+                    self.tbox.skipped.push(SkippedConstruct::EmptyRoleChain(t));
+                }
+            }
+            [only] => {
+                self.tbox
+                    .role_hierarchy
+                    .push((RoleId::Named(*only), target));
+            }
+            [first, middle @ .., last] => {
+                let mut acc = RoleId::Named(*first);
+                for &next in middle {
+                    let fresh = self.fresh_role();
+                    self.tbox
+                        .role_composition
+                        .push((acc, RoleId::Named(next), fresh));
+                    acc = fresh;
+                }
+                self.tbox
+                    .role_composition
+                    .push((acc, RoleId::Named(*last), target));
+            }
         }
-        let last = RoleId::Named(*ids.last().expect("2+ operands"));
-        self.tbox.role_composition.push((acc, last, target));
     }
 
     fn add_subclass_of(&mut self, sub: &ClassExpression, sup: &ClassExpression) {

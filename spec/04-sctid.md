@@ -59,3 +59,10 @@ Generation: process the payload (id without check digit) right to left with
    short format.
 4. Generation composes item + (namespace) + partition, then appends the
    computed Verhoeff digit, and MUST round-trip through parse.
+5. The accessors (`partition()`, `component_type()`, `is_long_format()`,
+   `namespace()`, `item_identifier()`, `check_digit()`) MUST NOT panic for
+   *any* id value, including ids built with `new_unchecked` that are too
+   short to contain a partition identifier. Such an id reports partition
+   `99` — a value no valid SCTID uses — and therefore `None` for
+   `component_type()`/`namespace()`, `false` for `is_long_format()`, and `0`
+   for `item_identifier()`.

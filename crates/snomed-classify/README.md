@@ -71,7 +71,12 @@ reasoning is a different kind of problem than EL's qualitative
 completion, and reflexivity is real but vanishingly rare in actual SNOMED
 CT content). `necessary_normal_form` extends the same enum with
 `SkippedConstruct::UnmodeledAttributeShape` for a stated attribute (role
-group or ungrouped) whose filler isn't a plain concept.
+group or ungrouped) whose filler isn't a plain concept, and
+`SkippedConstruct::EmptyRoleChain` covers the one shape `snomed-owl`'s
+parser can't produce but a hand-built `Axiom` can: an
+`ObjectPropertyChain` with no operands. (A *one*-operand chain isn't
+skipped — it means exactly `r ⊑ target`, and is classified as such.
+No `Axiom` value panics this crate; see spec/13 rule 6.)
 
 ## Necessary normal form
 
@@ -87,6 +92,12 @@ what's out of scope (property-chain-based redundancy elimination — a
 conservative simplification that never produces wrong output, only
 occasionally retains a few extra, technically-redundant attributes; union
 groups, not applicable since EL has no disjunction).
+
+Proximal-parent reduction keeps exactly one representative of any set of
+mutually **equivalent** parents (the lowest SCTID): they imply each
+other, so dropping every implied parent would leave the concept with no
+IS-A at all — see [`spec/14`](../../spec/14-necessary-normal-form.md)
+rule 5.
 
 ```rust
 use snomed_core::sctid::SctId;

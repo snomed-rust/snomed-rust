@@ -11,6 +11,66 @@ together, in dependency order (`snomed-core` → `snomed-rf2` → `snomed-owl`
 → `snomed-store` → `snomed-classify` → `snomed-ecl` → `snomed-fhir` →
 `snomed-cli` → `snomed`), not independently.
 
+## [0.6.0] — 2026-08-21
+
+### Fixed
+
+- `snomed-core`: `SctId`'s accessors (`partition`, `namespace`,
+  `item_identifier`) panicked for any id built with `new_unchecked` that
+  had fewer digits than the partition/check-digit suffix needs — e.g.
+  `SctId::new_unchecked(7).partition()`. They now report partition `99`
+  (a value no valid SCTID uses) and `None`/`false`/`0` accordingly
+  (spec/04 rule 5).
+- `snomed-store`: query results were **non-deterministic across
+  processes**. Every derived index except `parents`/`children` was built
+  by iterating a `HashMap`, so `descriptions_of`, `relationships_of`,
+  `relationships_to`, `relationship_concrete_values_of`,
+  `all_owl_expression_members`, and every refset member group returned
+  their contents in a different order on every run — which changed
+  `$lookup`'s designation order, the CLI's capped parse-failure lists,
+  and `fsn()`/`preferred_term()`'s pick when duplicates exist. All are
+  now sorted (component ids ascending, refset members by UUID), and two
+  active language refset members contending for one
+  `(refset, description)` slot resolve by `(effectiveTime, member UUID)`
+  instead of by hash order (spec/09 rules 5-6).
+- `snomed-classify`: `classify` panicked on a hand-built
+  `ObjectPropertyChain` with fewer than two operands — a shape
+  `snomed-owl`'s parser rejects but the public `Axiom` type permits. One
+  operand is now treated as the role hierarchy axiom it is; zero operands
+  are reported via the new `SkippedConstruct::EmptyRoleChain`
+  (spec/13 rule 6).
+- `snomed-classify`: necessary normal form dropped **all** of a concept's
+  parents when two of them were mutually equivalent (each implied the
+  other, so each eliminated the other). Equivalent supertypes now keep
+  exactly one representative, the lowest SCTID (spec/14 rule 5).
+- `snomed-fhir`: `$lookup`'s `normalForm`/`normalFormTerse` emitted
+  invalid compositional grammar (a leading bare `:`) for a normal form
+  with attributes but no proximal parent; the focus now falls back to
+  `138875005 |SNOMED CT Concept|` (spec/11).
+
+### Changed
+
+- MSRV is now **the current stable Rust release minus three** (1.95 as of
+  this entry, up from 1.75), a policy checked by a dedicated CI job —
+  see `spec/rust-msrv-n-minus-3.md`.
+- `snomed-classify` (breaking): `SkippedConstruct` gained an
+  `EmptyRoleChain(SctId)` variant, so exhaustive matches on it need a new
+  arm.
+
+### Added
+
+- `fuzz/`: 10 libFuzzer targets covering SCTID parsing and accessors,
+  `effectiveTime`, concrete values, release file names, the RF2 reader,
+  ECL parsing and evaluation, OWL parsing, and classification/normal
+  form. Each asserts its spec's properties, not merely the absence of
+  panics (`spec/rust-fuzz.md`).
+- `benches/`: criterion benchmarks for SCTID/Verhoeff, RF2 row parsing,
+  store construction and hierarchy queries, ECL parse/evaluate,
+  classification and normal form at three sizes, and the three FHIR
+  operations (`spec/rust-bench.md`).
+- Both live in packages *outside* the workspace, so the published crates
+  still have zero dependencies — dev-dependencies included.
+
 ## [0.5.0] — 2026-08-06
 
 ### Added

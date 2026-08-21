@@ -43,6 +43,12 @@ Constraint Language (spec/10), FHIR terminology-service building blocks
 (spec/11), OWL axiom parsing (spec/12), EL-profile subsumption
 classification (spec/13), and necessary normal form generation (spec/14).
 
+How that implementation is verified is itself specified here:
+[rust-msrv-n-minus-3.md](rust-msrv-n-minus-3.md) fixes the Rust version
+the code may assume, [rust-fuzz.md](rust-fuzz.md) the properties every
+text input must satisfy under fuzzing, and [rust-bench.md](rust-bench.md)
+what gets measured rather than asserted.
+
 Out of scope for now (tracked in `plan.md`/`tasks.md`): MRCM *rule*
 enforcement (the four MRCM refset types are parsed and loaded, but their
 constraints aren't validated against content); an HTTP FHIR server (this

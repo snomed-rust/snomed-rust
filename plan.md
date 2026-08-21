@@ -49,39 +49,32 @@ the spec's normative rules. Day-to-day execution items live in `tasks.md`.
   `SnapshotStoreBuilder::load_release_dir` (spec/02).
 - All 11 RF2 record types this workspace parsed *at this phase* (3 core
   components, 8 refset types) were wired into both parsing (`snomed-rf2`)
-  and storage (`snomed-store`) — see `tasks.md` for the incremental
-  history. Later phases grew this to 22 (adding
+  and storage (`snomed-store`). Later phases grew that to 22, adding
   `RelationshipConcreteValue`, the 4 MRCM refsets, and the 4
-  ordered/annotation refsets — see Phase 6 below).
+  ordered/annotation refsets (Phase 6 below).
 - Benchmarked with a synthetic, structurally-representative release
   (`crates/snomed-store/examples/benchmark_synthetic_release.rs` — real
   RF2 file names/columns/SCTIDs, fictional content, since real release
-  content is licensed and unavailable here). At 370,000 concepts (matching
-  the International Edition's active-concept count), on the dev machine
-  used for this run:
-  - `load_release_dir`: ~800ms for ~1.85M rows (~2.3M rows/sec).
-  - `build()` (derived indexes): ~170ms.
-  - `ancestors()`/`descendants()`/`subsumes()`: ~2µs average per call
-    over 2000 random concepts (this synthetic hierarchy's random-tree
-    shape gives ~13 ancestors/concept on average — real SNOMED's
-    poly-hierarchy likely yields more per concept, but even two orders of
-    magnitude more ancestors stays well under 1ms).
-  - `is_active()`/`fsn()`/`preferred_term()`: sub-microsecond.
+  content is licensed and unavailable here). At 370,000 concepts
+  (the International Edition's active-concept count): `load_release_dir`
+  ~800ms for ~1.85M rows (~2.3M rows/sec), `build()` ~170ms,
+  `ancestors`/`descendants`/`subsumes` ~2µs average over 2000 random
+  concepts, `is_active`/`fsn`/`preferred_term` sub-microsecond. Numbers
+  and their caveats are kept current in `AGENTS/store-engineer.md`;
+  per-operation regression tracking now lives in `benches/` (Phase 8).
   - **Decision: no precomputed transitive closure for now.** On-demand BFS
     is already 3+ orders of magnitude faster than would matter for typical
     interactive or batch use; revisit only if a real-release run (or a
     profiled downstream consumer) shows otherwise.
-- Remaining refset patterns flagged *not yet implemented* at this point:
-  ordered/annotation refset variants and the four MRCM refsets (spec/08).
-  Both groups were implemented later — see the Phase 6 entries below
-  ("Ordered/annotation refset variants ✅" closes the last tracked refset
-  gap); nothing from this list remains open.
+- Refset patterns flagged *not yet implemented* at this point — the
+  ordered/annotation variants and the four MRCM refsets (spec/08) — were
+  both implemented in Phase 6 below; nothing from that list remains open.
 
 ## Phase 5 — Query layer ✅
 
 - New crate `snomed-ecl` ✅: Expression Constraint Language parser and
-  evaluator against `SnapshotStore`, scoped to **simple expression
-  constraints** (spec/10-ecl.md): all eight hierarchy operators
+  evaluator over `SnapshotStore`, scoped at this point to **simple
+  expression constraints** (spec/10): all eight hierarchy operators
   (`<`/`<<`/`<!`/`<<!`/`>`/`>>`/`>!`/`>>!`, plus hierarchy-prefixed
   wildcards like `< *`), `^` memberOf, `*` wildcard, `AND`/`OR`/`MINUS`
   (grammar-confirmed rules — `AND`/`OR` chain freely, `MINUS` is exactly
@@ -96,13 +89,12 @@ the spec's normative rules. Day-to-day execution items live in `tasks.md`.
   sources note — which caught three real bugs against first-pass
   assumptions (MINUS was wrongly chainable, keywords were wrongly
   case-sensitive, hierarchy-prefixed wildcards were wrongly rejected as
-  unimplemented). Fixed before building refinements on top of a shaky
-  foundation, not after.
-- Found and fixed a real correctness gap while scoping `^`: `is_member` only
-  ever indexed Simple-refset rows, so e.g. language-refset membership was
-  invisible to it — RF2 membership is refsetId+referencedComponentId+active
-  regardless of refset type (spec/08 rule 4). Generalized before writing
-  `snomed-ecl`, not worked around inside it.
+  unimplemented), all fixed before refinements were built on top.
+- Found and fixed a real correctness gap while scoping `^`: `is_member`
+  only indexed Simple-refset rows, so language-refset membership was
+  invisible to it — RF2 membership is refsetId+referencedComponentId+
+  active regardless of refset type (spec/08 rule 4). Generalized in the
+  store before writing `snomed-ecl`, not worked around inside it.
 - Refinements ✅ (basic subset): `focus : attributeId (= | !=) value`, with
   `AND`/`OR` chains and parenthesized groups at refinement level (no
   `MINUS` there — the grammar doesn't define one). `value` may itself be
@@ -148,8 +140,8 @@ the spec's normative rules. Day-to-day execution items live in `tasks.md`.
   error. Numeric `Eq`/`NotEq` both count *equal* rows and let `NotEq`
   negate the aggregate cardinality check afterward — mirroring
   `Expression`'s existing `negated` semantics exactly, rather than
-  redefining "matches" per operator (see `AGENTS/ecl-engineer.md` for
-  why the alternative would be wrong, not just different). Reverse
+  redefining "matches" per operator (`AGENTS/ecl-engineer.md` says why
+  the alternative would be wrong, not merely different). Reverse
   flag combined with a concrete comparison is rejected at parse time
   (grammatically legal, semantically empty — a concrete value has no
   "other concept" to reverse into). Deliberately scoped out at this
@@ -180,8 +172,8 @@ the spec's normative rules. Day-to-day execution items live in `tasks.md`.
   SCTID as a `Concept` row and needed fixing, a real RF2 release never
   hits this since attribute types always exist as their own rows. 2 new
   tests (parser AST shape, eval matching across multiple descendant
-  types). This closes both items spec/10 previously flagged as
-  "genuinely harder than a lexer lookahead".
+  types) — closing both items spec/10 had flagged as "genuinely harder
+  than a lexer lookahead".
 - `concreteStringSet` (2026-08-04) ✅ — the OR'd-string-set form
   (`attr = ("mild" "moderate")`) previously assumed to need real
   backtracking to disambiguate from a parenthesized `subExpressionConstraint`
@@ -212,11 +204,10 @@ the spec's normative rules. Day-to-day execution items live in `tasks.md`.
   (at this point just `Active`), matching the `AttributeComparison`
   precedent so a future filter kind doesn't force a second breaking
   change (paid off immediately — see the next entry). New lexer tokens
-  (`C`/`D`/`M` markers, `active`/`true`/`false` keywords) added
-  unconditionally to the same keyword table `AND`/`OR`/`MINUS`/`R`
-  already use — safe, since nothing outside `{{ }}` can legally contain
-  those strings in this grammar subset. `,` inside `{{ }}` reuses the
-  existing `TokenKind::And` rather than a new separator token. Filters
+  (`C`/`D`/`M` markers, `active`/`true`/`false`) joined the same keyword
+  table `AND`/`OR`/`MINUS`/`R` already use, and `,` inside `{{ }}` reuses
+  `TokenKind::And` rather than a new separator token
+  (`AGENTS/ecl-engineer.md` for why both are safe here). Filters
   are parsed and applied *before* a trailing `:` wraps the result in a
   refinement (matching the grammar's own
   `subExpressionConstraint`/`refinedExpressionConstraint` layering) —
@@ -227,8 +218,7 @@ the spec's normative rules. Day-to-day execution items live in `tasks.md`.
   expression or `^ memberOf` weren't supported at this point — closed by
   the "`:` refinements and `{{ }}` filters after any
   `subExpressionConstraint` form" entry below. 6 new tests plus a new
-  facade integration test. 275 tests passing workspace-wide (up from
-  269).
+  facade integration test.
 - Concept filter constraint extended: `definitionStatus` (2026-08-05) ✅
   — a second `{{ C ... }}` filter kind, `{{ C definitionStatus =
   primitive|defined }}` (plus `!=` and the `(primitive defined)`
@@ -242,8 +232,7 @@ the spec's normative rules. Day-to-day execution items live in `tasks.md`.
   start a `subExpressionConstraint`, so `(` right after `definitionStatus
   (=|!=)` has only one possible meaning. Deliberately scoped to the
   token form only — `definitionStatusIdFilter` (matching by concept
-  reference) stays a documented gap. 3 new tests. 277 tests passing
-  workspace-wide (up from 275).
+  reference) stays a documented gap. 3 new tests.
 - Concept filter constraint extended: `moduleId` (2026-08-05) ✅ — a
   third `{{ C ... }}` filter kind, `moduleFilter`'s
   `subExpressionConstraint` alternative: `{{ C moduleId =
@@ -259,8 +248,7 @@ the spec's normative rules. Day-to-day execution items live in `tasks.md`.
   the grammar's 2+ requirement) and a parenthesized expression — and the
   *existing* parenthesized-`subExpressionConstraint` parser already
   resolves that correctly by construction (a genuine 2-element set fails
-  there with a generic, not named, error). 3 new tests. 279 tests
-  passing workspace-wide (up from 277).
+  there with a generic, not named, error). 3 new tests.
 - Concept filter constraint extended: `effectiveTime` (2026-08-05) ✅ —
   a fourth `{{ C ... }}` filter kind, `effectiveTimeFilter`:
   `{{ C effectiveTime (=|!=|<=|<|>=|>) "YYYYMMDD" }}` (plus the
@@ -277,8 +265,7 @@ the spec's normative rules. Day-to-day execution items live in `tasks.md`.
   `EclError::InvalidEffectiveTime`, wrapping `EffectiveTime::parse`'s
   own `EffectiveTimeError` — the same "reuse the authoritative RF2
   parser's error" pattern `InvalidSctId` already established for
-  malformed SCTIDs. 4 new tests. 282 tests passing workspace-wide (up
-  from 279).
+  malformed SCTIDs. 4 new tests.
 - `:` refinements and `{{ }}` filters after any `subExpressionConstraint`
   form (2026-08-05) ✅ — a bug fix, discovered while about to extend
   `{{ }}` filter support beyond the plain-focus-concept case (the
@@ -293,7 +280,6 @@ the spec's normative rules. Day-to-day execution items live in `tasks.md`.
   uniformly afterward — matching the grammar's actual structure, where
   that trailing syntax is independent of which focus form preceded it.
   No AST/lexer/eval changes, purely a parser restructuring. 1 new test.
-  283 tests passing workspace-wide (up from 282).
 - History/audit queries over Full-view data ✅: `snomed-store::HistoryStore`
   keeps every version of a Concept/Description/Relationship (spec/09's new
   "History construction" section), built from Full-view files only —
@@ -314,15 +300,14 @@ fix it surfaced, and `HistoryStore`.
   release directory, print a summary — Snapshot by default, `--full` for
   the Full view), `lookup` (FSN/synonyms/parents/children for a concept),
   `ecl` (evaluate an expression against a loaded release), `export`
-  (RF2 → NDJSON, one file at a time, all 22 record types this workspace
-  parses — 3 core component types, `RelationshipConcreteValue`, and all
-  18 refset types, including MRCM and Ordered/Annotation added later in
-  this same phase; extending `export` for those 8 was a real gap,
-  tracked and closed — see `tasks.md`), `validate` (referential
-  integrity + IS-A acyclicity — see
-  below). Deliberately thin — `src/lib.rs`'s `run(args) -> Result<String,
-  _>` does all the work and is directly testable without spawning the
-  binary; `src/main.rs` is ~10 lines. Hand-rolled argument parsing *and*
+  (RF2 → NDJSON for all 22 record types this workspace parses — 3 core
+  components, `RelationshipConcreteValue`, 18 refset types; extending it
+  to the 8 MRCM/Ordered/Annotation types added later in this phase was a
+  real gap, tracked and closed in `tasks.md`), and `validate`
+  (referential integrity + IS-A acyclicity, below). Deliberately thin —
+  `src/lib.rs`'s `run(args) -> Result<String, _>` does all the work and
+  is directly testable without spawning the binary; `src/main.rs` is ~10
+  lines. Hand-rolled argument parsing *and*
   hand-rolled JSON serialization, no `clap`/`serde` — a deliberate
   continuation of the zero-dependency stance, not an oversight (see
   `AGENTS/cli-engineer.md`). `export` also has a whole-release-directory
@@ -336,21 +321,18 @@ fix it surfaced, and `HistoryStore`.
   `conceptId`/`sourceId`/`destinationId` references and IS-A hierarchy
   cycles as a structured `ValidationReport`, going beyond "did it load
   without error" (spec/06 rule 2, spec/07 rules 3 and 5, both updated).
-  Cycle detection is a from-scratch iterative (non-recursive) DFS with
-  white/gray/black coloring over the same `parents` adjacency map
-  traversal uses, reporting only concepts genuinely *on* a cycle — not
-  concepts that merely lead into one — verified with a dedicated test.
-  Wired into `snomed-cli validate <release-dir> [--full]`, reusing the
-  existing `load`/`parse_load_args` helpers. Deliberately out of scope:
-  refset `referencedComponentId` dangling checks — too type-ambiguous to
-  validate generically without per-refset-type plumbing this check doesn't
-  have (documented gap, `crates/snomed-store/README.md` and
+  Cycle detection is a from-scratch iterative DFS with white/gray/black
+  coloring over the same `parents` map traversal uses, reporting only
+  concepts genuinely *on* a cycle — not ones that merely lead into it —
+  verified with a dedicated test. Wired into `snomed-cli validate
+  <release-dir> [--full]`. Deliberately out of scope: refset
+  `referencedComponentId` dangling checks, too type-ambiguous to validate
+  generically without per-refset-type plumbing (documented gap,
   `AGENTS/store-engineer.md`).
-- New crate `snomed-fhir` ✅ (decision made: build it): semantic building
-  blocks for FHIR terminology service operations over a `SnapshotStore` —
-  explicitly *not* an HTTP server or FHIR resource (de)serializer (that's
-  a hosting server's job), single-system by design (rejects anything but
-  `http://snomed.info/sct`). `spec/11-fhir.md` distills the three relevant
+- New crate `snomed-fhir` ✅: semantic building blocks for FHIR
+  terminology service operations over a `SnapshotStore` — explicitly
+  *not* an HTTP server or FHIR resource (de)serializer, and single-system
+  by design (rejects anything but `http://snomed.info/sct`). `spec/11-fhir.md` distills the three relevant
   official sources (`CodeSystem` `$lookup`/`$subsumes`, `ValueSet`
   `$expand`, and — the one that ties them to *this* terminology — [SNOMED
   CT in FHIR](https://www.hl7.org/fhir/R4/snomedct.html): system/version
@@ -368,12 +350,11 @@ fix it surfaced, and `HistoryStore`.
   refset acceptability (surfaced through a new public
   `SnapshotStore::acceptability` accessor, exposing an index
   `preferred_term` already built internally rather than adding a new one),
-  `property` for `inactive`/`moduleId`/`sufficientlyDefined` with an
+  `property` for `inactive`/`moduleId`/`sufficientlyDefined`, with an
   explicit default set when none are requested and a hard
-  `FhirError::UnsupportedProperty` for anything else at this point
-  (`normalForm`, concept-model-attribute properties, typos — all rejected
-  uniformly; `normalForm`/`normalFormTerse` gained real support in a
-  later increment below, once `snomed-classify` existed). `$expand` ✅ —
+  `FhirError::UnsupportedProperty` for everything else at this point
+  (`normalForm`/`normalFormTerse` gained real support in a later
+  increment below, once `snomed-classify` existed). `$expand` ✅ —
   four of SNOMED CT's five implicit value
   set forms (`?fhir_vs`, `?fhir_vs=isa/[sctid]`, `?fhir_vs=refset/[sctid]`,
   `?fhir_vs=ecl/[ecl]`) parsed by a new public `parse_implicit_value_set`
@@ -382,8 +363,8 @@ fix it surfaced, and `HistoryStore`.
   the id is a known concept), `ecl/` goes straight through
   `snomed_ecl::{parse, evaluate}` so a malformed expression surfaces as
   `FhirError::InvalidEcl`, never a panic. `activeOnly`/`count`/`offset`/
-  `includeDesignations`/`filter` (case-insensitive substring match)
-  supported; `total` always reports the pre-paging match count. `display`/
+  `includeDesignations`/`filter` supported; `total` is the pre-paging
+  match count. `display`/
   `designation` construction is shared with `$lookup` via new
   `pub(crate)` helpers rather than duplicated. `snomed-ecl` became a real
   dependency of `snomed-fhir` at this point (deliberately not one before —
@@ -401,26 +382,22 @@ fix it surfaced, and `HistoryStore`.
   nothing in `snomed-fhir` ever wired up to it. Investigated the real
   scope before implementing: `necessary_normal_form` has no per-concept
   entry point (whole-axiom-set DL classification, no caching), so
-  computing it inside `lookup` per call would silently violate this
-  workspace's own performance discipline against real content — flagged
-  explicitly rather than picked around; user chose the properly-scoped
-  option. `lookup` gained a breaking `nnf_report:
-  Option<&NecessaryNormalFormReport>` parameter — the caller computes
-  the report once (store → OWL axioms → `necessary_normal_form`) and
-  passes the same one into every call, mirroring how `version` is
-  already caller-supplied rather than derived. New
-  `FhirError::MissingClassification`, kept distinct from
+  computing it inside `lookup` per call would cost whole seconds against
+  real content — flagged explicitly rather than picked around, and the
+  properly-scoped option chosen. `lookup` gained a breaking
+  `nnf_report: Option<&NecessaryNormalFormReport>` parameter: the caller
+  computes the report once (store → OWL axioms → `necessary_normal_form`)
+  and passes the same one into every call, mirroring `version`'s existing
+  caller-supplied shape (`AGENTS/fhir-engineer.md` has the full
+  argument). New `FhirError::MissingClassification`, kept distinct from
   `UnsupportedProperty` (the property *is* implemented; this call just
   lacked the input). New `crates/snomed-fhir/src/normal_form.rs` renders
-  a `NecessaryNormalForm` as SNOMED CT Compositional Grammar text
-  (ungrouped attributes first, then each role group in `{ }`) — nothing
-  in this workspace rendered NNF back out as a string before; lives in
+  a `NecessaryNormalForm` as SNOMED CT Compositional Grammar text — in
   `snomed-fhir`, not `snomed-classify`, since string rendering is
   FHIR-specific presentation outside spec/14's own scope.
   `LookupProperty` lost its `Copy` derive (now owns `String` for the two
   new variants) — a second, smaller breaking change alongside the
-  signature one, both acceptable pre-1.0. 6 new tests. 289 tests passing
-  workspace-wide (up from 283).
+  signature one, both acceptable pre-1.0. 6 new tests.
 - New crate `snomed-owl` ✅: a hand-written lexer + recursive-descent
   parser for the OWL 2 functional-syntax subset SNOMED CT actually uses
   in its OWL Expression reference set — six axiom types (`SubClassOf`,
@@ -433,10 +410,9 @@ fix it surfaced, and `HistoryStore`.
   [`snomed-owl-toolkit`](https://github.com/IHTSDO/snomed-owl-toolkit),
   SNOMED International's own reference RF2-to-OWL/classification
   implementation, whose test fixtures supplied every real example axiom
-  in `spec/12-owl.md` and the test suite (a couple of that toolkit's own
-  test-fixture concept ids turned out not to be genuine SCTIDs —
-  check-digit-invalid placeholders — caught by running the tests, fixed
-  by swapping to `SctId::compose`, same convention as elsewhere). General
+  in `spec/12-owl.md` and the test suite (two of that toolkit's own
+  fixture ids turned out to be check-digit-invalid placeholders, caught
+  by running the tests and swapped to `SctId::compose`). General
   concept inclusion (GCI) axioms needed no special-case handling — they
   fall out for free once `SubClassOf`'s `sub` field is typed as the
   general `ClassExpression` rather than a plain concept reference.
@@ -496,8 +472,8 @@ fix it surfaced, and `HistoryStore`.
   attributes SNOMED CT actually uses. Implemented from scratch — no DL
   reasoner dependency, consistent with the zero-external-dependency
   stance. `snomed-owl` parses syntax; this crate reasons over the
-  result — deliberately kept as separate crates (see
-  `AGENTS/owl-engineer.md` and `AGENTS/classify-engineer.md`).
+  result — kept as separate crates deliberately
+  (`AGENTS/classify-engineer.md`).
 - Scope: `SubClassOf` (general concept inclusion falls out for free, same
   as `snomed-owl`'s parser — no special-case needed once the normal
   forms are right), `EquivalentClasses`, `ObjectIntersectionOf`,
@@ -510,9 +486,9 @@ fix it surfaced, and `HistoryStore`.
   `ClassificationReport::skipped`, never silently dropped. Answers
   **subsumption only** — not SNOMED's "necessary normal form" (RF2
   relationship generation with role-group-aware redundancy elimination
-  on top of a classification, per `snomed-owl-toolkit`'s own
-  documentation of that step) — a distinct, harder downstream problem,
-  out of scope here.
+  on top of a classification), which was a distinct, harder downstream
+  problem, out of scope *at this point* and implemented later in this
+  same phase (see the "Necessary normal form" entry below).
 - Tests cover each completion rule with a case that's *wrong* without
   it — plain transitivity, existential propagation across a role
   successor (the core EL feature — a GCI classified via combining three
@@ -569,9 +545,8 @@ fix it surfaced, and `HistoryStore`.
   conservative (never wrong, occasionally less-reduced) rather than
   silent: no property-chain/transitive-property redundancy elimination
   (the reference's second BFS pass), and no union-group handling (moot —
-  OWL 2 EL, the only profile this workspace's OWL parser/classifier
-  support, has no disjunction operator at all). 8 new tests, including
-  the two subtlest cases: attribute redundancy that only fires via role
+  EL has no disjunction operator at all). 8 new tests, including the two
+  subtlest cases: attribute redundancy that fires only via role
   *hierarchy* (not just plain type equality), and whole-group-vs-group
   redundancy where a more specific group's extra attributes cover a less
   specific inherited group's requirements entirely. Wired into the
@@ -590,11 +565,45 @@ fix it surfaced, and `HistoryStore`.
   reduction runs, not just that the two subcommands format the same data
   differently.
 
+## Phase 8 — Toolchain policy, fuzzing, benchmarking ✅ (2026-08-20)
+
+- **MSRV policy** (`spec/rust-msrv-n-minus-3.md`): the minimum supported
+  Rust version is the current stable release minus three, a rolling
+  ~18-week window. Recorded in `[workspace.package].rust-version` and
+  verified by a dedicated CI job rather than merely declared.
+- **Fuzzing** (`spec/rust-fuzz.md`, `fuzz/`): 10 libFuzzer targets over
+  every text input the workspace accepts, each asserting the `spec/`
+  properties for its input rather than only checking for panics.
+- **Benchmarking** (`spec/rust-bench.md`, `benches/`): criterion
+  benchmarks over a seeded synthetic release, covering SCTID validation,
+  RF2 parsing, store construction and queries, ECL, classification/NNF,
+  and the FHIR operations.
+- **The dependency decision this required.** `libfuzzer-sys` and
+  `criterion` are external crates, which the zero-dependency rule
+  forbids in the workspace. Rather than relax the rule, both tools live
+  in their own packages *outside* the workspace (`fuzz/`, `benches/`),
+  each with an empty `[workspace]` table: the published crates keep zero
+  dependencies — dev-dependencies included — and `cargo build`,
+  `cargo test`, `cargo clippy`, and the MSRV check never build either
+  tool. Fuzzing additionally needs nightly, which the separation keeps
+  off the workspace's stable toolchain.
+
 ## Non-goals (for now)
 
 - Authoring/extension management workflows (Snow Owl territory).
 - Shipping any SNOMED CT content: users must obtain releases under their own
   affiliate license (free in member countries via e.g. NLM/MLDS).
+
+## Current status
+
+All eight phases above are closed. The workspace is 9 published crates at
+0.6.0 with zero dependencies, 295 tests, a clean
+`cargo clippy --all-targets`, 10 fuzz targets, and six criterion
+benchmark files. What is *not* done is tracked in two places and nowhere
+else: `tasks.md`'s "Next up" (scoped work and known gaps, each with the
+spec section that documents it) and the "Not yet implemented" sections of
+`spec/10`-`spec/14` (behavior deliberately rejected with a typed error
+rather than silently approximated).
 
 ## Risks & watch items
 
@@ -604,3 +613,14 @@ fix it surfaced, and `HistoryStore`.
   the inferred file only (spec/07), so this does not block Phases 4–5.
 - Licensing: keep `.gitignore` guards; never vendor RF2 rows into tests
   beyond the handful of metadata SCTIDs that are quotable identifiers.
+- The zero-dependency stance now has a precedent for tools that genuinely
+  need external crates: `fuzz/` and `benches/` are separate packages
+  outside the workspace (Phase 8), not workspace members with
+  dev-dependencies. Anything future that needs a dependency should first
+  be asked whether it can live outside the workspace the same way — an
+  HTTP server for `snomed-fhir` (the standing candidate in `tasks.md`)
+  probably cannot, which is exactly why it stays a user decision.
+- MSRV moves on a schedule, not on demand: current stable minus three
+  (`spec/rust-msrv-n-minus-3.md`). Raising it is routine; the thing to
+  watch is that a bump can surface previously-suppressed clippy lints,
+  since MSRV-gated lints activate with `rust-version`.

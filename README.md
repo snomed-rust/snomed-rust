@@ -39,10 +39,19 @@ or analytics pipelines.
 | [`crates/snomed-classify`](crates/snomed-classify) | EL-profile subsumption classifier (completion algorithm) over OWL axioms, plus necessary normal form (RF2 relationship) generation |
 | [`crates/snomed-cli`](crates/snomed-cli) | `snomed-cli` binary: `sctid`, `load`, `lookup`, `ecl`, `export`, `validate`, `classify`, `nnf` subcommands |
 
+Two development-tool packages sit deliberately **outside** the workspace, so
+the published crates keep zero dependencies — dev-dependencies included — and
+`cargo build`/`cargo test`/`cargo clippy` never build either one:
+
+| Package | Purpose |
+|---|---|
+| [`fuzz/`](fuzz) | 10 libFuzzer targets over every text input the workspace accepts, each asserting its spec's properties, not just the absence of panics ([`spec/rust-fuzz.md`](spec/rust-fuzz.md)) |
+| [`benches/`](benches) | criterion benchmarks over a seeded synthetic release: SCTID/Verhoeff, RF2 parsing, store build and queries, ECL, classification, FHIR operations ([`spec/rust-bench.md`](spec/rust-bench.md)) |
+
 Supporting documents:
 
 - [`index.md`](index.md) — documentation map (spec/crate-README/AGENTS
-  layers, a spec-to-crate table, and a worked example spanning four
+  layers, a spec-to-crate table, and a worked example spanning five
   crates in one pipeline).
 - [`docs/tutorial.md`](docs/tutorial.md) — a guided, runnable, six-step
   walkthrough (`cargo run --example tutorial -p snomed`);
@@ -50,7 +59,10 @@ Supporting documents:
   and questions, answered.
 - [`spec/`](spec/README.md) — project-local distillation of the official
   [RF2 Release File Specification](https://docs.snomed.org/snomed-ct-specifications/snomed-ct-release-file-specification);
-  the normative reference for this codebase.
+  the normative reference for this codebase. It also holds the three
+  project policies that bind the same way:
+  [MSRV](spec/rust-msrv-n-minus-3.md), [fuzzing](spec/rust-fuzz.md), and
+  [benchmarking](spec/rust-bench.md).
 - [`plan.md`](plan.md) — roadmap by phase; [`tasks.md`](tasks.md) — execution
   checklist; [`CHANGELOG.md`](CHANGELOG.md) — what changed per published
   version.
@@ -123,7 +135,14 @@ cargo run -p snomed-cli -- nnf ./SnomedCT_InternationalRF2_PRODUCTION_20250801/S
 cargo test                    # unit + integration + doctests
 cargo clippy --all-targets    # kept warning-free
 cargo fmt
+
+cargo bench --manifest-path benches/Cargo.toml          # criterion benchmarks
+cargo +nightly fuzz run ecl_parse                       # from fuzz/, needs cargo-fuzz
 ```
+
+**MSRV: the current stable Rust release minus three** — 1.95 as of this
+writing, checked in CI against that exact toolchain. The policy, and how it
+moves, is [`spec/rust-msrv-n-minus-3.md`](spec/rust-msrv-n-minus-3.md).
 
 Development is **specification-driven**: behavior is written in `spec/*.md`
 first, code cites the spec it implements, and tests enforce the spec's

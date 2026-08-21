@@ -45,6 +45,30 @@ concept) via `SkippedConstruct::UnmodeledAttributeShape` — extend that
 enum, not a bespoke error type, when `normal_form.rs` needs to report
 something new.
 
+## `Axiom` is public, so hand-built shapes must not crash you
+
+`snomed-owl`'s parser enforces arity (an `ObjectIntersectionOf` or an
+`ObjectPropertyChain` needs two or more operands), but `Axiom` and
+`ClassExpression` are public types a caller can build directly, and
+`classify` takes them as input. spec/13 rule 6 makes the consequence
+normative: no value of `Axiom` may panic this crate. `add_role_chain`
+is the worked example — a one-operand chain is exactly a role hierarchy
+axiom and is handled as one; an empty chain implies nothing and is
+reported as `SkippedConstruct::EmptyRoleChain`. When you add a construct,
+ask what its degenerate arities mean *before* indexing into a slice.
+
+## Proximal-parent reduction must not eliminate an equivalence class
+
+`normal_form.rs::proximal_parents` drops a parent that another parent
+implies. Two *equivalent* supertypes imply each other, so the naive form
+of that rule dropped both and left the concept with no IS-A at all — a
+real defect, and one no RF2 relationship generation can express (spec/07
+rule 2). Equivalent supertypes are an equivalence class from which
+exactly one representative survives, chosen as the lowest SCTID so the
+result is deterministic (spec/14 rule 5). Any future redundancy rule here
+needs the same question asked of it: *what happens when two candidates
+are mutually redundant?*
+
 ## `normal_form.rs` reads axioms directly — it doesn't reuse `normalize.rs`'s output
 
 `normalize.rs` flattens everything (including role groups) into
@@ -87,7 +111,10 @@ facts to derive". A random tree (SNOMED CT's actual hierarchy is
 shallow and wide, not a single deep chain) is what caught the real
 `.cloned()` bug above; a chain-shaped one would have hidden it behind
 "well, chains are just slow". Keep using a realistic hierarchy shape for
-any future benchmarking here.
+any future benchmarking here — including in `benches/benches/classify.rs`
+(criterion, `spec/rust-bench.md`), which times `classify` and
+`necessary_normal_form` at 500 / 2 000 / 8 000 concepts so the *scaling
+shape*, not one number, is what a regression shows up in.
 
 ## Extending the algorithm
 
@@ -107,3 +134,9 @@ any future benchmarking here.
    whose antecedent is only reachable via the new rule.
 5. Move the construct out of spec/13's "Not yet implemented" list into
    the normal-form/rule tables, in the same change.
+6. Extend `fuzz/fuzz_targets/classify_axioms.rs` with whatever invariant
+   the new rule establishes. It already asserts that completion
+   terminates, that subsumer sets are strict and transitively closed, and
+   that normal-form parents are entailed, mutually non-redundant, and
+   never empty when any subsumer exists — the last of which is exactly
+   the equivalence-class defect above, now permanently guarded.

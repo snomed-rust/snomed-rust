@@ -1,0 +1,110 @@
+# Fuzz targets for this workspace, per spec/rust-fuzz.md.
+#
+# This package is deliberately OUTSIDE the workspace (note the empty
+# `[workspace]` table below): `libfuzzer-sys` needs a nightly toolchain and
+# links a sanitizer runtime, and neither may leak into `cargo build`,
+# `cargo test`, or the MSRV check of the published crates
+# (spec/rust-msrv-n-minus-3.md).
+[package]
+name = "snomed-fuzz"
+version = "0.0.0"
+publish = false
+edition = "2021"
+license = "Apache-2.0 OR MIT"
+
+[package.metadata]
+cargo-fuzz = true
+
+[workspace]
+
+[dependencies]
+arbitrary = { version = "1", features = ["derive"] }
+libfuzzer-sys = "0.4"
+snomed-classify = { path = "../crates/snomed-classify" }
+snomed-core = { path = "../crates/snomed-core" }
+snomed-ecl = { path = "../crates/snomed-ecl" }
+snomed-fhir = { path = "../crates/snomed-fhir" }
+snomed-owl = { path = "../crates/snomed-owl" }
+snomed-rf2 = { path = "../crates/snomed-rf2" }
+snomed-store = { path = "../crates/snomed-store" }
+
+[lib]
+name = "snomed_fuzz"
+path = "src/lib.rs"
+test = false
+doc = false
+bench = false
+
+# Prevent this from interfering with workspace builds.
+[profile.release]
+debug = 1
+
+[[bin]]
+name = "sctid_parse"
+path = "fuzz_targets/sctid_parse.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "sctid_unchecked"
+path = "fuzz_targets/sctid_unchecked.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "effective_time_parse"
+path = "fuzz_targets/effective_time_parse.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "concrete_value_parse"
+path = "fuzz_targets/concrete_value_parse.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "release_file_name_parse"
+path = "fuzz_targets/release_file_name_parse.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "rf2_reader"
+path = "fuzz_targets/rf2_reader.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "ecl_parse"
+path = "fuzz_targets/ecl_parse.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "ecl_evaluate"
+path = "fuzz_targets/ecl_evaluate.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "owl_parse"
+path = "fuzz_targets/owl_parse.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "classify_axioms"
+path = "fuzz_targets/classify_axioms.rs"
+test = false
+doc = false
+bench = false

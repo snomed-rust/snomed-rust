@@ -104,7 +104,11 @@ impl SctId {
         let id = SctId(s.parse::<u64>().map_err(|_| SctIdError::NonDigit)?);
         // Validate the partition and (for long format) the minimum length:
         // item(>=1) + namespace(7) + partition(2) + check(1) = 11.
-        let partition = id.partition_digits(s.as_bytes());
+        // The length check above guarantees at least 6 digits, so the
+        // partition digits are always present here.
+        let partition = id
+            .partition_digits(s.as_bytes())
+            .ok_or(SctIdError::InvalidLength(len))?;
         match partition {
             0..=2 => {}
             10..=12 => {
@@ -153,17 +157,32 @@ impl SctId {
         self.0.to_string()
     }
 
+    /// Sentinel returned by [`SctId::partition`] when the rendered digits are
+    /// too short to contain a partition identifier at all. `99` is not one of
+    /// the six valid partitions, so every partition-derived accessor treats it
+    /// exactly like any other invalid partition.
+    const NO_PARTITION: u8 = 99;
+
     /// Partition identifier as a two-digit number (e.g. 0 for "00", 12 for
-    /// "12"), read from the rendered digits.
-    fn partition_digits(self, bytes: &[u8]) -> u8 {
+    /// "12"), read from the rendered digits. `None` when there are fewer than
+    /// the three digits a partition plus check digit needs.
+    fn partition_digits(self, bytes: &[u8]) -> Option<u8> {
         let n = bytes.len();
-        (bytes[n - 3] - b'0') * 10 + (bytes[n - 2] - b'0')
+        if n < 3 {
+            return None;
+        }
+        Some((bytes[n - 3] - b'0') * 10 + (bytes[n - 2] - b'0'))
     }
 
     /// The two partition identifier digits, e.g. `00` or `11`.
+    ///
+    /// Ids built with [`SctId::new_unchecked`] need not have a partition at
+    /// all (`SctId::new_unchecked(7)` has no digits to spare); those report
+    /// `99`, which no valid SCTID uses.
     pub fn partition(self) -> u8 {
         let s = self.digits();
         self.partition_digits(s.as_bytes())
+            .unwrap_or(Self::NO_PARTITION)
     }
 
     /// The component type encoded in the partition identifier.
@@ -185,20 +204,30 @@ impl SctId {
     }
 
     /// The 7-digit extension namespace, or `None` for short-format ids.
+    ///
+    /// Also `None` when an id built with [`SctId::new_unchecked`] claims a
+    /// long-format partition but is too short to hold a namespace.
     pub fn namespace(self) -> Option<u32> {
         if !self.is_long_format() {
             return None;
         }
         let s = self.digits();
         let n = s.len();
-        s[n - 10..n - 3].parse().ok()
+        let start = n.checked_sub(10)?;
+        s[start..n - 3].parse().ok()
     }
 
     /// The item identifier (leading digits before namespace/partition/check).
+    ///
+    /// `0` when the digits do not extend past the namespace/partition/check
+    /// suffix, which only an id built with [`SctId::new_unchecked`] can do.
     pub fn item_identifier(self) -> u64 {
         let s = self.digits();
         let cut = if self.is_long_format() { 10 } else { 3 };
-        s[..s.len() - cut].parse().unwrap_or(0)
+        match s.len().checked_sub(cut) {
+            Some(end) => s[..end].parse().unwrap_or(0),
+            None => 0,
+        }
     }
 
     /// The trailing Verhoeff check digit.
@@ -284,6 +313,34 @@ mod tests {
         assert_eq!(id.component_type(), Some(ComponentType::Concept));
         // Round-trips through parse.
         assert_eq!(SctId::parse(&id.to_string()), Ok(id));
+    }
+
+    #[test]
+    fn accessors_never_panic_on_unchecked_ids() {
+        // `new_unchecked` accepts anything; the accessors must report "no
+        // partition" rather than index past the start of the digits
+        // (spec/04-sctid.md rule 5).
+        for raw in [0, 7, 12, 99, 112, 999, 1_000_000_000_000_000_000] {
+            let id = SctId::new_unchecked(raw);
+            let _ = id.partition();
+            let _ = id.component_type();
+            let _ = id.is_long_format();
+            let _ = id.namespace();
+            let _ = id.item_identifier();
+            let _ = id.check_digit();
+        }
+        let tiny = SctId::new_unchecked(7);
+        assert_eq!(tiny.partition(), 99);
+        assert_eq!(tiny.component_type(), None);
+        assert!(!tiny.is_long_format());
+        assert_eq!(tiny.namespace(), None);
+        assert_eq!(tiny.item_identifier(), 0);
+        // Partition digits "11" claim long format with no room for a
+        // namespace: no namespace and no item identifier, but no panic.
+        let short_long_format = SctId::new_unchecked(112);
+        assert!(short_long_format.is_long_format());
+        assert_eq!(short_long_format.namespace(), None);
+        assert_eq!(short_long_format.item_identifier(), 0);
     }
 
     #[test]

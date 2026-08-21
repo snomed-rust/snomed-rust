@@ -1,7 +1,11 @@
 # SNOMED CT RF2 Specifications (project-local distillation)
 
 These documents distill the parts of the official **SNOMED CT Release File
-Specification** that this workspace implements. They are the authoritative
+Specification** (and the other normative sources listed below) that this
+workspace implements, plus a short set of project policies this workspace
+sets for itself — the MSRV, fuzzing, and benchmarking files at the end of
+the index, which have no external specification behind them but bind the
+code here exactly the same way. They are the authoritative
 source for this codebase: code follows spec, not the other way around. When a
 spec here and the code disagree, the code is wrong; when a spec here and the
 official specification disagree, this spec must be corrected first, then the
@@ -52,6 +56,15 @@ Official sources:
 | [12-owl.md](12-owl.md) | OWL Expression reference set: parsing axioms in OWL 2 functional syntax | `snomed-owl` |
 | [13-classification.md](13-classification.md) | EL-profile subsumption classification (completion algorithm) | `snomed-classify` |
 | [14-necessary-normal-form.md](14-necessary-normal-form.md) | Necessary normal form: RF2 relationship generation from a classification | `snomed-classify` |
+
+Project policy documents (not distillations of an external specification, but
+binding on this workspace in the same way):
+
+| Policy | Covers | Recorded in |
+|---|---|---|
+| [rust-msrv-n-minus-3.md](rust-msrv-n-minus-3.md) | Minimum Supported Rust Version: current stable minus three | `Cargo.toml`, `.github/workflows/ci.yml` |
+| [rust-fuzz.md](rust-fuzz.md) | Fuzz targets, the no-panic invariant, seed corpora | `fuzz/` |
+| [rust-bench.md](rust-bench.md) | Criterion benchmarks: what is measured and how | `benches/` |
 
 ## Conventions used in these specs
 
