@@ -454,8 +454,8 @@ both when asking "has this come up before".
 
 ## Next up
 
-- [ ] Nothing currently scoped. State as of 2026-08-22: 9 crates at 0.8.0
-      (with an `[Unreleased]` section pending), 323 tests, clippy/fmt
+- [ ] Nothing currently scoped. State as of 2026-08-22: 9 crates at 0.9.0,
+      323 tests, clippy/fmt
       clean on stable, the pinned MSRV toolchain, `fuzz/`, and `benches/`;
       13 fuzz targets; 6 criterion benchmark files. Every gap `spec/`
       documented as missing is now closed, reclassified, or blocked on a
