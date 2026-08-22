@@ -164,6 +164,13 @@ pub enum ConceptFilterKind {
     /// form (matching by concept reference instead of the `primitive`/
     /// `defined` keyword) is not implemented.
     DefinitionStatus(DefinitionStatusFilter),
+    /// `definitionStatusId (=|!=) subExpressionConstraint` — spec/10, the
+    /// concept-expression form of the definition status filter. Matches
+    /// concepts whose `definitionStatusId` is in the evaluated set, so
+    /// `definitionStatusId = << 900000000000444006` works as naturally as
+    /// naming one id. `definitionStatus = primitive` is the same question
+    /// asked with keywords ([`ConceptFilterKind::DefinitionStatus`]).
+    DefinitionStatusId(ModuleFilter),
     /// `moduleId (=|!=) subExpressionConstraint` — spec/10. Matches
     /// concepts whose `moduleId` is in the evaluated set. The
     /// `eclConceptReferenceSet` alternative (`moduleId = (id1 id2)`) is
@@ -211,7 +218,10 @@ pub enum DefinitionStatusValue {
     Defined,
 }
 
-/// `moduleIdKeyword ws booleanComparisonOperator ws subExpressionConstraint`.
+/// `moduleIdKeyword ws booleanComparisonOperator ws subExpressionConstraint`
+/// — also used for `definitionStatusIdFilter`, which has the identical
+/// shape (a concept expression compared against one of the concept's own
+/// SCTID-valued fields).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ModuleFilter {
     /// `true` for `!=`.

@@ -3,208 +3,10 @@
 Execution checklist; phases and rationale live in `plan.md`. Keep this file
 current: check items off in the same change that completes them.
 
-Entries older than 2026-08-06 live in
+Entries older than 2026-08-21 live in
 [`docs/tasks-archive.md`](docs/tasks-archive.md) — moved there verbatim to
 keep this file inside the repository's 40 KB per-document budget. Search
 both when asking "has this come up before".
-
-## Done (2026-08-06, comprehensive documentation audit — plan.md, tasks.md, spec/*, agents/*, crate READMEs, code doc comments)
-
-- [x] Ran five parallel audits (spec/01-09+spec/README vs
-      core/rf2/store; spec/10 vs snomed-ecl; spec/11-14 vs
-      fhir/owl/classify; plan.md; tasks.md), each verifying doc claims
-      against code with exact quotes — ~30 confirmed discrepancies, all
-      fixed; everything else verified accurate.
-- [x] plan.md: annotated the two unannotated stale forward references
-      (ordered/annotation refsets; `{{ }}` filters after
-      parenthesized/`^ memberOf` focus), fixed the present-tense "All 11
-      RF2 record types this workspace parses" (11 was Phase 4's count;
-      22 now), and corrected the stale description of spec/11's
-      not-yet-implemented list.
-- [x] spec/09 (biggest single-file rewrite): `component_at` →
-      `concept_at`/`description_at`/`relationship_at`; rule 2 now
-      credits `HistoryStoreBuilder::load_release_dir` with filtering to
-      Full by file name itself (the silent-incompleteness caveat only
-      applies to the manual add path); rule 4 now distinguishes
-      query-time active filtering (component types) from build-time
-      dropping (refset members — "was X ever a member" is a HistoryStore
-      question); the derived-indexes list grew the four missing entries
-      (`relationships_to`, `relationship_concrete_values_of`,
-      `acceptability`, the unified refset index); rule 5 names the
-      `RelationshipConcreteValues` history gap alongside refset members.
-- [x] spec/02: heading de-parameterized (fixing `load.rs`'s anchor
-      link), rule 4's path corrected to
-      `SnapshotStoreBuilder::load_release_dir`, and `list_release_files`
-      documented including its deliberate no-skip-report divergence
-      (the function's own doc comment falsely claimed "same as
-      `load_release_dir`" — fixed there too).
-- [x] spec/01 ("full version history" → scoped to the three component
-      types with named gaps), spec/03 (pattern-letter table: `s` =
-      anything non-SCTID/non-integer incl. Time/UUID per spec/08's
-      confirmed reading; `i` parsed as `u32` here, not "signed"),
-      spec/05/06/07 (rule-1 partition MUSTs annotated as
-      data-requirements this workspace doesn't yet enforce per-file;
-      spec/07 rule 2's orphan invariant annotated as not
-      `validate()`-checked — both added to Next up).
-- [x] spec/10: rewrote the false "Deliberate leniency" paragraph (an
-      unparenthesized refined expression as a LEFT operand of top-level
-      `AND`/`OR` is a parse error, not a lenient parse — only `MINUS`
-      and last-operand positions are lenient; errs, never misparses);
-      moved the history supplement and the non-`active` marker-less
-      `{{ ... }}` forms from the named-error bucket to the generic one
-      (no `HISTORY` handling exists anywhere in the crate); grammar
-      block gained the trailing-refinement leniency note and six `1*`
-      productions corrected to `*` (single-element sets/bare refinements
-      are accepted); documented the `A#B`-vs-keyword-table collision
-      exception and the `{ }` concrete-value-only group candidacy
-      limitation (new "Known limitation" note + Next up entry).
-- [x] spec/11 (concept-model-attribute rationale: the traversal now
-      exists in snomed-classify — the gap is surfacing property codes,
-      not the traversal), spec/12 (rule 4's "classifier is out of scope
-      for this workspace" → for this crate; `prefixedName` production
-      corrected to match the lexer's actual letter-first local part),
-      spec/13 (sources note no longer says NNF "is not attempted";
-      documented the fresh-name exception for multi-conjunct GCI left
-      sides under an existential `sup`; noted the shared
-      `SkippedConstruct` enum's fourth variant), spec/14 (no changes
-      needed — verified accurate).
-- [x] Stale code doc comments fixed (doc-only, no behavior change):
-      snomed-ecl `lib.rs` front page (claimed cardinality/groups/
-      concrete values/filters "not yet implemented"),
-      `parse_concept_filter_kind` (claimed only `activeFilter`),
-      `eval.rs` String-comparison comment (claimed `concreteStringSet`
-      unimplemented), `error.rs` `NotYetImplemented` examples (listed
-      "refinements"), `lexer.rs` module doc + `LBrace2` doc;
-      snomed-owl `parser.rs` role-group test comment (asserted the
-      opposite of spec/14's single-attribute-group rule);
-      snomed-fhir `error.rs` `UnsupportedValueSet` doc (claimed bare
-      `?fhir_vs=refset` unimplemented).
-- [x] READMEs: snomed-rf2 (3+8 record types → 4+18=22), snomed-owl
-      (classifier "out of scope for this zero-dependency workspace" →
-      lives in snomed-classify), snomed-ecl (history supplement moved to
-      the generic-error list; `relationships_to` correctly credited to
-      the reverse flag, not attribute groups), snomed-fhir (`normalForm`
-      example now shows the focus as the concept's proximal PARENTS —
-      verified `57809008 |Myocardial disease|` via `SctId::parse` before
-      writing it — and the concept-model-attribute gap restated
-      accurately).
-- [x] agents/ files: fhir-engineer.md (benchmark citation corrected — the
-      370k-concept synthetic benchmark measures `classify` at ~1.7s; the
-      old text cited "seconds on 20k" which was the *bug* description,
-      and "two orders of magnitude larger" which is ~18×);
-      ecl-engineer.md (dead lexer example replaced, both NYI inventories
-      corrected and now defer to spec/10's authoritative two-bucket
-      list).
-- [x] tasks.md itself: the two unchecked `[ ]` items inside Done
-      sections resolved (one moved to Next up where it already lived,
-      one checked off retroactively with pointers to the sections that
-      closed it); four test-count itemizations reconciled with the
-      actual test functions (definitionStatus/moduleId = 1 parser fn
-      each, effectiveTime = 2, concreteStringSet's +2 explained by the
-      replaced rejection test); "8 pre-existing `lookup()` call sites" →
-      10.
-- [x] Verified after all edits: `cargo test --workspace` still 289
-      passing, `cargo fmt --all -- --check` and
-      `cargo clippy --all-targets` clean.
-
-## Done (2026-08-20, MSRV policy, fuzz targets, criterion benchmarks, and two determinism/panic fixes)
-
-- [x] `spec/rust-msrv-n-minus-3.md` (new): the MSRV is the current stable
-      Rust release minus three — a rolling ~18-week window — plus where
-      it is recorded, how it is raised, and why CI verifies it rather
-      than merely declaring it. Indexed in `spec/README.md` under a new
-      "project policy documents" table; restated as CLAUDE.md rule 7.
-- [x] `rust-version` in the root `Cargo.toml`: `1.75` → `1.95` (stable
-      is 1.98 as of this change). Verified with
-      `cargo +1.95 check --all-targets --workspace`. New CI `msrv` job
-      pins `dtolnay/rust-toolchain@1.95` and runs the same check, kept
-      separate from `test` so a failure names its own cause.
-- [x] **Bug fix — panics in `SctId`'s accessors.** `partition()`,
-      `namespace()`, and `item_identifier()` indexed the rendered digits
-      from the right with no length check, so any id built via
-      `new_unchecked` with fewer than 3 digits (or a "long format"
-      partition with fewer than 10) panicked — including
-      `SctId::new_unchecked(7).partition()`, and despite
-      `component_type()`'s doc promising `None` for exactly that case.
-      Now `partition()` reports `99` (no valid SCTID uses it) and the
-      derived accessors report `None`/`false`/`0`. New `spec/04-sctid.md`
-      rule 5 states it; new unit test plus the `sctid_unchecked` fuzz
-      target enforce it.
-- [x] **Bug fix — non-deterministic query order.** Every derived index in
-      `SnapshotStoreBuilder::build()` except `parents`/`children` was
-      filled by iterating a `HashMap`, so `descriptions_of`,
-      `relationships_of`, `relationships_to`,
-      `relationship_concrete_values_of`, `all_owl_expression_members`,
-      and every refset member group returned their contents in an order
-      that differed on every run — which flowed straight into `$lookup`'s
-      designation list, the CLI's capped parse-failure reports, and
-      `fsn()`/`preferred_term()`'s choice when a concept has duplicates.
-      All of them are now sorted (component ids ascending, refset members
-      by UUID), and duplicate active language refset members resolve by
-      `(effectiveTime, member UUID)` instead of by hash order. New
-      `spec/09-versioning.md` rules 5 and 6; two new `snomed-store` tests.
-- [x] `spec/rust-fuzz.md` (new) + `fuzz/`: 10 libFuzzer targets covering
-      SCTID parsing and accessors, `effectiveTime`, concrete values,
-      release file names, the RF2 reader, ECL parsing and evaluation, OWL
-      parsing, and classification/NNF. Each asserts the `spec/` properties
-      for its input (round-trips, determinism, transitively-closed strict
-      subsumer sets), not just "didn't panic". Committed seeds in
-      `fuzz/seeds/`; ~200M executions across the ten targets found no
-      further failures after the `SctId` fix. New CI `fuzz` job builds all
-      targets and smoke-runs each for 20s over the committed seeds; it
-      creates each `corpus/<target>` directory first, since that tree is
-      generated and gitignored and libFuzzer errors on a missing corpus
-      directory rather than creating one (verified by running a target
-      against an emptied corpus).
-- [x] `spec/rust-bench.md` (new) + `benches/`: six criterion benchmark
-      files (SCTID/Verhoeff, RF2 row parsing, store build + hierarchy
-      queries, ECL parse/evaluate per operator, classification and NNF at
-      500/2 000/8 000 concepts, and the three FHIR operations) over a
-      seeded synthetic release generator. New CI `bench` job runs
-      `-- --test` only — shared runners are too noisy to time.
-      `crates/snomed-store/examples/benchmark_synthetic_release.rs` stays:
-      it answers the whole-release-load-from-disk question these don't.
-- [x] The MSRV bump surfaced five `clippy::unnecessary_map_or` warnings
-      in `snomed-ecl` that `rust-version = "1.75"` had been suppressing
-      (`Option::is_none_or` stabilized in 1.82): fixed, so
-      `cargo clippy --all-targets` is clean on both stable and the
-      pinned MSRV toolchain.
-- [x] Both `fuzz/` and `benches/` are their own packages *outside* the
-      workspace, so `libfuzzer-sys` and `criterion` never enter a
-      `cargo build`/`cargo test`/`cargo clippy` of the published crates.
-      CLAUDE.md rule 2 now says so explicitly (dev-dependencies included).
-
-## Done (2026-08-20, second bug hunt — three defects in classification, normal form, and rendering)
-
-- [x] **`classify` panicked on a hand-built role chain.** `Axiom` is a
-      public type, so a caller can construct an `ObjectPropertyChain`
-      with fewer than the two operands `snomed-owl`'s parser enforces;
-      `normalize::add_role_chain` then sliced `ids[1..ids.len() - 1]`,
-      which panics in release for one operand and on `ids[0]` for none.
-      One operand now normalizes to the role hierarchy axiom it actually
-      is; zero operands are reported as the new
-      `SkippedConstruct::EmptyRoleChain`. New `spec/13` rule 6 (the
-      API-robustness sibling of `spec/04` rule 5) and a test.
-- [x] **Equivalent parents eliminated each other in the necessary normal
-      form.** `proximal_parents` dropped any parent implied by another
-      parent — but two *equivalent* supertypes imply each other, so both
-      were dropped and the concept ended up with **no** IS-A at all
-      (`EquivalentClasses(:B :C)` + `SubClassOf(:A :B)` gave `A` an empty
-      `is_a`). Equivalent supertypes are now an equivalence class from
-      which the lowest SCTID survives. New `spec/14` rule 5, a test, and
-      three new invariants asserted by the `classify_axioms` fuzz target
-      (parents are entailed subsumers, mutually non-redundant, and never
-      empty when any subsumer exists).
-- [x] **`$lookup`'s `normalForm`/`normalFormTerse` rendered invalid
-      compositional grammar** for a form with attributes but no proximal
-      parent: the output began with a bare `:` (`":1081002=1082009"`),
-      which the `focusConcept [":" refinement]` grammar has no place for.
-      The focus now falls back to `138875005 |SNOMED CT Concept|`; an
-      entirely empty form still renders as `""`. spec/11's
-      `normalForm`/`normalFormTerse` section states it; new test.
-- [x] Verified: 295 tests pass, `cargo clippy --all-targets` clean,
-      `cargo fmt --all -- --check` clean, all 10 fuzz targets re-run
-      clean against the strengthened invariants.
 
 ## Done (2026-08-21, `#[non_exhaustive]` on the enums that grow)
 
@@ -416,41 +218,268 @@ both when asking "has this come up before".
 - [x] 314 tests pass (up from 308); clippy and fmt clean; ECL fuzz
       targets rebuilt and re-run clean, with five `{{ D }}` seeds added.
 
+## Done (2026-08-21, row-based fuzz targets — and the order dependence they found)
+
+- [x] **Two new fuzz targets** (`spec/rust-fuzz.md`): `store_snapshot` and
+      `history_point_in_time`, the first that take **rows** rather than
+      text, decoded with `arbitrary`. Ids and effective times come from
+      byte-sized spaces on purpose — the interesting inputs are the ones
+      where two rows collide on an id, and a 64-bit space would make that
+      vanishingly rare. They assert spec/09's rules directly: latest
+      version wins, insertion-order independence, ascending indexes,
+      hierarchy = active+inferred+IS-A, sorted history, point-in-time =
+      greatest version ≤ the date.
+- [x] **Bug found and fixed on the first 30-second run.** Two rows with
+      the same id *and* the same `effectiveTime` but different content
+      resolved by arrival order: `upsert` replaced only on a *strictly*
+      greater time, so whichever arrived first stayed. Building the same
+      rows in reverse produced a different store — the arrival dependence
+      spec/09 rule 3 forbids.
+- [x] The fix required deciding what "deterministic" means for
+      contradictory input. Breaking the tie *by id* (what rule 5 said)
+      is vacuous here: rows contend precisely because their ids match.
+      So the tie now breaks on the rows' own content — the greater row
+      under the type's field order wins — which makes a snapshot a pure
+      function of the row *set* rather than the sequence. That is the
+      strongest form of rule 3, and the one a fuzzer can actually check.
+- [x] To express it, the four component records, `ConcreteValue`, and the
+      18 refset member types and their shared `RefsetMemberCore` derive
+      `PartialOrd`/`Ord` (additive; also
+      gives callers a canonical row order for sorting and diffing).
+      spec/09 rule 5 rewritten to state the content tie-break and why
+      such rows are contradictory in the first place;
+      `agents/store-engineer.md` gained the invariant.
+- [x] 315 tests pass (up from 314); clippy and fmt clean; both new
+      targets run clean after the fix (830k and 650k executions).
+
+## Done (2026-08-21, refset member history — spec/09 rule 5 fully closed)
+
+- [x] **`HistoryStore` covers all eighteen refset member types**, keyed by
+      member UUID (spec/08's identity for a member row) rather than SCTID:
+      `language_member_history(uuid)`/`language_member_at(uuid, at)` and
+      the same pair per type, generated by a `refset_member_history!`
+      macro mirroring the snapshot side's `refset_member_methods!`. spec/09
+      rule 5 now has no remaining gap — a release's whole content has
+      version history.
+- [x] The point of it, stated in the spec and README: acceptability and
+      refset membership live in *member* rows, so "when did this
+      description become the preferred term?" and "when did this concept
+      join this refset?" are questions a snapshot structurally cannot
+      answer. The test asserts exactly that trajectory across three
+      versions, including the inactivation being the latest version rather
+      than a deletion.
+- [x] **Removed a duplication hazard rather than doubling it.** The
+      history loader needed the same file-naming knowledge the snapshot
+      loader had — 19 arms of `(contentType, summary)` matching, including
+      substring heuristics for the association/attribute-value refsets.
+      Instead of copying it, extracted `load::refset_kind` +
+      `RefsetKind`: one function knows what a file *is*, and each builder's
+      match only names the row type it loads. Adding a refset type now
+      touches the naming rules once.
+- [x] New `snomed_rf2::refset::RefsetMember` trait (`fn core(&self) ->
+      &RefsetMemberCore`) implemented for all eighteen types — what lets
+      one sort helper cover every member history without erasing the
+      type-specific columns. Additive, and useful to callers handling
+      members generically.
+- [x] Noticed while verifying: `cargo fmt --all` at the workspace root
+      never covered `fuzz/` or `benches/`, since both are separate
+      packages — so neither had ever been format-checked, and both had
+      drifted. Formatted, and each is now checked in its own CI job,
+      where its toolchain is already installed.
+- [x] 316 tests pass (up from 315); clippy and fmt clean across the
+      workspace, `fuzz/`, and `benches/`.
+
+## Done (2026-08-21, ECL `definitionStatusId`, a spec split, and the lint gap)
+
+- [x] **`definitionStatusIdFilter` implemented** (`snomed-ecl`):
+      `{{ C definitionStatusId = 900000000000073002 }}`, taking any
+      concept expression where the keyword form takes `primitive`/
+      `defined`. Both spellings stay — the keyword form is what a human
+      writes, the id form what a generated query carries. New lexer
+      keyword, reusing `ModuleFilter`'s shape (identical: a concept
+      expression compared against one of the concept's own SCTID fields).
+- [x] **`moduleId = (id1 id2)` reclassified rather than implemented.**
+      The `eclConceptReferenceSet` spelling is pure sugar: `moduleId =
+      (id1 OR id2)` already parses and evaluates identically. spec/10 and
+      the crate README now say so, so the gap reads as a spelling to
+      accept rather than a capability that's missing — and the workaround
+      is one line away instead of undiscoverable.
+- [x] **Recorded why `{{ M ... }}` is not a quick win.** A member filter
+      selects on a member row's own columns, but `SnapshotStore` drops
+      inactive members at build time (spec/09 rule 4), keeping only
+      membership facts — so `{{ M active = false }}` could never match and
+      `moduleId`/`effectiveTime` would silently see active rows only.
+      Implementing it honestly means first deciding whether the snapshot
+      retains inactive member rows (a spec/09 change with a memory cost)
+      or whether member filters are a `HistoryStore` question. That
+      belongs in `plan.md` before any parser work; spec/10 says so now.
+- [x] **Split `spec/10-ecl.md`** (was 41 KB after the description-filter
+      section) into the grammar/operators/refinements file and a new
+      `spec/10-ecl-filters.md` for what each `{{ }}` filter kind matches.
+      Third trim in as many sittings was the signal that ECL had outgrown
+      one document. Rule numbers stay in `10-ecl.md`, so citations like
+      "spec/10 rule 14" keep resolving; both files are normative. Indexed
+      in `spec/README.md` and `index.md`.
+- [x] **Closed the lint half of the outside-the-workspace gap.** Last
+      sitting found `cargo fmt --all` never reached `fuzz/` or
+      `benches/`; `cargo clippy --all-targets` doesn't either. Both
+      packages are already clean, and CI now checks each explicitly —
+      fuzz in its nightly job, benches by `--manifest-path`. Written into
+      `spec/rust-fuzz.md` and `spec/rust-bench.md` as the standing cost of
+      the layout: any tool that walks "the workspace" needs deliberate
+      wiring here.
+- [x] 317 tests pass (up from 316); clippy and fmt clean across the
+      workspace, `fuzz/`, and `benches/`.
+
+## Done (2026-08-21, review pass over the last four sittings' code)
+
+- [x] **Bug found and fixed: `{{ D term = "disorder" }}` matched nothing.**
+      `term_matches` split words at whitespace only, so an FSN's
+      parenthesized semantic tag stayed glued to the word — "Myocardial
+      infarction (disorder)" contained the word `(disorder)`, and
+      `starts_with("disorder")` was false. Since *every* SNOMED FSN ends
+      in a semantic tag, the most obvious query anyone would write matched
+      nothing at all; anatomy terms failed the same way on slashes
+      ("Left/right hand structure" vs `term = "right"`). Words are now
+      split at every non-alphanumeric character on both sides, so a search
+      written with punctuation behaves like one without. Test written to
+      fail first, then fixed; spec/10-ecl-filters.md rule 3 states the
+      splitting rule and why it isn't cosmetic.
+- [x] Probed the rest of the recent surface and found it sound: percent
+      decoding handles multi-byte UTF-8 and rejects truncated sequences;
+      concept model attribute properties exclude inactive and stated rows;
+      `{{ D }}` chains after `{{ C }}`, `^ memberOf`, a parenthesized
+      expression, and `*`, and composes with a trailing `:` refinement;
+      degenerate filter blocks (`{{ D }}`, `term = ()`) are rejected by
+      name.
+- [x] **Documented a real-world URL form this crate rejects on purpose.**
+      A versioned implicit value set URL
+      (`.../sct/[edition]/version/[date]?fhir_vs=...`) returns
+      `UnsupportedSystem`. That is the single-system rule working, not a
+      parsing gap: one store, one release, so honouring a version would
+      mean either answering from the wrong release silently or doing
+      release management. spec/11 and the crate README now say so, with
+      the workaround (strip it, pass `version`).
+- [x] **Sharpened the `{{ M ... }}` blocker.** Last sitting recorded that
+      the snapshot drops *inactive* members; checking the store showed it
+      is stronger than that — Simple and Language refsets keep no member
+      rows at all, only the derived membership set and acceptability map,
+      because retaining ~2.8M language member rows would cost hundreds of
+      MB. So member filters can't be answered for the two refset types
+      ECL uses most, and the retention decision is a bigger trade than
+      "keep inactive rows too". Still a `plan.md` decision, now with the
+      real cost basis.
+- [x] 317 tests pass; clippy and fmt clean across the workspace, `fuzz/`,
+      and `benches/`.
+
+## Done (2026-08-22, necessary normal form's second pass — spec/14 rule 3)
+
+- [x] **Property-chain and transitive-property redundancy implemented**
+      (`snomed-classify`), the last algorithmic gap in the workspace.
+      Given a chain `t ∘ s ⊑ r`, an attribute `∃r.C` is dropped when the
+      same group holds `∃u.D` with `u ⊑ t` and `D` reaching `C` via `s`:
+      with `findingSite ∘ partOf ⊑ findingSite`, `findingSite = Upper
+      limb` is redundant beside `findingSite = Hand`. A
+      `TransitiveObjectProperty` is the chain `r ∘ r ⊑ r`, so it needs no
+      separate rule.
+- [x] **Ported, not improvised.** Read the reference implementation's
+      `RelationshipFragment.isSameOrStrongerThan` (its Rule 2 comment is
+      the algorithm, verbatim), `getPropertyChainTransitiveClosure`, and
+      `NodeGraph`, plus how `RelationshipNormalFormGenerator` builds the
+      graphs during its first pass. spec/14 now carries the rule, the
+      two-pass structure, and why the passes can't merge: rule 3 asks
+      whether one attribute's filler *reaches* another's, and that graph
+      is made of the first pass's own output.
+- [x] Second pass re-normalizes only the concepts a chain could affect —
+      those holding an attribute whose type is, or is a subtype of, a
+      chain's source. Their inherited fragments still come from ancestors'
+      first-pass forms, matching the reference.
+- [x] Three tests, and I checked they earn their place: both positive ones
+      (chain, transitive property) **fail** with the second pass disabled,
+      and the negative one — two sibling fillers, neither part of the
+      other, both surviving — passes either way, which is what makes it a
+      guard against over-elimination rather than a restatement. spec/14
+      rule 6 states that reachability, not a chain's existence, is what
+      fires the rule.
+- [x] Cost measured rather than assumed (`spec/rust-bench.md`):
+      `necessary_normal_form` is ~11% above `classify` at 2,000 concepts
+      (27.4ms vs 24.8ms). The `classify_axioms` fuzz target, which asserts
+      the normal-form invariants, ran 242k executions clean.
+- [x] **Split `plan.md`** (40.7 KB after Phase 9, and trimmed four times
+      in four sittings — the signal that shaving was the wrong tool):
+      Phases 0-7's design narrative moved verbatim to
+      `docs/plan-archive.md`, with a summary per phase left behind.
+      plan.md is 8 KB and reads as a roadmap again; the archive keeps the
+      *why*. README, index.md, and troubleshooting point at both.
+- [x] 320 tests pass (up from 317); clippy and fmt clean across the
+      workspace, `fuzz/`, and `benches/`.
+
+## Done (2026-08-22, member ids as `u128`, and two reclassifications)
+
+- [x] **`MemberId` replaces `String` for refset member UUIDs**
+      (`snomed-core::member_id`), the change I recommended as the one with
+      leverage. A UUID *is* a 128-bit integer, so holding it as one makes
+      the type `Copy`, cheap to hash and compare, and 16 bytes instead of
+      ~60 — which matters where a release's millions of members are keys
+      in the store's maps. Parsing takes either case and `Display` always
+      renders canonical lowercase, so the normalization spec/08 rule 1
+      requires is guaranteed by construction rather than by remembering to
+      call `to_ascii_lowercase`.
+- [x] It also separates two identities the type system had been
+      conflating: the Member Annotation refset carries a
+      `referencedMemberId` (a member id) right beside a
+      `referencedComponentId` (an SCTID), and both were previously
+      stringly/loosely typed enough to swap. `parse_uuid` →
+      `parse_member_id`; `HistoryStore`'s member accessors take a
+      `MemberId`. Breaking, and recorded as such.
+- [x] **Corrected spec/09 rule 4**, which claimed refset member rows "are
+      not retained afterward". True only of Simple and Language refsets
+      (reduced to a membership set and an acceptability map); the other
+      sixteen types keep typed rows behind per-type accessors. The rule
+      now says which, and why the two exceptions are the two with the most
+      rows — exactly the fact that decides whether `{{ M ... }}` is
+      implementable, so leaving the spec wrong about it would have
+      mis-costed that decision.
+- [x] **Reclassified two phantom gaps.** Boolean concrete value
+      comparisons are *not applicable to RF2 as specified* — spec/07's
+      `value` column has two wire forms, `#<decimal>` and `"<string>"`, so
+      a boolean can't be represented and the ECL operator could never
+      match. FHIR `$expand`'s `context` is *permanently* out of scope
+      (it needs a resource repository), while inline `valueSet` stays
+      pending with its shape already determined by precedent: a typed
+      compose model the caller maps its JSON onto, not a JSON parser.
+- [x] 323 tests pass (up from 320), including six new `MemberId` cases;
+      clippy and fmt clean across the workspace, `fuzz/`, and `benches/`;
+      the row-based fuzz targets and the benchmarks rebuilt and re-run.
+
 ## Next up
 
-- [ ] Nothing currently scoped. State as of 2026-08-20: 9 crates at
-      0.8.0, 314 tests, clippy/fmt clean on both stable and the pinned
-      MSRV toolchain, 11 fuzz targets, 6 criterion benchmark files.
-      Candidate future work (not yet decided/planned): a `snomed-fhir` HTTP server crate (would need a
-      new external dependency — needs explicit user direction against
-      the zero-dependency policy, not an autonomous pick); `snomed-fhir`'s
-      `$expand` `context`-based/inline-`valueSet` expansion; `snomed-ecl`'s remaining smaller
-      documented gaps (boolean concrete comparisons, the
-      `definitionStatusIdFilter` concept filter kind, `moduleId`'s
-      `eclConceptReferenceSet` alternative, `{{ M ... }}` member filters,
-      the remaining description filter kinds — `language`, dialects, the
-      `typeId` form of `type`, and the typed search-term prefixes — and
-      the history supplement);
-      property-chain/transitive-property redundancy elimination for
-      `necessary_normal_form` (spec/14's documented, conservative scope
-      cut); re-running the Phase 4 `snomed-store` benchmark (and the
-      Phase 7 `snomed-classify` one) against a real International
-      Edition release if one becomes available.
-- [ ] Small gaps surfaced by the 2026-08-06 audit (each independently
-      pickable):
-      - `snomed-ecl`: an attribute group whose attributes carry the
-        reverse flag (`{ R attr = value }`) scopes those relationships
-        by the *focus* concept's `relationshipGroup`, but a reverse
-        relationship belongs to the other concept, so the group numbers
-        being compared are unrelated; a focus concept with no nonzero
-        group can never satisfy `{ R ... }` even when the ungrouped
-        `R ...` matches. Neither the official guide nor spec/10 states
-        what `R` inside `{ }` should mean, so this is recorded rather
-        than silently redefined (spec/10 "Known limitation" note).
-- [ ] Gaps surfaced by the 2026-08-20 bug hunts (each independently
-      pickable):
-      - Fuzzing coverage gaps: no target exercises `snomed-store`'s
-        builder (arbitrary row sets → snapshot invariants) or
-        `HistoryStore`'s point-in-time reconstruction; both would need
-        an `Arbitrary`-driven row generator rather than a text input
-        (`spec/rust-fuzz.md`).
+- [ ] Nothing currently scoped. State as of 2026-08-22: 9 crates at 0.8.0
+      (with an `[Unreleased]` section pending), 323 tests, clippy/fmt
+      clean on stable, the pinned MSRV toolchain, `fuzz/`, and `benches/`;
+      13 fuzz targets; 6 criterion benchmark files. Every gap `spec/`
+      documented as missing is now closed, reclassified, or blocked on a
+      decision below.
+- [ ] Decisions, not tasks — each needs a call before code:
+      - **`{{ M ... }}` member filters** (`snomed-ecl`): answerable today
+        only for the sixteen refset types whose rows a snapshot keeps, not
+        for Simple or Language (spec/09 rule 4). Options: implement for
+        the sixteen and reject the rest by name; or retain rows for all
+        types and pay the memory. The `MemberId` change just halved that
+        cost basis, so the second option is worth re-pricing before
+        choosing.
+      - **`$expand` inline `valueSet`** (`snomed-fhir`): shape already
+        determined — a typed compose model the caller maps its JSON onto
+        (spec/11). Needs a decision that the surface is wanted, not a
+        design. `context` is permanently out of scope.
+      - **A `snomed-fhir` HTTP server crate**: would need a new external
+        dependency, so it is explicitly a user decision against the
+        zero-dependency policy, not an autonomous pick.
+- [ ] Smaller documented gaps, each independently pickable: the remaining
+      `{{ D ... }}` filter kinds (`language`, dialects, the `typeId` form
+      of `type`, the typed search-term prefixes); `moduleId`'s
+      `eclConceptReferenceSet` spelling (sugar for `(id1 OR id2)`, which
+      works); the ECL history supplement; alternate identifiers; dot
+      notation; `^ *` and `^R`; re-running the Phase 4/7 benchmarks
+      against a real International Edition release if one becomes
+      available.

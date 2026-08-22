@@ -210,106 +210,103 @@ fn dispatch(
                 builder.add_relationship_concrete_value(r);
             })?;
         }
-        ("Refset", _) => {
-            load_rows::<SimpleRefsetMember, _>(path, |r| {
-                builder.add_simple_member(r);
-            })?;
-        }
-        ("cRefset", "Language") => {
-            load_rows::<LanguageRefsetMember, _>(path, |r| {
-                builder.add_language_member(r);
-            })?;
-        }
-        ("cRefset", "MRCMModuleScope") => {
-            load_rows::<MrcmModuleScopeRefsetMember, _>(path, |r| {
-                builder.add_mrcm_module_scope_member(r);
-            })?;
-        }
-        // Real releases name specific association/attribute-value refsets
-        // variously (e.g. "HistoricalAssociation", "AttributeValue"); match
-        // by substring rather than pinning an exact summary. A name that
-        // doesn't match either falls through to skip-and-report, never to
-        // an error, so this heuristic can only under- not over-recognize.
-        ("cRefset", summary) if summary.contains("Association") => {
-            load_rows::<AssociationRefsetMember, _>(path, |r| {
-                builder.add_association_member(r);
-            })?;
-        }
-        ("cRefset", summary) if summary.contains("AttributeValue") => {
-            load_rows::<AttributeValueRefsetMember, _>(path, |r| {
-                builder.add_attribute_value_member(r);
-            })?;
-        }
-        ("sRefset", "SimpleMap") => {
-            load_rows::<SimpleMapRefsetMember, _>(path, |r| {
-                builder.add_simple_map_member(r);
-            })?;
-        }
-        ("sRefset", "OWLExpression") => {
-            load_rows::<OwlExpressionRefsetMember, _>(path, |r| {
-                builder.add_owl_expression_member(r);
-            })?;
-        }
-        ("iisssccRefset", _) => {
-            load_rows::<ExtendedMapRefsetMember, _>(path, |r| {
-                builder.add_extended_map_member(r);
-            })?;
-        }
-        ("ssRefset", "ModuleDependency") => {
-            load_rows::<ModuleDependencyRefsetMember, _>(path, |r| {
-                builder.add_module_dependency_member(r);
-            })?;
-        }
-        ("cciRefset", "RefsetDescriptor") => {
-            load_rows::<RefsetDescriptorRefsetMember, _>(path, |r| {
-                builder.add_refset_descriptor_member(r);
-            })?;
-        }
-        ("ciRefset", "DescriptionType") => {
-            load_rows::<DescriptionTypeRefsetMember, _>(path, |r| {
-                builder.add_description_type_member(r);
-            })?;
-        }
-        ("sssssssRefset", "MRCMDomain") => {
-            load_rows::<MrcmDomainRefsetMember, _>(path, |r| {
-                builder.add_mrcm_domain_member(r);
-            })?;
-        }
-        ("cissccRefset", "MRCMAttributeDomain") => {
-            load_rows::<MrcmAttributeDomainRefsetMember, _>(path, |r| {
-                builder.add_mrcm_attribute_domain_member(r);
-            })?;
-        }
-        ("ssccRefset", "MRCMAttributeRange") => {
-            load_rows::<MrcmAttributeRangeRefsetMember, _>(path, |r| {
-                builder.add_mrcm_attribute_range_member(r);
-            })?;
-        }
-        ("iRefset", "OrderedComponent") => {
-            load_rows::<OrderedComponentRefsetMember, _>(path, |r| {
-                builder.add_ordered_component_member(r);
-            })?;
-        }
-        ("ciRefset", "OrderedAssociation") => {
-            load_rows::<OrderedAssociationRefsetMember, _>(path, |r| {
-                builder.add_ordered_association_member(r);
-            })?;
-        }
-        ("scsRefset", "ComponentAnnotationStringValue") => {
-            load_rows::<ComponentAnnotationRefsetMember, _>(path, |r| {
-                builder.add_component_annotation_member(r);
-            })?;
-        }
-        ("sscsRefset", "MemberAnnotationStringValue") => {
-            load_rows::<MemberAnnotationRefsetMember, _>(path, |r| {
-                builder.add_member_annotation_member(r);
-            })?;
-        }
-        (content_type, summary) => {
-            return Ok(Some(format!(
-                "content type `{content_type}` (summary `{summary}`) is not yet loaded into SnapshotStore"
-            )))
-        }
+        (content_type, summary) => match refset_kind(content_type, summary) {
+            Some(RefsetKind::Simple) => {
+                load_rows::<SimpleRefsetMember, _>(path, |r| {
+                    builder.add_simple_member(r);
+                })?;
+            }
+            Some(RefsetKind::Language) => {
+                load_rows::<LanguageRefsetMember, _>(path, |r| {
+                    builder.add_language_member(r);
+                })?;
+            }
+            Some(RefsetKind::Association) => {
+                load_rows::<AssociationRefsetMember, _>(path, |r| {
+                    builder.add_association_member(r);
+                })?;
+            }
+            Some(RefsetKind::AttributeValue) => {
+                load_rows::<AttributeValueRefsetMember, _>(path, |r| {
+                    builder.add_attribute_value_member(r);
+                })?;
+            }
+            Some(RefsetKind::SimpleMap) => {
+                load_rows::<SimpleMapRefsetMember, _>(path, |r| {
+                    builder.add_simple_map_member(r);
+                })?;
+            }
+            Some(RefsetKind::ExtendedMap) => {
+                load_rows::<ExtendedMapRefsetMember, _>(path, |r| {
+                    builder.add_extended_map_member(r);
+                })?;
+            }
+            Some(RefsetKind::OwlExpression) => {
+                load_rows::<OwlExpressionRefsetMember, _>(path, |r| {
+                    builder.add_owl_expression_member(r);
+                })?;
+            }
+            Some(RefsetKind::ModuleDependency) => {
+                load_rows::<ModuleDependencyRefsetMember, _>(path, |r| {
+                    builder.add_module_dependency_member(r);
+                })?;
+            }
+            Some(RefsetKind::RefsetDescriptor) => {
+                load_rows::<RefsetDescriptorRefsetMember, _>(path, |r| {
+                    builder.add_refset_descriptor_member(r);
+                })?;
+            }
+            Some(RefsetKind::DescriptionType) => {
+                load_rows::<DescriptionTypeRefsetMember, _>(path, |r| {
+                    builder.add_description_type_member(r);
+                })?;
+            }
+            Some(RefsetKind::MrcmDomain) => {
+                load_rows::<MrcmDomainRefsetMember, _>(path, |r| {
+                    builder.add_mrcm_domain_member(r);
+                })?;
+            }
+            Some(RefsetKind::MrcmAttributeDomain) => {
+                load_rows::<MrcmAttributeDomainRefsetMember, _>(path, |r| {
+                    builder.add_mrcm_attribute_domain_member(r);
+                })?;
+            }
+            Some(RefsetKind::MrcmAttributeRange) => {
+                load_rows::<MrcmAttributeRangeRefsetMember, _>(path, |r| {
+                    builder.add_mrcm_attribute_range_member(r);
+                })?;
+            }
+            Some(RefsetKind::MrcmModuleScope) => {
+                load_rows::<MrcmModuleScopeRefsetMember, _>(path, |r| {
+                    builder.add_mrcm_module_scope_member(r);
+                })?;
+            }
+            Some(RefsetKind::OrderedComponent) => {
+                load_rows::<OrderedComponentRefsetMember, _>(path, |r| {
+                    builder.add_ordered_component_member(r);
+                })?;
+            }
+            Some(RefsetKind::OrderedAssociation) => {
+                load_rows::<OrderedAssociationRefsetMember, _>(path, |r| {
+                    builder.add_ordered_association_member(r);
+                })?;
+            }
+            Some(RefsetKind::ComponentAnnotation) => {
+                load_rows::<ComponentAnnotationRefsetMember, _>(path, |r| {
+                    builder.add_component_annotation_member(r);
+                })?;
+            }
+            Some(RefsetKind::MemberAnnotation) => {
+                load_rows::<MemberAnnotationRefsetMember, _>(path, |r| {
+                    builder.add_member_annotation_member(r);
+                })?;
+            }
+            None => {
+                return Ok(Some(format!(
+                    "content type `{content_type}` (summary `{summary}`) is not yet loaded into SnapshotStore"
+                )))
+            }
+        },
     }
     Ok(None)
 }
@@ -690,4 +687,63 @@ mod tests {
         assert_eq!(full_files.len(), 1, "{full_files:?}");
         assert_eq!(full_files[0].1.release_type, ReleaseType::Full);
     }
+}
+
+/// Which reference set member type an RF2 file holds, decided from its
+/// `contentType`/`summary` name elements (spec/03, spec/08).
+///
+/// Extracted so `SnapshotStoreBuilder` and `HistoryStoreBuilder` share one
+/// copy of the naming knowledge — including the substring heuristics below.
+/// Each still needs its own `match` to name the row type it loads, but
+/// only this function knows what a file *is*.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum RefsetKind {
+    Simple,
+    Language,
+    Association,
+    AttributeValue,
+    SimpleMap,
+    ExtendedMap,
+    OwlExpression,
+    ModuleDependency,
+    RefsetDescriptor,
+    DescriptionType,
+    MrcmDomain,
+    MrcmAttributeDomain,
+    MrcmAttributeRange,
+    MrcmModuleScope,
+    OrderedComponent,
+    OrderedAssociation,
+    ComponentAnnotation,
+    MemberAnnotation,
+}
+
+pub(crate) fn refset_kind(content_type: &str, summary: &str) -> Option<RefsetKind> {
+    Some(match (content_type, summary) {
+        ("Refset", _) => RefsetKind::Simple,
+        ("cRefset", "Language") => RefsetKind::Language,
+        ("cRefset", "MRCMModuleScope") => RefsetKind::MrcmModuleScope,
+        // Real releases name specific association/attribute-value refsets
+        // variously (e.g. "HistoricalAssociation", "AttributeValue"); match
+        // by substring rather than pinning an exact summary. A name that
+        // doesn't match either falls through to `None`, so callers
+        // skip-and-report — this heuristic can only under- not
+        // over-recognize.
+        ("cRefset", summary) if summary.contains("Association") => RefsetKind::Association,
+        ("cRefset", summary) if summary.contains("AttributeValue") => RefsetKind::AttributeValue,
+        ("sRefset", "SimpleMap") => RefsetKind::SimpleMap,
+        ("sRefset", "OWLExpression") => RefsetKind::OwlExpression,
+        ("iisssccRefset", _) => RefsetKind::ExtendedMap,
+        ("ssRefset", "ModuleDependency") => RefsetKind::ModuleDependency,
+        ("cciRefset", "RefsetDescriptor") => RefsetKind::RefsetDescriptor,
+        ("ciRefset", "DescriptionType") => RefsetKind::DescriptionType,
+        ("sssssssRefset", "MRCMDomain") => RefsetKind::MrcmDomain,
+        ("cissccRefset", "MRCMAttributeDomain") => RefsetKind::MrcmAttributeDomain,
+        ("ssccRefset", "MRCMAttributeRange") => RefsetKind::MrcmAttributeRange,
+        ("iRefset", "OrderedComponent") => RefsetKind::OrderedComponent,
+        ("ciRefset", "OrderedAssociation") => RefsetKind::OrderedAssociation,
+        ("scsRefset", "ComponentAnnotationStringValue") => RefsetKind::ComponentAnnotation,
+        ("sscsRefset", "MemberAnnotationStringValue") => RefsetKind::MemberAnnotation,
+        _ => return None,
+    })
 }

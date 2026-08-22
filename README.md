@@ -45,7 +45,7 @@ the published crates keep zero dependencies — dev-dependencies included — an
 
 | Package | Purpose |
 |---|---|
-| [`fuzz/`](fuzz) | 11 libFuzzer targets over every text input the workspace accepts, each asserting its spec's properties, not just the absence of panics ([`spec/rust-fuzz.md`](spec/rust-fuzz.md)) |
+| [`fuzz/`](fuzz) | 13 libFuzzer targets — one per text input the workspace accepts, plus two that generate RF2 *rows* to check snapshot and history construction — each asserting its spec's properties, not just the absence of panics ([`spec/rust-fuzz.md`](spec/rust-fuzz.md)) |
 | [`benches/`](benches) | criterion benchmarks over a seeded synthetic release: SCTID/Verhoeff, RF2 parsing, store build and queries, ECL, classification, FHIR operations ([`spec/rust-bench.md`](spec/rust-bench.md)) |
 
 Supporting documents:
@@ -63,7 +63,9 @@ Supporting documents:
   project policies that bind the same way:
   [MSRV](spec/rust-msrv-n-minus-3.md), [fuzzing](spec/rust-fuzz.md), and
   [benchmarking](spec/rust-bench.md).
-- [`plan.md`](plan.md) — roadmap by phase; [`tasks.md`](tasks.md) — execution
+- [`plan.md`](plan.md) — roadmap by phase (with
+  [`docs/plan-archive.md`](docs/plan-archive.md) holding the closed
+  phases' full design narrative); [`tasks.md`](tasks.md) — execution
   checklist; [`CHANGELOG.md`](CHANGELOG.md) — what changed per published
   version.
 - [`CLAUDE.md`](CLAUDE.md) / [`AGENTS.md`](AGENTS.md) /

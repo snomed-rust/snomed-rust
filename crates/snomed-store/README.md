@@ -147,12 +147,17 @@ rows would be silently incomplete (spec/09 rule 2). `concept_at`/
 `description_at`/`relationship_at`/`relationship_concrete_value_at` return
 the version with the greatest `effectiveTime <= at`, i.e. "what was true as
 of this date" — `None` if the component didn't exist yet, or is unknown
-entirely. Scope: all four component types, including
-`RelationshipConcreteValues` (kept separate from ordinary relationships —
-same partition, different component type, so one method never answers for
-the other). Refset member history isn't implemented; those are keyed by
-member UUID rather than SCTID, so it is a parallel structure rather than a
-fifth entry here (documented gap, root `tasks.md`).
+entirely. Scope: everything a release ships — all four component types (including
+`RelationshipConcreteValues`, kept separate from ordinary relationships:
+same partition, different component type) and all eighteen refset member
+types, keyed by member UUID rather than SCTID
+(`store.language_member_history(uuid)`,
+`store.language_member_at(uuid, at)`). No type answers for another, so a
+wrong-type lookup returns empty rather than a mixed answer.
+
+That last part is what answers the questions a snapshot structurally
+can't: acceptability and refset membership live in member rows, so "when
+did this become the preferred term?" is a member-history question.
 
 ## Design notes
 

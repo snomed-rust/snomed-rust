@@ -251,6 +251,7 @@ mod tests {
     use super::*;
     use snomed_core::components::{Concept, Description, Relationship};
     use snomed_core::constants;
+    use snomed_core::member_id::MemberId;
     use snomed_core::sctid::ComponentType;
     use snomed_core::time::EffectiveTime;
 
@@ -519,7 +520,7 @@ mod tests {
         // FINDING is a plain concept, never a refset identifier.
         b.add_simple_member(SimpleRefsetMember {
             core: RefsetMemberCore {
-                id: "80000000-0000-4000-8000-000000000031".to_string(),
+                id: MemberId::parse("80000000-0000-4000-8000-000000000031").unwrap(),
                 effective_time: EffectiveTime::new_unchecked(20190731),
                 active: true,
                 module_id: constants::CORE_MODULE,

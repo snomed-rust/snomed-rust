@@ -39,13 +39,33 @@ Given any mix of Full, Snapshot, and Delta rows:
    (`store.concept(id)` returns an inactive concept; `active_concepts()`
    filters). For **refset members**, inactive rows are dropped when the
    derived indexes are built (`build()`): every membership/acceptability
-   index is active-only by construction, and the raw member rows are not
-   retained afterward — "was this ever a member?" is a `HistoryStore`
-   question (below), not a `SnapshotStore` one.
+   index is active-only by construction, so "was this ever a member?" is a
+   `HistoryStore` question (below), not a `SnapshotStore` one.
+
+   What a snapshot keeps of the *rows* themselves differs by refset type,
+   and the difference is load-bearing for anything that wants to filter on
+   a member's own columns: Simple refsets are reduced to a
+   `(refsetId, componentId)` membership set and Language refsets to a
+   `(refsetId, descriptionId) -> acceptabilityId` map, keeping no rows,
+   while the other sixteen types retain their typed rows behind
+   per-type accessors (`association_members`, `extended_map_members`, …).
+   The two reduced types are the two with the most members by far — a
+   release's language refset alone runs to millions of rows — which is
+   why they are reduced.
 5. Where two rows contend for one slot and their `effectiveTime`s are
-   equal, the tie MUST be broken deterministically by id (component id, or
-   member UUID for refset members) — never by which row arrived first and
-   never by hash order.
+   equal, the tie MUST be broken deterministically by the rows' own
+   content — never by which row arrived first and never by hash order.
+   The store keeps the greater row under the component/member type's
+   field order (`Ord`), so a snapshot is a pure function of the *set* of
+   rows it was built from, not of the sequence.
+
+   Two such rows are contradictory input: they claim different content
+   for the same version of the same component, which a real release never
+   ships. The rule exists because nothing prevents a caller from loading
+   two editions that disagree, or hand-building the rows — and because
+   "whichever arrived first" is exactly the arrival dependence rule 3
+   forbids. (Refset members contend by member UUID rather than component
+   id, but resolve the same way.)
 6. Query results MUST be deterministic across processes, not merely
    order-independent in their *content*. The derived indexes are built by
    iterating hash maps, whose order differs from run to run, so each index
@@ -105,14 +125,21 @@ Snapshot can't answer ("what did this concept look like a year ago",
    yet) or the id has no history at all. This is exactly spec/02's "any
    two releases" Delta-derivation idea, generalized to an arbitrary date
    instead of just the two dates a real Delta file would span.
-5. Scope for the current version: all four **component** types — Concept,
-   Description (incl. TextDefinition), Relationship (incl.
-   StatedRelationship), and RelationshipConcreteValues. Concrete-value
-   relationships keep a history of their own rather than being folded in
-   with ordinary relationships: the two share the relationship partition
-   but are separate component types with separate rows, so asking for one
-   by the other's method returns empty rather than a mixed answer. One
-   documented gap remains (`tasks.md`): refset member history, which
-   would need the same treatment applied to the `RefsetMemberCore`
-   types — those are keyed by member UUID, not SCTID, so it is a
-   parallel structure rather than a fifth entry in this one.
+5. Scope: **everything a release ships** — the four component types
+   (Concept, Description incl. TextDefinition, Relationship incl.
+   StatedRelationship, RelationshipConcreteValues) and all eighteen
+   refset member types. Two shapes, because RF2 has two identities:
+   components are keyed by SCTID, refset members by member UUID
+   (spec/08), so `concept_history(id)` and
+   `language_member_history(uuid)` are parallel structures rather than
+   one indexed map.
+
+   Each type keeps its **own** history: concrete-value relationships are
+   not folded in with ordinary relationships (same partition, different
+   component type), and no member type answers for another. Asking for
+   one by another's method returns empty rather than a mixed answer.
+
+   This is what makes the audit questions a snapshot cannot answer
+   answerable — "when did this description become the preferred term",
+   "when did this concept join this refset" — since acceptability and
+   membership both live in member rows, not component rows.

@@ -1,19 +1,20 @@
 //! Reference set member records, per `spec/08-refset-files.md`.
 
+use snomed_core::member_id::MemberId;
 use snomed_core::sctid::SctId;
 use snomed_core::time::EffectiveTime;
 
 use crate::error::FieldError;
 use crate::record::{
-    parse_active, parse_effective_time, parse_nonempty, parse_sctid, parse_u32, parse_uuid,
+    parse_active, parse_effective_time, parse_member_id, parse_nonempty, parse_sctid, parse_u32,
     Rf2Record,
 };
 
 /// The six columns every refset member starts with.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct RefsetMemberCore {
-    /// Member UUID, lowercased canonical form.
-    pub id: String,
+    /// Member UUID — RF2's identity for a member row (spec/08).
+    pub id: MemberId,
     pub effective_time: EffectiveTime,
     pub active: bool,
     pub module_id: SctId,
@@ -24,7 +25,7 @@ pub struct RefsetMemberCore {
 impl RefsetMemberCore {
     fn parse(f: &[&str]) -> Result<Self, FieldError> {
         Ok(RefsetMemberCore {
-            id: parse_uuid(f[0], "id")?,
+            id: parse_member_id(f[0], "id")?,
             effective_time: parse_effective_time(f[1], "effectiveTime")?,
             active: parse_active(f[2], "active")?,
             module_id: parse_sctid(f[3], "moduleId")?,
@@ -32,6 +33,26 @@ impl RefsetMemberCore {
             referenced_component_id: parse_sctid(f[5], "referencedComponentId")?,
         })
     }
+}
+
+/// Every refset member type, seen through the six columns they all share
+/// (spec/08). Lets a caller handle members generically — sorting versions
+/// by `effectiveTime`, say — without erasing the type-specific columns
+/// that make each member type worth having.
+pub trait RefsetMember {
+    fn core(&self) -> &RefsetMemberCore;
+}
+
+macro_rules! impl_refset_member {
+    ($($ty:ty),* $(,)?) => {
+        $(
+            impl RefsetMember for $ty {
+                fn core(&self) -> &RefsetMemberCore {
+                    &self.core
+                }
+            }
+        )*
+    };
 }
 
 const COMMON: [&str; 6] = [
@@ -50,7 +71,7 @@ macro_rules! common_then {
 }
 
 /// Simple refset (`der2_Refset_Simple*`): membership only.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct SimpleRefsetMember {
     pub core: RefsetMemberCore,
 }
@@ -68,7 +89,7 @@ impl Rf2Record for SimpleRefsetMember {
 /// Language refset (`der2_cRefset_Language*`): marks a description as
 /// preferred/acceptable in a dialect. `referencedComponentId` is a
 /// description id.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct LanguageRefsetMember {
     pub core: RefsetMemberCore,
     pub acceptability_id: SctId,
@@ -93,7 +114,7 @@ impl Rf2Record for LanguageRefsetMember {
 
 /// Association refset (`der2_cRefset_*Association*`): historical
 /// associations such as SAME AS / REPLACED BY.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct AssociationRefsetMember {
     pub core: RefsetMemberCore,
     pub target_component_id: SctId,
@@ -112,7 +133,7 @@ impl Rf2Record for AssociationRefsetMember {
 
 /// Attribute value refset (`der2_cRefset_AttributeValue*`): e.g. concept
 /// and description inactivation reasons.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct AttributeValueRefsetMember {
     pub core: RefsetMemberCore,
     pub value_id: SctId,
@@ -131,7 +152,7 @@ impl Rf2Record for AttributeValueRefsetMember {
 
 /// Simple map refset (`der2_sRefset_SimpleMap*`): one string code in a
 /// target scheme per member.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct SimpleMapRefsetMember {
     pub core: RefsetMemberCore,
     pub map_target: String,
@@ -150,7 +171,7 @@ impl Rf2Record for SimpleMapRefsetMember {
 
 /// Extended map refset (`der2_iisssccRefset_ExtendedMap*`): the pattern used
 /// by the ICD-10 map. `mapRule`, `mapAdvice`, and `mapTarget` may be empty.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct ExtendedMapRefsetMember {
     pub core: RefsetMemberCore,
     pub map_group: u32,
@@ -189,7 +210,7 @@ impl Rf2Record for ExtendedMapRefsetMember {
 
 /// OWL expression refset (`sct2_sRefset_OWLExpression*`): carries the stated
 /// axioms since the 2019 international releases.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct OwlExpressionRefsetMember {
     pub core: RefsetMemberCore,
     /// OWL 2 functional syntax, unparsed.
@@ -208,7 +229,7 @@ impl Rf2Record for OwlExpressionRefsetMember {
 }
 
 /// Module dependency refset (`der2_ssRefset_ModuleDependency*`).
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct ModuleDependencyRefsetMember {
     pub core: RefsetMemberCore,
     pub source_effective_time: EffectiveTime,
@@ -231,7 +252,7 @@ impl Rf2Record for ModuleDependencyRefsetMember {
 /// Refset descriptor refset (`der2_cciRefset_RefsetDescriptor*`): metadata
 /// describing another refset's extra columns. `referencedComponentId` is
 /// the SCTID of the *described* refset.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct RefsetDescriptorRefsetMember {
     pub core: RefsetMemberCore,
     pub attribute_description_id: SctId,
@@ -257,7 +278,7 @@ impl Rf2Record for RefsetDescriptorRefsetMember {
 /// display format and max length for a description type.
 /// `referencedComponentId` is a description type concept, e.g.
 /// `900000000000013009` |Synonym|.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct DescriptionTypeRefsetMember {
     pub core: RefsetMemberCore,
     pub description_format_id: SctId,
@@ -282,7 +303,7 @@ impl Rf2Record for DescriptionTypeRefsetMember {
 /// are free text (ECL constraints or expression templates) and MAY be
 /// empty — e.g. `parentDomain` is empty for a domain with no parent, and
 /// `proximalPrimitiveRefinement` is commonly empty (spec/08).
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct MrcmDomainRefsetMember {
     pub core: RefsetMemberCore,
     pub domain_constraint: String,
@@ -322,7 +343,7 @@ impl Rf2Record for MrcmDomainRefsetMember {
 /// MRCM Attribute Domain refset (`der2_cissccRefset_MRCMAttributeDomain*`):
 /// associates a concept model attribute with the domain(s) it may be
 /// applied to. `referencedComponentId` is the attribute concept.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct MrcmAttributeDomainRefsetMember {
     pub core: RefsetMemberCore,
     pub domain_id: SctId,
@@ -361,7 +382,7 @@ impl Rf2Record for MrcmAttributeDomainRefsetMember {
 /// MRCM Attribute Range refset (`der2_ssccRefset_MRCMAttributeRange*`):
 /// associates a concept model attribute with the valid range for its
 /// values. `referencedComponentId` is the attribute concept.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct MrcmAttributeRangeRefsetMember {
     pub core: RefsetMemberCore,
     pub range_constraint: String,
@@ -395,7 +416,7 @@ impl Rf2Record for MrcmAttributeRangeRefsetMember {
 /// `900000000000207008` |SNOMED CT core module|); `mrcm_rule_refset_id`
 /// is the SCTID of the applicable MRCM Domain/Attribute Domain/Attribute
 /// Range refset.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct MrcmModuleScopeRefsetMember {
     pub core: RefsetMemberCore,
     pub mrcm_rule_refset_id: SctId,
@@ -416,7 +437,7 @@ impl Rf2Record for MrcmModuleScopeRefsetMember {
 /// prioritized/ordered list of components — the current, non-deprecated
 /// successor (along with [`OrderedAssociationRefsetMember`]) to the
 /// deprecated "Ordered Reference Set" pattern (spec/08).
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct OrderedComponentRefsetMember {
     pub core: RefsetMemberCore,
     /// Ascending sort order; 1 is highest priority. `0` is invalid per
@@ -441,7 +462,7 @@ impl Rf2Record for OrderedComponentRefsetMember {
 /// ordered associations between components, enabling alternative
 /// navigation hierarchies (spec/08). `targetComponentId` groups members
 /// into subgroups/hierarchy nodes; `order` sorts within a group.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct OrderedAssociationRefsetMember {
     pub core: RefsetMemberCore,
     pub target_component_id: SctId,
@@ -465,7 +486,7 @@ impl Rf2Record for OrderedAssociationRefsetMember {
 /// annotation on any SNOMED CT component. Supersedes the deprecated
 /// "Annotation Reference Set" pattern (spec/08).
 /// `referencedComponentId` is the annotated component.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct ComponentAnnotationRefsetMember {
     pub core: RefsetMemberCore,
     /// ISO 639-1 language code (optionally with an RFC 5646 dialect
@@ -497,10 +518,10 @@ impl Rf2Record for ComponentAnnotationRefsetMember {
 /// core component directly (spec/08). `referencedComponentId` is the
 /// SNOMED CT component the annotated member itself refers to;
 /// `referenced_member_id` is the UUID of that specific member.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct MemberAnnotationRefsetMember {
     pub core: RefsetMemberCore,
-    pub referenced_member_id: String,
+    pub referenced_member_id: MemberId,
     pub language_dialect_code: String,
     pub type_id: SctId,
     pub value: String,
@@ -517,13 +538,34 @@ impl Rf2Record for MemberAnnotationRefsetMember {
     fn parse_fields(f: &[&str]) -> Result<Self, FieldError> {
         Ok(MemberAnnotationRefsetMember {
             core: RefsetMemberCore::parse(f)?,
-            referenced_member_id: parse_uuid(f[6], "referencedMemberId")?,
+            referenced_member_id: parse_member_id(f[6], "referencedMemberId")?,
             language_dialect_code: f[7].to_string(),
             type_id: parse_sctid(f[8], "typeId")?,
             value: parse_nonempty(f[9], "value")?,
         })
     }
 }
+
+impl_refset_member!(
+    SimpleRefsetMember,
+    LanguageRefsetMember,
+    AssociationRefsetMember,
+    AttributeValueRefsetMember,
+    SimpleMapRefsetMember,
+    ExtendedMapRefsetMember,
+    OwlExpressionRefsetMember,
+    ModuleDependencyRefsetMember,
+    RefsetDescriptorRefsetMember,
+    DescriptionTypeRefsetMember,
+    MrcmDomainRefsetMember,
+    MrcmAttributeDomainRefsetMember,
+    MrcmAttributeRangeRefsetMember,
+    MrcmModuleScopeRefsetMember,
+    OrderedComponentRefsetMember,
+    OrderedAssociationRefsetMember,
+    ComponentAnnotationRefsetMember,
+    MemberAnnotationRefsetMember,
+);
 
 #[cfg(test)]
 mod tests {
@@ -737,7 +779,7 @@ mod tests {
         let members: Vec<MemberAnnotationRefsetMember> = read_all(data.as_bytes()).unwrap();
         assert_eq!(members.len(), 1);
         assert_eq!(
-            members[0].referenced_member_id,
+            members[0].referenced_member_id.to_string(),
             "3ddfb6d2-0874-4916-8767-8d48c781d435"
         );
         assert_eq!(

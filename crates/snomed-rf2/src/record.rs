@@ -2,6 +2,7 @@
 //! field-parsing helpers shared by component and refset records.
 
 use snomed_core::concrete_value::ConcreteValue;
+use snomed_core::member_id::MemberId;
 use snomed_core::sctid::{ComponentType, SctId};
 use snomed_core::time::EffectiveTime;
 
@@ -104,21 +105,12 @@ pub fn parse_concrete_value(
 
 /// Validates and normalizes a refset member UUID (8-4-4-4-12 hex,
 /// case-insensitive on input, lowercased on output).
-pub fn parse_uuid(value: &str, column: &'static str) -> Result<String, FieldError> {
-    let bytes = value.as_bytes();
-    let well_formed = bytes.len() == 36
-        && bytes.iter().enumerate().all(|(i, b)| match i {
-            8 | 13 | 18 | 23 => *b == b'-',
-            _ => b.is_ascii_hexdigit(),
-        });
-    if well_formed {
-        Ok(value.to_ascii_lowercase())
-    } else {
-        Err(FieldError::new(
-            column,
-            format!("expected a UUID, got `{value}`"),
-        ))
-    }
+/// Parses a refset member's `id` column — a UUID, RF2's second identity
+/// scheme (spec/08). Case-insensitive; the canonical lowercase form is a
+/// property of [`MemberId`] rather than something callers normalize.
+pub fn parse_member_id(value: &str, column: &'static str) -> Result<MemberId, FieldError> {
+    MemberId::parse(value)
+        .map_err(|_| FieldError::new(column, format!("expected a UUID, got `{value}`")))
 }
 
 #[cfg(test)]
@@ -126,13 +118,19 @@ mod tests {
     use super::*;
 
     #[test]
-    fn uuid_validation() {
+    fn member_id_validation() {
+        // Case-insensitive in, canonical lowercase out (spec/08) — the
+        // column parser adds the RF2 column name to the error, the
+        // canonical form comes from `MemberId` itself.
         assert_eq!(
-            parse_uuid("800AA109-431F-4407-A431-6FE65E9DB160", "id").unwrap(),
+            parse_member_id("800AA109-431F-4407-A431-6FE65E9DB160", "id")
+                .unwrap()
+                .to_string(),
             "800aa109-431f-4407-a431-6fe65e9db160"
         );
-        assert!(parse_uuid("800aa109431f4407a4316fe65e9db160", "id").is_err());
-        assert!(parse_uuid("800aa109-431f-4407-a431-6fe65e9db16z", "id").is_err());
+        let err = parse_member_id("800aa109431f4407a4316fe65e9db160", "id").unwrap_err();
+        assert_eq!(err.column, "id");
+        assert!(parse_member_id("800aa109-431f-4407-a431-6fe65e9db16z", "id").is_err());
     }
 
     #[test]

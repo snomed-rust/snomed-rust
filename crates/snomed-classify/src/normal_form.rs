@@ -7,7 +7,7 @@
 use std::collections::{HashMap, HashSet};
 
 use snomed_core::sctid::SctId;
-use snomed_owl::Axiom;
+use snomed_owl::{Axiom, ObjectPropertyExpression};
 
 use crate::skipped::SkippedConstruct;
 use crate::stated_profile::{self, Attribute as RawAttribute, StatedProfile};
@@ -74,13 +74,53 @@ pub fn necessary_normal_form(axioms: &[Axiom]) -> NecessaryNormalFormReport {
         proximal: &proximal,
         cache: HashMap::new(),
         in_progress: HashSet::new(),
+        chains: None,
     };
 
+    // First pass: Rule 1 only (class and role inclusions). Rule 2 can't run
+    // yet — it asks whether one attribute's filler reaches another's by
+    // following a property, and that graph is made of the very forms this
+    // pass produces (spec/14).
     let mut forms = HashMap::new();
     for &c in &concepts {
         let candidates = groups_for(c, &mut ctx);
         let is_a = proximal.get(&c).cloned().unwrap_or_default();
         forms.insert(c, finalize(is_a, candidates));
+    }
+
+    // Second pass: with the node graphs built, re-normalize the concepts
+    // Rule 2 could possibly affect — those holding an attribute whose type
+    // is (or is a subtype of) some chain's source type. Everything else
+    // would recompute to the identical answer, so the reference
+    // implementation skips it too.
+    let chains = property_chains(axioms);
+    if !chains.is_empty() {
+        let graphs = NodeGraphs::build(&chains, &forms);
+        let affected: Vec<SctId> = forms
+            .iter()
+            .filter(|(_, form)| {
+                form.attributes.iter().any(|attribute| {
+                    chains.iter().any(|chain| {
+                        chain.source == attribute.type_id
+                            || role_ancestors
+                                .get(&attribute.type_id)
+                                .is_some_and(|a| a.contains(&chain.source))
+                    })
+                })
+            })
+            .map(|(&c, _)| c)
+            .collect();
+
+        ctx.chains = Some((&chains, &graphs));
+        for c in affected {
+            // Drop only this concept's cached first-pass groups: its
+            // ancestors' entries stay, so inherited fragments arrive
+            // already reduced, exactly as in the reference.
+            ctx.cache.remove(&c);
+            let candidates = groups_for(c, &mut ctx);
+            let is_a = proximal.get(&c).cloned().unwrap_or_default();
+            forms.insert(c, finalize(is_a, candidates));
+        }
     }
 
     NecessaryNormalFormReport { forms, skipped }
@@ -151,6 +191,116 @@ fn role_ancestor_closure(axioms: &[Axiom]) -> HashMap<SctId, HashSet<SctId>> {
     closure
 }
 
+/// One `SubObjectPropertyOf(ObjectPropertyChain(t s) r)` axiom, in the
+/// reference implementation's names: `t ∘ s ⊑ r` (spec/14 Rule 2).
+///
+/// A `TransitiveObjectProperty(r)` axiom is the chain `r ∘ r ⊑ r`, and is
+/// collected here as one — which is why transitive-property redundancy
+/// needs no separate rule.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+struct PropertyChain {
+    source: SctId,
+    destination: SctId,
+    inferred: SctId,
+}
+
+/// Every property chain in `axioms`. Chains longer than two operands are
+/// skipped: `snomed-classify` normalizes them for *classification* with
+/// fresh intermediate roles (spec/13), but those fresh roles name nothing
+/// a relationship can refer to, so they can't participate in the
+/// relationship-level redundancy Rule 2 describes. SNOMED CT uses only
+/// two-operand chains (spec/12).
+fn property_chains(axioms: &[Axiom]) -> Vec<PropertyChain> {
+    let mut chains = Vec::new();
+    for axiom in axioms {
+        match axiom {
+            Axiom::SubObjectPropertyOf {
+                sub: ObjectPropertyExpression::Chain(ids),
+                sup,
+            } if ids.len() == 2 => chains.push(PropertyChain {
+                source: ids[0],
+                destination: ids[1],
+                inferred: *sup,
+            }),
+            Axiom::TransitiveObjectProperty(r) => chains.push(PropertyChain {
+                source: *r,
+                destination: *r,
+                inferred: *r,
+            }),
+            _ => {}
+        }
+    }
+    chains.sort_by_key(|c| (c.source, c.destination, c.inferred));
+    chains.dedup();
+    chains
+}
+
+/// Direct `concept --property--> filler` edges for every property that
+/// appears as a chain's *destination*, taken from the first pass's normal
+/// forms — the reference implementation's `NodeGraph` per traversable
+/// property.
+///
+/// Only chain destinations need a graph: Rule 2 asks "does `D` reach `C`
+/// via `s`", and `s` is always a chain's destination type.
+#[derive(Debug, Default)]
+struct NodeGraphs {
+    edges: HashMap<(SctId, SctId), Vec<SctId>>,
+}
+
+impl NodeGraphs {
+    fn build(chains: &[PropertyChain], forms: &HashMap<SctId, NecessaryNormalForm>) -> Self {
+        let traversable: HashSet<SctId> = chains.iter().map(|c| c.destination).collect();
+        let mut edges: HashMap<(SctId, SctId), Vec<SctId>> = HashMap::new();
+        for (&concept, form) in forms {
+            for attribute in &form.attributes {
+                if traversable.contains(&attribute.type_id) {
+                    edges
+                        .entry((concept, attribute.type_id))
+                        .or_default()
+                        .push(attribute.destination_id);
+                }
+            }
+        }
+        for targets in edges.values_mut() {
+            targets.sort_unstable();
+            targets.dedup();
+        }
+        NodeGraphs { edges }
+    }
+
+    /// The reference's `getPropertyChainTransitiveClosure`: everything
+    /// reachable from `from` by following `property` any number of times,
+    /// including `from` itself, plus the concept-subsumption ancestors of
+    /// every concept so reached.
+    fn chain_closure(
+        &self,
+        from: SctId,
+        property: SctId,
+        classification: &Classification,
+    ) -> HashSet<SctId> {
+        let mut reached = HashSet::from([from]);
+        let mut queue = vec![from];
+        while let Some(node) = queue.pop() {
+            for &next in self
+                .edges
+                .get(&(node, property))
+                .map(Vec::as_slice)
+                .unwrap_or(&[])
+            {
+                if reached.insert(next) {
+                    queue.push(next);
+                }
+            }
+        }
+        let ancestors: Vec<SctId> = reached
+            .iter()
+            .flat_map(|&node| classification.subsumers(node))
+            .collect();
+        reached.extend(ancestors);
+        reached
+    }
+}
+
 struct Context<'a> {
     profiles: &'a HashMap<SctId, StatedProfile>,
     classification: &'a Classification,
@@ -158,6 +308,10 @@ struct Context<'a> {
     proximal: &'a HashMap<SctId, Vec<SctId>>,
     cache: HashMap<SctId, Vec<GroupCandidate>>,
     in_progress: HashSet<SctId>,
+    /// `None` during the first pass, `Some` during the second: Rule 2
+    /// needs the node graphs, and those can only be built once every
+    /// concept's first-pass form is known (spec/14).
+    chains: Option<(&'a [PropertyChain], &'a NodeGraphs)>,
 }
 
 #[derive(Debug, Clone)]
@@ -194,6 +348,7 @@ fn groups_for(c: SctId, ctx: &mut Context<'_>) -> Vec<GroupCandidate> {
                 },
                 ctx.role_ancestors,
                 ctx.classification,
+                ctx.chains,
             );
         }
         for group in profile.groups.clone() {
@@ -205,6 +360,7 @@ fn groups_for(c: SctId, ctx: &mut Context<'_>) -> Vec<GroupCandidate> {
                 },
                 ctx.role_ancestors,
                 ctx.classification,
+                ctx.chains,
             );
         }
     }
@@ -217,6 +373,7 @@ fn groups_for(c: SctId, ctx: &mut Context<'_>) -> Vec<GroupCandidate> {
                 inherited,
                 ctx.role_ancestors,
                 ctx.classification,
+                ctx.chains,
             );
         }
     }
@@ -234,14 +391,16 @@ fn insert_candidate(
     new: GroupCandidate,
     role_ancestors: &HashMap<SctId, HashSet<SctId>>,
     classification: &Classification,
+    chains: Option<(&[PropertyChain], &NodeGraphs)>,
 ) {
     if candidates
         .iter()
-        .any(|g| group_is_same_or_stronger(g, &new, role_ancestors, classification))
+        .any(|g| group_is_same_or_stronger(g, &new, role_ancestors, classification, chains))
     {
         return;
     }
-    candidates.retain(|g| !group_is_same_or_stronger(&new, g, role_ancestors, classification));
+    candidates
+        .retain(|g| !group_is_same_or_stronger(&new, g, role_ancestors, classification, chains));
     candidates.push(new);
 }
 
@@ -253,35 +412,64 @@ fn group_is_same_or_stronger(
     other: &GroupCandidate,
     role_ancestors: &HashMap<SctId, HashSet<SctId>>,
     classification: &Classification,
+    chains: Option<(&[PropertyChain], &NodeGraphs)>,
 ) -> bool {
     other.fragments.iter().all(|&weaker| {
         candidate.fragments.iter().any(|&stronger| {
-            fragment_is_same_or_stronger(stronger, weaker, role_ancestors, classification)
+            fragment_is_same_or_stronger(stronger, weaker, role_ancestors, classification, chains)
         })
     })
 }
 
-/// `(s, D)` makes `(r, C)` redundant when `r` is `s` or an ancestor of `s`
-/// in the role hierarchy, and `C` is `D` or an ancestor of `D` in concept
-/// subsumption (spec/14).
+/// Whether `stronger` makes `weaker` redundant, by either of spec/14's two
+/// rules. Named after the reference implementation's
+/// `RelationshipFragment.isSameOrStrongerThan`, and following its
+/// vocabulary: `stronger` is `B = (u, D)`, `weaker` is `A = (r, C)`.
+///
+/// **Rule 1 — class and role inclusions.** `A` is redundant when `u` is
+/// `r` or a subtype of it, and `D` is `C` or a subtype of it.
+///
+/// **Rule 2 — property chains.** Given a chain `t ∘ s ⊑ r`, `A` is
+/// redundant when `u` is `t` or a subtype of it, and `D` reaches `C` via
+/// `s`. Concretely: if a concept has `findingSite = Hand` and
+/// `findingSite = UpperLimb`, `Hand partOf UpperLimb` holds, and
+/// `findingSite ∘ partOf ⊑ findingSite`, then the second attribute adds
+/// nothing the first doesn't already imply. Only available on the second
+/// pass, when `chains` is `Some` — the node graphs it needs are built from
+/// the first pass's forms.
 fn fragment_is_same_or_stronger(
     stronger: RawAttribute,
     weaker: RawAttribute,
     role_ancestors: &HashMap<SctId, HashSet<SctId>>,
     classification: &Classification,
+    chains: Option<(&[PropertyChain], &NodeGraphs)>,
 ) -> bool {
-    let (s, d) = stronger;
+    let (u, d) = stronger;
     let (r, c) = weaker;
+    let role_closure = |role: SctId, ancestor: SctId| {
+        role == ancestor
+            || role_ancestors
+                .get(&role)
+                .is_some_and(|ancestors| ancestors.contains(&ancestor))
+    };
 
-    let type_ok = s == r
-        || role_ancestors
-            .get(&s)
-            .is_some_and(|ancestors| ancestors.contains(&r));
-    if !type_ok {
-        return false;
+    // Rule 1.
+    if role_closure(u, r) && (d == c || classification.is_subsumed_by(d, c)) {
+        return true;
     }
 
-    d == c || classification.is_subsumed_by(d, c)
+    // Rule 2.
+    let Some((chains, graphs)) = chains else {
+        return false;
+    };
+    chains
+        .iter()
+        .filter(|chain| chain.inferred == r && role_closure(u, chain.source))
+        .any(|chain| {
+            graphs
+                .chain_closure(d, chain.destination, classification)
+                .contains(&c)
+        })
 }
 
 fn finalize(mut is_a: Vec<SctId>, candidates: Vec<GroupCandidate>) -> NecessaryNormalForm {
@@ -602,5 +790,120 @@ mod tests {
             ax(&format!("SubClassOf(:{a} :{b})")),
         ]);
         assert_eq!(report.forms[&a].is_a, vec![b]);
+    }
+
+    #[test]
+    fn a_property_chain_makes_a_more_general_attribute_redundant() {
+        // spec/14 Rule 2, the reference implementation's second pass.
+        // Given `findingSite ∘ partOf ⊑ findingSite`, a concept stating
+        // both `findingSite = Hand` and `findingSite = UpperLimb` needs
+        // only the first: Hand is part of UpperLimb, so the chain already
+        // entails the second. Rule 1 cannot see this — neither attribute
+        // subsumes the other by role hierarchy and concept subsumption.
+        let finding_site = id(1200);
+        let part_of = id(1201);
+        let hand = id(1202);
+        let upper_limb = id(1203);
+        let disorder = id(1204);
+        let hand_disorder = id(1205);
+
+        let axioms = vec![
+            ax(&format!(
+                "SubObjectPropertyOf(ObjectPropertyChain(:{finding_site} :{part_of}) :{finding_site})"
+            )),
+            // Hand is part of Upper limb — the edge the node graph needs,
+            // and it must be in Hand's own normal form to be seen.
+            ax(&format!(
+                "SubClassOf(:{hand} ObjectSomeValuesFrom(:{part_of} :{upper_limb}))"
+            )),
+            ax(&format!(
+                "EquivalentClasses(:{hand_disorder} ObjectIntersectionOf(:{disorder} \
+                 ObjectSomeValuesFrom(:{finding_site} :{hand}) \
+                 ObjectSomeValuesFrom(:{finding_site} :{upper_limb})))"
+            )),
+        ];
+
+        let report = necessary_normal_form(&axioms);
+        let form = &report.forms[&hand_disorder];
+        let sites: Vec<SctId> = form
+            .attributes
+            .iter()
+            .filter(|a| a.type_id == finding_site)
+            .map(|a| a.destination_id)
+            .collect();
+        assert_eq!(
+            sites,
+            vec![hand],
+            "the Upper limb site is implied by the Hand site through the chain"
+        );
+    }
+
+    #[test]
+    fn a_transitive_property_makes_a_reachable_attribute_redundant() {
+        // A `TransitiveObjectProperty` is the chain `r ∘ r ⊑ r`, so it
+        // needs no separate rule: stating both `partOf = Hand` and
+        // `partOf = UpperLimb` when Hand is part of Upper limb keeps only
+        // the more specific one.
+        let part_of = id(1210);
+        let hand = id(1211);
+        let upper_limb = id(1212);
+        let structure = id(1213);
+        let thing = id(1214);
+
+        let axioms = vec![
+            ax(&format!("TransitiveObjectProperty(:{part_of})")),
+            ax(&format!(
+                "SubClassOf(:{hand} ObjectSomeValuesFrom(:{part_of} :{upper_limb}))"
+            )),
+            ax(&format!(
+                "EquivalentClasses(:{thing} ObjectIntersectionOf(:{structure} \
+                 ObjectSomeValuesFrom(:{part_of} :{hand}) \
+                 ObjectSomeValuesFrom(:{part_of} :{upper_limb})))"
+            )),
+        ];
+
+        let report = necessary_normal_form(&axioms);
+        let parts: Vec<SctId> = report.forms[&thing]
+            .attributes
+            .iter()
+            .filter(|a| a.type_id == part_of)
+            .map(|a| a.destination_id)
+            .collect();
+        assert_eq!(parts, vec![hand]);
+    }
+
+    #[test]
+    fn a_chain_does_not_eliminate_an_unreachable_attribute() {
+        // The guard against over-elimination: same chain, but Hand is not
+        // part of Foot, so both sites survive. Rule 2 must fire on
+        // reachability, not on the chain's mere existence.
+        let finding_site = id(1220);
+        let part_of = id(1221);
+        let hand = id(1222);
+        let foot = id(1223);
+        let disorder = id(1224);
+        let odd_disorder = id(1225);
+
+        let axioms = vec![
+            ax(&format!(
+                "SubObjectPropertyOf(ObjectPropertyChain(:{finding_site} :{part_of}) :{finding_site})"
+            )),
+            ax(&format!(
+                "EquivalentClasses(:{odd_disorder} ObjectIntersectionOf(:{disorder} \
+                 ObjectSomeValuesFrom(:{finding_site} :{hand}) \
+                 ObjectSomeValuesFrom(:{finding_site} :{foot})))"
+            )),
+        ];
+
+        let mut sites: Vec<SctId> = necessary_normal_form(&axioms).forms[&odd_disorder]
+            .attributes
+            .iter()
+            .filter(|a| a.type_id == finding_site)
+            .map(|a| a.destination_id)
+            .collect();
+        sites.sort();
+        let mut expected = vec![hand, foot];
+        expected.sort();
+        assert_eq!(sites, expected, "neither site implies the other");
     }
 }

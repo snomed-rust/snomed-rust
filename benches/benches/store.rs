@@ -79,10 +79,7 @@ fn bench_store(c: &mut Criterion) {
             for id in &sample {
                 black_box(
                     store
-                        .preferred_term(
-                            black_box(*id),
-                            constants::US_ENGLISH_LANGUAGE_REFSET,
-                        )
+                        .preferred_term(black_box(*id), constants::US_ENGLISH_LANGUAGE_REFSET)
                         .is_some(),
                 );
             }

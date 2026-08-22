@@ -8,6 +8,7 @@ use std::collections::{HashMap, HashSet, VecDeque};
 
 use snomed_core::components::{Concept, Description, Relationship, RelationshipConcreteValue};
 use snomed_core::constants;
+use snomed_core::member_id::MemberId;
 use snomed_core::sctid::SctId;
 use snomed_core::time::EffectiveTime;
 use snomed_rf2::refset::{
@@ -31,27 +32,39 @@ pub struct SnapshotStoreBuilder {
     relationship_concrete_values: HashMap<SctId, RelationshipConcreteValue>,
     // Refset members, all keyed by member UUID (spec/08: versioning is
     // identical to components, keyed by the member UUID).
-    simple_members: HashMap<String, SimpleRefsetMember>,
-    language_members: HashMap<String, LanguageRefsetMember>,
-    association_members: HashMap<String, AssociationRefsetMember>,
-    attribute_value_members: HashMap<String, AttributeValueRefsetMember>,
-    simple_map_members: HashMap<String, SimpleMapRefsetMember>,
-    extended_map_members: HashMap<String, ExtendedMapRefsetMember>,
-    owl_expression_members: HashMap<String, OwlExpressionRefsetMember>,
-    module_dependency_members: HashMap<String, ModuleDependencyRefsetMember>,
-    refset_descriptor_members: HashMap<String, RefsetDescriptorRefsetMember>,
-    description_type_members: HashMap<String, DescriptionTypeRefsetMember>,
-    mrcm_domain_members: HashMap<String, MrcmDomainRefsetMember>,
-    mrcm_attribute_domain_members: HashMap<String, MrcmAttributeDomainRefsetMember>,
-    mrcm_attribute_range_members: HashMap<String, MrcmAttributeRangeRefsetMember>,
-    mrcm_module_scope_members: HashMap<String, MrcmModuleScopeRefsetMember>,
-    ordered_component_members: HashMap<String, OrderedComponentRefsetMember>,
-    ordered_association_members: HashMap<String, OrderedAssociationRefsetMember>,
-    component_annotation_members: HashMap<String, ComponentAnnotationRefsetMember>,
-    member_annotation_members: HashMap<String, MemberAnnotationRefsetMember>,
+    simple_members: HashMap<MemberId, SimpleRefsetMember>,
+    language_members: HashMap<MemberId, LanguageRefsetMember>,
+    association_members: HashMap<MemberId, AssociationRefsetMember>,
+    attribute_value_members: HashMap<MemberId, AttributeValueRefsetMember>,
+    simple_map_members: HashMap<MemberId, SimpleMapRefsetMember>,
+    extended_map_members: HashMap<MemberId, ExtendedMapRefsetMember>,
+    owl_expression_members: HashMap<MemberId, OwlExpressionRefsetMember>,
+    module_dependency_members: HashMap<MemberId, ModuleDependencyRefsetMember>,
+    refset_descriptor_members: HashMap<MemberId, RefsetDescriptorRefsetMember>,
+    description_type_members: HashMap<MemberId, DescriptionTypeRefsetMember>,
+    mrcm_domain_members: HashMap<MemberId, MrcmDomainRefsetMember>,
+    mrcm_attribute_domain_members: HashMap<MemberId, MrcmAttributeDomainRefsetMember>,
+    mrcm_attribute_range_members: HashMap<MemberId, MrcmAttributeRangeRefsetMember>,
+    mrcm_module_scope_members: HashMap<MemberId, MrcmModuleScopeRefsetMember>,
+    ordered_component_members: HashMap<MemberId, OrderedComponentRefsetMember>,
+    ordered_association_members: HashMap<MemberId, OrderedAssociationRefsetMember>,
+    component_annotation_members: HashMap<MemberId, ComponentAnnotationRefsetMember>,
+    member_annotation_members: HashMap<MemberId, MemberAnnotationRefsetMember>,
 }
 
-fn upsert<K: std::hash::Hash + Eq, V, F: Fn(&V) -> u32>(
+/// Keeps the later of two rows contending for one slot, per spec/09 rules
+/// 2 and 5.
+///
+/// The tie case is the subtle one: two rows with the *same* id and the
+/// *same* `effectiveTime` but different content are contradictory input —
+/// a real release never ships them, but nothing stops a caller from
+/// loading two editions that disagree, or hand-building them. Keeping
+/// whichever arrived first would make the store depend on arrival order,
+/// which rule 3 forbids, so the tie is broken on the rows' own field
+/// order: the greater row wins. The result is a pure function of the
+/// *set* of rows, which is the strongest form of order independence and
+/// the one a fuzzer can check.
+fn upsert<K: std::hash::Hash + Eq, V: Ord, F: Fn(&V) -> u32>(
     map: &mut HashMap<K, V>,
     key: K,
     value: V,
@@ -62,7 +75,9 @@ fn upsert<K: std::hash::Hash + Eq, V, F: Fn(&V) -> u32>(
             e.insert(value);
         }
         std::collections::hash_map::Entry::Occupied(mut e) => {
-            if time_of(&value) > time_of(e.get()) {
+            let incoming = (time_of(&value), &value);
+            let stored = (time_of(e.get()), e.get());
+            if incoming > stored {
                 e.insert(value);
             }
         }
@@ -75,7 +90,7 @@ fn upsert<K: std::hash::Hash + Eq, V, F: Fn(&V) -> u32>(
 macro_rules! refset_member_methods {
     ($add_one:ident, $add_many:ident, $field:ident, $ty:ty) => {
         pub fn $add_one(&mut self, row: $ty) -> &mut Self {
-            upsert(&mut self.$field, row.core.id.clone(), row, |m| {
+            upsert(&mut self.$field, row.core.id, row, |m| {
                 m.core.effective_time.as_u32()
             });
             self
@@ -94,7 +109,7 @@ macro_rules! refset_member_methods {
 /// consuming the builder's member map. Each group is ordered by member UUID,
 /// so it does not depend on `HashMap` iteration order.
 fn group_by_refset_and_component<T>(
-    members: HashMap<String, T>,
+    members: HashMap<MemberId, T>,
     core_of: impl Fn(&T) -> &RefsetMemberCore,
 ) -> HashMap<(SctId, SctId), Vec<T>> {
     let mut grouped: HashMap<(SctId, SctId), Vec<T>> = HashMap::new();
@@ -113,7 +128,7 @@ fn group_by_refset_and_component<T>(
     // Members arrive in `HashMap` order, which differs between processes;
     // sorting by member UUID makes each group's order reproducible.
     for group in grouped.values_mut() {
-        group.sort_by(|a, b| core_of(a).id.cmp(&core_of(b).id));
+        group.sort_by_key(|m| core_of(m).id);
     }
     grouped
 }
@@ -361,17 +376,14 @@ impl SnapshotStoreBuilder {
         // in RF2 guarantees it; when two members collide, the later
         // `effectiveTime` wins and the member UUID breaks a remaining tie, so
         // the answer never depends on `HashMap` iteration order.
-        let mut resolved: HashMap<(SctId, SctId), (&str, EffectiveTime, SctId)> = HashMap::new();
+        let mut resolved: HashMap<(SctId, SctId), (MemberId, EffectiveTime, SctId)> =
+            HashMap::new();
         for m in self.language_members.values() {
             if !m.core.active {
                 continue;
             }
             let key = (m.core.refset_id, m.core.referenced_component_id);
-            let candidate = (
-                m.core.id.as_str(),
-                m.core.effective_time,
-                m.acceptability_id,
-            );
+            let candidate = (m.core.id, m.core.effective_time, m.acceptability_id);
             match resolved.entry(key) {
                 std::collections::hash_map::Entry::Vacant(e) => {
                     e.insert(candidate);
@@ -1043,6 +1055,32 @@ mod tests {
     }
 
     #[test]
+    fn contradictory_rows_at_one_effective_time_resolve_by_content() {
+        // spec/09 rule 5: two rows claiming different content for the same
+        // version of the same component are contradictory, but the store
+        // must still be a pure function of the row *set* — found by the
+        // `store_snapshot` fuzz target, which builds each input twice in
+        // opposite orders and compares.
+        let defined = Concept {
+            definition_status_id: constants::DEFINED,
+            ..concept(MI, 20190731, true)
+        };
+        let primitive = concept(MI, 20190731, true);
+        assert_ne!(defined, primitive);
+
+        let build = |rows: [Concept; 2]| {
+            let mut b = SnapshotStore::builder();
+            b.add_concepts(rows);
+            b.build().concept(MI).cloned().expect("added")
+        };
+        assert_eq!(
+            build([defined.clone(), primitive.clone()]),
+            build([primitive, defined]),
+            "the winner must not depend on arrival order"
+        );
+    }
+
+    #[test]
     fn derived_indexes_are_ordered_by_id() {
         // spec/09 rule 6: results must be reproducible across processes, so
         // the indexes built by iterating hash maps are sorted by id.
@@ -1087,9 +1125,9 @@ mod tests {
         // description) is malformed data, but the winner must still be the
         // later effectiveTime — not whichever the hash map yielded last.
         let description_id = SctId::compose(2000, ComponentType::Description, None).unwrap();
-        let member = |uuid: &str, time: u32, acceptability: SctId| LanguageRefsetMember {
+        let member = |uuid: MemberId, time: u32, acceptability: SctId| LanguageRefsetMember {
             core: RefsetMemberCore {
-                id: uuid.to_string(),
+                id: uuid,
                 effective_time: EffectiveTime::new_unchecked(time),
                 active: true,
                 module_id: constants::CORE_MODULE,
@@ -1105,12 +1143,12 @@ mod tests {
                 .acceptability(constants::US_ENGLISH_LANGUAGE_REFSET, description_id)
         };
         let older = member(
-            "00000000-0000-4000-8000-00000000000a",
+            MemberId::parse("00000000-0000-4000-8000-00000000000a").unwrap(),
             20190731,
             constants::ACCEPTABLE,
         );
         let newer = member(
-            "00000000-0000-4000-8000-00000000000b",
+            MemberId::parse("00000000-0000-4000-8000-00000000000b").unwrap(),
             20200131,
             constants::PREFERRED,
         );
@@ -1168,14 +1206,14 @@ mod tests {
     }
 
     fn core(
-        uuid: &str,
+        uuid: MemberId,
         time: u32,
         active: bool,
         refset_id: SctId,
         component_id: SctId,
     ) -> RefsetMemberCore {
         RefsetMemberCore {
-            id: uuid.to_string(),
+            id: uuid,
             effective_time: EffectiveTime::new_unchecked(time),
             active,
             module_id: constants::CORE_MODULE,
@@ -1191,7 +1229,7 @@ mod tests {
         let mut b = SnapshotStore::builder();
         b.add_simple_member(SimpleRefsetMember {
             core: core(
-                "80000000-0000-4000-8000-000000000010",
+                MemberId::parse("80000000-0000-4000-8000-000000000010").unwrap(),
                 20190731,
                 true,
                 ICD10_MAP,
@@ -1209,7 +1247,7 @@ mod tests {
         let mut b = SnapshotStore::builder();
         b.add_extended_map_member(ExtendedMapRefsetMember {
             core: core(
-                "80000000-0000-4000-8000-000000000011",
+                MemberId::parse("80000000-0000-4000-8000-000000000011").unwrap(),
                 20190731,
                 true,
                 ICD10_MAP,
@@ -1235,7 +1273,7 @@ mod tests {
         let mut b = SnapshotStore::builder();
         b.add_simple_member(SimpleRefsetMember {
             core: core(
-                "80000000-0000-4000-8000-000000000012",
+                MemberId::parse("80000000-0000-4000-8000-000000000012").unwrap(),
                 20190731,
                 false,
                 ICD10_MAP,
@@ -1251,7 +1289,7 @@ mod tests {
         let mut b = SnapshotStore::builder();
         b.add_simple_member(SimpleRefsetMember {
             core: core(
-                "80000000-0000-4000-8000-000000000013",
+                MemberId::parse("80000000-0000-4000-8000-000000000013").unwrap(),
                 20190731,
                 true,
                 ICD10_MAP,
@@ -1260,7 +1298,7 @@ mod tests {
         });
         b.add_simple_member(SimpleRefsetMember {
             core: core(
-                "80000000-0000-4000-8000-000000000013",
+                MemberId::parse("80000000-0000-4000-8000-000000000013").unwrap(),
                 20200131,
                 false,
                 ICD10_MAP,
@@ -1285,7 +1323,7 @@ mod tests {
         let mut b = SnapshotStore::builder();
         b.add_language_member(LanguageRefsetMember {
             core: core(
-                "80000000-0000-4000-8000-000000000014",
+                MemberId::parse("80000000-0000-4000-8000-000000000014").unwrap(),
                 20190731,
                 true,
                 constants::US_ENGLISH_LANGUAGE_REFSET,
@@ -1309,7 +1347,7 @@ mod tests {
         let mut b = SnapshotStore::builder();
         b.add_language_member(LanguageRefsetMember {
             core: core(
-                "80000000-0000-4000-8000-000000000017",
+                MemberId::parse("80000000-0000-4000-8000-000000000017").unwrap(),
                 20190731,
                 true,
                 constants::US_ENGLISH_LANGUAGE_REFSET,
@@ -1319,7 +1357,7 @@ mod tests {
         });
         b.add_simple_member(SimpleRefsetMember {
             core: core(
-                "80000000-0000-4000-8000-000000000018",
+                MemberId::parse("80000000-0000-4000-8000-000000000018").unwrap(),
                 20190731,
                 true,
                 ICD10_MAP,
@@ -1330,7 +1368,7 @@ mod tests {
         let never_active_refset = SctId::compose(9997, ComponentType::Concept, None).unwrap();
         b.add_simple_member(SimpleRefsetMember {
             core: core(
-                "80000000-0000-4000-8000-000000000019",
+                MemberId::parse("80000000-0000-4000-8000-000000000019").unwrap(),
                 20190731,
                 false,
                 never_active_refset,
@@ -1354,7 +1392,7 @@ mod tests {
         let mut b = SnapshotStore::builder();
         b.add_language_member(LanguageRefsetMember {
             core: core(
-                "80000000-0000-4000-8000-000000000015",
+                MemberId::parse("80000000-0000-4000-8000-000000000015").unwrap(),
                 20190731,
                 true,
                 constants::US_ENGLISH_LANGUAGE_REFSET,
@@ -1364,7 +1402,7 @@ mod tests {
         });
         b.add_language_member(LanguageRefsetMember {
             core: core(
-                "80000000-0000-4000-8000-000000000016",
+                MemberId::parse("80000000-0000-4000-8000-000000000016").unwrap(),
                 20190731,
                 true,
                 constants::US_ENGLISH_LANGUAGE_REFSET,
@@ -1440,7 +1478,7 @@ mod tests {
         let descriptor_refset = SctId::compose(9002, ComponentType::Concept, None).unwrap();
         b.add_refset_descriptor_member(RefsetDescriptorRefsetMember {
             core: core(
-                "80000000-0000-4000-8000-000000000020",
+                MemberId::parse("80000000-0000-4000-8000-000000000020").unwrap(),
                 20190731,
                 true,
                 descriptor_refset,
@@ -1452,7 +1490,7 @@ mod tests {
         });
         b.add_description_type_member(DescriptionTypeRefsetMember {
             core: core(
-                "80000000-0000-4000-8000-000000000021",
+                MemberId::parse("80000000-0000-4000-8000-000000000021").unwrap(),
                 20190731,
                 true,
                 descriptor_refset,
@@ -1488,7 +1526,7 @@ mod tests {
         let mut b = SnapshotStore::builder();
         b.add_mrcm_domain_member(MrcmDomainRefsetMember {
             core: core(
-                "80000000-0000-4000-8000-000000000022",
+                MemberId::parse("80000000-0000-4000-8000-000000000022").unwrap(),
                 20200731,
                 true,
                 constants::MRCM_DOMAIN_REFERENCE_SET,
@@ -1504,7 +1542,7 @@ mod tests {
         });
         b.add_mrcm_attribute_domain_member(MrcmAttributeDomainRefsetMember {
             core: core(
-                "80000000-0000-4000-8000-000000000023",
+                MemberId::parse("80000000-0000-4000-8000-000000000023").unwrap(),
                 20200731,
                 true,
                 constants::MRCM_ATTRIBUTE_DOMAIN_REFERENCE_SET,
@@ -1519,7 +1557,7 @@ mod tests {
         });
         b.add_mrcm_attribute_range_member(MrcmAttributeRangeRefsetMember {
             core: core(
-                "80000000-0000-4000-8000-000000000024",
+                MemberId::parse("80000000-0000-4000-8000-000000000024").unwrap(),
                 20200731,
                 true,
                 constants::MRCM_ATTRIBUTE_RANGE_REFERENCE_SET,
@@ -1532,7 +1570,7 @@ mod tests {
         });
         b.add_mrcm_module_scope_member(MrcmModuleScopeRefsetMember {
             core: core(
-                "80000000-0000-4000-8000-000000000025",
+                MemberId::parse("80000000-0000-4000-8000-000000000025").unwrap(),
                 20200731,
                 true,
                 constants::MRCM_MODULE_SCOPE_REFERENCE_SET,
@@ -1587,7 +1625,7 @@ mod tests {
         let mut b = SnapshotStore::builder();
         b.add_ordered_component_member(OrderedComponentRefsetMember {
             core: core(
-                "80000000-0000-4000-8000-000000000026",
+                MemberId::parse("80000000-0000-4000-8000-000000000026").unwrap(),
                 20190731,
                 true,
                 constants::ORDERED_COMPONENT_TYPE_REFSET,
@@ -1597,7 +1635,7 @@ mod tests {
         });
         b.add_ordered_association_member(OrderedAssociationRefsetMember {
             core: core(
-                "80000000-0000-4000-8000-000000000027",
+                MemberId::parse("80000000-0000-4000-8000-000000000027").unwrap(),
                 20190731,
                 true,
                 constants::ORDERED_ASSOCIATION_TYPE_REFSET,
@@ -1608,7 +1646,7 @@ mod tests {
         });
         b.add_component_annotation_member(ComponentAnnotationRefsetMember {
             core: core(
-                "80000000-0000-4000-8000-000000000028",
+                MemberId::parse("80000000-0000-4000-8000-000000000028").unwrap(),
                 20190731,
                 true,
                 constants::COMPONENT_ANNOTATION_REFSET,
@@ -1620,13 +1658,13 @@ mod tests {
         });
         b.add_member_annotation_member(MemberAnnotationRefsetMember {
             core: core(
-                "80000000-0000-4000-8000-000000000029",
+                MemberId::parse("80000000-0000-4000-8000-000000000029").unwrap(),
                 20190731,
                 true,
                 constants::MEMBER_ANNOTATION_REFSET,
                 MI,
             ),
-            referenced_member_id: "3ddfb6d2-0874-4916-8767-8d48c781d435".to_string(),
+            referenced_member_id: MemberId::parse("3ddfb6d2-0874-4916-8767-8d48c781d435").unwrap(),
             language_dialect_code: "en".to_string(),
             type_id: constants::CORE_MODULE, // placeholder valid SCTID
             value: "annotation text".to_string(),
@@ -1653,7 +1691,7 @@ mod tests {
         assert_eq!(member_annotations.len(), 1);
         assert_eq!(
             member_annotations[0].referenced_member_id,
-            "3ddfb6d2-0874-4916-8767-8d48c781d435"
+            MemberId::parse("3ddfb6d2-0874-4916-8767-8d48c781d435").unwrap()
         );
 
         assert!(store.is_member(constants::ORDERED_COMPONENT_TYPE_REFSET, thumb));
@@ -1668,7 +1706,7 @@ mod tests {
         let mut b = SnapshotStore::builder();
         b.add_owl_expression_member(OwlExpressionRefsetMember {
             core: core(
-                "80000000-0000-4000-8000-000000000038",
+                MemberId::parse("80000000-0000-4000-8000-000000000038").unwrap(),
                 20190731,
                 true,
                 owl_refset,
@@ -1678,7 +1716,7 @@ mod tests {
         });
         b.add_owl_expression_member(OwlExpressionRefsetMember {
             core: core(
-                "80000000-0000-4000-8000-000000000039",
+                MemberId::parse("80000000-0000-4000-8000-000000000039").unwrap(),
                 20190731,
                 true,
                 owl_refset,
@@ -1689,7 +1727,7 @@ mod tests {
         // Inactive: must not appear.
         b.add_owl_expression_member(OwlExpressionRefsetMember {
             core: core(
-                "80000000-0000-4000-8000-000000000040",
+                MemberId::parse("80000000-0000-4000-8000-000000000040").unwrap(),
                 20190731,
                 false,
                 owl_refset,

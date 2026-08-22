@@ -32,7 +32,7 @@ distributions' Relationship files actually contain, and what
 `snomed-owl-toolkit`'s own class name (`RelationshipNormalFormGenerator`)
 is for.
 
-Two kinds of redundancy get eliminated:
+Three kinds of redundancy get eliminated:
 
 1. **IS-A redundancy**: if a concept is entailed to be a subtype of both
    `B` and `C`, and `B` is itself a subtype of `C`, stating `C` as a direct
@@ -44,6 +44,46 @@ Two kinds of redundancy get eliminated:
    the second is implied by the first (monotonicity of existential
    restrictions: a more specific role with a more specific filler entails
    the more general statement) and gets dropped.
+3. **Property-chain redundancy** (the reference implementation's Rule 2):
+   given a chain `t ∘ s ⊑ r`, an attribute `∃r.C` is redundant when the
+   concept also has `∃u.D` in the same group with `u ⊑ t`, and `D` reaches
+   `C` by following `s`. Worked example: with
+   `findingSite ∘ partOf ⊑ findingSite`, a concept stating both
+   `findingSite = Hand` and `findingSite = Upper limb` needs only the
+   first — Hand is part of Upper limb, so the chain already entails the
+   second. A `TransitiveObjectProperty(r)` is the chain `r ∘ r ⊑ r` and
+   needs no separate rule.
+
+## Whole-run passes (property chains)
+
+Rule 3 can't run while the forms are being computed, because it asks
+whether one attribute's filler *reaches* another's by following a
+property — and that graph is made of the very forms the first pass
+produces. So generation runs twice, exactly as the reference
+implementation does:
+
+1. **First pass**: compute every concept's form using rules 1 and 2 only.
+2. Build one directed graph per *traversable* property (any property that
+   appears as some chain's destination `s`), with an edge
+   `concept --s--> filler` for each such attribute in the first pass's
+   forms. This is the reference's `NodeGraph`.
+3. **Second pass**: re-normalize the concepts Rule 3 could possibly
+   affect — those holding an attribute whose type is, or is a subtype of,
+   some chain's source type `t`. Every other concept would recompute to
+   the identical form, so it is skipped. A re-normalized concept's
+   *inherited* fragments still come from its ancestors' first-pass forms,
+   which is what the reference does too.
+
+Reachability is transitive and closes upward over concept subsumption:
+`D` reaches `C` via `s` if `C` is `D` itself, or any concept reachable
+from `D` by following `s` one or more times, or a subsumer of any of
+those (the reference's `getPropertyChainTransitiveClosure`).
+
+Chains longer than two operands are not collected. `snomed-classify`
+normalizes them for *classification* by introducing fresh intermediate
+roles (spec/13), but a fresh role names nothing a relationship can refer
+to, so it cannot take part in relationship-level redundancy. SNOMED CT
+uses only two-operand chains (spec/12).
 
 ## SNOMED's role groups, as OWL
 
@@ -75,9 +115,11 @@ need to know it's special — EL completion is correct either way). Group
 shape, since it's the only place the "which attributes belong to the same
 group" information lives.
 
-## Two-pass algorithm (this crate's scope)
+## Per-concept algorithm
 
-Per concept `C` (processed for every concept the input axioms named):
+What generation does for one concept `C`, within either whole-run pass
+above (the word "pass" means the whole-run kind everywhere else in this
+file; these are steps):
 
 1. **Proximal parents**: from `Classification::subsumers(C)` (spec/13's
    full transitive closure), keep only the parents `P` for which no other
@@ -156,14 +198,6 @@ normalization) and classify each:
 
 ## Explicitly out of scope for this version
 
-- **Property-chain / transitive-property redundancy** (the reference
-  implementation's *second* BFS pass, `RelationshipFragment`'s Rule 2,
-  and its `NodeGraph` bookkeeping). Skipping this is a conservative
-  simplification, not a correctness gap in the dangerous direction: a
-  concept's necessary normal form may retain a handful of attributes that
-  a fuller implementation would additionally eliminate via a property
-  chain, but nothing gets *added* that isn't entailed, and nothing
-  correct gets dropped. Flagged here rather than silently approximated.
 - **Union groups** (`UnionGroup`, `SemanticComparable` over disjunctions).
   Not applicable: OWL 2 EL — SNOMED CT's logic profile, and the only
   profile `snomed-owl`/`snomed-classify` parse — has no union/disjunction
@@ -211,3 +245,11 @@ normalization) and classify each:
    Equivalent supertypes form an equivalence class from which exactly one
    representative survives, chosen as the lowest SCTID so the result is
    deterministic.
+
+6. Property-chain redundancy (rule 3 above) MUST fire on **reachability**,
+   never on a chain's mere existence: `∃r.C` is redundant only when some
+   `∃u.D` in the same group actually reaches `C` from `D` by following
+   the chain's destination property. Over-elimination would drop an
+   attribute the axioms do not entail, the one direction of error this
+   document is arranged to avoid — the test suite pins it with a negative
+   case (two sibling fillers, neither part of the other, both surviving).

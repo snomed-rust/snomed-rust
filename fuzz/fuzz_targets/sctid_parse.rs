@@ -14,7 +14,11 @@ fuzz_target!(|data: &str| {
     // Rule 1/3: an accepted id is exactly its decimal rendering (no leading
     // zero was accepted, nothing was trimmed).
     assert_eq!(id.to_string(), data, "parse must not alter the digits");
-    assert_eq!(SctId::parse(&id.to_string()), Ok(id), "parse must round-trip");
+    assert_eq!(
+        SctId::parse(&id.to_string()),
+        Ok(id),
+        "parse must round-trip"
+    );
 
     // Rule 1: only the six partitions survive parsing.
     let partition = id.partition();

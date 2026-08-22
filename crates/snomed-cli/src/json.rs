@@ -75,7 +75,7 @@ pub(crate) fn json_object(pairs: &[(&str, JsonValue)]) -> String {
 /// each refset type's own `*_to_json` appends its extra fields to.
 fn core_fields(core: &RefsetMemberCore) -> Vec<(&'static str, JsonValue)> {
     vec![
-        ("id", JsonValue::Str(core.id.clone())),
+        ("id", JsonValue::s(core.id)),
         ("effectiveTime", JsonValue::s(core.effective_time)),
         ("active", JsonValue::Bool(core.active)),
         ("moduleId", JsonValue::s(core.module_id)),
@@ -311,10 +311,7 @@ pub(crate) fn component_annotation_refset_to_json(m: &ComponentAnnotationRefsetM
 
 pub(crate) fn member_annotation_refset_to_json(m: &MemberAnnotationRefsetMember) -> String {
     let mut fields = core_fields(&m.core);
-    fields.push((
-        "referencedMemberId",
-        JsonValue::Str(m.referenced_member_id.clone()),
-    ));
+    fields.push(("referencedMemberId", JsonValue::s(m.referenced_member_id)));
     fields.push((
         "languageDialectCode",
         JsonValue::Str(m.language_dialect_code.clone()),
@@ -328,6 +325,7 @@ pub(crate) fn member_annotation_refset_to_json(m: &MemberAnnotationRefsetMember)
 mod tests {
     use super::*;
     use snomed_core::constants;
+    use snomed_core::member_id::MemberId;
     use snomed_core::sctid::{ComponentType, SctId};
     use snomed_core::time::EffectiveTime;
 
@@ -400,7 +398,7 @@ mod tests {
 
     fn core(item: u64) -> RefsetMemberCore {
         RefsetMemberCore {
-            id: format!("80000000-0000-4000-8000-{item:012}"),
+            id: MemberId::from_u128(0x8000_0000_0000_4000_8000_0000_0000_0000 | u128::from(item)),
             effective_time: EffectiveTime::new_unchecked(20190731),
             active: true,
             module_id: constants::CORE_MODULE,
@@ -442,7 +440,7 @@ mod tests {
     fn member_annotation_json_shape() {
         let m = MemberAnnotationRefsetMember {
             core: core(3),
-            referenced_member_id: "80000000-0000-4000-8000-000000000099".to_string(),
+            referenced_member_id: MemberId::parse("80000000-0000-4000-8000-000000000099").unwrap(),
             language_dialect_code: "en".to_string(),
             type_id: constants::ROOT_CONCEPT,
             value: "a note with \"quotes\"".to_string(),

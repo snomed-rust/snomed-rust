@@ -109,9 +109,20 @@ directly).
 
 ## Rules
 
-1. Member `id` MUST be a canonically formatted UUID
-   (8-4-4-4-12 lowercase hex is what releases contain; parsers SHOULD accept
-   uppercase and normalize).
+1. Member `id` MUST be a canonically formatted UUID (8-4-4-4-12 lowercase
+   hex is what releases contain; parsers MUST accept uppercase and
+   normalize). It is held as `snomed_core::MemberId` — a `u128`, which is
+   what a UUID is — not as text: parsing normalizes case by construction,
+   the type is `Copy` and cheap to hash, and it costs 16 bytes rather
+   than ~60 where millions of members are keys in a map. Rendering is
+   always the canonical lowercase form, so round-tripping a member id
+   through `Display` is lossless and case-stable.
+
+   `MemberId` and `SctId` are deliberately distinct types even though both
+   wrap an integer: they identify different things, and RF2 columns are
+   specific about which one they hold (the Member Annotation refset's
+   `referencedMemberId` is a member id, while its `referencedComponentId`
+   is an SCTID — a pair the type system now keeps apart).
 2. Column count MUST match the file's refset pattern exactly.
 3. A member's meaning is scoped by `refsetId`; the same
    `referencedComponentId` may appear in many refsets.

@@ -36,8 +36,9 @@ true|false|*`, `definitionStatus = primitive|defined`, `moduleId =
 subExpressionConstraint`, and `effectiveTime (=|!=|<=|<|>=|>) "YYYYMMDD"`),
 evaluated against a [`SnapshotStore`]. Description filter
 constraints (`{{ D ... }}`, `term`/`type`/`active`) are implemented too.
-Boolean concrete value comparisons, `definitionStatusIdFilter` and
-`moduleId`'s `eclConceptReferenceSet` alternative, member filter
+Boolean concrete value comparisons (not
+representable in RF2 — see below), `moduleId`'s
+`eclConceptReferenceSet` spelling, member filter
 constraints (`{{ M ... }}`), the remaining description filter kinds
 (`language`, dialects, `typeId`), the history supplement, and alternate
 identifiers are **out of scope for this version** — see
@@ -93,7 +94,11 @@ conceptFilterConstraint
                         -- `D`, which is why a marker-less `{{ ... }}`
                         -- defaults to a description filter, not this)
 conceptFilter         := activeFilter | definitionStatusTokenFilter
-                        | moduleFilter | effectiveTimeFilter
+                        | definitionStatusIdFilter | moduleFilter
+                        | effectiveTimeFilter
+definitionStatusIdFilter
+                      := "definitionStatusId" ws booleanComparisonOp ws
+                         subExpressionConstraint
 
 descriptionFilterConstraint
                       := "{{" ws ["D" ws] descriptionFilter
@@ -109,12 +114,10 @@ searchTerm            := '"' <any text except unescaped '"'> '"'
 typeTokenFilter       := "type" ws booleanComparisonOp ws
                          (typeToken | "(" ws typeToken *(mws typeToken) ws ")")
 typeToken             := "fsn" | "syn" | "def"
-                        -- `definitionStatusIdFilter` (matching by concept
-                        -- reference instead of a `primitive`/`defined`
-                        -- keyword) is the one grammar alternative still
-                        -- not implemented; attempting one fails at the
-                        -- lexer (its keyword isn't tokenized), not with
-                        -- a named error
+                        -- both definitionStatus spellings are
+                        -- implemented: the keyword form below and
+                        -- definitionStatusIdFilter, which takes a
+                        -- subExpressionConstraint
 activeFilter          := "active" ws booleanComparisonOp ws activeValue
 booleanComparisonOp   := "=" | "!="
 activeValue           := "true" | "false" | "*"
@@ -444,124 +447,15 @@ has no boolean variant, and neither does SNOMED CT's own concrete domain
 model as this project has encountered it — a deeper gap than just
 `snomed-ecl` would need to close.
 
-## Concept filter constraint (`{{ C ... }}`)
+## Filter constraints (`{{ }}`)
 
-`inner {{ C filter (, filter)* }}` restricts `inner`'s evaluated set to
-concepts whose own `Concept` row matches every filter — a set-level
-restriction, unlike refinements (which examine a concept's
-*relationships*, not its own fields). `inner` may be any
-`subExpressionConstraint` form. Filters apply before any trailing `:`
-refinement — they belong to `subExpressionConstraint`, which
-`refinedExpressionConstraint` then wraps — and multiple `{{ }}` blocks
-chain, each seeing only what the previous one let through.
-
-`activeFilter`, `definitionStatusTokenFilter`, `moduleFilter`'s
-`subExpressionConstraint` alternative, and `effectiveTimeFilter` are
-implemented:
-
-- `active = true` / `active = false` keep only active/inactive concepts
-  respectively (per spec/09, `store.concept(id)` returns both — a
-  concept's latest version can itself be inactive).
-- `active != true` is `active = false` and vice versa; `active = *` is a
-  no-op, included because `activeValue` allows a wildcard.
-- `definitionStatus = primitive` / `definitionStatus = defined` keep only
-  concepts whose `definitionStatusId` is `900000000000074008`/
-  `900000000000073002` respectively (`snomed_core::constants::PRIMITIVE`/
-  `DEFINED`) — the only two legal values, so a concept never matches
-  neither.
-- `definitionStatus = (primitive defined)` (a `definitionStatusTokenSet`)
-  matches either — a no-op with only two legal values, but supported
-  because it needs no ambiguity resolution: unlike `concreteStringSet`,
-  these are keyword tokens that never start a `subExpressionConstraint`.
-- `moduleId (=|!=) subExpressionConstraint` matches concepts whose
-  `moduleId` is in the evaluated set — the same treatment attribute
-  names/values already get, reusing `parse_sub_expression_constraint`
-  directly, so `moduleId = << 900000000000012004` (a whole module
-  hierarchy, if one existed) works as naturally as a single concept
-  reference. The official grammar's `eclConceptReferenceSet` alternative
-  (`moduleId = (id1 id2)`) is **not implemented** — `(` right after
-  `moduleId (=|!=)` is always treated as the start of a parenthesized
-  `subExpressionConstraint`; a genuine `eclConceptReferenceSet` with 2+
-  bare concept references fails (correctly rejected, just with a
-  generic error) once the parenthesized-expression parser hits the
-  second bare reference with no operator before it.
-- `effectiveTime (=|!=|<=|<|>=|>) "YYYYMMDD"` compares against the
-  concept's own `effectiveTime` (spec/09). Unlike `Numeric`'s `Eq`/
-  `NotEq` (spec/10 rule 10), no aggregate-negation trick is needed here:
-  a concept has exactly one `effectiveTime`, never several rows to
-  count, so `=`/`!=` are plain equality/inequality — `TimeComparisonOp`
-  is a deliberately separate type from `NumericComparisonOp` even though
-  the six operator symbols are identical, specifically so this
-  simplicity isn't lost by reusing a type whose `Eq`/`NotEq` mean
-  something more complicated elsewhere. A malformed `timeValue` (not
-  `YYYYMMDD`, or an invalid calendar date) is rejected via
-  `EclError::InvalidEffectiveTime`, wrapping the same
-  `EffectiveTimeError` RF2 parsing uses (spec/09) — the same "reuse the
-  authoritative parser's error, don't invent a new one" pattern as
-  malformed SCTIDs (rule 1).
-- `effectiveTime = ("20200101" "20210101")` (a `timeValueSet`) matches
-  if `operator` holds against *any* value in the set — e.g. `effectiveTime
-  <= ("20200101" "20100101")` matches whenever the concept's
-  `effectiveTime` is on or before *either* date, which collapses to "on
-  or before the later of the two" but is expressed as an OR across the
-  set, same interpretation as `concreteStringSet`/`definitionStatusTokenSet`.
-- A comma inside `{{ }}` (`conceptFilter *(ws "," ws conceptFilter)`)
-  lexes as `TokenKind::And` — the same alternate-AND-spelling token used
-  everywhere else in this lexer — so multiple filters in one block need
-  no new separator handling; they're ANDed together.
-
-**Not implemented:** `definitionStatusIdFilter` (matching by concept
-reference/set instead of the `primitive`/`defined` keyword) — its
-keyword isn't tokenized, so attempting it fails at the lexer with a
-generic error, not a named one. Member filter constraints
-(`{{ M ... }}`) are recognized and rejected by name.
-
-## Description filter constraint (`{{ D ... }}`)
-
-`inner {{ [D] descriptionFilter *("," descriptionFilter) }}` keeps the
-concepts of `inner` that have **one description** satisfying every filter
-in the block. The `D` marker is optional — the official grammar's
-`descriptionFilterConstraint` defaults to a description filter when no
-marker is written — so `{{ term = "heart" }}` and `{{ D term = "heart" }}`
-parse identically.
-
-Implemented filter kinds:
-
-| Filter | Form | Matches |
-|---|---|---|
-| `termFilter` | `term (=\|!=) (searchTerm \| searchTermSet)` | the description's `term`, by the grammar's default `match:` search type |
-| `typeTokenFilter` | `type (=\|!=) (typeToken \| typeTokenSet)`, tokens `fsn`/`syn`/`def` | the description's `typeId` against spec/06's three types |
-| `activeFilter` | `active (=\|!=) (true\|false\|*)` | the description's own `active` column |
-
-Three rules this section fixes, each a judgment call the official sources
-leave open or state only implicitly:
-
-1. **All filters in one block apply to the same description.**
-   `{{ D type = fsn, term = "heart" }}` means "has an FSN whose term
-   matches heart", not "has an FSN *and* has something matching heart".
-   Evaluating them independently would make the block strictly weaker
-   than its parts and silently over-match.
-2. **Only active descriptions match, unless the block says otherwise.**
-   Every other matching path here is active-only (rule 6, spec/07's
-   hierarchy convention), and an inactive description is retired text a
-   search shouldn't surface by default. Writing any `active` filter —
-   including `active = *` — replaces that default, which is how a caller
-   reaches retired text deliberately.
-3. **`match:` means word-prefix, not substring.** Every whitespace-
-   separated word of the search term must be a case-insensitive prefix of
-   *some* word in the description term, in any order: `"att heart"`
-   matches "Heart attack", `"eart"` does not. That is the grammar's
-   default search type, and the distinction is the whole reason
-   `wild:`/`regex:` exist as separate types.
-
-**Not implemented here:** the `typeId` form of `typeFilter` (concept
-reference instead of a token), `languageFilter`, `dialectIdFilter`/
-`dialectAliasFilter` (with their acceptability sets), and the
-`match:`/`wild:`/`regex:`/`exact:` typed-search-term prefixes.
-`moduleId` and `effectiveTime` inside a description filter are rejected
-with a named `NotYetImplemented` (their keywords are tokenized, since the
-concept filter uses them); the rest aren't tokenized and fall in the
-generic-error bucket rule 9 describes.
+Concept filters (`{{ C ... }}`) and description filters (`{{ D ... }}`)
+have their own file — [10-ecl-filters.md](10-ecl-filters.md) — because
+this one had outgrown a single document. The grammar productions for both
+stay in the grammar block above, since there is one grammar; what moved is
+the prose that says what each filter kind matches and which judgment calls
+it rests on. Their normative rules stay numbered in this file's "Rules"
+section (11-14), so citations like "spec/10 rule 14" keep resolving.
 
 ## Concept reference terms
 
@@ -581,7 +475,22 @@ don't assume an item below is named without checking `parser.rs`/
 
 Rejected with a named `EclError::NotYetImplemented`:
 
-- `{{ M ... }}` member filter constraints, and `moduleId`/
+- `{{ M ... }}` member filter constraints. This one is not just a
+  parsing gap: a member filter selects on a *member row's* own columns,
+  and `SnapshotStore` drops inactive refset members when it builds its
+  indexes (spec/09 rule 4), keeping only the membership facts. So
+  `{{ M active = false }}` could never match, and `moduleId`/
+  `effectiveTime` filters would silently see active rows only.
+  It is worse for the two refset types ECL uses most: Simple and Language
+  refsets keep no member *rows* at all in a snapshot, only the derived
+  membership set and acceptability map, since retaining a release's ~2.8M
+  language members would cost hundreds of megabytes. So implementing
+  member filters honestly means first deciding what a snapshot retains —
+  a spec/09 change with a real memory cost — or whether member filters
+  are a `HistoryStore` question instead, since that store does keep every
+  member version. Either way, the decision belongs in `plan.md` before
+  any parser work.
+- `moduleId`/
   `effectiveTime` inside a `{{ D ... }}` block (named because their
   keywords are already tokenized). `{{ C ... }}` and `{{ D ... }}`
   themselves are implemented — see their own sections above.
@@ -608,21 +517,21 @@ named) — a genuinely unimplemented construct, not just missing an error
 label, so naming it precisely isn't as simple as recognizing a fixed
 token shape:
 
-- Boolean concrete value comparisons — see "Concrete value comparisons"
-  above for why (numeric and string comparisons, including
-  `concreteStringSet`, *are* implemented).
+- Boolean concrete value comparisons. **Not applicable to RF2 as
+  specified** rather than merely unimplemented: spec/07's `value` column
+  has exactly two wire forms, `#<decimal>` and `"<string>"`, so a boolean
+  concrete value cannot be represented in the data this workspace parses.
+  Implementing the ECL side would add an operator that can never match.
+  If a release ever carries one, that is a spec/07 change first.
 - The history supplement (`{{+HISTORY}}`) — `{{` followed by `+` falls
   to `parse_filter_constraint`'s catch-all (`+` isn't a recognized
   filter marker), a generic `UnexpectedToken`.
 - Concept filter kinds other than
-  `active`/`definitionStatus`/`moduleId`/`effectiveTime`
-  (`definitionStatusIdFilter`) — its keyword isn't tokenized, so a
-  `{{ C ... }}` block attempting it fails inside the lexer before
-  `parse_concept_filter_kind` is ever reached. `moduleFilter`'s
-  `eclConceptReferenceSet` alternative is a separate, narrower gap — its
-  keyword *is* tokenized, but the `(id1 id2)` form is rejected once the
-  parenthesized-expression parser hits a second bare
-  concept reference (see "Concept filter constraint" above).
+  `moduleFilter`'s `eclConceptReferenceSet` alternative (`moduleId =
+  (id1 id2)`) — rejected once the parenthesized-expression parser
+  reaches a second bare concept reference. Note it is a *spelling* gap,
+  not a capability one: `moduleId = (id1 OR id2)` already works and means
+  the same thing (see "Concept filter constraint" above).
 
 ## Rules (normative for `snomed-ecl`)
 
