@@ -11,6 +11,90 @@ together, in dependency order (`snomed-core` → `snomed-rf2` → `snomed-owl`
 → `snomed-store` → `snomed-classify` → `snomed-ecl` → `snomed-fhir` →
 `snomed-cli` → `snomed`), not independently.
 
+## [0.9.0] — 2026-08-22
+
+### Changed
+
+- **Breaking:** a reference set member's `id` is now
+  `snomed_core::MemberId` — a `u128`, which is what a UUID is — rather
+  than a `String`. Parsing accepts either case and rendering is always
+  canonical lowercase, so the normalization RF2 expects is guaranteed by
+  the type instead of by remembering. It is `Copy`, cheap to hash and
+  compare, and 16 bytes rather than ~60 where millions of members are map
+  keys. `parse_uuid` becomes `parse_member_id`; the Member Annotation
+  refset's `referencedMemberId` is a `MemberId` too, which the type system
+  now keeps distinct from the `SctId` beside it. `HistoryStore`'s member
+  accessors take a `MemberId` rather than a `&str`.
+- `snomed-store`: the RF2 file-naming heuristics that decide which refset
+  member type a file holds moved into one `refset_kind` classifier, used
+  by both the snapshot and history loaders. Internal, but it means adding
+  a refset type no longer requires editing the naming rules in two
+  places.
+
+### Fixed
+
+- `snomed-ecl`: `{{ D term = ... }}` split words at whitespace only, so
+  `term = "disorder"` matched **no** SNOMED CT fully specified name — every
+  FSN ends in a parenthesized semantic tag, leaving the word
+  `(disorder)`. Anatomy terms had the same problem with slashes
+  ("Left/right hand structure"). Words are now split at every
+  non-alphanumeric character, on both sides of the comparison, so a search
+  written with punctuation behaves like one without.
+- `snomed-store`: two rows claiming the same id *and* the same
+  `effectiveTime` with different content resolved by arrival order, so a
+  snapshot depended on the sequence rows were added in — the arrival
+  dependence spec/09 rule 3 forbids. The greater row under the
+  component/member type's field order now wins, making a snapshot a pure
+  function of the row *set*. Found by the new `store_snapshot` fuzz
+  target, which builds every input twice in opposite orders and compares.
+
+### Added
+
+- `snomed-classify`: necessary normal form now eliminates **property-chain
+  and transitive-property redundancy** (spec/14 rule 3), the reference
+  implementation's second pass. Given `findingSite ∘ partOf ⊑ findingSite`,
+  a concept stating both `findingSite = Hand` and
+  `findingSite = Upper limb` keeps only the first — Hand is part of Upper
+  limb, so the chain already entails the second. A
+  `TransitiveObjectProperty` is the chain `r ∘ r ⊑ r` and needs no
+  separate rule. Generation runs two whole-run passes: the first produces
+  the forms the reachability graph is built from, the second
+  re-normalizes only the concepts a chain could affect (~11% on top of
+  `classify` at 2,000 concepts). This closes spec/14's last documented
+  scope cut.
+- `snomed-ecl`: the `definitionStatusIdFilter` concept filter kind —
+  `{{ C definitionStatusId = 900000000000073002 }}`, and any concept
+  expression in that position, alongside the existing
+  `definitionStatus = primitive|defined` keyword form. spec/10's concept
+  filter now implements every kind the grammar defines except
+  `moduleId`'s `eclConceptReferenceSet` *spelling*, which is sugar for
+  `moduleId = (id1 OR id2)` — already supported, and now documented as
+  the workaround.
+- `snomed-store`: `HistoryStore` covers all eighteen refset member types —
+  `language_member_history(uuid)`/`language_member_at(uuid, at)` and the
+  same pair for every other type, keyed by member UUID (spec/08's
+  identity for a member row). That closes spec/09 rule 5 entirely: a
+  release's whole content now has version history. It answers what a
+  snapshot structurally cannot — "when did this description become the
+  preferred term", "when did this concept join this refset" — since
+  acceptability and membership live in member rows.
+- `snomed-rf2`: a `RefsetMember` trait (`fn core(&self) ->
+  &RefsetMemberCore`), implemented for all eighteen member types, so
+  callers can handle members generically without erasing their
+  type-specific columns.
+- `fuzz/`: two row-based targets, `store_snapshot` and
+  `history_point_in_time`, decoded with `arbitrary` instead of parsed.
+  They assert spec/09's construction rules directly: latest version wins,
+  insertion-order independence, ascending derived indexes, hierarchy
+  edges being active+inferred+IS-A only, sorted version history, and
+  point-in-time reconstruction picking the greatest version at or before
+  the date.
+- `snomed-core`/`snomed-rf2`: the four component records, `ConcreteValue`,
+  and the eighteen refset member types (with their shared
+  `RefsetMemberCore`) derive `PartialOrd`/`Ord`. That is what
+  makes the tie-break above expressible, and it gives callers a canonical
+  row order for sorting and diffing.
+
 ## [0.8.0] — 2026-08-21
 
 ### Fixed

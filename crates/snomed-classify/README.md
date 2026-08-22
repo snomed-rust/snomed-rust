@@ -87,11 +87,12 @@ non-redundant) entailed parents, plus role-grouped attributes with
 redundancy eliminated — the same reduction
 [`snomed-owl-toolkit`'s `RelationshipNormalFormGenerator`](https://github.com/IHTSDO/snomed-owl-toolkit/blob/master/documentation/calculating-necessary-normal-form.md)
 performs. See [`spec/14-necessary-normal-form.md`](../../spec/14-necessary-normal-form.md)
-for the full algorithm (ported from that reference implementation) and
-what's out of scope (property-chain-based redundancy elimination — a
-conservative simplification that never produces wrong output, only
-occasionally retains a few extra, technically-redundant attributes; union
-groups, not applicable since EL has no disjunction).
+for the full algorithm (ported from that reference implementation),
+including its second whole-run pass: property-chain and
+transitive-property redundancy, where `findingSite ∘ partOf ⊑ findingSite`
+makes `findingSite = Upper limb` redundant beside `findingSite = Hand`.
+Still out of scope: union groups, not applicable since EL has no
+disjunction.
 
 Proximal-parent reduction keeps exactly one representative of any set of
 mutually **equivalent** parents (the lowest SCTID): they imply each

@@ -7,6 +7,7 @@
 
 use snomed_core::components::{Concept, Description, Relationship};
 use snomed_core::constants;
+use snomed_core::member_id::MemberId;
 use snomed_core::sctid::{ComponentType, SctId};
 use snomed_core::time::EffectiveTime;
 use snomed_rf2::refset::{LanguageRefsetMember, RefsetMemberCore, SimpleRefsetMember};
@@ -140,16 +141,20 @@ pub fn fixture_store() -> SnapshotStore {
     ]);
 
     for (uuid, description_id, acceptability) in [
-        ("00000000-0000-4000-8000-000000000001", fsn, constants::PREFERRED),
         (
-            "00000000-0000-4000-8000-000000000002",
+            MemberId::parse("00000000-0000-4000-8000-000000000001").expect("valid member id"),
+            fsn,
+            constants::PREFERRED,
+        ),
+        (
+            MemberId::parse("00000000-0000-4000-8000-000000000002").expect("valid member id"),
             synonym,
             constants::PREFERRED,
         ),
     ] {
         builder.add_language_member(LanguageRefsetMember {
             core: RefsetMemberCore {
-                id: uuid.to_string(),
+                id: uuid,
                 effective_time: TIME,
                 active: true,
                 module_id: constants::CORE_MODULE,
@@ -161,12 +166,18 @@ pub fn fixture_store() -> SnapshotStore {
     }
 
     for (uuid, member) in [
-        ("00000000-0000-4000-8000-000000000011", a),
-        ("00000000-0000-4000-8000-000000000012", c),
+        (
+            MemberId::parse("00000000-0000-4000-8000-000000000011").expect("valid member id"),
+            a,
+        ),
+        (
+            MemberId::parse("00000000-0000-4000-8000-000000000012").expect("valid member id"),
+            c,
+        ),
     ] {
         builder.add_simple_member(SimpleRefsetMember {
             core: RefsetMemberCore {
-                id: uuid.to_string(),
+                id: uuid,
                 effective_time: TIME,
                 active: true,
                 module_id: constants::CORE_MODULE,
@@ -177,4 +188,257 @@ pub fn fixture_store() -> SnapshotStore {
     }
 
     builder.build()
+}
+
+// --- Arbitrary-driven row generation (spec/09 targets) -------------------
+//
+// The store targets need *rows*, not text, so their input is decoded with
+// `arbitrary` instead of parsed. Ids and effective times come from small
+// byte-sized spaces on purpose: the interesting inputs are the ones where
+// two rows collide on an id and the builder has to decide which version
+// wins, and a 64-bit id space would make that collision vanishingly rare.
+
+use arbitrary::Arbitrary;
+use snomed_core::components::RelationshipConcreteValue;
+use snomed_core::concrete_value::ConcreteValue;
+use snomed_store::{HistoryStore, HistoryStoreBuilder, SnapshotStoreBuilder};
+
+/// One generated RF2 row, in whichever of the four component shapes the
+/// fuzzer picked.
+#[derive(Arbitrary, Debug, Clone)]
+pub enum RowSpec {
+    Concept {
+        id: u8,
+        time: u8,
+        active: bool,
+        defined: bool,
+    },
+    Description {
+        id: u8,
+        concept: u8,
+        time: u8,
+        active: bool,
+        fsn: bool,
+    },
+    Relationship {
+        id: u8,
+        source: u8,
+        destination: u8,
+        time: u8,
+        active: bool,
+        is_a: bool,
+        inferred: bool,
+        group: u8,
+    },
+    ConcreteValue {
+        id: u8,
+        source: u8,
+        time: u8,
+        active: bool,
+        inferred: bool,
+        group: u8,
+    },
+}
+
+/// A generated id: `item` is offset past 1000 so composed short-format ids
+/// clear the 6-digit minimum (CLAUDE.md rule 5).
+fn generated_id(item: u8, component: ComponentType) -> SctId {
+    SctId::compose(1000 + u64::from(item), component, None).expect("valid item identifier")
+}
+
+/// `time` mapped into a plausible `effectiveTime` — the day varies, so
+/// version ordering is exercised without generating invalid dates.
+fn generated_time(time: u8) -> EffectiveTime {
+    EffectiveTime::new_unchecked(20200100 + u32::from(time % 28) + 1)
+}
+
+impl RowSpec {
+    /// The typed row this spec describes, in exactly one of the four
+    /// shapes — the single mapping both stores are fed from, so a snapshot
+    /// and a history built from the same specs see identical rows.
+    pub fn concept(&self) -> Option<Concept> {
+        match *self {
+            RowSpec::Concept {
+                id,
+                time,
+                active,
+                defined,
+            } => Some(Concept {
+                id: generated_id(id, ComponentType::Concept),
+                effective_time: generated_time(time),
+                active,
+                module_id: constants::CORE_MODULE,
+                definition_status_id: if defined {
+                    constants::DEFINED
+                } else {
+                    constants::PRIMITIVE
+                },
+            }),
+            _ => None,
+        }
+    }
+
+    pub fn description(&self) -> Option<Description> {
+        match *self {
+            RowSpec::Description {
+                id,
+                concept,
+                time,
+                active,
+                fsn,
+            } => Some(Description {
+                id: generated_id(id, ComponentType::Description),
+                effective_time: generated_time(time),
+                active,
+                module_id: constants::CORE_MODULE,
+                concept_id: generated_id(concept, ComponentType::Concept),
+                language_code: "en".to_string(),
+                type_id: if fsn {
+                    constants::FULLY_SPECIFIED_NAME
+                } else {
+                    constants::SYNONYM
+                },
+                term: format!("Generated description {id}"),
+                case_significance_id: constants::CASE_INSENSITIVE,
+            }),
+            _ => None,
+        }
+    }
+
+    pub fn relationship(&self) -> Option<Relationship> {
+        match *self {
+            RowSpec::Relationship {
+                id,
+                source,
+                destination,
+                time,
+                active,
+                is_a,
+                inferred,
+                group,
+            } => Some(Relationship {
+                id: generated_id(id, ComponentType::Relationship),
+                effective_time: generated_time(time),
+                active,
+                module_id: constants::CORE_MODULE,
+                source_id: generated_id(source, ComponentType::Concept),
+                destination_id: generated_id(destination, ComponentType::Concept),
+                relationship_group: u32::from(group),
+                type_id: if is_a {
+                    constants::IS_A
+                } else {
+                    generated_id(200, ComponentType::Concept)
+                },
+                characteristic_type_id: if inferred {
+                    constants::INFERRED_RELATIONSHIP
+                } else {
+                    constants::STATED_RELATIONSHIP
+                },
+                modifier_id: constants::EXISTENTIAL_MODIFIER,
+            }),
+            _ => None,
+        }
+    }
+
+    pub fn concrete_value(&self) -> Option<RelationshipConcreteValue> {
+        match *self {
+            RowSpec::ConcreteValue {
+                id,
+                source,
+                time,
+                active,
+                inferred,
+                group,
+            } => Some(RelationshipConcreteValue {
+                id: generated_id(id, ComponentType::Relationship),
+                effective_time: generated_time(time),
+                active,
+                module_id: constants::CORE_MODULE,
+                source_id: generated_id(source, ComponentType::Concept),
+                value: ConcreteValue::Number(format!("{id}")),
+                relationship_group: u32::from(group),
+                type_id: generated_id(201, ComponentType::Concept),
+                characteristic_type_id: if inferred {
+                    constants::INFERRED_RELATIONSHIP
+                } else {
+                    constants::STATED_RELATIONSHIP
+                },
+                modifier_id: constants::EXISTENTIAL_MODIFIER,
+            }),
+            _ => None,
+        }
+    }
+}
+
+/// Builds a snapshot from `rows` in the order given.
+pub fn snapshot_from(rows: &[RowSpec]) -> SnapshotStore {
+    let mut b = SnapshotStoreBuilder::new();
+    for row in rows {
+        if let Some(c) = row.concept() {
+            b.add_concept(c);
+        }
+        if let Some(d) = row.description() {
+            b.add_description(d);
+        }
+        if let Some(r) = row.relationship() {
+            b.add_relationship(r);
+        }
+        if let Some(v) = row.concrete_value() {
+            b.add_relationship_concrete_value(v);
+        }
+    }
+    b.build()
+}
+
+/// Builds a history store from the same `rows`, in the order given.
+pub fn history_from(rows: &[RowSpec]) -> HistoryStore {
+    let mut b = HistoryStoreBuilder::new();
+    for row in rows {
+        if let Some(c) = row.concept() {
+            b.add_concept(c);
+        }
+        if let Some(d) = row.description() {
+            b.add_description(d);
+        }
+        if let Some(r) = row.relationship() {
+            b.add_relationship(r);
+        }
+        if let Some(v) = row.concrete_value() {
+            b.add_relationship_concrete_value(v);
+        }
+    }
+    b.build()
+}
+
+/// A canonical rendering of everything a snapshot exposes — the string two
+/// differently-ordered builds must agree on (spec/09 rules 3 and 6).
+pub fn canonical_dump(store: &SnapshotStore) -> String {
+    let mut ids: Vec<SctId> = store.concepts().map(|c| c.id).collect();
+    ids.sort_unstable();
+    let mut out = String::new();
+    for id in ids {
+        let c = store.concept(id).expect("id came from the store");
+        out.push_str(&format!(
+            "C {id} {} {} {}\n",
+            c.effective_time, c.active, c.definition_status_id
+        ));
+        for d in store.descriptions_of(id) {
+            out.push_str(&format!("  D {} {} {}\n", d.id, d.effective_time, d.term));
+        }
+        for r in store.relationships_of(id) {
+            out.push_str(&format!(
+                "  R {} {} {} {}\n",
+                r.id, r.effective_time, r.type_id, r.destination_id
+            ));
+        }
+        for v in store.relationship_concrete_values_of(id) {
+            out.push_str(&format!(
+                "  V {} {} {:?}\n",
+                v.id, v.effective_time, v.value
+            ));
+        }
+        out.push_str(&format!("  P {:?}\n", store.parents(id)));
+        out.push_str(&format!("  K {:?}\n", store.children(id)));
+    }
+    out
 }

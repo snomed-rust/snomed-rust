@@ -5,7 +5,9 @@
 use std::hint::black_box;
 
 use criterion::{criterion_group, criterion_main, Criterion, Throughput};
-use snomed_benches::{concept_file_text, description_file_text, relationship_file_text, synthetic_release};
+use snomed_benches::{
+    concept_file_text, description_file_text, relationship_file_text, synthetic_release,
+};
 use snomed_core::components::{Concept, Description, Relationship};
 use snomed_rf2::{Rf2Reader, Rf2Record};
 

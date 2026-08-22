@@ -18,7 +18,16 @@ fn bench_classify(c: &mut Criterion) {
         group.bench_with_input(
             BenchmarkId::new("classify", concepts),
             &axioms,
-            |b, axioms| b.iter(|| black_box(classify(black_box(axioms)).classification.concepts().count())),
+            |b, axioms| {
+                b.iter(|| {
+                    black_box(
+                        classify(black_box(axioms))
+                            .classification
+                            .concepts()
+                            .count(),
+                    )
+                })
+            },
         );
         group.bench_with_input(
             BenchmarkId::new("necessary_normal_form", concepts),

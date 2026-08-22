@@ -35,6 +35,18 @@ panics. The properties currently asserted:
 | `owl_parse` | Parsing is deterministic and total — `spec/12-owl.md` |
 | `classify_axioms` | Completion terminates, subsumer sets are strict and transitively closed, and normal-form parents are entailed, non-redundant, and never empty — `spec/13-classification.md`, `spec/14-necessary-normal-form.md` |
 | `fhir_value_set_url` | Implicit value set URLs parse deterministically, and percent-decoding survives truncated/non-hex escapes — `spec/11-fhir.md` |
+| `store_snapshot` | Latest `effectiveTime` wins, construction is insertion-order independent, derived indexes ascend, hierarchy edges are active+inferred+IS-A, traversal terminates — `spec/09-versioning.md` rules 2, 3, 6 |
+| `history_point_in_time` | Versions come back sorted ascending, and point-in-time reconstruction returns the greatest version at or before the date — `spec/09-versioning.md` rules 3, 4 |
+
+Two targets take **rows** rather than text, decoded with `arbitrary`
+rather than parsed: `store_snapshot` and `history_point_in_time`. Their
+ids and effective times come from deliberately small (byte-sized) spaces,
+because the interesting inputs are the ones where two rows collide on an
+id and the builder has to decide which version wins — a 64-bit id space
+would make that collision vanishingly rare. The first thing they found
+was exactly such a case: two rows with the same id *and* the same
+`effectiveTime` but different content, whose winner depended on arrival
+order (now spec/09 rule 5).
 
 ## Layout
 
@@ -91,6 +103,15 @@ cargo +nightly fuzz tmin ecl_parse fuzz/artifacts/ecl_parse/crash-<hash> # minim
 5. **Targets stay cheap.** A target that rebuilds an expensive fixture per
    input wastes the fuzzer's budget — build it once in a `OnceLock`, as
    `ecl_evaluate` does.
+
+## Formatting and lints
+
+`cargo fmt --all` and `cargo clippy --all-targets` at the workspace root
+do **not** reach this package — it is a separate one, which is the whole
+point of the layout. Both are run against `fuzz/` explicitly, in the CI
+job that already has the nightly toolchain installed. Any tool that walks
+"the workspace" needs the same deliberate wiring here; that is the
+standing cost of keeping libfuzzer-sys out of the published crates.
 
 ## CI
 

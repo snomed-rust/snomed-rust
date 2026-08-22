@@ -71,6 +71,18 @@ result is deterministic (spec/14 rule 5). Any future redundancy rule here
 needs the same question asked of it: *what happens when two candidates
 are mutually redundant?*
 
+## Normal form generation runs twice, and the order is load-bearing
+
+`necessary_normal_form` makes two whole-run passes (spec/14). The first
+applies rules 1-2 (class/role inclusion) to every concept; the second
+applies rule 3 (property chains) to the concepts that could be affected.
+The split is forced, not stylistic: rule 3 asks whether one attribute's
+filler *reaches* another's by following a property, and that graph — the
+reference implementation's `NodeGraph` — is built out of the first pass's
+own output. A re-normalized concept still inherits its ancestors'
+*first-pass* fragments, matching the reference. If you add a rule that
+needs global information, ask which pass can possibly have it.
+
 ## `normal_form.rs` reads axioms directly — it doesn't reuse `normalize.rs`'s output
 
 `normalize.rs` flattens everything (including role groups) into

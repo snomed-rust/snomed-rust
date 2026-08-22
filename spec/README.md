@@ -51,7 +51,8 @@ Official sources:
 | [07-relationship-file.md](07-relationship-file.md) | Relationship files | `snomed-core`, `snomed-rf2` |
 | [08-refset-files.md](08-refset-files.md) | Reference set file patterns | `snomed-rf2::refset` |
 | [09-versioning.md](09-versioning.md) | effectiveTime, active, moduleId, snapshot semantics | `snomed-store` |
-| [10-ecl.md](10-ecl.md) | Expression Constraint Language (simple constraints + basic refinements) | `snomed-ecl` |
+| [10-ecl.md](10-ecl.md) | Expression Constraint Language: grammar, operators, refinements | `snomed-ecl` |
+| [10-ecl-filters.md](10-ecl-filters.md) | ECL filter constraints: `{{ C ... }}` concept filters, `{{ D ... }}` description filters | `snomed-ecl` |
 | [11-fhir.md](11-fhir.md) | FHIR terminology service building blocks: `$lookup`, `$subsumes`, `$expand` | `snomed-fhir` |
 | [12-owl.md](12-owl.md) | OWL Expression reference set: parsing axioms in OWL 2 functional syntax | `snomed-owl` |
 | [13-classification.md](13-classification.md) | EL-profile subsumption classification (completion algorithm) | `snomed-classify` |

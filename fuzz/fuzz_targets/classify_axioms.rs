@@ -13,7 +13,10 @@ use libfuzzer_sys::fuzz_target;
 use snomed_classify::{classify, necessary_normal_form};
 
 fuzz_target!(|data: &str| {
-    let axioms: Vec<_> = data.lines().filter_map(|line| snomed_owl::parse(line).ok()).collect();
+    let axioms: Vec<_> = data
+        .lines()
+        .filter_map(|line| snomed_owl::parse(line).ok())
+        .collect();
     if axioms.is_empty() {
         return;
     }

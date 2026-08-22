@@ -134,6 +134,16 @@ exists alongside the one being excluded. `Le`/`Lt`/`Ge`/`Gt` have no such
 distinction; they define the per-row predicate directly, since there's no
 "aggregate negation" reading of `<=` to preserve consistency with.
 
+## The spec is two files now
+
+`spec/10-ecl.md` holds the grammar, the operators, the refinements, and
+*all* the normative rules; `spec/10-ecl-filters.md` holds what each
+`{{ C ... }}`/`{{ D ... }}` filter kind matches. The split is by size,
+not by authority — both are normative, and rule numbers stay in the first
+file so citations like "spec/10 rule 14" keep resolving. When you add a
+filter kind, its prose goes in the filters file and its rule (if it needs
+one) in the rules list.
+
 ## `{{ D ... }}` filters conjoin over one description, not over the concept
 
 `description_matches` asks whether *some* description satisfies **all**
@@ -145,8 +155,10 @@ and are documented in spec/10 as judgment calls: only active
 descriptions match unless the block writes an `active` filter (any
 `active` filter, `*` included, replaces the default), and `term` uses the
 grammar's default `match:` word-prefix semantics rather than a substring
-search. If you add a filter kind, it slots into the same per-description
-`all`.
+search, splitting words at punctuation as well as whitespace — every FSN
+ends in a parenthesized semantic tag, so whitespace-only splitting made
+`term = "disorder"` match nothing, which is how that bug was found. If you
+add a filter kind, it slots into the same per-description `all`.
 
 ## Candidate role groups come from both relationship views
 

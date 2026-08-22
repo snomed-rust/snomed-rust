@@ -71,7 +71,12 @@ Criterion writes `benches/target/criterion/` and prints
 5. **A benchmark is not a test.** Correctness invariants belong in unit tests
    and fuzz targets; a bench asserting behavior slows down the measurement
    and hides in a run nobody reads.
-6. **CI builds the benches; it does not time them.** Shared runners are too
+6. **Workspace-wide tooling doesn't reach this package.**
+   `cargo fmt --all` and `cargo clippy --all-targets` at the root skip
+   `benches/`, so CI runs both against it by `--manifest-path`. The same
+   applies to anything else that walks "the workspace" — wire it in
+   deliberately or it silently covers nothing here.
+7. **CI builds the benches; it does not time them.** Shared runners are too
    noisy for the numbers to mean anything, so CI runs `--test` (each case
    once) to prove they still work, and real measurements happen on a quiet
    machine.

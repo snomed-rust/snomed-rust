@@ -11,6 +11,7 @@
 
 use snomed_core::components::{Concept, Description, Relationship};
 use snomed_core::constants;
+use snomed_core::member_id::MemberId;
 use snomed_core::sctid::{ComponentType, SctId};
 use snomed_core::time::EffectiveTime;
 use snomed_owl::Axiom;
@@ -45,12 +46,10 @@ impl Rng {
     }
 }
 
-fn synthetic_uuid(n: u64) -> String {
-    format!(
-        "{:08x}-0000-4000-8000-{:012x}",
-        (n >> 32) as u32,
-        n & 0xFFFF_FFFF_FFFF
-    )
+/// A distinct member id per row. `MemberId` is a `u128`, so this is just
+/// the counter widened — no formatting, and no allocation per member.
+fn synthetic_member_id(n: u64) -> MemberId {
+    MemberId::from_u128(0x4000_8000u128 << 64 | u128::from(n))
 }
 
 /// One synthetic release's rows, plus the concept ids in creation order
@@ -125,7 +124,7 @@ pub fn synthetic_release(concept_count: u64) -> SyntheticRelease {
 
         out.language_members.push(LanguageRefsetMember {
             core: RefsetMemberCore {
-                id: synthetic_uuid(i + 1),
+                id: synthetic_member_id(i + 1),
                 effective_time: TIME,
                 active: true,
                 module_id: constants::CORE_MODULE,

@@ -356,6 +356,7 @@ fn designation_use(
 mod tests {
     use super::*;
     use snomed_core::components::{Concept, Description};
+    use snomed_core::member_id::MemberId;
     use snomed_core::sctid::ComponentType;
     use snomed_core::time::EffectiveTime;
     use snomed_rf2::refset::{LanguageRefsetMember, RefsetMemberCore};
@@ -387,13 +388,13 @@ mod tests {
     }
 
     fn language_member(
-        uuid: &str,
+        uuid: MemberId,
         description_id: SctId,
         acceptability_id: SctId,
     ) -> LanguageRefsetMember {
         LanguageRefsetMember {
             core: RefsetMemberCore {
-                id: uuid.to_string(),
+                id: uuid,
                 effective_time: EffectiveTime::new_unchecked(20190731),
                 active: true,
                 module_id: constants::CORE_MODULE,
@@ -421,7 +422,7 @@ mod tests {
             "The root concept of SNOMED CT.",
         );
         b.add_language_member(language_member(
-            "80000000-0000-4000-8000-000000000021",
+            MemberId::parse("80000000-0000-4000-8000-000000000021").unwrap(),
             syn.id,
             constants::PREFERRED,
         ));

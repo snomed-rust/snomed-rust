@@ -15,7 +15,13 @@ queries.
    Never recurse unboundedly.
 4. `active` filtering happens at query time; the store keeps latest versions
    of inactive components so history questions stay answerable.
-5. **Query results are deterministic across processes** (spec/09 rules
+5. **A snapshot is a pure function of the row set, not the sequence**
+   (spec/09 rules 3 and 5). Latest `effectiveTime` wins; when two rows
+   tie on both id and `effectiveTime` — contradictory input a real
+   release never ships — the greater row under the type's own `Ord` wins,
+   so arrival order never shows through. That is why the component and
+   refset member types derive `Ord`.
+6. **Query results are deterministic across processes** (spec/09 rules
    5–6). Every derived index is filled by iterating a `HashMap`, whose
    order differs from run to run, so each one is sorted before it is
    exposed — component id sequences ascending by id, refset member groups
@@ -71,6 +77,16 @@ component depending on refset semantics, and validating that generically
 needs per-refset-type knowledge this check doesn't have); if you add that,
 it likely needs a `refset_descriptor_members`-driven approach, not a blind
 `contains_key` check.
+
+## One place knows RF2's file-naming heuristics
+
+`load::refset_kind(content_type, summary)` maps a release file's name
+elements onto a `RefsetKind`, including the substring heuristics real
+releases need (`summary.contains("Association")`). Both
+`SnapshotStoreBuilder` and `HistoryStoreBuilder` dispatch through it, so
+adding a refset type means teaching *one* function what the file is
+called; each builder's own match then only names the row type it loads.
+Don't reintroduce the naming knowledge into a dispatcher.
 
 ## Directory walking is reusable, not `SnapshotStoreBuilder`-only
 

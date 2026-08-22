@@ -195,6 +195,13 @@ Scoped in `spec/11-fhir.md`, not yet built (see the root `tasks.md`):
   keyed by SCTID. Mapping one to the other is a deployment policy decision
   this crate can't make, so `$lookup`/`$expand` take a language refset
   SCTID directly rather than guessing a BCP-47-to-refset mapping.
+- **Versioned implicit value set URLs are rejected, deliberately.**
+  `http://snomed.info/sct/[edition]/version/[date]?fhir_vs=...` returns
+  `FhirError::UnsupportedSystem`: this crate has one store loaded from one
+  release, so honouring a version in the URL would mean either ignoring it
+  (answering from the wrong release silently) or resolving it (release
+  management, out of scope). Strip the version and pass it as the
+  `version` parameter.
 - **URLs are percent-decoded here.** `expand` accepts a `url` in the
   spelling FHIR publishes it —
   `?fhir_vs=ecl/%3C%3C%2027624003` — decoding the `fhir_vs=` payload

@@ -161,7 +161,8 @@ cargo test --workspace                           # everything
 ## Still stuck?
 
 - [`plan.md`](../plan.md) has the phase-by-phase history and the
-  reasoning behind non-obvious decisions.
+  reasoning behind non-obvious decisions; the closed phases' full
+  narrative is in [`docs/plan-archive.md`](plan-archive.md).
 - [`tasks.md`](../tasks.md) has a granular, dated log of what was built,
   what broke, and how it got fixed — genuinely useful for "has this
   exact problem come up before" (search it before assuming something is

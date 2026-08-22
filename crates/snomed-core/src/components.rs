@@ -8,7 +8,7 @@ use crate::sctid::SctId;
 use crate::time::EffectiveTime;
 
 /// One version of a concept (`sct2_Concept_*`), per `spec/05-concept-file.md`.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Concept {
     pub id: SctId,
     pub effective_time: EffectiveTime,
@@ -26,7 +26,7 @@ impl Concept {
 
 /// One version of a description (`sct2_Description_*` or
 /// `sct2_TextDefinition_*`), per `spec/06-description-file.md`.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Description {
     pub id: SctId,
     pub effective_time: EffectiveTime,
@@ -70,7 +70,7 @@ impl Description {
 
 /// One version of a relationship (`sct2_Relationship_*` or
 /// `sct2_StatedRelationship_*`), per `spec/07-relationship-file.md`.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Relationship {
     pub id: SctId,
     pub effective_time: EffectiveTime,
@@ -101,7 +101,7 @@ impl Relationship {
 /// `spec/07-relationship-file.md`. Structurally identical to
 /// [`Relationship`] except `destinationId` is replaced by a literal
 /// [`ConcreteValue`] (e.g. a drug strength).
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct RelationshipConcreteValue {
     pub id: SctId,
     pub effective_time: EffectiveTime,

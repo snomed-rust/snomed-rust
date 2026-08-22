@@ -31,6 +31,9 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-cargo-
 
+      # The workspace only; `fuzz/` and `benches/` are separate packages
+      # (spec/rust-fuzz.md, spec/rust-bench.md) and are checked in their
+      # own jobs below, where their toolchains are already installed.
       - name: Check formatting
         run: cargo fmt --all -- --check
 
@@ -91,6 +94,14 @@ jobs:
       - name: Install cargo-fuzz
         run: cargo install cargo-fuzz --locked || true
 
+      - name: Check formatting
+        working-directory: fuzz
+        run: cargo fmt --all -- --check
+
+      - name: Clippy (warnings are errors)
+        working-directory: fuzz
+        run: cargo +nightly clippy --all-targets -- -D warnings
+
       - name: Build every target
         working-directory: fuzz
         run: cargo +nightly fuzz build
@@ -133,6 +144,12 @@ jobs:
           key: ${{ runner.os }}-cargo-bench-${{ hashFiles('benches/Cargo.toml') }}
           restore-keys: |
             ${{ runner.os }}-cargo-bench-
+
+      - name: Check formatting
+        run: cargo fmt --all --manifest-path benches/Cargo.toml -- --check
+
+      - name: Clippy (warnings are errors)
+        run: cargo clippy --all-targets --manifest-path benches/Cargo.toml -- -D warnings
 
       # Shared runners are too noisy to time anything (spec/rust-bench.md):
       # `--test` runs each case once, proving the benchmarks still work.

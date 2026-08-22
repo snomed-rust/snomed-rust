@@ -456,6 +456,15 @@ impl Parser {
                     DefinitionStatusFilter { negated, values },
                 ))
             }
+            TokenKind::DefinitionStatusIdKeyword => {
+                self.advance()?;
+                let negated = self.parse_boolean_comparison_operator()?;
+                let value = self.parse_sub_expression_constraint()?;
+                Ok(ConceptFilterKind::DefinitionStatusId(ModuleFilter {
+                    negated,
+                    value: Box::new(value),
+                }))
+            }
             TokenKind::ModuleIdKeyword => {
                 self.advance()?;
                 let negated = self.parse_boolean_comparison_operator()?;

@@ -88,6 +88,9 @@ pub enum TokenKind {
     False,
     /// `definitionStatus` — a concept filter's `definitionStatusTokenFilter`.
     DefinitionStatusKeyword,
+    /// `definitionStatusId` — a concept filter's `definitionStatusIdFilter`,
+    /// which takes a concept expression rather than a keyword token.
+    DefinitionStatusIdKeyword,
     /// `primitive` — a `definitionStatusToken`.
     PrimitiveToken,
     /// `defined` — a `definitionStatusToken`.
@@ -163,6 +166,7 @@ pub fn describe(kind: &TokenKind) -> String {
         TokenKind::True => "`true`".to_string(),
         TokenKind::False => "`false`".to_string(),
         TokenKind::DefinitionStatusKeyword => "`definitionStatus`".to_string(),
+        TokenKind::DefinitionStatusIdKeyword => "`definitionStatusId`".to_string(),
         TokenKind::PrimitiveToken => "`primitive`".to_string(),
         TokenKind::DefinedToken => "`defined`".to_string(),
         TokenKind::ModuleIdKeyword => "`moduleId`".to_string(),
@@ -421,6 +425,7 @@ impl Lexer {
                     "TRUE" => TokenKind::True,
                     "FALSE" => TokenKind::False,
                     "DEFINITIONSTATUS" => TokenKind::DefinitionStatusKeyword,
+                    "DEFINITIONSTATUSID" => TokenKind::DefinitionStatusIdKeyword,
                     "PRIMITIVE" => TokenKind::PrimitiveToken,
                     "DEFINED" => TokenKind::DefinedToken,
                     "MODULEID" => TokenKind::ModuleIdKeyword,

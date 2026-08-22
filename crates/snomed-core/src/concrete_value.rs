@@ -5,7 +5,7 @@ use std::fmt;
 
 /// A literal value standing in for a destination concept: either a decimal
 /// number (wire form `#<literal>`) or a string (wire form `"<text>"`).
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub enum ConcreteValue {
     /// The decimal literal exactly as written, without the leading `#`
     /// (kept as text so precision and trailing zeros survive round-trips).

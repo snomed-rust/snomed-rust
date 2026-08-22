@@ -42,6 +42,18 @@ code systems is expected to dispatch by `system` *before* calling in here.
   provenance), so **the caller supplies the version string** to functions
   that need one — it's the one piece of context only the embedding server
   has (it knows which directory it loaded).
+- The same version syntax may prefix an implicit value set URL
+  (`http://snomed.info/sct/900000000000207008/version/20240101?fhir_vs=...`).
+  `parse_implicit_value_set` does **not** accept that form: it requires
+  the base to be exactly the canonical system, and rejects anything else
+  with `FhirError::UnsupportedSystem` naming what it got. That is the
+  single-system rule (rule 1) doing its job rather than a parsing gap —
+  this crate has one store, loaded from one release, and honouring a
+  version in the URL would mean either ignoring it (answering from the
+  wrong release without saying so) or resolving it (a release-management
+  job outside this crate). A caller that receives a versioned URL strips
+  the version and passes it through the `version` parameter, which is
+  where this crate has always kept it.
 
 ## `$lookup` ✅
 
@@ -213,10 +225,20 @@ active description terms — a deliberate simplification versus FHIR's
 "server decides, ideally with relevance ranking" latitude; documented as
 such, not claimed to be feature-complete text search.
 
-**Not yet implemented**: `context`-based expansion (resolving an implicit
-value set from a `context` rather than an explicit `url`) and `valueSet`
-inline expansion (expanding a `ValueSet` resource body given directly in
-the request rather than referenced by `url`).
+**Not implemented**, for two different reasons:
+
+- **`context`-based expansion** (resolving which value set applies at a
+  point of use — a questionnaire item, a profile element) is **out of
+  scope permanently**, not pending. It needs a resource repository to
+  resolve the context against, which is a hosting server's job; this
+  crate never sees FHIR resources.
+- **Inline `valueSet` expansion** (a `ValueSet` resource in the request
+  rather than a `url`) is pending, and the shape it would take is already
+  determined by this crate's own precedent: not a JSON parser, but a
+  typed `compose` model (include/exclude, each with a system, concept
+  list, and filters) that the hosting server maps its JSON onto — the
+  same "caller supplies the context only it has" pattern `version`,
+  `language_refset`, and `nnf_report` follow. No dependency required.
 
 ## Rules (normative for `snomed-fhir`)
 

@@ -103,6 +103,20 @@ doc = false
 bench = false
 
 [[bin]]
+name = "store_snapshot"
+path = "fuzz_targets/store_snapshot.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "history_point_in_time"
+path = "fuzz_targets/history_point_in_time.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
 name = "fhir_value_set_url"
 path = "fuzz_targets/fhir_value_set_url.rs"
 test = false

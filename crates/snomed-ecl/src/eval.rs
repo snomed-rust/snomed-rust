@@ -133,26 +133,42 @@ fn description_filter_matches(filter: &DescriptionFilterKind, description: &Desc
     }
 }
 
-/// The grammar's default `match:` search type: every whitespace-separated
-/// word of the search term must be a case-insensitive **prefix of some
+/// The grammar's default `match:` search type: every word of the search
+/// term must be a case-insensitive **prefix of some
 /// word** in the description term, in any order (spec/10). So `"heart
 /// att"` matches "Heart attack", and `"att heart"` matches it too, but
 /// `"eart"` does not — that is what distinguishes `match:` from a plain
 /// substring search, and from the `wild:`/`regex:` types this crate
 /// doesn't implement.
 fn term_matches(term: &str, search: &str) -> bool {
-    let term_words: Vec<String> = term.split_whitespace().map(|w| w.to_lowercase()).collect();
-    let mut search_words = search.split_whitespace().peekable();
-    if search_words.peek().is_none() {
+    let needles = words(search);
+    if needles.is_empty() {
         // An empty search term constrains nothing rather than matching
         // nothing — `all` over an empty set is vacuously true, and
         // spelling that out keeps the intent legible.
         return true;
     }
-    search_words.all(|needle| {
-        let needle = needle.to_lowercase();
-        term_words.iter().any(|w| w.starts_with(&needle))
-    })
+    let haystack = words(term);
+    needles
+        .iter()
+        .all(|needle| haystack.iter().any(|w| w.starts_with(needle)))
+}
+
+/// Splits text into lowercase words at every non-alphanumeric character,
+/// not merely at whitespace.
+///
+/// Punctuation being a separator matters more than it sounds: every
+/// SNOMED CT fully specified name ends in a parenthesized semantic tag, so
+/// splitting on whitespace alone leaves the word `(disorder)` — and
+/// `term = "disorder"`, the most obvious query anyone writes, would match
+/// nothing. Anatomy terms have the same problem with slashes
+/// ("Left/right hand structure"). Both sides are split the same way, so a
+/// search written with punctuation behaves identically to one without.
+fn words(text: &str) -> Vec<String> {
+    text.split(|c: char| !c.is_alphanumeric())
+        .filter(|w| !w.is_empty())
+        .map(|w| w.to_lowercase())
+        .collect()
 }
 
 /// A single `{{ C ... }}` filter against a concept's own row — see
@@ -189,6 +205,10 @@ fn concept_filter_matches(
             } else {
                 matches
             }
+        }
+        ConceptFilterKind::DefinitionStatusId(ModuleFilter { negated, value }) => {
+            let matches = evaluate(value, store).contains(&concept.definition_status_id);
+            matches != *negated
         }
         ConceptFilterKind::Module(ModuleFilter { negated, value }) => {
             let matches = evaluate(value, store).contains(&concept.module_id);
@@ -486,6 +506,7 @@ mod tests {
     use snomed_core::components::{Concept, Description, Relationship, RelationshipConcreteValue};
     use snomed_core::concrete_value::ConcreteValue;
     use snomed_core::constants;
+    use snomed_core::member_id::MemberId;
     use snomed_core::sctid::ComponentType;
     use snomed_core::time::EffectiveTime;
     use snomed_rf2::refset::{LanguageRefsetMember, RefsetMemberCore};
@@ -639,7 +660,7 @@ mod tests {
         });
         b.add_language_member(LanguageRefsetMember {
             core: RefsetMemberCore {
-                id: "80000000-0000-4000-8000-000000000030".to_string(),
+                id: MemberId::parse("80000000-0000-4000-8000-000000000030").unwrap(),
                 effective_time: EffectiveTime::new_unchecked(20190731),
                 active: true,
                 module_id: constants::CORE_MODULE,
@@ -1524,6 +1545,19 @@ mod tests {
             eval("<< 138875005 {{ D term = \"eart\" }}", &store).is_empty(),
             "mid-word substrings do not — that's what `match:` means"
         );
+        // Punctuation separates words: every SNOMED FSN ends in a
+        // parenthesized semantic tag, so `term = "disorder"` matching
+        // nothing would make the most obvious query anyone writes useless.
+        assert_eq!(
+            eval("<< 138875005 {{ D term = \"disorder\" }}", &store),
+            HashSet::from([MI]),
+            "a semantic tag is a word, not part of one"
+        );
+        assert_eq!(
+            eval("<< 138875005 {{ D term = \"(disorder)\" }}", &store),
+            HashSet::from([MI]),
+            "and searching with the punctuation behaves the same"
+        );
         assert_eq!(
             eval(
                 "<< 138875005 {{ D term = (\"finding\" \"heart\") }}",
@@ -1579,6 +1613,63 @@ mod tests {
         assert_eq!(
             eval("<< 138875005 {{ D type != fsn }}", &store),
             HashSet::from([MI])
+        );
+    }
+
+    #[test]
+    fn concept_filter_definition_status_id() {
+        // spec/10: the concept-expression form of the definition status
+        // filter, alongside the `primitive`/`defined` keyword form.
+        let mut b = SnapshotStore::builder();
+        b.add_concept(concept(ROOT));
+        b.add_concept(Concept {
+            definition_status_id: constants::DEFINED,
+            ..concept(MI)
+        });
+        b.add_concept(concept(FINDING));
+        b.add_relationship(is_a(1, MI, ROOT));
+        b.add_relationship(is_a(2, FINDING, ROOT));
+        // The definition status concepts themselves, so an expression over
+        // them has something to evaluate against.
+        b.add_concept(concept(constants::PRIMITIVE));
+        b.add_concept(concept(constants::DEFINED));
+        let store = b.build();
+
+        let defined = constants::DEFINED;
+        let primitive = constants::PRIMITIVE;
+        assert_eq!(
+            eval(
+                &format!("<< {ROOT} {{{{ C definitionStatusId = {defined} }}}}"),
+                &store
+            ),
+            HashSet::from([MI])
+        );
+        assert_eq!(
+            eval(
+                &format!("<< {ROOT} {{{{ C definitionStatusId != {defined} }}}}"),
+                &store
+            ),
+            HashSet::from([ROOT, FINDING])
+        );
+        // It takes a full expression, not just one id — the whole point of
+        // the `Id` form over the keyword form.
+        assert_eq!(
+            eval(
+                &format!("<< {ROOT} {{{{ C definitionStatusId = ({primitive} OR {defined}) }}}}"),
+                &store
+            ),
+            HashSet::from([ROOT, FINDING, MI])
+        );
+        // And it agrees with the keyword form on the same question.
+        assert_eq!(
+            eval(
+                &format!("<< {ROOT} {{{{ C definitionStatusId = {defined} }}}}"),
+                &store
+            ),
+            eval(
+                &format!("<< {ROOT} {{{{ C definitionStatus = defined }}}}"),
+                &store
+            )
         );
     }
 }

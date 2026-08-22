@@ -12,10 +12,12 @@ Start here rather than guessing which file to open:
 | **Troubleshooting** | "I hit an error / something looks wrong — is this expected?" | [`docs/troubleshooting.md`](docs/troubleshooting.md) |
 | **Project policies** | "What Rust version, how is this verified beyond unit tests, what breaks downstream?" | [`spec/rust-msrv-n-minus-3.md`](spec/rust-msrv-n-minus-3.md), [`spec/rust-fuzz.md`](spec/rust-fuzz.md), [`spec/rust-bench.md`](spec/rust-bench.md), [`spec/rust-api-stability.md`](spec/rust-api-stability.md) |
 
-Plus two process documents that aren't reference material: [`plan.md`](plan.md)
-(the roadmap, organized by phase, with the *why* behind non-obvious
-decisions) and [`tasks.md`](tasks.md) (the execution checklist — what's
-done and what's next, in more granular detail than `plan.md`).
+Plus two process documents that aren't reference material:
+[`plan.md`](plan.md) (the roadmap by phase, with the *why* behind
+non-obvious decisions — the closed phases' full narrative lives in
+[`docs/plan-archive.md`](docs/plan-archive.md)) and [`tasks.md`](tasks.md)
+(the execution checklist, more granular than `plan.md`, with its own
+[archive](docs/tasks-archive.md)).
 
 `spec/*.md` is the **normative single source of truth**: when code and a
 spec disagree, one of them is a bug — fix the spec first if the official
@@ -38,6 +40,7 @@ already establish.
 | [08-refset-files.md](spec/08-refset-files.md) — every refset pattern | `snomed-rf2::refset`, `snomed-store` |
 | [09-versioning.md](spec/09-versioning.md) — snapshot/history semantics | `snomed-store` |
 | [10-ecl.md](spec/10-ecl.md) — Expression Constraint Language | `snomed-ecl` |
+| [10-ecl-filters.md](spec/10-ecl-filters.md) — ECL `{{ }}` filter constraints | `snomed-ecl` |
 | [11-fhir.md](spec/11-fhir.md) — `$lookup`/`$subsumes`/`$expand` | `snomed-fhir` |
 | [12-owl.md](spec/12-owl.md) — OWL Expression refset axiom syntax | `snomed-owl` |
 | [13-classification.md](spec/13-classification.md) — EL subsumption | `snomed-classify` |
