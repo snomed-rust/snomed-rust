@@ -95,13 +95,71 @@ percent-decoding and `$lookup` concept model attributes.
   Rule 2 and `NodeGraph`. Generation runs twice — the first pass produces
   the forms the reachability graph is built from, the second
   re-normalizes only the concepts a chain could affect. Cost measured:
-  ~11% on top of `classify` at 2,000 concepts.
+  ~20% on top of `classify` at 2,000 concepts, of which the second pass
+  itself is ~21% of normal-form generation's own time.
 - Four defects surfaced, three in code written days earlier: results
   depending on row arrival order; `{{ D term = "disorder" }}` matching no
   FSN, because semantic tags stayed glued to their word; a benchmark
   timing an error path; `classify` panicking on a hand-built one-operand
   chain. Two came from fuzz targets written for exactly that, one from a
   review pass, one from reading a benchmark's own assertion.
+
+## Open decisions (priced, awaiting a call)
+
+- **Should `^` (memberOf) filter its result to the Concept partition?**
+  Surfaced by implementing `^ *` (2026-08-23). `refset_members` returns
+  RF2 membership — the `referencedComponentId` of an active row of any
+  refset type (spec/08) — so `^ 900000000000509007` returns *description*
+  ids, and `^ *` unions them across every refset, where the Language
+  refsets dominate by volume. The ECL guide says "concepts" throughout
+  ("all concepts that are referenced by any reference set in the
+  substrate"), because it assumes concept refsets.
+
+  Arguments for filtering: every downstream consumer — subsumption, FHIR
+  `$expand`, the CLI's term printing — treats `evaluate`'s output as
+  concept ids, so a description id there is a silently wrong answer of
+  exactly the kind this workspace exists to prevent. Arguments against:
+  `^ [referencedComponentId]` field selection and `{{ M }}` member
+  filters both presume non-concept components are in scope for `^`, and
+  `crates/snomed-ecl/src/eval.rs`'s `member_of_spans_every_refset_type`
+  test asserts the current behavior deliberately.
+
+  Cost is trivial either way (a `component_type() == Some(Concept)`
+  filter, no store lookup). It is left unfiltered because filtering
+  `^ *` alone would make it disagree with `^ X`, and changing both is a
+  behavior change to a shipped operator — a call, not a cleanup.
+
+- **ECL `{{ M ... }}` member filters.** A member filter selects on a
+  member row's own columns, and a snapshot keeps rows for sixteen of the
+  eighteen refset types: Simple reduces to a `(refsetId, componentId)`
+  membership set and Language to an acceptability map, because those two
+  carry the most rows by far (spec/09 rule 4). Measured, not guessed —
+  `RefsetMemberCore` is 48 bytes since member ids became `u128`, so
+  retaining both types' rows for an International Edition-sized release
+  costs ~227 MB of rows before map overhead, call it ~300 MB in place.
+  Three ways to go, none free:
+  1. *Retain rows for all eighteen.* Every filter answerable, evaluation
+     stays infallible, everyone pays the memory whether or not they use
+     member filters.
+  2. *Implement for the sixteen, reject the other two by name.* No memory
+     cost, but there is nowhere to put the rejection: `evaluate` returns a
+     `HashSet`, not a `Result`, so an unanswerable filter would have to
+     return empty — a silent wrong answer, which this workspace treats as
+     the one unacceptable failure mode. Taking this option means making
+     evaluation fallible, a broad but mechanical API change.
+  3. *Don't implement it.* The named `NotYetImplemented` error stands.
+  Recommendation: (2), because a fallible evaluator is honest about a
+  question a snapshot genuinely cannot answer, and the change is one-time.
+  But it is an API break across `snomed-ecl`, `snomed-fhir`, and
+  `snomed-cli`, so it wants a deliberate yes rather than an assumption.
+- **`$expand` inline `valueSet`.** Shape already settled by precedent — a
+  typed compose model the hosting server maps its JSON onto, not a JSON
+  parser (spec/11). What is undecided is whether the surface is wanted at
+  all, since nothing in this workspace consumes it. `context` expansion is
+  permanently out of scope.
+- **An HTTP server for `snomed-fhir`.** Needs an external dependency, so
+  it is explicitly a decision against the zero-dependency policy rather
+  than an autonomous pick.
 
 ## Non-goals (for now)
 
@@ -111,14 +169,24 @@ percent-decoding and `$lookup` concept model attributes.
 
 ## Current status
 
-All eight phases above are closed. The workspace is 9 published crates at
-0.9.0 with zero dependencies, 323 tests, a clean
+All eight phases above are closed. As of 0.10.0 the workspace is 9
+published crates with zero dependencies, 353 tests, a clean
 `cargo clippy --all-targets`, 13 fuzz targets, and six criterion
 benchmark files. What is *not* done is tracked in two places and nowhere
 else: `tasks.md`'s "Next up" (scoped work and known gaps, each with the
-spec section that documents it) and the "Not yet implemented" sections of
-`spec/10`-`spec/14` (behavior deliberately rejected with a typed error
-rather than silently approximated).
+spec section that documents it) and the deliberately-rejected lists —
+`spec/10-ecl-unimplemented.md` for ECL, and the "Not yet implemented"
+sections of `spec/11`-`spec/14` — where every entry fails with a typed
+error rather than being silently approximated.
+
+Since 0.9.0 the ECL surface has grown by three constructs and one
+grammar correction rather than by new crates: dot notation
+(`A . attribute`), the full `memberOf` operand (`^ *`, `^ ( expr )`,
+`< ^ X`, `< ( A OR B )`), and `^R` (`refsetContainingAny`) with the
+concept-keyed reverse membership index behind it. Each one was confirmed
+against the official ABNF or a verbatim guide quote before implementation,
+because every one of them has a plausible wrong reading that returns a
+set rather than an error.
 
 ## Risks & watch items
 

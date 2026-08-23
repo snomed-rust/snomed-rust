@@ -76,7 +76,7 @@ group or ungrouped) whose filler isn't a plain concept, and
 parser can't produce but a hand-built `Axiom` can: an
 `ObjectPropertyChain` with no operands. (A *one*-operand chain isn't
 skipped — it means exactly `r ⊑ target`, and is classified as such.
-No `Axiom` value panics this crate; see spec/13 rule 6.)
+No `Axiom` value panics this crate; see spec/13 rule 1.)
 
 ## Necessary normal form
 

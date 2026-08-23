@@ -148,10 +148,11 @@ pub fn expand(
     let mut sorted: Vec<SctId> = ids.into_iter().collect();
     sorted.sort();
 
+    let needle = options.filter.map(str::to_lowercase);
     let filtered: Vec<SctId> = sorted
         .into_iter()
         .filter(|&id| !options.active_only || store.is_active(id))
-        .filter(|&id| match options.filter {
+        .filter(|&id| match &needle {
             Some(text) => matches_filter(store, id, text),
             None => true,
         })
@@ -239,11 +240,14 @@ fn evaluate(
     })
 }
 
-fn matches_filter(store: &SnapshotStore, id: SctId, filter: &str) -> bool {
-    let needle = filter.to_lowercase();
+/// `filter` arrives already lowercased — once for the whole expansion,
+/// not once per candidate concept. Lowercasing it inside would be the
+/// per-candidate mistake spec/10 rule 0 names for ECL; the same reasoning
+/// applies to any predicate run across a result set.
+fn matches_filter(store: &SnapshotStore, id: SctId, needle: &str) -> bool {
     store
         .descriptions_of(id)
-        .any(|d| d.active && d.term.to_lowercase().contains(&needle))
+        .any(|d| d.active && d.term.to_lowercase().contains(needle))
 }
 
 #[cfg(test)]

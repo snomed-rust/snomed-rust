@@ -31,6 +31,21 @@ SNOMED CT Release File Specification.
   file and track it in `tasks.md` rather than quietly redefining it (see
   spec/10's two attribute-group limitations for the established shape).
 
+## Numbering
+
+Rules are a numbered list starting at 1, in a `## Rules` section (or the
+normative section that serves as one). Code and docs cite them as
+`spec/NN rule M`, and `crates/snomed/tests/spec_citations.rs` checks every
+such citation resolves — so inserting a rule mid-list means updating the
+citations in the same change, and the test will say if you didn't.
+
+The check is deliberately coarse: it verifies the number appears as a
+numbered item somewhere in that spec file, not that it appears in the
+*right* list. A spec file whose rules aren't a numbered list (spec/13's
+CR1-CR5 are algorithm steps, not requirements) can't be checked more
+precisely than that, which is one reason to keep requirements in a plain
+numbered list.
+
 ## Style
 
 - One file per topic, numbered for reading order (`NN-topic.md`);

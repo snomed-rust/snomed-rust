@@ -61,7 +61,7 @@ with nicer messages unless you're also adding real support for them.
 `ObjectIntersectionOf` and `ObjectPropertyChain` are rejected here with
 fewer than two operands, which is correct — but `Axiom`/`ClassExpression`
 are public types, so `snomed-classify` still receives hand-built values
-this parser would never produce (spec/13 rule 6). Arity checks here are
+this parser would never produce (spec/13 rule 1). Arity checks here are
 about giving good errors on real input, not about establishing an
 invariant another crate may index a slice on. Keep both: the check here,
 and the degenerate-case handling there.

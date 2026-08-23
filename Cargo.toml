@@ -13,7 +13,7 @@ members = [
 ]
 
 [workspace.package]
-version = "0.9.0"
+version = "0.10.0"
 edition = "2021"
 rust-version = "1.95"
 license = "Apache-2.0 OR MIT"
@@ -23,10 +23,10 @@ categories = ["science", "parser-implementations"]
 authors = ["Joel Parker Henderson <joel@joelparkerhenderson.com>"]
 
 [workspace.dependencies]
-snomed-classify = { path = "crates/snomed-classify", version = "0.9.0" }
-snomed-core = { path = "crates/snomed-core", version = "0.9.0" }
-snomed-ecl = { path = "crates/snomed-ecl", version = "0.9.0" }
-snomed-fhir = { path = "crates/snomed-fhir", version = "0.9.0" }
-snomed-owl = { path = "crates/snomed-owl", version = "0.9.0" }
-snomed-rf2 = { path = "crates/snomed-rf2", version = "0.9.0" }
-snomed-store = { path = "crates/snomed-store", version = "0.9.0" }
+snomed-classify = { path = "crates/snomed-classify", version = "0.10.0" }
+snomed-core = { path = "crates/snomed-core", version = "0.10.0" }
+snomed-ecl = { path = "crates/snomed-ecl", version = "0.10.0" }
+snomed-fhir = { path = "crates/snomed-fhir", version = "0.10.0" }
+snomed-owl = { path = "crates/snomed-owl", version = "0.10.0" }
+snomed-rf2 = { path = "crates/snomed-rf2", version = "0.10.0" }
+snomed-store = { path = "crates/snomed-store", version = "0.10.0" }

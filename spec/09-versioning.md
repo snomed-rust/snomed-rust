@@ -80,6 +80,11 @@ Given any mix of Full, Snapshot, and Delta rows:
 
 After loading, `snomed-store` builds:
 
+- association members by target (`(refsetId, targetComponentId) ->
+  source components`), the reverse of the per-refset member index: a
+  historical association is written on the inactive component, so
+  "which retired concepts point at this active one" — the question a
+  data migration asks — needs its own index;
 - descriptions by concept id;
 - relationships by source concept id, **and by destination concept id**
   (`relationships_to` — backing `snomed-ecl`'s reverse flag);
@@ -94,6 +99,13 @@ After loading, `snomed-store` builds:
 - the unified refset membership index keyed by `refsetId`
   (`is_member`/`refset_members`/`refset_ids` — spec/08 rule 4), built
   from **active** members only (see Snapshot construction rule 4).
+- **and its reverse**, keyed by referenced *concept* id
+  (`refsets_containing` — backing `snomed-ecl`'s `^R`, spec/10 rule 17).
+  Concept-only is the operator's own scope, not a size compromise: ECL
+  defines `^R` solely over "reference sets whose referenced components
+  are concepts", and the rows that exclusion drops are exactly the
+  Language refsets' millions of description memberships. Indexing those
+  would cost the most memory to answer a question no caller can ask.
 
 ## History construction
 

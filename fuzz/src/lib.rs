@@ -113,8 +113,18 @@ pub fn fixture_store() -> SnapshotStore {
         modifier_id: constants::EXISTENTIAL_MODIFIER,
     });
 
+    // Descriptions deliberately varied along every axis a `{{ D ... }}`
+    // filter can select on (spec/10-ecl-filters.md): type, language,
+    // module, effectiveTime, active, and terms carrying the punctuation
+    // real SNOMED terms carry — a semantic tag, a slash, a hyphenated
+    // number. A fixture that varies none of these lets the evaluator's
+    // filter branches look covered while never being distinguished.
     let fsn = description_id(3001);
     let synonym = description_id(3002);
+    let swedish = description_id(3003);
+    let retired = description_id(3004);
+    let extension = description_id(3005);
+    let other_module = concept_id(1008);
     builder.add_descriptions([
         Description {
             id: fsn,
@@ -135,7 +145,40 @@ pub fn fixture_store() -> SnapshotStore {
             concept_id: a,
             language_code: "en".to_string(),
             type_id: constants::SYNONYM,
-            term: "Fixture concept A".to_string(),
+            term: "Left/right fixture COVID-19".to_string(),
+            case_significance_id: constants::CASE_INSENSITIVE,
+        },
+        Description {
+            id: swedish,
+            effective_time: TIME,
+            active: true,
+            module_id: constants::CORE_MODULE,
+            concept_id: c,
+            language_code: "sv".to_string(),
+            type_id: constants::SYNONYM,
+            term: "Fixturbegrepp".to_string(),
+            case_significance_id: constants::CASE_INSENSITIVE,
+        },
+        Description {
+            id: retired,
+            effective_time: TIME,
+            active: false,
+            module_id: constants::CORE_MODULE,
+            concept_id: a,
+            language_code: "en".to_string(),
+            type_id: constants::SYNONYM,
+            term: "Retired fixture wording".to_string(),
+            case_significance_id: constants::CASE_INSENSITIVE,
+        },
+        Description {
+            id: extension,
+            effective_time: EffectiveTime::new_unchecked(20250101),
+            active: true,
+            module_id: other_module,
+            concept_id: b,
+            language_code: "en".to_string(),
+            type_id: constants::TEXT_DEFINITION,
+            term: "A fixture concept, defined.".to_string(),
             case_significance_id: constants::CASE_INSENSITIVE,
         },
     ]);
@@ -149,6 +192,11 @@ pub fn fixture_store() -> SnapshotStore {
         (
             MemberId::parse("00000000-0000-4000-8000-000000000002").expect("valid member id"),
             synonym,
+            constants::ACCEPTABLE,
+        ),
+        (
+            MemberId::parse("00000000-0000-4000-8000-000000000003").expect("valid member id"),
+            swedish,
             constants::PREFERRED,
         ),
     ] {

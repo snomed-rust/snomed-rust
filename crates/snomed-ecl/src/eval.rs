@@ -3,7 +3,7 @@
 
 use std::collections::HashSet;
 
-use snomed_core::sctid::SctId;
+use snomed_core::sctid::{ComponentType, SctId};
 use snomed_store::SnapshotStore;
 
 use snomed_core::concrete_value::ConcreteValue;
@@ -11,10 +11,11 @@ use snomed_core::time::EffectiveTime;
 use snomed_core::{constants, Concept, Description};
 
 use crate::ast::{
-    ActiveFilter, ActiveValue, AttributeComparison, AttributeConstraint, AttributeGroup,
+    AcceptabilityValue, ActiveFilter, ActiveValue, AttributeComparison, AttributeConstraint,
     Cardinality, ConceptFilterKind, DefinitionStatusFilter, DefinitionStatusValue,
-    DescriptionFilterKind, DescriptionTypeValue, EffectiveTimeFilter, ExpressionConstraint,
-    FocusConcept, HierarchyOp, ModuleFilter, NumericComparisonOp, RefinementConstraint,
+    DescriptionFilterKind, DescriptionTypeValue, DialectFilter, EffectiveTimeFilter,
+    ExpressionConstraint, FocusConcept, HierarchyOp, LanguageFilter, ModuleFilter,
+    NumericComparisonOp, RefinementConstraint, RefsetOperand, SearchTerm, SearchType,
     SimpleExpressionConstraint, TermFilter, TimeComparisonOp, TypeFilter,
 };
 
@@ -27,8 +28,67 @@ use crate::ast::{
 pub fn evaluate(expr: &ExpressionConstraint, store: &SnapshotStore) -> HashSet<SctId> {
     match expr {
         ExpressionConstraint::Simple(s) => evaluate_simple(s, store),
-        ExpressionConstraint::MemberOf { refset_id, .. } => {
-            store.refset_members(*refset_id).collect()
+        // `^ refsets` (spec/10 rule 16): the union of the referenced
+        // components of every refset the target names. A literal id is
+        // used as a key, never resolved as a concept — see
+        // [`RefsetOperand`] for why that distinction is observable.
+        ExpressionConstraint::MemberOf { refsets } => match refsets {
+            RefsetOperand::Id { id, .. } => store.refset_members(*id).collect(),
+            // `refset_ids()` is every refset with active content, which
+            // is what "any reference set in the substrate" means — and
+            // avoids a membership lookup per concept in the store.
+            RefsetOperand::Wildcard => {
+                let mut out = HashSet::new();
+                for refset_id in store.refset_ids() {
+                    out.extend(store.refset_members(refset_id));
+                }
+                out
+            }
+            RefsetOperand::Expression(inner) => {
+                let mut out = HashSet::new();
+                // Evaluated once, not once per member (spec/10 rule 0).
+                for refset_id in evaluate(inner, store) {
+                    out.extend(store.refset_members(refset_id));
+                }
+                out
+            }
+        },
+        // `^R concepts` (spec/10 rule 17) — the exact inverse of
+        // `MemberOf`, over the concept-only reverse index the operator is
+        // defined against.
+        ExpressionConstraint::RefsetContaining { concepts } => match concepts {
+            RefsetOperand::Id { id, .. } => store.refsets_containing(*id).collect(),
+            // "at least one of the given concepts" with `*` for the
+            // concepts: every refset that has any concept member. Read
+            // off the forward index rather than unioning the reverse one
+            // over every concept in the store.
+            RefsetOperand::Wildcard => store
+                .refset_ids()
+                .filter(|&refset_id| {
+                    store
+                        .refset_members(refset_id)
+                        .any(|c| c.component_type() == Some(ComponentType::Concept))
+                })
+                .collect(),
+            RefsetOperand::Expression(inner) => {
+                let mut out = HashSet::new();
+                for concept_id in evaluate(inner, store) {
+                    out.extend(store.refsets_containing(concept_id));
+                }
+                out
+            }
+        },
+        // `constraintOperator inner` where `inner` isn't a plain focus
+        // concept: the operator applies to each member of the result set
+        // and the results union (spec/10 rule 16). `evaluate_concept` is
+        // the same per-concept traversal `Simple` uses, so `< ^ X` and
+        // `< X` cannot disagree about what "descendant" means.
+        ExpressionConstraint::Operated { op, inner } => {
+            let mut out = HashSet::new();
+            for id in evaluate(inner, store) {
+                out.extend(evaluate_concept(*op, id, store));
+            }
+            out
         }
         ExpressionConstraint::And(items) => {
             let mut sets = items.iter().map(|e| evaluate(e, store));
@@ -52,32 +112,76 @@ pub fn evaluate(expr: &ExpressionConstraint, store: &SnapshotStore) -> HashSet<S
             let r = evaluate(right, store);
             l.difference(&r).copied().collect()
         }
-        ExpressionConstraint::Refined { focus, refinement } => evaluate(focus, store)
-            .into_iter()
-            .filter(|&c| evaluate_refinement(refinement, c, store, None))
-            .collect(),
-        ExpressionConstraint::ConceptFilter { inner, filters } => evaluate(inner, store)
-            .into_iter()
-            .filter(|&c| {
-                store.concept(c).is_some_and(|concept| {
-                    filters
-                        .iter()
-                        .all(|f| concept_filter_matches(f, concept, store))
+        ExpressionConstraint::Refined { focus, refinement } => {
+            // Prepared once, before the per-concept loop — see
+            // `PreparedRefinement` for why that is load-bearing.
+            let prepared = prepare_refinement(refinement, store);
+            evaluate(focus, store)
+                .into_iter()
+                .filter(|&c| evaluate_refinement(&prepared, c, store, None))
+                .collect()
+        }
+        // `focus . attribute` (spec/10 rule 15) — the only form whose
+        // result isn't a subset of its input: it hands back the
+        // *destinations* of the matching relationships. Defined as sugar
+        // for `* : R attribute = focus`, and implemented from the same
+        // rows the reverse-flag refinement reads, so the two can't drift.
+        // Both operand sets are evaluated once, not per relationship
+        // (spec/10 rule 0).
+        ExpressionConstraint::Dotted { focus, attribute } => {
+            let sources = evaluate(focus, store);
+            let types = evaluate(attribute, store);
+            let mut out = HashSet::new();
+            for source in &sources {
+                for r in store.relationships_of(*source) {
+                    if r.active && r.is_inferred() && types.contains(&r.type_id) {
+                        out.insert(r.destination_id);
+                    }
+                }
+            }
+            out
+        }
+        ExpressionConstraint::ConceptFilter { inner, filters } => {
+            // Same reason as the refinement and description-filter arms:
+            // `moduleId`/`definitionStatusId` take expressions, and those
+            // don't depend on the concept being tested (spec/10 rule 0).
+            let prepared: Vec<PreparedConceptFilter> = filters
+                .iter()
+                .map(|f| prepare_concept_filter(f, store))
+                .collect();
+            evaluate(inner, store)
+                .into_iter()
+                .filter(|&c| {
+                    store.concept(c).is_some_and(|concept| {
+                        filters
+                            .iter()
+                            .zip(&prepared)
+                            .all(|(f, p)| concept_filter_matches(f, p, concept))
+                    })
                 })
-            })
-            .collect(),
+                .collect()
+        }
         // A description filter keeps a concept when **one** of its
         // descriptions satisfies every filter in the block — not when the
         // filters are satisfied piecemeal across different descriptions
         // (spec/10).
-        ExpressionConstraint::DescriptionFilter { inner, filters } => evaluate(inner, store)
-            .into_iter()
-            .filter(|&c| {
-                store
-                    .descriptions_of(c)
-                    .any(|d| description_matches(filters, d))
-            })
-            .collect(),
+        ExpressionConstraint::DescriptionFilter { inner, filters } => {
+            // The search terms are the same for every description, so
+            // tokenizing and lowercasing them once here — rather than per
+            // description, per concept — is the difference between work
+            // proportional to the query and work proportional to the
+            // release. Measured in `benches/benches/ecl.rs`.
+            let prepared: Vec<PreparedDescriptionFilter> =
+                filters.iter().map(|f| prepare_filter(f, store)).collect();
+            evaluate(inner, store)
+                .into_iter()
+                .filter(|&c| {
+                    store
+                        .descriptions_of(c)
+                        .any(|d| description_matches(filters, &prepared, d, store))
+                })
+                .collect()
+        }
     }
 }
 
@@ -92,7 +196,12 @@ pub fn evaluate(expr: &ExpressionConstraint, store: &SnapshotStore) -> HashSet<S
 /// is what makes the retired text reachable when a caller actually wants
 /// it. This is a judgment call: neither the official grammar nor the
 /// guide states the default (spec/10).
-fn description_matches(filters: &[DescriptionFilterKind], description: &Description) -> bool {
+fn description_matches(
+    filters: &[DescriptionFilterKind],
+    prepared: &[PreparedDescriptionFilter],
+    description: &Description,
+    store: &SnapshotStore,
+) -> bool {
     let states_active = filters
         .iter()
         .any(|f| matches!(f, DescriptionFilterKind::Active(_)));
@@ -101,14 +210,74 @@ fn description_matches(filters: &[DescriptionFilterKind], description: &Descript
     }
     filters
         .iter()
-        .all(|f| description_filter_matches(f, description))
+        .zip(prepared)
+        .all(|(f, p)| description_filter_matches(f, p, description, store))
+}
+
+/// One description filter with its query-fixed parts already computed:
+/// search terms tokenized, and expression-valued kinds evaluated. None of
+/// these depend on the description being tested, so computing them per
+/// description would be the mistake spec/10 rule 0 names — and worse than
+/// at concept level, since a concept has many descriptions.
+enum PreparedDescriptionFilter {
+    Term(Vec<PreparedSearch>),
+    /// `typeId` / `moduleId` — the evaluated set the column must be in.
+    Concepts(HashSet<SctId>),
+    /// `type`, `language`, `dialectId`, `effectiveTime`, `active`: nothing
+    /// to precompute, since they compare against literals.
+    Literal,
+}
+
+/// One search term, in the form its search type actually compares
+/// against.
+enum PreparedSearch {
+    /// `match:` — the search term's words, lowercased.
+    Match(Vec<String>),
+    /// `wild:` — the pattern, lowercased.
+    Wild(String),
+    /// `exact:` — compared verbatim, so nothing to prepare.
+    Exact,
+}
+
+fn prepare_filter(
+    filter: &DescriptionFilterKind,
+    store: &SnapshotStore,
+) -> PreparedDescriptionFilter {
+    match filter {
+        DescriptionFilterKind::Term(TermFilter { values, .. }) => PreparedDescriptionFilter::Term(
+            values
+                .iter()
+                .map(|search| match search.search_type {
+                    SearchType::Match => PreparedSearch::Match(words(&search.text)),
+                    SearchType::Wild => PreparedSearch::Wild(search.text.to_lowercase()),
+                    SearchType::Exact => PreparedSearch::Exact,
+                })
+                .collect(),
+        ),
+        DescriptionFilterKind::TypeId(ModuleFilter { value, .. })
+        | DescriptionFilterKind::Module(ModuleFilter { value, .. }) => {
+            PreparedDescriptionFilter::Concepts(evaluate(value, store))
+        }
+        _ => PreparedDescriptionFilter::Literal,
+    }
 }
 
 /// One `{{ D ... }}` filter against one description.
-fn description_filter_matches(filter: &DescriptionFilterKind, description: &Description) -> bool {
+fn description_filter_matches(
+    filter: &DescriptionFilterKind,
+    prepared: &PreparedDescriptionFilter,
+    description: &Description,
+    store: &SnapshotStore,
+) -> bool {
     match filter {
         DescriptionFilterKind::Term(TermFilter { negated, values }) => {
-            let matches = values.iter().any(|v| term_matches(&description.term, v));
+            let PreparedDescriptionFilter::Term(searches) = prepared else {
+                unreachable!("a term filter prepares to `Term`")
+            };
+            let matches = values
+                .iter()
+                .zip(searches)
+                .any(|(search, prepared)| term_matches(&description.term, search, prepared));
             matches != *negated
         }
         DescriptionFilterKind::Type(TypeFilter { negated, values }) => {
@@ -122,6 +291,50 @@ fn description_filter_matches(filter: &DescriptionFilterKind, description: &Desc
             });
             matches != *negated
         }
+        DescriptionFilterKind::TypeId(ModuleFilter { negated, .. }) => {
+            let PreparedDescriptionFilter::Concepts(values) = prepared else {
+                unreachable!("a typeId filter prepares to `Concepts`")
+            };
+            values.contains(&description.type_id) != *negated
+        }
+        DescriptionFilterKind::Language(LanguageFilter { negated, values }) => {
+            let code = description.language_code.to_ascii_lowercase();
+            let matches = values.contains(&code);
+            matches != *negated
+        }
+        DescriptionFilterKind::Dialect(DialectFilter {
+            negated,
+            refset_id,
+            acceptability,
+        }) => {
+            // `acceptability(refset, description)` is `Some` exactly when
+            // the description is an *active* member of that language
+            // refset (spec/08, spec/09 rule 4), which is the membership
+            // test; an empty acceptability list asks for nothing more.
+            let matches = match store.acceptability(*refset_id, description.id) {
+                Some(found) => {
+                    acceptability.is_empty()
+                        || acceptability.iter().any(|wanted| {
+                            found
+                                == match wanted {
+                                    AcceptabilityValue::Preferred => constants::PREFERRED,
+                                    AcceptabilityValue::Acceptable => constants::ACCEPTABLE,
+                                }
+                        })
+                }
+                None => false,
+            };
+            matches != *negated
+        }
+        DescriptionFilterKind::Module(ModuleFilter { negated, .. }) => {
+            let PreparedDescriptionFilter::Concepts(values) = prepared else {
+                unreachable!("a moduleId filter prepares to `Concepts`")
+            };
+            values.contains(&description.module_id) != *negated
+        }
+        DescriptionFilterKind::EffectiveTime(EffectiveTimeFilter { operator, values }) => values
+            .iter()
+            .any(|v| time_comparison_matches(*operator, description.effective_time, *v)),
         DescriptionFilterKind::Active(ActiveFilter { negated, value }) => {
             let matches = match value {
                 ActiveValue::True => description.active,
@@ -133,20 +346,70 @@ fn description_filter_matches(filter: &DescriptionFilterKind, description: &Desc
     }
 }
 
+/// Whether `term` satisfies one typed search term (spec/10), using the
+/// form of the search prepared once per query.
+fn term_matches(term: &str, search: &SearchTerm, prepared: &PreparedSearch) -> bool {
+    match prepared {
+        PreparedSearch::Match(needles) => match_words(term, needles),
+        PreparedSearch::Wild(pattern) => wild_matches(&term.to_lowercase(), pattern),
+        // Case-sensitive, deliberately: it is what distinguishes `exact:`
+        // from `match:` on a single full word (spec/10 records the
+        // judgment call).
+        PreparedSearch::Exact => term == search.text,
+    }
+}
+
+/// `wild:` — the whole term must match `pattern`, where `*` stands for any
+/// run of characters (spec/10). Both sides arrive lowercased.
+///
+/// Two pointers with a backtrack mark rather than recursion: a pattern of
+/// alternating `*`s is otherwise exponential, and the pattern is caller
+/// input.
+fn wild_matches(term: &str, pattern: &str) -> bool {
+    let term: Vec<char> = term.chars().collect();
+    let pattern: Vec<char> = pattern.chars().collect();
+    let (mut t, mut p) = (0, 0);
+    let (mut star, mut resume) = (None, 0);
+    while t < term.len() {
+        if p < pattern.len() && pattern[p] == term[t] {
+            t += 1;
+            p += 1;
+        } else if p < pattern.len() && pattern[p] == '*' {
+            star = Some(p);
+            resume = t;
+            p += 1;
+        } else if let Some(s) = star {
+            // Mismatch after a `*`: let the star swallow one more
+            // character and retry from just past it.
+            p = s + 1;
+            resume += 1;
+            t = resume;
+        } else {
+            return false;
+        }
+    }
+    pattern[p..].iter().all(|c| *c == '*')
+}
+
 /// The grammar's default `match:` search type: every word of the search
-/// term must be a case-insensitive **prefix of some
-/// word** in the description term, in any order (spec/10). So `"heart
-/// att"` matches "Heart attack", and `"att heart"` matches it too, but
-/// `"eart"` does not — that is what distinguishes `match:` from a plain
-/// substring search, and from the `wild:`/`regex:` types this crate
-/// doesn't implement.
-fn term_matches(term: &str, search: &str) -> bool {
-    let needles = words(search);
+/// term must be a case-insensitive **prefix of some word** in the
+/// description term, in any order (spec/10). So `"heart att"` matches
+/// "Heart attack", and `"att heart"` matches it too, but `"eart"` does
+/// not — that is what distinguishes `match:` from a plain substring
+/// search.
+fn match_words(term: &str, needles: &[String]) -> bool {
     if needles.is_empty() {
-        // An empty search term constrains nothing rather than matching
-        // nothing — `all` over an empty set is vacuously true, and
-        // spelling that out keeps the intent legible.
-        return true;
+        // A search term with no words in it — `""`, or `"-"`, or anything
+        // that tokenizes to nothing — matches *nothing*, rather than the
+        // vacuous-truth reading where `all` over an empty set is true.
+        //
+        // Both readings are defensible in the abstract; they differ in
+        // how they fail. Vacuous truth makes the filter silently stop
+        // filtering, so a caller whose search box was empty gets the
+        // whole hierarchy back and no indication anything went wrong.
+        // Matching nothing is visibly wrong instead, which is the failure
+        // this workspace prefers (spec/10).
+        return false;
     }
     let haystack = words(term);
     needles
@@ -171,12 +434,32 @@ fn words(text: &str) -> Vec<String> {
         .collect()
 }
 
+/// One concept filter's query-fixed part: the evaluated set for the kinds
+/// that take an expression, nothing for the kinds that compare literals.
+enum PreparedConceptFilter {
+    Concepts(HashSet<SctId>),
+    Literal,
+}
+
+fn prepare_concept_filter(
+    filter: &ConceptFilterKind,
+    store: &SnapshotStore,
+) -> PreparedConceptFilter {
+    match filter {
+        ConceptFilterKind::Module(ModuleFilter { value, .. })
+        | ConceptFilterKind::DefinitionStatusId(ModuleFilter { value, .. }) => {
+            PreparedConceptFilter::Concepts(evaluate(value, store))
+        }
+        _ => PreparedConceptFilter::Literal,
+    }
+}
+
 /// A single `{{ C ... }}` filter against a concept's own row — see
 /// [`ConceptFilterKind`] for which kinds are implemented.
 fn concept_filter_matches(
     filter: &ConceptFilterKind,
+    prepared: &PreparedConceptFilter,
     concept: &Concept,
-    store: &SnapshotStore,
 ) -> bool {
     match filter {
         ConceptFilterKind::Active(ActiveFilter { negated, value }) => {
@@ -206,17 +489,17 @@ fn concept_filter_matches(
                 matches
             }
         }
-        ConceptFilterKind::DefinitionStatusId(ModuleFilter { negated, value }) => {
-            let matches = evaluate(value, store).contains(&concept.definition_status_id);
-            matches != *negated
+        ConceptFilterKind::DefinitionStatusId(ModuleFilter { negated, .. }) => {
+            let PreparedConceptFilter::Concepts(values) = prepared else {
+                unreachable!("a definitionStatusId filter prepares to `Concepts`")
+            };
+            values.contains(&concept.definition_status_id) != *negated
         }
-        ConceptFilterKind::Module(ModuleFilter { negated, value }) => {
-            let matches = evaluate(value, store).contains(&concept.module_id);
-            if *negated {
-                !matches
-            } else {
-                matches
-            }
+        ConceptFilterKind::Module(ModuleFilter { negated, .. }) => {
+            let PreparedConceptFilter::Concepts(values) = prepared else {
+                unreachable!("a moduleId filter prepares to `Concepts`")
+            };
+            values.contains(&concept.module_id) != *negated
         }
         ConceptFilterKind::EffectiveTime(EffectiveTimeFilter { operator, values }) => values
             .iter()
@@ -250,21 +533,109 @@ fn time_comparison_matches(
 /// relationship regardless of group, per the official guide: cardinality
 /// on a bare (non-grouped) attribute "constrains the number of times the
 /// attribute may be included in *any* attribute group".
+/// A refinement with every sub-expression already evaluated — the
+/// attribute names and comparison values, which are the same set for
+/// every candidate concept.
+///
+/// Preparing them once is not an optimization detail but a correctness-of
+/// -cost property: evaluating them per candidate made a refinement whose
+/// *value* was itself a refinement re-run the inner query once per
+/// concept, so nesting multiplied the work by the concept count at every
+/// level. A 119-byte expression took 39 seconds against an
+/// eight-concept store, and would not have finished against a release.
+/// Found by the `ecl_evaluate` fuzz target's slow-unit report.
+enum PreparedRefinement {
+    Attribute(PreparedAttribute),
+    Group {
+        cardinality: Cardinality,
+        attributes: Box<PreparedRefinement>,
+    },
+    And(Vec<PreparedRefinement>),
+    Or(Vec<PreparedRefinement>),
+}
+
+struct PreparedAttribute {
+    reverse: bool,
+    cardinality: Cardinality,
+    /// The evaluated `eclAttributeName` — which `typeId`s count.
+    types: HashSet<SctId>,
+    comparison: PreparedComparison,
+}
+
+enum PreparedComparison {
+    Expression {
+        negated: bool,
+        values: HashSet<SctId>,
+    },
+    Numeric {
+        operator: NumericComparisonOp,
+        value: String,
+    },
+    String {
+        negated: bool,
+        values: Vec<String>,
+    },
+}
+
+fn prepare_refinement(r: &RefinementConstraint, store: &SnapshotStore) -> PreparedRefinement {
+    match r {
+        RefinementConstraint::Attribute(a) => {
+            PreparedRefinement::Attribute(prepare_attribute(a, store))
+        }
+        RefinementConstraint::Group(g) => PreparedRefinement::Group {
+            cardinality: g.cardinality,
+            attributes: Box::new(prepare_refinement(&g.attributes, store)),
+        },
+        RefinementConstraint::And(items) => {
+            PreparedRefinement::And(items.iter().map(|i| prepare_refinement(i, store)).collect())
+        }
+        RefinementConstraint::Or(items) => {
+            PreparedRefinement::Or(items.iter().map(|i| prepare_refinement(i, store)).collect())
+        }
+    }
+}
+
+fn prepare_attribute(a: &AttributeConstraint, store: &SnapshotStore) -> PreparedAttribute {
+    let comparison = match &a.comparison {
+        AttributeComparison::Expression { negated, value } => PreparedComparison::Expression {
+            negated: *negated,
+            values: evaluate(value, store),
+        },
+        AttributeComparison::Numeric { operator, value } => PreparedComparison::Numeric {
+            operator: *operator,
+            value: value.clone(),
+        },
+        AttributeComparison::String { negated, values } => PreparedComparison::String {
+            negated: *negated,
+            values: values.clone(),
+        },
+    };
+    PreparedAttribute {
+        reverse: a.reverse,
+        cardinality: a.cardinality,
+        types: evaluate(&a.attribute, store),
+        comparison,
+    }
+}
+
 fn evaluate_refinement(
-    r: &RefinementConstraint,
+    r: &PreparedRefinement,
     concept: SctId,
     store: &SnapshotStore,
     group_scope: Option<u32>,
 ) -> bool {
     match r {
-        RefinementConstraint::Attribute(a) => {
+        PreparedRefinement::Attribute(a) => {
             evaluate_attribute_constraint(a, concept, store, group_scope)
         }
-        RefinementConstraint::Group(g) => evaluate_attribute_group(g, concept, store),
-        RefinementConstraint::And(items) => items
+        PreparedRefinement::Group {
+            cardinality,
+            attributes,
+        } => evaluate_attribute_group(*cardinality, attributes, concept, store),
+        PreparedRefinement::And(items) => items
             .iter()
             .all(|i| evaluate_refinement(i, concept, store, group_scope)),
-        RefinementConstraint::Or(items) => items
+        PreparedRefinement::Or(items) => items
             .iter()
             .any(|i| evaluate_refinement(i, concept, store, group_scope)),
     }
@@ -278,7 +649,7 @@ fn evaluate_refinement(
 /// match" directly, so the pre-cardinality "any"/"none" behavior falls
 /// out as that default's special case.
 fn evaluate_attribute_constraint(
-    a: &AttributeConstraint,
+    a: &PreparedAttribute,
     concept: SctId,
     store: &SnapshotStore,
     group_scope: Option<u32>,
@@ -286,8 +657,9 @@ fn evaluate_attribute_constraint(
     // `eclAttributeName = subExpressionConstraint` (spec/10): the
     // attribute name is itself a set of concepts to match `type_id`
     // against — a plain concept reference is just the common case
-    // (a singleton set), not a special-cased fast path.
-    let attribute_types = evaluate(&a.attribute, store);
+    // (a singleton set), not a special-cased fast path. Evaluated once
+    // per query, in `prepare_attribute`.
+    let attribute_types = &a.types;
     match &a.comparison {
         // `(= | !=) value`: count active inferred relationships of this
         // type whose destination — or, with the reverse flag, whose
@@ -299,8 +671,10 @@ fn evaluate_attribute_constraint(
         // value` matches when some concept in `value` has an active
         // inferred `attr` relationship *to* `concept` —
         // `relationships_to`, not `relationships_of`.
-        AttributeComparison::Expression { negated, value } => {
-            let value_set = evaluate(value, store);
+        PreparedComparison::Expression {
+            negated,
+            values: value_set,
+        } => {
             let count = if a.reverse {
                 store
                     .relationships_to(concept)
@@ -332,7 +706,7 @@ fn evaluate_attribute_constraint(
         // let `NotEq` negate the aggregate cardinality check instead —
         // mirroring `Expression`'s `negated` semantics exactly, rather
         // than redefining what "matches" means per operator.
-        AttributeComparison::Numeric { operator, value } => {
+        PreparedComparison::Numeric { operator, value } => {
             let count = store
                 .relationship_concrete_values_of(concept)
                 .filter(|r| r.active && r.is_inferred() && attribute_types.contains(&r.type_id))
@@ -355,7 +729,7 @@ fn evaluate_attribute_constraint(
         // (2+ entries for a `concreteStringSet`, spec/10) — a `Number`
         // value never matches. `negated` negates the aggregate
         // cardinality check, same pattern as `Expression`.
-        AttributeComparison::String { negated, values } => {
+        PreparedComparison::String { negated, values } => {
             let count = store
                 .relationship_concrete_values_of(concept)
                 .filter(|r| r.active && r.is_inferred() && attribute_types.contains(&r.type_id))
@@ -405,7 +779,12 @@ fn numeric_matches(operator: NumericComparisonOp, actual: &str, target: &str) ->
 /// documented semantics), not a real role group, so it's excluded from
 /// candidacy here; the official ECL guide doesn't state this explicitly,
 /// this crate's own already-established `relationshipGroup` semantics do.
-fn evaluate_attribute_group(g: &AttributeGroup, concept: SctId, store: &SnapshotStore) -> bool {
+fn evaluate_attribute_group(
+    cardinality: Cardinality,
+    attributes: &PreparedRefinement,
+    concept: SctId,
+    store: &SnapshotStore,
+) -> bool {
     // Candidate groups come from both relationship views: a role group can
     // hold ordinary relationships, concrete values, or a mix (a substance
     // alongside its strength), and `{ attr > #500 }` must be able to match
@@ -426,10 +805,10 @@ fn evaluate_attribute_group(g: &AttributeGroup, concept: SctId, store: &Snapshot
 
     let satisfied = group_ids
         .iter()
-        .filter(|&&gid| evaluate_refinement(&g.attributes, concept, store, Some(gid)))
+        .filter(|&&gid| evaluate_refinement(attributes, concept, store, Some(gid)))
         .count() as u32;
 
-    cardinality_matches(g.cardinality, satisfied)
+    cardinality_matches(cardinality, satisfied)
 }
 
 fn cardinality_matches(c: Cardinality, count: u32) -> bool {
@@ -509,7 +888,7 @@ mod tests {
     use snomed_core::member_id::MemberId;
     use snomed_core::sctid::ComponentType;
     use snomed_core::time::EffectiveTime;
-    use snomed_rf2::refset::{LanguageRefsetMember, RefsetMemberCore};
+    use snomed_rf2::refset::{LanguageRefsetMember, RefsetMemberCore, SimpleRefsetMember};
 
     const ROOT: SctId = constants::ROOT_CONCEPT;
     const FINDING: SctId = SctId::new_unchecked(404684003);
@@ -673,6 +1052,264 @@ mod tests {
 
         let expr = format!("^ {}", constants::US_ENGLISH_LANGUAGE_REFSET);
         assert_eq!(eval(&expr, &store), HashSet::from([fsn_id]));
+    }
+
+    /// A store for the `memberOf` forms of spec/10 rule 16.
+    ///
+    /// ```text
+    /// ROOT - FINDING - DISEASE - MI          (the IS-A chain)
+    /// refset_parent - refset_a, refset_b     (refsets in a hierarchy)
+    /// refset_a: { FINDING }
+    /// refset_b: { DISEASE }
+    /// ```
+    ///
+    /// Returns `(store, refset_parent, refset_a, refset_b)`.
+    fn member_of_store() -> (SnapshotStore, SctId, SctId, SctId) {
+        let id = |item: u64| SctId::compose(item, ComponentType::Concept, None).unwrap();
+        let (refset_parent, refset_a, refset_b) = (id(9300), id(9301), id(9302));
+
+        let mut b = SnapshotStore::builder();
+        for c in [
+            ROOT,
+            FINDING,
+            DISEASE,
+            MI,
+            refset_parent,
+            refset_a,
+            refset_b,
+        ] {
+            b.add_concept(concept(c));
+        }
+        b.add_relationship(is_a(1, FINDING, ROOT));
+        b.add_relationship(is_a(2, DISEASE, FINDING));
+        b.add_relationship(is_a(3, MI, DISEASE));
+        b.add_relationship(is_a(4, refset_a, refset_parent));
+        b.add_relationship(is_a(5, refset_b, refset_parent));
+
+        let mut member = |item: u32, refset_id: SctId, component_id: SctId| {
+            b.add_simple_member(SimpleRefsetMember {
+                core: RefsetMemberCore {
+                    id: MemberId::parse(&format!("80000000-0000-4000-8000-0000000000{item:02}"))
+                        .unwrap(),
+                    effective_time: EffectiveTime::new_unchecked(20190731),
+                    active: true,
+                    module_id: constants::CORE_MODULE,
+                    refset_id,
+                    referenced_component_id: component_id,
+                },
+            });
+        };
+        member(41, refset_a, FINDING);
+        member(42, refset_b, DISEASE);
+
+        (b.build(), refset_parent, refset_a, refset_b)
+    }
+
+    /// [`member_of_store`] plus a Language refset member, so the
+    /// concept-only scope of `^R` has something to exclude.
+    fn member_of_store_with_a_language_refset() -> (SnapshotStore, SctId, SctId, SctId) {
+        let (_, refset_parent, refset_a, refset_b) = member_of_store();
+        let mut b = SnapshotStore::builder();
+        for c in [
+            ROOT,
+            FINDING,
+            DISEASE,
+            MI,
+            refset_parent,
+            refset_a,
+            refset_b,
+        ] {
+            b.add_concept(concept(c));
+        }
+        b.add_relationship(is_a(1, FINDING, ROOT));
+        b.add_relationship(is_a(2, DISEASE, FINDING));
+        b.add_relationship(is_a(3, MI, DISEASE));
+        b.add_relationship(is_a(4, refset_a, refset_parent));
+        b.add_relationship(is_a(5, refset_b, refset_parent));
+        let mut simple = |item: u32, refset_id: SctId, component_id: SctId| {
+            b.add_simple_member(SimpleRefsetMember {
+                core: RefsetMemberCore {
+                    id: MemberId::parse(&format!("80000000-0000-4000-8000-0000000000{item:02}"))
+                        .unwrap(),
+                    effective_time: EffectiveTime::new_unchecked(20190731),
+                    active: true,
+                    module_id: constants::CORE_MODULE,
+                    refset_id,
+                    referenced_component_id: component_id,
+                },
+            });
+        };
+        simple(51, refset_a, FINDING);
+        simple(52, refset_b, DISEASE);
+
+        let description_id = SctId::compose(2002, ComponentType::Description, None).unwrap();
+        b.add_description(Description {
+            id: description_id,
+            effective_time: EffectiveTime::new_unchecked(20190731),
+            active: true,
+            module_id: constants::CORE_MODULE,
+            concept_id: MI,
+            language_code: "en".to_string(),
+            type_id: constants::FULLY_SPECIFIED_NAME,
+            term: "Myocardial infarction (disorder)".to_string(),
+            case_significance_id: constants::CASE_INSENSITIVE,
+        });
+        b.add_language_member(LanguageRefsetMember {
+            core: RefsetMemberCore {
+                id: MemberId::parse("80000000-0000-4000-8000-000000000053").unwrap(),
+                effective_time: EffectiveTime::new_unchecked(20190731),
+                active: true,
+                module_id: constants::CORE_MODULE,
+                refset_id: constants::US_ENGLISH_LANGUAGE_REFSET,
+                referenced_component_id: description_id,
+            },
+            acceptability_id: constants::PREFERRED,
+        });
+        (b.build(), refset_parent, refset_a, refset_b)
+    }
+
+    /// `^ *` — "all concepts that are referenced by any reference set in
+    /// the substrate" (spec/10 rule 16).
+    #[test]
+    fn member_of_wildcard_unions_every_refset() {
+        let (store, ..) = member_of_store();
+        assert_eq!(eval("^ *", &store), HashSet::from([FINDING, DISEASE]));
+    }
+
+    /// `< ^ X` applies the operator to each member and unions — it is not
+    /// "the members of the descendants of X" (spec/10 rule 16).
+    #[test]
+    fn a_hierarchy_prefix_applies_to_the_member_set() {
+        let (store, _, refset_a, _) = member_of_store();
+        assert_eq!(
+            eval(&format!("^ {refset_a}"), &store),
+            HashSet::from([FINDING])
+        );
+        assert_eq!(
+            eval(&format!("< ^ {refset_a}"), &store),
+            HashSet::from([DISEASE, MI])
+        );
+        assert_eq!(
+            eval(&format!("<< ^ {refset_a}"), &store),
+            HashSet::from([FINDING, DISEASE, MI])
+        );
+        assert_eq!(
+            eval(&format!("> ^ {refset_a}"), &store),
+            HashSet::from([ROOT])
+        );
+    }
+
+    /// The other reading is spelled with parentheses, and the two must
+    /// not be confusable: `^ ( < X )` is the memberOf of a *set of
+    /// refsets*, `< ^ X` is the descendants of one refset's members.
+    #[test]
+    fn member_of_a_computed_refset_set_differs_from_a_prefixed_member_of() {
+        let (store, refset_parent, refset_a, _) = member_of_store();
+        // The union of refset_a's and refset_b's members.
+        assert_eq!(
+            eval(&format!("^ (< {refset_parent})"), &store),
+            HashSet::from([FINDING, DISEASE])
+        );
+        assert_ne!(
+            eval(&format!("^ (< {refset_parent})"), &store),
+            eval(&format!("< ^ {refset_a}"), &store)
+        );
+    }
+
+    /// A literal refset id is a key into the membership index, not a
+    /// concept that must exist — see [`RefsetOperand`]. A store built
+    /// from refset files alone still answers `^ X`.
+    #[test]
+    fn a_literal_refset_id_need_not_be_a_concept_in_the_store() {
+        let refset = SctId::compose(9310, ComponentType::Concept, None).unwrap();
+        let mut b = SnapshotStore::builder();
+        b.add_concept(concept(MI));
+        b.add_simple_member(SimpleRefsetMember {
+            core: RefsetMemberCore {
+                id: MemberId::parse("80000000-0000-4000-8000-000000000043").unwrap(),
+                effective_time: EffectiveTime::new_unchecked(20190731),
+                active: true,
+                module_id: constants::CORE_MODULE,
+                refset_id: refset,
+                referenced_component_id: MI,
+            },
+        });
+        let store = b.build();
+        assert_eq!(eval(&format!("^ {refset}"), &store), HashSet::from([MI]));
+        // The computed form does resolve concepts, so it finds nothing
+        // here — the distinction the AST keeps.
+        assert_eq!(eval(&format!("^ ({refset})"), &store), HashSet::new());
+    }
+
+    /// `^R X` (spec/10 rule 17) is the exact inverse of `^`: the refsets
+    /// with an active member referencing X.
+    #[test]
+    fn refset_containing_any_inverts_member_of() {
+        let (store, _, refset_a, refset_b) = member_of_store();
+        assert_eq!(
+            eval(&format!("^R {FINDING}"), &store),
+            HashSet::from([refset_a])
+        );
+        assert_eq!(
+            eval(&format!("^R {DISEASE}"), &store),
+            HashSet::from([refset_b])
+        );
+        // A concept in no refset, and a refset id itself (which is not a
+        // *member* of anything here).
+        assert_eq!(eval(&format!("^R {MI}"), &store), HashSet::new());
+        assert_eq!(eval(&format!("^R {refset_a}"), &store), HashSet::new());
+    }
+
+    /// "the set of reference sets that contain **at least one** of the
+    /// given concepts" — so a set operand unions, it does not intersect.
+    #[test]
+    fn refset_containing_any_unions_over_the_operand() {
+        let (store, _, refset_a, refset_b) = member_of_store();
+        assert_eq!(
+            eval(&format!("^R ({FINDING} OR {DISEASE})"), &store),
+            HashSet::from([refset_a, refset_b])
+        );
+        // `<< FINDING` covers FINDING, DISEASE and MI; only the first two
+        // are members of anything.
+        assert_eq!(
+            eval(&format!("^R (<< {FINDING})"), &store),
+            HashSet::from([refset_a, refset_b])
+        );
+    }
+
+    /// `^R *` is every refset with at least one *concept* member — the
+    /// scope rule 17 restricts the operator to. The Language refset in
+    /// this store references a description, so it must not appear.
+    #[test]
+    fn refset_containing_any_wildcard_excludes_description_only_refsets() {
+        let (store, _, refset_a, refset_b) = member_of_store_with_a_language_refset();
+        assert_eq!(eval("^R *", &store), HashSet::from([refset_a, refset_b]));
+        // ...while `^ *`, which has no such restriction, does include the
+        // description it references.
+        assert!(eval("^ *", &store).len() > eval("^R *", &store).len());
+    }
+
+    /// `^ ^R X` round-trips: the members of the refsets containing X
+    /// include X itself.
+    #[test]
+    fn member_of_refset_containing_any_includes_the_original_concept() {
+        let (store, ..) = member_of_store();
+        assert!(eval(&format!("^ (^R {FINDING})"), &store).contains(&FINDING));
+    }
+
+    /// `constraintOperator "(" expressionConstraint ")"` — the operator
+    /// applies to each member of the set and the results union.
+    #[test]
+    fn a_hierarchy_prefix_applies_to_a_parenthesized_set() {
+        let (store, ..) = member_of_store();
+        assert_eq!(
+            eval(&format!("< ({FINDING} OR {DISEASE})"), &store),
+            HashSet::from([DISEASE, MI])
+        );
+        assert_eq!(
+            eval(&format!("<< ({DISEASE})"), &store),
+            eval(&format!("<< {DISEASE}"), &store)
+        );
     }
 
     fn refinement_store() -> (SnapshotStore, SctId, SctId, SctId) {
@@ -860,6 +1497,164 @@ mod tests {
             ),
             HashSet::new()
         );
+    }
+
+    /// A tiny "disorder" shape for `dottedExpressionConstraint`
+    /// (spec/10 rule 15):
+    ///
+    /// ```text
+    /// disorder_a --finding_site--> lung --part_of--> thorax
+    ///            --morphology----> inflammation (inactive concept)
+    /// disorder_b --finding_site--> lung
+    /// disorder_b --finding_site--> heart   (inactive relationship)
+    /// ```
+    ///
+    /// Returns `(store, finding_site, part_of, morphology, disorder_a,
+    /// disorder_b, lung, thorax, inflammation, heart)`.
+    #[allow(clippy::type_complexity)]
+    fn dotted_store() -> (
+        SnapshotStore,
+        SctId,
+        SctId,
+        SctId,
+        SctId,
+        SctId,
+        SctId,
+        SctId,
+        SctId,
+        SctId,
+    ) {
+        let id = |item: u64| SctId::compose(item, ComponentType::Concept, None).unwrap();
+        let (finding_site, part_of, morphology) = (id(9200), id(9201), id(9202));
+        let (disorder_a, disorder_b) = (id(9203), id(9204));
+        let (lung, thorax, inflammation, heart) = (id(9205), id(9206), id(9207), id(9208));
+
+        let mut b = SnapshotStore::builder();
+        for c in [
+            finding_site,
+            part_of,
+            morphology,
+            disorder_a,
+            disorder_b,
+            lung,
+            thorax,
+            heart,
+        ] {
+            b.add_concept(concept(c));
+        }
+        // Deliberately inactive: rule 15 says a dotted expression must not
+        // filter its *result* by concept status, because `* : R a = A`
+        // doesn't either (`*` is every concept, not every active one).
+        b.add_concept(Concept {
+            active: false,
+            ..concept(inflammation)
+        });
+
+        let mut rel = |item: u64, source: SctId, type_id: SctId, dest: SctId, active: bool| {
+            b.add_relationship(Relationship {
+                id: SctId::compose(4200 + item, ComponentType::Relationship, None).unwrap(),
+                effective_time: EffectiveTime::new_unchecked(20190731),
+                active,
+                module_id: constants::CORE_MODULE,
+                source_id: source,
+                destination_id: dest,
+                relationship_group: 1,
+                type_id,
+                characteristic_type_id: constants::INFERRED_RELATIONSHIP,
+                modifier_id: constants::EXISTENTIAL_MODIFIER,
+            });
+        };
+        rel(1, disorder_a, finding_site, lung, true);
+        rel(2, disorder_a, morphology, inflammation, true);
+        rel(3, disorder_b, finding_site, lung, true);
+        rel(4, disorder_b, finding_site, heart, false);
+        rel(5, lung, part_of, thorax, true);
+
+        (
+            b.build(),
+            finding_site,
+            part_of,
+            morphology,
+            disorder_a,
+            disorder_b,
+            lung,
+            thorax,
+            inflammation,
+            heart,
+        )
+    }
+
+    #[test]
+    fn dot_notation_returns_attribute_values_not_the_focus() {
+        let (store, finding_site, _, morphology, a, b, lung, _, inflammation, heart) =
+            dotted_store();
+        // The whole point of the form: the result is disjoint from the
+        // focus set.
+        assert_eq!(
+            eval(&format!("({a} OR {b}) . {finding_site}"), &store),
+            HashSet::from([lung])
+        );
+        // An inactive concept still comes back — see `dotted_store`.
+        assert_eq!(
+            eval(&format!("{a} . {morphology}"), &store),
+            HashSet::from([inflammation])
+        );
+        // An inactive *relationship* does not (rule 6's rows, read from
+        // the other end).
+        assert!(!eval(&format!("{b} . {finding_site}"), &store).contains(&heart));
+        // A focus with no relationship of that type yields nothing rather
+        // than falling back to the focus itself.
+        assert_eq!(
+            eval(&format!("{lung} . {finding_site}"), &store),
+            HashSet::new()
+        );
+    }
+
+    #[test]
+    fn dot_notation_chains_left_to_right() {
+        let (store, finding_site, part_of, _, a, b, _, thorax, _, _) = dotted_store();
+        assert_eq!(
+            eval(
+                &format!("({a} OR {b}) . {finding_site} . {part_of}"),
+                &store
+            ),
+            HashSet::from([thorax])
+        );
+    }
+
+    /// spec/10 rule 15: `A . a` is sugar for `* : R a = A`, so the two
+    /// must agree — including on the group-blindness of an ungrouped
+    /// refinement (`dotted_store` puts every relationship in group 1).
+    #[test]
+    fn dot_notation_agrees_with_the_reverse_flag_form() {
+        let (store, finding_site, part_of, morphology, a, b, ..) = dotted_store();
+        for (focus, attr) in [
+            (format!("({a} OR {b})"), finding_site),
+            (format!("{a}"), morphology),
+            (format!("{b}"), part_of),
+            ("*".to_string(), finding_site),
+        ] {
+            assert_eq!(
+                eval(&format!("{focus} . {attr}"), &store),
+                eval(&format!("* : R {attr} = {focus}"), &store),
+                "`{focus} . {attr}` and its reverse-flag equivalent disagree"
+            );
+        }
+    }
+
+    /// `eclAttributeName = subExpressionConstraint`: the attribute is a
+    /// *set* of type ids, so a hierarchy prefix widens which edges count.
+    #[test]
+    fn dot_notation_takes_an_expression_as_the_attribute_name() {
+        let (store, finding_site, part_of, _, a, _, lung, thorax, _, _) = dotted_store();
+        assert_eq!(
+            eval(
+                &format!("({a} OR {lung}) . ({finding_site} OR {part_of})"),
+                &store
+            ),
+            HashSet::from([lung, thorax])
+        );
+        assert_eq!(eval(&format!("{a} . *"), &store).len(), 2);
     }
 
     fn attribute_group_store() -> (SnapshotStore, SctId, SctId, SctId, SctId, SctId, SctId) {
@@ -1487,6 +2282,18 @@ mod tests {
         for c in [ROOT, FINDING, MI] {
             b.add_concept(concept(c));
         }
+        // The description-type metadata concepts, so an expression *over*
+        // them has something to evaluate against: spec/10 rule 2 makes an
+        // absent concept the empty set, which would silently make every
+        // `typeId` filter match nothing. A real release always carries
+        // them; a hand-built fixture has to say so.
+        for c in [
+            constants::FULLY_SPECIFIED_NAME,
+            constants::SYNONYM,
+            constants::TEXT_DEFINITION,
+        ] {
+            b.add_concept(concept(c));
+        }
         b.add_relationship(is_a(1, FINDING, ROOT));
         b.add_relationship(is_a(2, MI, FINDING));
         let described =
@@ -1569,6 +2376,89 @@ mod tests {
     }
 
     #[test]
+    fn nested_refinements_do_not_multiply_work_per_concept() {
+        // An attribute's name and value sets don't depend on the concept
+        // being tested, so they are evaluated once per constraint. When
+        // they were evaluated per candidate instead, a refinement whose
+        // *value* was itself a refinement re-ran the inner query once per
+        // concept, and nesting multiplied by the concept count at every
+        // level: this expression took 39 seconds against an eight-concept
+        // store (found by the `ecl_evaluate` fuzz target's slow-unit
+        // report). If that regresses, this test stops finishing rather
+        // than failing — a hang in CI is the signal.
+        let mut b = SnapshotStore::builder();
+        for item in 0..30u64 {
+            b.add_concept(concept(
+                SctId::compose(1500 + item, ComponentType::Concept, None).unwrap(),
+            ));
+        }
+        let store = b.build();
+        let attr = SctId::compose(1500, ComponentType::Concept, None).unwrap();
+
+        let mut expr = format!("*: {attr} = *");
+        for _ in 0..10 {
+            expr = format!("{expr} : {attr} = *");
+        }
+        assert!(
+            eval(&expr, &store).is_empty(),
+            "no concept has attributes, so the answer is empty — the point \
+             is that it arrives at all"
+        );
+    }
+
+    #[test]
+    fn description_filter_typed_search_terms() {
+        // spec/10: `match:` is the default and spells out what a bare
+        // term already does; `wild:` reads `*` as any run of characters;
+        // `exact:` is a case-sensitive whole-term equality.
+        let store = description_store();
+        assert_eq!(
+            eval("<< 138875005 {{ D term = match:\"heart\" }}", &store),
+            eval("<< 138875005 {{ D term = \"heart\" }}", &store),
+            "the explicit prefix spells out the default"
+        );
+        assert_eq!(
+            eval("<< 138875005 {{ D term = wild:\"*attack\" }}", &store),
+            HashSet::from([MI])
+        );
+        assert_eq!(
+            eval("<< 138875005 {{ D term = wild:\"heart*\" }}", &store),
+            HashSet::from([MI])
+        );
+        assert!(
+            eval("<< 138875005 {{ D term = wild:\"attack\" }}", &store).is_empty(),
+            "wild matches the whole term, so a bare word must match it entirely"
+        );
+        // `exact:` is case-sensitive — the property that distinguishes it
+        // from `match:` on a single full word.
+        assert_eq!(
+            eval("<< 138875005 {{ D term = exact:\"Heart attack\" }}", &store),
+            HashSet::from([MI])
+        );
+        assert!(eval("<< 138875005 {{ D term = exact:\"heart attack\" }}", &store).is_empty());
+        assert!(eval("<< 138875005 {{ D term = exact:\"Heart\" }}", &store).is_empty());
+        // A search term with nothing to match — empty, or all
+        // punctuation — matches nothing rather than silently disabling
+        // the filter and returning the whole hierarchy.
+        assert!(eval("<< 138875005 {{ D term = \"\" }}", &store).is_empty());
+        assert!(eval("<< 138875005 {{ D term = \"-\" }}", &store).is_empty());
+        assert!(eval("<< 138875005 {{ D term = match:\"()\" }}", &store).is_empty());
+        // A set may mix types.
+        assert_eq!(
+            eval(
+                "<< 138875005 {{ D term = (exact:\"Heart attack\" wild:\"*finding*\") }}",
+                &store
+            ),
+            HashSet::from([MI, FINDING])
+        );
+        // `regex:` is named, not mis-read as an unknown keyword.
+        assert!(matches!(
+            parse("<< 138875005 {{ D term = regex:\"he.*\" }}"),
+            Err(crate::error::EclError::NotYetImplemented { .. })
+        ));
+    }
+
+    #[test]
     fn description_filter_is_active_only_by_default() {
         let store = description_store();
         // "Cardiac infarct" is an inactive description, so it doesn't
@@ -1587,6 +2477,267 @@ mod tests {
                 &store
             ),
             HashSet::from([MI])
+        );
+    }
+
+    #[test]
+    fn description_filter_module_and_effective_time() {
+        // spec/10: these filter the *description's* own columns, not its
+        // concept's — a description can be edited in a later release, or
+        // contributed by an extension module, without the concept moving.
+        let extension_module = SctId::compose(9200, ComponentType::Concept, None).unwrap();
+        let mut b = SnapshotStore::builder();
+        for c in [ROOT, MI, FINDING, constants::CORE_MODULE, extension_module] {
+            b.add_concept(concept(c));
+        }
+        b.add_relationship(is_a(1, MI, ROOT));
+        b.add_relationship(is_a(2, FINDING, ROOT));
+        let described = |item: u64, concept_id: SctId, module: SctId, time: u32| Description {
+            id: SctId::compose(item, ComponentType::Description, None).unwrap(),
+            effective_time: EffectiveTime::new_unchecked(time),
+            active: true,
+            module_id: module,
+            concept_id,
+            language_code: "en".to_string(),
+            type_id: constants::SYNONYM,
+            term: format!("Term {item}"),
+            case_significance_id: constants::CASE_INSENSITIVE,
+        };
+        b.add_descriptions([
+            described(8001, MI, constants::CORE_MODULE, 20190731),
+            described(8002, FINDING, extension_module, 20240101),
+        ]);
+        let store = b.build();
+
+        let core = constants::CORE_MODULE;
+        assert_eq!(
+            eval(&format!("<< {ROOT} {{{{ D moduleId = {core} }}}}"), &store),
+            HashSet::from([MI])
+        );
+        assert_eq!(
+            eval(
+                &format!("<< {ROOT} {{{{ D moduleId = {extension_module} }}}}"),
+                &store
+            ),
+            HashSet::from([FINDING])
+        );
+        assert_eq!(
+            eval(&format!("<< {ROOT} {{{{ D moduleId != {core} }}}}"), &store),
+            HashSet::from([FINDING])
+        );
+        assert_eq!(
+            eval(
+                &format!("<< {ROOT} {{{{ D effectiveTime >= \"20200101\" }}}}"),
+                &store
+            ),
+            HashSet::from([FINDING]),
+            "the description's own effectiveTime, not the concept's"
+        );
+        assert_eq!(
+            eval(
+                &format!("<< {ROOT} {{{{ D effectiveTime = (\"20190731\" \"20240101\") }}}}"),
+                &store
+            ),
+            HashSet::from([MI, FINDING])
+        );
+        // Same block, same description.
+        assert_eq!(
+            eval(
+                &format!("<< {ROOT} {{{{ D moduleId = {core}, effectiveTime < \"20200101\" }}}}"),
+                &store
+            ),
+            HashSet::from([MI])
+        );
+    }
+
+    #[test]
+    fn description_filter_dialect_id_and_acceptability() {
+        // spec/10: a dialect filter asks whether the description is an
+        // active member of that language refset — the question
+        // `SnapshotStore::acceptability` already answers — optionally
+        // narrowed to preferred or acceptable.
+        let us = constants::US_ENGLISH_LANGUAGE_REFSET;
+        let gb = constants::GB_ENGLISH_LANGUAGE_REFSET;
+        let mut b = SnapshotStore::builder();
+        for c in [ROOT, MI, FINDING] {
+            b.add_concept(concept(c));
+        }
+        b.add_relationship(is_a(1, MI, ROOT));
+        b.add_relationship(is_a(2, FINDING, ROOT));
+
+        let described = |item: u64, concept_id: SctId, term: &str| Description {
+            id: SctId::compose(item, ComponentType::Description, None).unwrap(),
+            effective_time: EffectiveTime::new_unchecked(20190731),
+            active: true,
+            module_id: constants::CORE_MODULE,
+            concept_id,
+            language_code: "en".to_string(),
+            type_id: constants::SYNONYM,
+            term: term.to_string(),
+            case_significance_id: constants::CASE_INSENSITIVE,
+        };
+        let mi_term = described(7001, MI, "Heart attack");
+        let finding_term = described(7002, FINDING, "Clinical finding");
+        let member = |uuid: u128, refset: SctId, description: SctId, acceptability: SctId| {
+            LanguageRefsetMember {
+                core: RefsetMemberCore {
+                    id: MemberId::from_u128(uuid),
+                    effective_time: EffectiveTime::new_unchecked(20190731),
+                    active: true,
+                    module_id: constants::CORE_MODULE,
+                    refset_id: refset,
+                    referenced_component_id: description,
+                },
+                acceptability_id: acceptability,
+            }
+        };
+        b.add_language_member(member(1, us, mi_term.id, constants::PREFERRED));
+        b.add_language_member(member(2, gb, mi_term.id, constants::ACCEPTABLE));
+        b.add_language_member(member(3, us, finding_term.id, constants::ACCEPTABLE));
+        b.add_descriptions([mi_term, finding_term]);
+        let store = b.build();
+
+        // Membership alone, no acceptability named.
+        assert_eq!(
+            eval(&format!("<< {ROOT} {{{{ D dialectId = {us} }}}}"), &store),
+            HashSet::from([MI, FINDING])
+        );
+        assert_eq!(
+            eval(&format!("<< {ROOT} {{{{ D dialectId = {gb} }}}}"), &store),
+            HashSet::from([MI])
+        );
+        // Narrowed by acceptability — the classic "preferred in US
+        // English" query.
+        assert_eq!(
+            eval(
+                &format!("<< {ROOT} {{{{ D dialectId = {us} (preferred) }}}}"),
+                &store
+            ),
+            HashSet::from([MI])
+        );
+        assert_eq!(
+            eval(
+                &format!("<< {ROOT} {{{{ D dialectId = {us} (acceptable) }}}}"),
+                &store
+            ),
+            HashSet::from([FINDING])
+        );
+        // A set covers both, and `prefer`/`accept` are the same tokens.
+        assert_eq!(
+            eval(
+                &format!("<< {ROOT} {{{{ D dialectId = {us} (prefer accept) }}}}"),
+                &store
+            ),
+            HashSet::from([MI, FINDING])
+        );
+        // The same description must satisfy every filter in the block: MI
+        // is preferred in US English, and that description says "heart".
+        assert_eq!(
+            eval(
+                &format!("<< {ROOT} {{{{ D dialectId = {us} (preferred), term = \"heart\" }}}}"),
+                &store
+            ),
+            HashSet::from([MI])
+        );
+        assert!(eval(
+            &format!("<< {ROOT} {{{{ D dialectId = {gb} (preferred) }}}}"),
+            &store
+        )
+        .is_empty());
+        // A refset the store knows nothing about: no members, no match.
+        assert!(eval(&format!("<< {ROOT} {{{{ D dialectId = {MI} }}}}"), &store).is_empty());
+    }
+
+    #[test]
+    fn description_filter_language() {
+        // spec/10: `language` matches the description's own languageCode
+        // column. The code is a bare word — the reason the lexer stopped
+        // treating unknown words as errors.
+        let mut b = SnapshotStore::builder();
+        for c in [ROOT, MI, FINDING] {
+            b.add_concept(concept(c));
+        }
+        b.add_relationship(is_a(1, MI, ROOT));
+        b.add_relationship(is_a(2, FINDING, ROOT));
+        let described = |item: u64, concept_id: SctId, language: &str, term: &str| Description {
+            id: SctId::compose(item, ComponentType::Description, None).unwrap(),
+            effective_time: EffectiveTime::new_unchecked(20190731),
+            active: true,
+            module_id: constants::CORE_MODULE,
+            concept_id,
+            language_code: language.to_string(),
+            type_id: constants::SYNONYM,
+            term: term.to_string(),
+            case_significance_id: constants::CASE_INSENSITIVE,
+        };
+        b.add_descriptions([
+            described(6001, MI, "en", "Heart attack"),
+            described(6002, FINDING, "sv", "Klinisk fynd"),
+        ]);
+        let store = b.build();
+
+        assert_eq!(
+            eval("<< 138875005 {{ D language = en }}", &store),
+            HashSet::from([MI])
+        );
+        assert_eq!(
+            eval("<< 138875005 {{ D language = sv }}", &store),
+            HashSet::from([FINDING])
+        );
+        // Case-insensitive, since RF2 writes the column lowercase and a
+        // query shouldn't have to know that.
+        assert_eq!(
+            eval("<< 138875005 {{ D language = EN }}", &store),
+            HashSet::from([MI])
+        );
+        assert_eq!(
+            eval("<< 138875005 {{ D language = (en sv) }}", &store),
+            HashSet::from([MI, FINDING]),
+            "a code set is OR'd"
+        );
+        assert_eq!(
+            eval("<< 138875005 {{ D language != en }}", &store),
+            HashSet::from([FINDING])
+        );
+        // Same block, same description: an English *synonym* saying
+        // "heart".
+        assert_eq!(
+            eval(
+                "<< 138875005 {{ D language = en, term = \"heart\" }}",
+                &store
+            ),
+            HashSet::from([MI])
+        );
+        assert!(eval(
+            "<< 138875005 {{ D language = sv, term = \"heart\" }}",
+            &store
+        )
+        .is_empty());
+    }
+
+    #[test]
+    fn description_filter_type_id_form() {
+        // spec/10: `typeId` asks `type`'s question with a concept
+        // expression, for callers generating queries rather than writing
+        // them.
+        let store = description_store();
+        let fsn = constants::FULLY_SPECIFIED_NAME;
+        let synonym = constants::SYNONYM;
+        assert_eq!(
+            eval(&format!("<< 138875005 {{{{ D typeId = {fsn} }}}}"), &store),
+            eval("<< 138875005 {{ D type = fsn }}", &store)
+        );
+        assert_eq!(
+            eval(
+                &format!("<< 138875005 {{{{ D typeId = ({fsn} OR {synonym}) }}}}"),
+                &store
+            ),
+            eval("<< 138875005 {{ D type = (fsn syn) }}", &store),
+            "an expression covers what the token set covers"
+        );
+        assert_eq!(
+            eval(&format!("<< 138875005 {{{{ D typeId != {fsn} }}}}"), &store),
+            eval("<< 138875005 {{ D type != fsn }}", &store)
         );
     }
 

@@ -88,9 +88,8 @@ chain, each seeing only what the previous one let through.
   no new separator handling; they're ANDed together.
 
 **Not implemented:** member filter constraints (`{{ M ... }}`), which
-are recognized and rejected by name — see [Not yet
-implemented](#not-yet-implemented) for why they are more than a parsing
-gap.
+are recognized and rejected by name — see
+`spec/10-ecl-unimplemented.md` for why they are more than a parsing gap.
 
 ## Description filter constraint (`{{ D ... }}`)
 
@@ -105,8 +104,11 @@ Implemented filter kinds:
 
 | Filter | Form | Matches |
 |---|---|---|
-| `termFilter` | `term (=\|!=) (searchTerm \| searchTermSet)` | the description's `term`, by the grammar's default `match:` search type |
+| `termFilter` | `term (=\|!=) (typedSearchTerm \| typedSearchTermSet)` | the description's `term`, by the search type each term names (`match:` when none is written) |
 | `typeTokenFilter` | `type (=\|!=) (typeToken \| typeTokenSet)`, tokens `fsn`/`syn`/`def` | the description's `typeId` against spec/06's three types |
+| `typeIdFilter` | `typeId (=\|!=) subExpressionConstraint` | the same question as `type`, with a concept expression instead of a keyword — what a generated query carries |
+| `languageFilter` | `language (=\|!=) (languageCode \| languageCodeSet)`, codes bare (`en`, not `"en"`) | the description's `languageCode` column (spec/06), case-insensitively |
+| `dialectIdFilter` | `dialectId (=\|!=) sctid [acceptabilitySet]` | active membership of that Language reference set (spec/08), optionally narrowed to `(preferred)` / `(acceptable)` |
 | `activeFilter` | `active (=\|!=) (true\|false\|*)` | the description's own `active` column |
 
 Three rules this section fixes, each a judgment call the official sources
@@ -139,12 +141,94 @@ leave open or state only implicitly:
    ("Left/right hand structure"). Splitting both sides identically also
    means a search written with punctuation behaves like one without.
 
-**Not implemented here:** the `typeId` form of `typeFilter` (concept
-reference instead of a token), `languageFilter`, `dialectIdFilter`/
-`dialectAliasFilter` (with their acceptability sets), and the
-`match:`/`wild:`/`regex:`/`exact:` typed-search-term prefixes.
-`moduleId` and `effectiveTime` inside a description filter are rejected
-with a named `NotYetImplemented` (their keywords are tokenized, since the
-concept filter uses them); the rest aren't tokenized and fall in the
-generic-error bucket rule 9 describes.
+One consequence of spec/10 rule 2 worth stating, because it looks like a
+bug the first time: `typeId = 900000000000003001` matches nothing if that
+metadata concept isn't loaded, since an absent concept evaluates to the
+empty set. A real release always carries the description-type concepts; a
+hand-built store may not. The same applies to `moduleId` and
+`definitionStatusId` in `{{ C ... }}`.
+
+A language code is a bare word, and that is what forced a change in how
+this crate splits lexing from parsing: the lexer used to reject any
+alphanumeric run it had no keyword for, so `en` never reached the parser.
+Unknown words are now `TokenKind::Word` tokens, and the parser rejects one
+it can't use with the same `EclError::UnexpectedKeyword` the lexer used to
+raise — the position, not the token, is what decides. One consequence
+worth knowing: a language code spelled exactly like one of this grammar's
+keywords lexes as that keyword and is rejected. No ISO 639-1 code collides
+today; the caveat is recorded for the same reason the `R#...` alternate
+identifier one is.
+
+### Dialects
+
+`dialectId = 900000000000509007 (preferred)` is the classic query — "the
+concept's preferred term in US English" — and it needs no new data: a
+description is in a dialect exactly when
+`SnapshotStore::acceptability(refset, description)` answers, and that
+index is active-members-only by construction (spec/09 rule 4). An absent
+acceptability set means membership alone is the test; `(preferred)`,
+`(acceptable)`, or both narrow it. `prefer`/`accept` are accepted as the
+grammar's short spellings of the same two tokens.
+
+Spotting the set needs no lookahead, unlike `concreteStringSet`: a filter
+is followed only by `,` or `}}`, so a `(` after the dialect reference can
+be nothing else. An empty `()` is rejected rather than read as "any" — it
+says nothing, and silently accepting it would accept a query that means
+nothing.
+
+**The `dialect` alias form is rejected by name**, not merely
+unimplemented. An alias like `en-us` maps to a reference set id only
+through deployment-specific policy — the same reason `snomed-fhir` takes
+a language refset id rather than a BCP-47 tag (spec/11's "Dialect instead
+of `displayLanguage`" note). A caller that has the mapping applies it and
+writes `dialectId`; a caller that doesn't would be guessing, and this
+crate would be guessing on its behalf.
+
+### Search types
+
+A search term may name how it should be compared: `term = wild:"heart*"`,
+`term = exact:"Heart attack"`, or `term = match:"heart att"` — and a set
+may mix them, since the prefix belongs to the term, not the filter.
+
+| Type | Meaning |
+|---|---|
+| `match:` (default) | every word of the search term prefixes some word of the description term, in any order; case-insensitive. Words split at every non-alphanumeric character on both sides |
+| `wild:` | the **whole** description term matches the search term read as a pattern, `*` standing for any run of characters; case-insensitive |
+| `exact:` | the description term equals the search term exactly, **case-sensitively** |
+
+Two things worth pinning, because both could reasonably go the other way:
+
+- **`exact:` is case-sensitive.** Neither official source states it, and
+  if `exact:` were case-insensitive it would mean the same thing as
+  `match:` on a single full word — a search type that duplicates another
+  is not what a grammar adds a keyword for. Documented judgment call, same
+  category as role group `0`.
+- **A `match:` term with no words matches nothing.** `term = ""`, or
+  `term = "-"`, or anything that tokenizes to no words: the vacuous-truth
+  reading (`all` over an empty set is true) would make the filter
+  silently stop filtering, so a caller whose search box was empty gets
+  the whole hierarchy back with no sign anything went wrong. Matching
+  nothing is visibly wrong instead, which is the failure this document
+  prefers throughout. (`wild:""` and `exact:""` need no special case:
+  both already match only an empty term.)
+- **`wild:` matches the whole term, not a substring of it.** So
+  `wild:"attack"` does *not* match "Heart attack"; `wild:"*attack"` does.
+  Anchoring is what makes the `*` meaningful — an unanchored wildcard
+  match would make every pattern a substring search and `*` decorative.
+  Matching is iterative with a backtrack mark, not recursive: a pattern of
+  alternating `*`s would otherwise be exponential, and patterns are
+  caller input.
+
+`regex:` is rejected with a named error: a regular expression engine is an
+external dependency, which CLAUDE.md rule 2 makes a `plan.md` decision
+rather than a convenience. This is the only ECL construct this workspace
+declines for dependency reasons rather than semantic ones.
+
+**Not implemented here:** the `dialectAliasFilter` above, the
+`dialectIdSet` form (several dialects with per-dialect acceptabilities in
+one filter — write one filter per dialect, since filters in a block
+conjoin over the same description), and the
+`regex:` search type (above). A filter
+keyword this grammar doesn't have lexes as a word, and the parser rejects
+it as an unknown keyword — the generic bucket rule 9 describes.
 

@@ -114,9 +114,13 @@ input), `A` is subsumed by `B` iff `B ∈ S(A)`. Fresh names introduced
 during normalization are internal — never exposed in
 [`Classification`]'s public API.
 
-## API robustness (normative for `snomed-classify`)
+## Rules (normative for `snomed-classify`)
 
-6. `classify`/`necessary_normal_form` MUST NOT panic on any value of
+The completion rules CR1-CR5 above are steps of the algorithm, not
+requirements on this crate; these are the requirements. There is one so
+far, numbered from 1 like every other spec file's rules list.
+
+1. `classify`/`necessary_normal_form` MUST NOT panic on any value of
    `snomed_owl::Axiom`. `Axiom` is public, so callers can build shapes
    `snomed-owl`'s parser would reject: in particular an
    `ObjectPropertyChain` with fewer than two operands. One operand is

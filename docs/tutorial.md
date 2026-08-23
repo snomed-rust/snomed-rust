@@ -20,8 +20,9 @@ This repository ships **no SNOMED CT content** — RF2 release files are
 licensed material (see the license note in the root
 [`README.md`](../README.md)). Everything below either validates
 identifiers structurally (no data needed) or works against a tiny,
-hand-authored four-concept release this tutorial writes to a temp
-directory itself, so you can run every step with nothing but this repo.
+hand-authored seven-concept release this tutorial writes to a temp
+directory itself — concepts, descriptions, relationships, and a Simple
+reference set — so you can run every step with nothing but this repo.
 When you're ready to point these same APIs at a real release, get one
 under your own affiliate license (free in most countries — the NLM in
 the US, for example) and swap the temp directory for your unzipped
@@ -67,7 +68,7 @@ let store = builder.build();
 ```
 
 ```
-loaded 3 file(s), skipped 0 — 4 concepts, 4 active
+loaded 4 file(s), skipped 0 — 7 concepts, 7 active
 ```
 
 `load_release_dir` never fails outright just because it doesn't
@@ -101,7 +102,7 @@ deliberate, not an oversight, because "what a release actually computed
 as true" and "what an author stated as intended" are genuinely different
 questions in SNOMED CT's authoring model.
 
-## Step 4 — an ECL query
+## Step 4 — ECL queries
 
 ```rust
 let expr = parse_ecl("<< 404684003 MINUS << 64572001")?;
@@ -116,10 +117,41 @@ let matches = evaluate_ecl(&expr, &store);
 `<<` is descendant-or-self, `MINUS` is set difference. `evaluate_ecl`
 returns a `HashSet<SctId>`, so checking whether one particular concept
 matches a large expression is O(1) after the initial evaluation, not a
-re-walk. `snomed-ecl` also supports refinements (`focus : attr = value`,
-including cardinality and role groups) — see
-[`crates/snomed-ecl/README.md`](../crates/snomed-ecl/README.md) for the
-full grammar this subset covers.
+re-walk.
+
+ECL is much wider than hierarchy arithmetic, though, and the four
+queries the example runs next are each a different *kind* of question
+over the same store:
+
+```
+'<< 404684003 : 363698007 = 80891009' -> [22298006] — refinement: findings whose finding site is the heart structure
+'^ 723264001' -> [80891009] — memberOf: the reference set's members
+'^R 80891009' -> [723264001] — refsetContainingAny: the reference sets that contain that concept — the inverse of `^`
+'<< 404684003 . 363698007' -> [80891009] — dot notation: the finding *sites* themselves, not the findings
+```
+
+Two things are worth pausing on.
+
+The middle pair is a matched set: `^ 723264001` returns `80891009`, and
+`^R 80891009` returns `723264001`. They are exact inverses over the same
+membership index, read from opposite ends (spec/10 rules 16–17). `^R` is
+defined only over reference sets whose referenced components are
+concepts, which is why asking it about a description id returns nothing
+rather than an error.
+
+The last one is the odd form out: **dot notation is the one ECL shape
+whose result isn't a subset of what you asked about.** `<< 404684003`
+selects findings; `<< 404684003 . 363698007` hands back the *finding
+sites of* those findings — body structures, not findings. If you read
+that output expecting a subset of the focus, it looks like a bug. It
+isn't; it's the point of the operator. (It's defined as sugar for the
+reverse-flag refinement `* : R 363698007 = << 404684003`, and a test
+holds the two spellings to the same answer.)
+
+See [`crates/snomed-ecl/README.md`](../crates/snomed-ecl/README.md) for
+the full grammar this subset covers, and
+[`spec/10-ecl-unimplemented.md`](../spec/10-ecl-unimplemented.md) for
+what it deliberately still rejects.
 
 ## Step 5 — OWL, classification, and necessary normal form
 

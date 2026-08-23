@@ -60,7 +60,7 @@ pub mod prelude {
 
     pub use snomed_ecl::{
         evaluate as evaluate_ecl, parse as parse_ecl, AttributeConstraint, EclError,
-        ExpressionConstraint, FocusConcept, HierarchyOp, RefinementConstraint,
+        ExpressionConstraint, FocusConcept, HierarchyOp, RefinementConstraint, RefsetOperand,
         SimpleExpressionConstraint,
     };
 

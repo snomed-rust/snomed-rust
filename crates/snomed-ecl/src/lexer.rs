@@ -42,7 +42,8 @@ pub enum TokenKind {
     RBracket,
     /// `..` — separates a cardinality's min and max.
     DotDot,
-    /// `.` alone — starts dot notation (not yet implemented).
+    /// `.` alone — a `dottedExpressionAttribute` separator (spec/10
+    /// rule 15). Distinct from [`Self::DotDot`], the cardinality range.
     Dot,
     /// `!!>` — `top` (not yet implemented).
     Top,
@@ -74,8 +75,8 @@ pub enum TokenKind {
     QuotedString(String),
     /// `C`/`c` immediately after `{{` — a concept filter constraint.
     ConceptFilterMarker,
-    /// `D`/`d` immediately after `{{` — a description filter constraint
-    /// (not yet implemented; also the default when no marker is written).
+    /// `D`/`d` immediately after `{{` — a description filter constraint.
+    /// Also the default when no marker is written, per the grammar.
     DescriptionFilterMarker,
     /// `M`/`m` immediately after `{{` — a member filter constraint (not
     /// yet implemented).
@@ -104,6 +105,23 @@ pub enum TokenKind {
     TermKeyword,
     /// `type` — a description filter's `typeTokenFilter`.
     TypeKeyword,
+    /// `language` — a description filter's `languageFilter`.
+    LanguageKeyword,
+    /// `dialectId` — a description filter's `dialectIdFilter`.
+    DialectIdKeyword,
+    /// `dialect` — a description filter's `dialectAliasFilter`.
+    DialectKeyword,
+    /// `preferred` / `prefer` — an `acceptabilityToken`.
+    PreferredToken,
+    /// `acceptable` / `accept` — an `acceptabilityToken`.
+    AcceptableToken,
+    /// `typeId` — a description filter's `typeIdFilter`, which takes a
+    /// concept expression rather than an `fsn`/`syn`/`def` token.
+    TypeIdKeyword,
+    /// An alphanumeric run this grammar has no keyword for. Only some
+    /// positions accept one (a `languageFilter`'s code); everywhere else
+    /// the parser rejects it as an unknown keyword.
+    Word(String),
     /// `fsn` — a `typeToken` (fully specified name).
     FsnToken,
     /// `syn` — a `typeToken` (synonym).
@@ -173,6 +191,13 @@ pub fn describe(kind: &TokenKind) -> String {
         TokenKind::EffectiveTimeKeyword => "`effectiveTime`".to_string(),
         TokenKind::TermKeyword => "`term`".to_string(),
         TokenKind::TypeKeyword => "`type`".to_string(),
+        TokenKind::TypeIdKeyword => "`typeId`".to_string(),
+        TokenKind::LanguageKeyword => "`language`".to_string(),
+        TokenKind::DialectIdKeyword => "`dialectId`".to_string(),
+        TokenKind::DialectKeyword => "`dialect`".to_string(),
+        TokenKind::PreferredToken => "`preferred`".to_string(),
+        TokenKind::AcceptableToken => "`acceptable`".to_string(),
+        TokenKind::Word(w) => format!("`{w}`"),
         TokenKind::FsnToken => "`fsn`".to_string(),
         TokenKind::SynToken => "`syn`".to_string(),
         TokenKind::DefToken => "`def`".to_string(),
@@ -432,6 +457,12 @@ impl Lexer {
                     "EFFECTIVETIME" => TokenKind::EffectiveTimeKeyword,
                     "TERM" => TokenKind::TermKeyword,
                     "TYPE" => TokenKind::TypeKeyword,
+                    "TYPEID" => TokenKind::TypeIdKeyword,
+                    "LANGUAGE" => TokenKind::LanguageKeyword,
+                    "DIALECTID" => TokenKind::DialectIdKeyword,
+                    "DIALECT" => TokenKind::DialectKeyword,
+                    "PREFERRED" | "PREFER" => TokenKind::PreferredToken,
+                    "ACCEPTABLE" | "ACCEPT" => TokenKind::AcceptableToken,
                     "FSN" => TokenKind::FsnToken,
                     "SYN" => TokenKind::SynToken,
                     "DEF" => TokenKind::DefToken,
@@ -441,8 +472,7 @@ impl Lexer {
                         // The scheme-alias grammar allows trailing
                         // digits/dashes after the initial alpha run —
                         // check for those, then for a following `#`,
-                        // before concluding this is just an unrecognized
-                        // keyword (e.g. a typo like "XOR").
+                        // before treating this as an ordinary word.
                         let mut lookahead = self.pos;
                         while lookahead < self.chars.len()
                             && (self.chars[lookahead].is_ascii_alphanumeric()
@@ -456,10 +486,24 @@ impl Lexer {
                                 feature: "alternate identifiers (`A#B`)",
                             });
                         }
-                        return Err(EclError::UnexpectedKeyword {
-                            pos: start,
-                            found: s,
-                        });
+                        // Not a keyword this grammar knows — but the lexer
+                        // is the wrong place to decide that's an error.
+                        // Some positions legitimately take an arbitrary
+                        // word (a `languageFilter`'s `en`), and the parser
+                        // is what knows which position it is in; it
+                        // rejects a word it can't use with the same
+                        // `UnexpectedKeyword` this branch used to raise.
+                        // A word may carry the alphanumerics and dashes a
+                        // language code needs (`en-GB`).
+                        let mut word = s;
+                        while self.pos < self.chars.len()
+                            && (self.chars[self.pos].is_ascii_alphanumeric()
+                                || self.chars[self.pos] == '-')
+                        {
+                            word.push(self.chars[self.pos]);
+                            self.pos += 1;
+                        }
+                        TokenKind::Word(word)
                     }
                 }
             }
@@ -704,14 +748,12 @@ mod tests {
                 feature: "alternate identifiers (`A#B`)",
             })
         );
-        // A genuine unrecognized keyword (no `#` anywhere nearby) is
-        // unaffected.
+        // A word with no `#` after it is not the lexer's problem: it
+        // becomes a `Word` token, and the parser decides whether the
+        // position accepts one (`crate::parser::Parser::unexpected`).
         assert_eq!(
-            lex("XOR"),
-            Err(EclError::UnexpectedKeyword {
-                pos: 0,
-                found: "XOR".to_string()
-            })
+            lex("XOR").map(|tokens| tokens.into_iter().map(|t| t.kind).collect::<Vec<_>>()),
+            Ok(vec![TokenKind::Word("XOR".to_string()), TokenKind::Eof])
         );
     }
 
@@ -744,13 +786,8 @@ mod tests {
             lex("/* unterminated"),
             Err(EclError::UnterminatedComment { pos: 0 })
         );
-        assert_eq!(
-            lex("XOR"),
-            Err(EclError::UnexpectedKeyword {
-                pos: 0,
-                found: "XOR".to_string()
-            })
-        );
+        // An unknown word is a token, not a lex error — see
+        // `alternate_identifier_shape_is_a_named_not_yet_implemented_error`.
     }
 
     #[test]

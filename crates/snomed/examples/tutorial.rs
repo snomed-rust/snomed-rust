@@ -12,7 +12,9 @@
 //! Six steps, each touching a different crate: SCTID validation
 //! (`snomed-core`), loading a release directory (`snomed-rf2` +
 //! `snomed-store`), hierarchy queries (`snomed-store`), an ECL query
-//! (`snomed-ecl`), OWL parsing + EL classification + necessary normal
+//! (`snomed-ecl`, five queries: hierarchy arithmetic, a refinement, `^`,
+//! `^R`, and dot notation), OWL parsing + EL classification + necessary
+//! normal
 //! form (`snomed-owl` + `snomed-classify`), and a FHIR `$expand` over
 //! the same store (`snomed-fhir`) — cross-checked against the ECL
 //! result from step 4, since both are independent consumers of the same
@@ -40,10 +42,13 @@ fn write(dir: &Path, relative: &str, contents: &str) {
     fs::write(path, contents).unwrap();
 }
 
-/// Writes a tiny Snapshot release: four concepts (SNOMED CT Concept →
-/// Clinical finding → Disease → Myocardial infarction), each with an
-/// FSN, wired up with IS-A relationships. Real SCTIDs (well-known
-/// metadata concepts, per `CLAUDE.md`'s testing convention), but
+/// Writes a tiny Snapshot release: seven concepts, each with an FSN.
+/// Four form an IS-A chain (SNOMED CT Concept → Clinical finding →
+/// Disease → Myocardial infarction); the other three give the ECL step
+/// something beyond taxonomy to query — a finding-site attribute
+/// relationship from Myocardial infarction to Heart structure, and a
+/// Simple reference set containing Heart structure. Real SCTIDs
+/// (well-known concepts, per `CLAUDE.md`'s testing convention), but
 /// obviously not a real, complete release.
 fn write_tutorial_release(root: &Path) {
     write(
@@ -53,7 +58,10 @@ fn write_tutorial_release(root: &Path) {
          138875005\t20250101\t1\t900000000000207008\t900000000000074008\n\
          404684003\t20250101\t1\t900000000000207008\t900000000000074008\n\
          64572001\t20250101\t1\t900000000000207008\t900000000000074008\n\
-         22298006\t20250101\t1\t900000000000207008\t900000000000074008\n",
+         22298006\t20250101\t1\t900000000000207008\t900000000000074008\n\
+         363698007\t20250101\t1\t900000000000207008\t900000000000074008\n\
+         80891009\t20250101\t1\t900000000000207008\t900000000000074008\n\
+         723264001\t20250101\t1\t900000000000207008\t900000000000074008\n",
     );
     let fsn = |item: u64| SctId::compose(item, ComponentType::Description, None).unwrap();
     write(
@@ -64,8 +72,11 @@ fn write_tutorial_release(root: &Path) {
              {}\t20250101\t1\t900000000000207008\t138875005\ten\t900000000000003001\tSNOMED CT Concept (SNOMED RT+CTV3)\t900000000000448009\n\
              {}\t20250101\t1\t900000000000207008\t404684003\ten\t900000000000003001\tClinical finding (finding)\t900000000000448009\n\
              {}\t20250101\t1\t900000000000207008\t64572001\ten\t900000000000003001\tDisease (disorder)\t900000000000448009\n\
-             {}\t20250101\t1\t900000000000207008\t22298006\ten\t900000000000003001\tMyocardial infarction (disorder)\t900000000000448009\n",
-            fsn(1001), fsn(1002), fsn(1003), fsn(1004),
+             {}\t20250101\t1\t900000000000207008\t22298006\ten\t900000000000003001\tMyocardial infarction (disorder)\t900000000000448009\n\
+             {}\t20250101\t1\t900000000000207008\t363698007\ten\t900000000000003001\tFinding site (attribute)\t900000000000448009\n\
+             {}\t20250101\t1\t900000000000207008\t80891009\ten\t900000000000003001\tHeart structure (body structure)\t900000000000448009\n\
+             {}\t20250101\t1\t900000000000207008\t723264001\ten\t900000000000003001\tLateralizable body structure reference set (foundation metadata concept)\t900000000000448009\n",
+            fsn(1001), fsn(1002), fsn(1003), fsn(1004), fsn(1005), fsn(1006), fsn(1007),
         ),
     );
     let rel = |item: u64| SctId::compose(item, ComponentType::Relationship, None).unwrap();
@@ -76,9 +87,21 @@ fn write_tutorial_release(root: &Path) {
             "id\teffectiveTime\tactive\tmoduleId\tsourceId\tdestinationId\trelationshipGroup\ttypeId\tcharacteristicTypeId\tmodifierId\n\
              {}\t20250101\t1\t900000000000207008\t404684003\t138875005\t0\t116680003\t900000000000011006\t900000000000451002\n\
              {}\t20250101\t1\t900000000000207008\t64572001\t404684003\t0\t116680003\t900000000000011006\t900000000000451002\n\
-             {}\t20250101\t1\t900000000000207008\t22298006\t64572001\t0\t116680003\t900000000000011006\t900000000000451002\n",
-            rel(2001), rel(2002), rel(2003),
+             {}\t20250101\t1\t900000000000207008\t22298006\t64572001\t0\t116680003\t900000000000011006\t900000000000451002\n\
+             {}\t20250101\t1\t900000000000207008\t22298006\t80891009\t1\t363698007\t900000000000011006\t900000000000451002\n",
+            rel(2001), rel(2002), rel(2003), rel(2004),
         ),
+    );
+    // A Simple reference set with one member, so `^` and `^R` have
+    // something to answer. Membership is refsetId +
+    // referencedComponentId + active, whatever the refset's pattern
+    // (spec/08) — a Simple refset is just the pattern with no extra
+    // columns.
+    write(
+        root,
+        "Snapshot/Refset/Content/der2_Refset_SimpleSnapshot_INT_20250101.txt",
+        "id\teffectiveTime\tactive\tmoduleId\trefsetId\treferencedComponentId\n\
+         8f2b1c40-0000-4000-8000-000000000001\t20250101\t1\t900000000000207008\t723264001\t80891009\n",
     );
 }
 
@@ -144,7 +167,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     );
     println!();
 
-    println!("=== Step 4: an ECL query (snomed-ecl, spec/10) ===");
+    println!("=== Step 4: ECL queries (snomed-ecl, spec/10) ===");
     let expr = parse_ecl("<< 404684003 MINUS << 64572001")?;
     let ecl_matches = evaluate_ecl(&expr, &store);
     println!(
@@ -152,6 +175,34 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         ecl_matches.len(),
         ids(ecl_matches.iter().copied().collect())
     );
+    // Four more shapes, each answering a different *kind* of question
+    // over the same store. The last two are the ones worth pausing on:
+    // `.` and `^R` are the only forms whose result is not a subset of
+    // what you asked about.
+    for (query, note) in [
+        (
+            "<< 404684003 : 363698007 = 80891009",
+            "refinement: findings whose finding site is the heart structure",
+        ),
+        (
+            "^ 723264001",
+            "memberOf: the reference set's members",
+        ),
+        (
+            "^R 80891009",
+            "refsetContainingAny: the reference sets that contain that concept — the inverse of `^`",
+        ),
+        (
+            "<< 404684003 . 363698007",
+            "dot notation: the finding *sites* themselves, not the findings",
+        ),
+    ] {
+        let matches = evaluate_ecl(&parse_ecl(query)?, &store);
+        println!(
+            "'{query}' -> {} — {note}",
+            ids(matches.into_iter().collect())
+        );
+    }
     println!();
 
     println!("=== Step 5: OWL + classification + necessary normal form (snomed-owl, snomed-classify, spec/12-14) ===");

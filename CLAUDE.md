@@ -30,8 +30,9 @@ classification with necessary normal form generation.
 - `crates/snomed-store` — snapshot builder (latest `effectiveTime` wins),
   IS-A hierarchy, subsumption, `HistoryStore` (full version history).
 - `crates/snomed-ecl` — Expression Constraint Language: lexer, parser,
-  evaluator (hierarchy operators, `memberOf`, refinements incl.
-  cardinality/reverse-flag/attribute groups).
+  evaluator (hierarchy operators, `memberOf`/`^R`, dot notation,
+  refinements incl. cardinality/reverse-flag/attribute groups, and
+  `{{ }}` concept/description filters).
 - `crates/snomed-fhir` — FHIR terminology service building blocks:
   `$lookup`, `$subsumes`, `$expand`.
 - `crates/snomed-owl` — parser for the OWL 2 functional-syntax subset used
@@ -74,6 +75,11 @@ classification with necessary normal form generation.
 7. The MSRV is the current stable Rust release minus three
    (`spec/rust-msrv-n-minus-3.md`); `rust-version` in the root `Cargo.toml`
    and the CI `msrv` job pin move together.
+8. Cite rules as `spec/NN rule M`. `crates/snomed/tests/spec_citations.rs`
+   checks every such citation in the repo resolves, so **inserting or
+   renumbering a rule means updating its citations in the same change** —
+   the test will say if you missed one. `spec/10` is four files, and all
+   its rule numbers live in `10-ecl.md`.
 
 ## Gotchas
 
@@ -86,7 +92,7 @@ classification with necessary normal form generation.
   instead of being silently skipped (spec/rust-api-stability.md).
 - No public API may panic on input its own type allows — including
   `SctId::new_unchecked` values and hand-built `snomed_owl::Axiom`s
-  (spec/04 rule 5, spec/13 rule 6). The `fuzz/` targets enforce this.
+  (spec/04 rule 5, spec/13 rule 1). The `fuzz/` targets enforce this.
 - Hierarchy = active + inferred + `typeId 116680003` rows only
   (spec/07-relationship-file.md). Stated axioms live in the OWL refset.
 - Snapshot resolution must stay order-independent (spec/09); don't "optimize"

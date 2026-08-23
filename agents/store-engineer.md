@@ -57,6 +57,15 @@ queries.
   like ECL `<<`, `is_ancestor_of` strict like `<`).
 - Return iterators or slices over owned copies where possible.
 - Every new query gets a unit test against the small in-module fixture store.
+- A new **reverse** index (`relationships_to`, `association_sources`,
+  `refsets_containing`) is the established answer to "this query would
+  otherwise scan every row" — but say in the doc comment *and* in
+  spec/09's derived-index list what it costs and what it deliberately
+  leaves out. `refsets_containing` indexes concept referenced components
+  only, because the operator it backs is defined only over those; the
+  restriction that keeps it correct is also the one that keeps it small,
+  and that coincidence is worth stating rather than letting a later
+  reader "fix" it.
 
 ## Validation (`store/validate.rs`)
 

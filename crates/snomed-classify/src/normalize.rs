@@ -114,7 +114,7 @@ impl Normalizer {
     /// `snomed-owl`'s parser rejects a chain with fewer than two operands,
     /// but `Axiom` is a public type a caller can build by hand, so the
     /// degenerate lengths are handled rather than left to panic
-    /// (spec/13 rule 6): one operand is exactly a role hierarchy axiom,
+    /// (spec/13 rule 1): one operand is exactly a role hierarchy axiom,
     /// and zero operands say nothing at all and are reported as skipped.
     fn add_role_chain(&mut self, ids: &[SctId], target: RoleId) {
         match ids {
