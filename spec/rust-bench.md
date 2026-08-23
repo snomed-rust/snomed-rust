@@ -17,8 +17,8 @@ an external specification.
 | `sctid` | `SctId::parse`, `verhoeff::validate`, `SctId::compose`, the accessors | The Verhoeff check runs on every identifier in every row of a release |
 | `rf2` | `Rf2Reader` over Concept / Description / Relationship file text | Row parsing throughput dominates load time |
 | `store` | `SnapshotStoreBuilder::build`, `ancestors`, `descendants`, `subsumes`, `fsn`, `preferred_term` | Index construction is the one-time cost; hierarchy queries are the per-request cost |
-| `ecl` | `parse` and `evaluate` for each hierarchy operator, conjunction, disjunction, exclusion | An ECL query is a terminology server's hot path |
-| `classify` | `classify` and `necessary_normal_form` at 500 / 2 000 / 8 000 concepts | The EL completion algorithm is the most expensive thing here, and its scaling shape matters more than any single number |
+| `ecl` | `parse` and `evaluate` for each hierarchy operator, conjunction, disjunction, exclusion; `^ *` and `^R`; the refinements; the description filters (`term` in each search type, `type`, `language`, `dialectId`, and a conjunction); and dot notation beside the reverse-flag refinement it desugars to | An ECL query is a terminology server's hot path — and each family has a different cost profile: filters scale with description count rather than hierarchy depth, and the `ecl_dotted` pairing exists to check that the sugar and its expansion stay the same order of cost |
+| `classify` | `classify` and `necessary_normal_form` at 500 / 2 000 / 8 000 concepts, over axioms that include a property chain | The EL completion algorithm is the most expensive thing here, and its scaling shape matters more than any single number. The chain is load-bearing: without one, normal form's second pass is skipped and a "normal form" benchmark silently measures only its first pass |
 | `fhir` | `$lookup`, `$subsumes`, `$expand` (first page, and filtered) | The operations a FHIR terminology server exposes |
 
 ## Layout
@@ -59,24 +59,41 @@ Criterion writes `benches/target/criterion/` and prints
 1. **Synthetic data only.** Benchmark fixtures obey CLAUDE.md rule 3 exactly
    as tests do: fictional concepts, generated SCTIDs, real column layouts.
    Real numbers on real content are the operator's job, not the repo's.
-2. **Deterministic input.** The generator is seeded (a fixed xorshift64\*),
+2. **A benchmark must exercise the thing it names.** The generator emits
+   a property chain specifically so `necessary_normal_form`'s second pass
+   runs; without one it is skipped and the benchmark reports a number for
+   a feature that never executed. When adding a benchmark for a
+   conditional code path, check that the fixture meets the condition —
+   the failure is silent and the number looks plausible.
+
+   `benches/benches/ecl.rs` now asserts each expression matches something
+   before timing it, which is cheaper than remembering. That assertion is
+   what caught `^R <mid-concept>` selecting a concept in no refset, and
+   `^R (<< <mid-concept>)` selecting a subtree with no members.
+3. **Changing the fixture resets the baseline.** Criterion's
+   `change: [-x% +y%]` compares against the previous run *on this
+   machine*, and is only meaningful when the input is identical. After
+   editing the generator, the first run's percentages compare two
+   different workloads and mean nothing — say so rather than reporting
+   them as a regression or an improvement.
+4. **Deterministic input.** The generator is seeded (a fixed xorshift64\*),
    so two runs benchmark byte-identical data and criterion's comparison
    means something. Never introduce time-, thread-, or hash-order-dependent
    input.
-3. **Measure the operation, not the setup.** Build fixtures outside the
+5. **Measure the operation, not the setup.** Build fixtures outside the
    `iter` closure, or with `iter_batched` when the operation consumes them
    (as `store_build` does).
-4. **`black_box` the inputs and the results**, so the optimizer cannot delete
+6. **`black_box` the inputs and the results**, so the optimizer cannot delete
    the work being timed.
-5. **A benchmark is not a test.** Correctness invariants belong in unit tests
+7. **A benchmark is not a test.** Correctness invariants belong in unit tests
    and fuzz targets; a bench asserting behavior slows down the measurement
    and hides in a run nobody reads.
-6. **Workspace-wide tooling doesn't reach this package.**
+8. **Workspace-wide tooling doesn't reach this package.**
    `cargo fmt --all` and `cargo clippy --all-targets` at the root skip
    `benches/`, so CI runs both against it by `--manifest-path`. The same
    applies to anything else that walks "the workspace" — wire it in
    deliberately or it silently covers nothing here.
-7. **CI builds the benches; it does not time them.** Shared runners are too
+9. **CI builds the benches; it does not time them.** Shared runners are too
    noisy for the numbers to mean anything, so CI runs `--test` (each case
    once) to prove they still work, and real measurements happen on a quiet
    machine.

@@ -15,7 +15,7 @@ use snomed_core::member_id::MemberId;
 use snomed_core::sctid::{ComponentType, SctId};
 use snomed_core::time::EffectiveTime;
 use snomed_owl::Axiom;
-use snomed_rf2::refset::{LanguageRefsetMember, RefsetMemberCore};
+use snomed_rf2::refset::{LanguageRefsetMember, RefsetMemberCore, SimpleRefsetMember};
 use snomed_store::{SnapshotStore, SnapshotStoreBuilder};
 
 const DATE: &str = "20250801";
@@ -54,11 +54,34 @@ fn synthetic_member_id(n: u64) -> MemberId {
 
 /// One synthetic release's rows, plus the concept ids in creation order
 /// (index 0 is the hierarchy root) so benchmarks can sample query targets.
+/// The attribute type `synthetic_release` uses for its non-IS-A
+/// relationships, so a refinement benchmark can name something that
+/// actually matches.
+pub fn synthetic_attribute_type() -> SctId {
+    SctId::compose(99_999, ComponentType::Concept, None).expect("valid item")
+}
+
+/// The two concept-referencing Simple refsets `synthetic_release` emits,
+/// in ascending id order. Every third concept joins the first and every
+/// seventh the second, so the two overlap without being nested.
+///
+/// They exist because a release of nothing but Language refset members
+/// leaves `refsets_containing` empty (that index is concept-only, spec/09),
+/// and every `^R` benchmark would then time an empty lookup —
+/// `spec/rust-bench.md` rule 2.
+pub fn synthetic_simple_refsets() -> [SctId; 2] {
+    [
+        SctId::compose(99_997, ComponentType::Concept, None).expect("valid item"),
+        SctId::compose(99_998, ComponentType::Concept, None).expect("valid item"),
+    ]
+}
+
 pub struct SyntheticRelease {
     pub concepts: Vec<Concept>,
     pub descriptions: Vec<Description>,
     pub relationships: Vec<Relationship>,
     pub language_members: Vec<LanguageRefsetMember>,
+    pub simple_members: Vec<SimpleRefsetMember>,
     pub concept_ids: Vec<SctId>,
 }
 
@@ -67,6 +90,22 @@ pub struct SyntheticRelease {
 /// the hierarchy is acyclic by construction, as a real release's is.
 pub fn synthetic_release(concept_count: u64) -> SyntheticRelease {
     let mut rng = Rng::new(0x5eed_5eed_5eed_5eed);
+    // The attribute type every generated attribute relationship uses, and
+    // the metadata concepts an expression-valued filter needs to resolve
+    // against. Without the latter, `{{ D moduleId = << 900000000000207008 }}`
+    // evaluates its value to the empty set (spec/10 rule 2) and the
+    // benchmark measures a filter that can never match — the mistake
+    // spec/rust-bench.md rule 2 names.
+    let attribute_type = SctId::compose(99_999, ComponentType::Concept, None).expect("valid item");
+    let [refset_a, refset_b] = synthetic_simple_refsets();
+    let metadata = [
+        attribute_type,
+        refset_a,
+        refset_b,
+        constants::CORE_MODULE,
+        constants::FULLY_SPECIFIED_NAME,
+        constants::SYNONYM,
+    ];
     let mut concept_item = 100_000u64;
     let mut description_item = 100_000u64;
     let mut relationship_item = 100_000u64;
@@ -76,8 +115,19 @@ pub fn synthetic_release(concept_count: u64) -> SyntheticRelease {
         descriptions: Vec::with_capacity(concept_count as usize * 2),
         relationships: Vec::with_capacity(concept_count as usize),
         language_members: Vec::with_capacity(concept_count as usize),
+        simple_members: Vec::with_capacity(concept_count as usize / 2),
         concept_ids: Vec::with_capacity(concept_count as usize),
     };
+
+    for id in metadata {
+        out.concepts.push(Concept {
+            id,
+            effective_time: TIME,
+            active: true,
+            module_id: constants::CORE_MODULE,
+            definition_status_id: constants::PRIMITIVE,
+        });
+    }
 
     for i in 0..concept_count {
         concept_item += 1;
@@ -134,6 +184,34 @@ pub fn synthetic_release(concept_count: u64) -> SyntheticRelease {
             acceptability_id: constants::PREFERRED,
         });
 
+        // Simple refset membership, the kind `^`/`^R` are defined over.
+        // Two overlapping refsets rather than one, so `^R` has more than a
+        // single-element answer to build.
+        if i % 3 == 0 {
+            out.simple_members.push(SimpleRefsetMember {
+                core: RefsetMemberCore {
+                    id: synthetic_member_id(2_000_000 + i),
+                    effective_time: TIME,
+                    active: true,
+                    module_id: constants::CORE_MODULE,
+                    refset_id: refset_a,
+                    referenced_component_id: concept_id,
+                },
+            });
+        }
+        if i % 7 == 0 {
+            out.simple_members.push(SimpleRefsetMember {
+                core: RefsetMemberCore {
+                    id: synthetic_member_id(3_000_000 + i),
+                    effective_time: TIME,
+                    active: true,
+                    module_id: constants::CORE_MODULE,
+                    refset_id: refset_b,
+                    referenced_component_id: concept_id,
+                },
+            });
+        }
+
         if i > 0 {
             let parent_id = out.concept_ids[rng.below(i) as usize];
             relationship_item += 1;
@@ -151,6 +229,29 @@ pub fn synthetic_release(concept_count: u64) -> SyntheticRelease {
                 characteristic_type_id: constants::INFERRED_RELATIONSHIP,
                 modifier_id: constants::EXISTENTIAL_MODIFIER,
             });
+
+            // Every other concept also gets a *non*-IS-A relationship, in
+            // role group 1. Without these the release is pure taxonomy and
+            // every refinement benchmark measures the "this concept has no
+            // attributes" path — real work, but not the work it names.
+            if i % 2 == 0 {
+                let value_id = out.concept_ids[rng.below(i) as usize];
+                relationship_item += 1;
+                let attr_id = SctId::compose(relationship_item, ComponentType::Relationship, None)
+                    .expect("valid item");
+                out.relationships.push(Relationship {
+                    id: attr_id,
+                    effective_time: TIME,
+                    active: true,
+                    module_id: constants::CORE_MODULE,
+                    source_id: concept_id,
+                    destination_id: value_id,
+                    relationship_group: 1,
+                    type_id: attribute_type,
+                    characteristic_type_id: constants::INFERRED_RELATIONSHIP,
+                    modifier_id: constants::EXISTENTIAL_MODIFIER,
+                });
+            }
         }
     }
 
@@ -167,6 +268,7 @@ pub fn synthetic_store(concept_count: u64) -> (SnapshotStore, Vec<SctId>) {
     builder.add_descriptions(release.descriptions);
     builder.add_relationships(release.relationships);
     builder.add_language_members(release.language_members);
+    builder.add_simple_members(release.simple_members);
     (builder.build(), ids)
 }
 
@@ -238,6 +340,18 @@ pub fn synthetic_axioms(concept_count: u64) -> Vec<Axiom> {
     let mut axioms = Vec::with_capacity(concept_count as usize);
 
     let attribute = SctId::compose(199_999, ComponentType::Concept, None).expect("valid item");
+    let part_of = SctId::compose(199_998, ComponentType::Concept, None).expect("valid item");
+
+    // One property chain, so necessary normal form's second pass actually
+    // runs (spec/14 rule 3). Without it `property_chains` is empty, the
+    // pass is skipped entirely, and a benchmark of "NNF" measures only
+    // the first pass — which is exactly the mistake this line fixes.
+    axioms.push(
+        snomed_owl::parse(&format!(
+            "SubObjectPropertyOf(ObjectPropertyChain(:{attribute} :{part_of}) :{attribute})"
+        ))
+        .expect("generated axiom parses"),
+    );
 
     for i in 0..concept_count {
         item += 1;
@@ -245,6 +359,17 @@ pub fn synthetic_axioms(concept_count: u64) -> Vec<Axiom> {
         ids.push(id);
         if i == 0 {
             continue;
+        }
+        // Every third concept is part of an earlier one, giving the
+        // chain's node graph edges to traverse.
+        if i % 3 == 0 {
+            let whole = ids[rng.below(i) as usize];
+            axioms.push(
+                snomed_owl::parse(&format!(
+                    "SubClassOf(:{id} ObjectSomeValuesFrom(:{part_of} :{whole}))"
+                ))
+                .expect("generated axiom parses"),
+            );
         }
         let parent = ids[rng.below(i) as usize];
         let text = if i % 4 == 0 {

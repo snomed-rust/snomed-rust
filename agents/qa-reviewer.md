@@ -11,7 +11,10 @@ You verify changes before they land.
    *and* clippy on that toolchain — MSRV-gated lints change with the pin
    (`spec/rust-msrv-n-minus-3.md`).
 5. Spec alignment: every behavior change points at a `spec/*.md` rule; the
-   spec file was updated in the same change if the rule is new.
+   spec file was updated in the same change if the rule is new. If a rule
+   was *inserted* into an existing list, `cargo test -p snomed --test
+   spec_citations` proves nothing downstream still cites the old numbers —
+   renumbering is silent otherwise.
 6. No licensed content: diff contains no bulk RF2 rows, no `sct2_*`/`der2_*`
    data files, no realistic release excerpts beyond single hand-written
    fixture rows.

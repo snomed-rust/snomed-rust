@@ -9,7 +9,7 @@ use std::collections::{HashMap, HashSet, VecDeque};
 use snomed_core::components::{Concept, Description, Relationship, RelationshipConcreteValue};
 use snomed_core::constants;
 use snomed_core::member_id::MemberId;
-use snomed_core::sctid::SctId;
+use snomed_core::sctid::{ComponentType, SctId};
 use snomed_core::time::EffectiveTime;
 use snomed_rf2::refset::{
     AssociationRefsetMember, AttributeValueRefsetMember, ComponentAnnotationRefsetMember,
@@ -410,6 +410,26 @@ impl SnapshotStoreBuilder {
 
         let association_members =
             group_by_refset_and_component(self.association_members, |m| &m.core);
+        // The reverse of the association index: `(refsetId, targetId) ->
+        // the components whose association points there`. Historical
+        // associations are written on the *inactive* component ("this was
+        // replaced by that"), so the question a migration actually asks —
+        // "what did this active concept replace?" — reads the other way
+        // and had no index at all. Association refsets are small (tens of
+        // thousands of rows in a release), so this costs little.
+        let mut association_sources: HashMap<(SctId, SctId), Vec<SctId>> = HashMap::new();
+        for ((refset_id, component_id), members) in &association_members {
+            for member in members {
+                association_sources
+                    .entry((*refset_id, member.target_component_id))
+                    .or_default()
+                    .push(*component_id);
+            }
+        }
+        for sources in association_sources.values_mut() {
+            sources.sort_unstable();
+            sources.dedup();
+        }
         let attribute_value_members =
             group_by_refset_and_component(self.attribute_value_members, |m| &m.core);
         let simple_map_members =
@@ -474,6 +494,24 @@ impl SnapshotStoreBuilder {
                 .insert(component_id);
         }
 
+        let mut refsets_by_concept: HashMap<SctId, Vec<SctId>> = HashMap::new();
+        for (refset_id, components) in &refset_memberships {
+            for component_id in components {
+                if component_id.component_type() == Some(ComponentType::Concept) {
+                    refsets_by_concept
+                        .entry(*component_id)
+                        .or_default()
+                        .push(*refset_id);
+                }
+            }
+        }
+        // Built by iterating a HashMap, so sorted before it is exposed
+        // (spec/09 rule 6).
+        for refsets in refsets_by_concept.values_mut() {
+            refsets.sort_unstable();
+            refsets.dedup();
+        }
+
         SnapshotStore {
             concepts: self.concepts,
             descriptions: self.descriptions,
@@ -487,7 +525,9 @@ impl SnapshotStoreBuilder {
             children,
             acceptability,
             refset_memberships,
+            refsets_by_concept,
             association_members,
+            association_sources,
             attribute_value_members,
             simple_map_members,
             extended_map_members,
@@ -528,7 +568,22 @@ pub struct SnapshotStore {
     /// referencedComponentIds (spec/08: membership is refsetId +
     /// referencedComponentId + active, independent of refset pattern).
     refset_memberships: HashMap<SctId, HashSet<SctId>>,
+    /// The reverse of `refset_memberships`, restricted to referenced
+    /// components in the Concept partition: conceptId -> the refsets with
+    /// an active member referencing it, ascending.
+    ///
+    /// Concept-only is not an optimization that happens to be convenient
+    /// — it is the scope of the question. ECL's `^R` is defined only over
+    /// "reference sets whose referenced components are concepts"
+    /// (spec/10 rule 17), and the excluded rows are precisely the
+    /// Language refsets' millions of description memberships, which no
+    /// caller can ask about through this index anyway.
+    refsets_by_concept: HashMap<SctId, Vec<SctId>>,
     association_members: HashMap<(SctId, SctId), Vec<AssociationRefsetMember>>,
+    /// (refsetId, targetComponentId) -> components whose association in
+    /// that refset points at the target. The reverse of
+    /// `association_members`.
+    association_sources: HashMap<(SctId, SctId), Vec<SctId>>,
     attribute_value_members: HashMap<(SctId, SctId), Vec<AttributeValueRefsetMember>>,
     simple_map_members: HashMap<(SctId, SctId), Vec<SimpleMapRefsetMember>>,
     extended_map_members: HashMap<(SctId, SctId), Vec<ExtendedMapRefsetMember>>,
@@ -751,6 +806,22 @@ impl SnapshotStore {
             .copied()
     }
 
+    /// The refsets with an active member referencing `concept_id`, in
+    /// ascending id order (spec/09 rule 6) — the reverse of
+    /// [`Self::refset_members`], backing ECL's `^R` (spec/10 rule 17).
+    ///
+    /// Only *concept* referenced components are indexed, which is the
+    /// scope `^R` is defined over. Passing a description or relationship
+    /// id returns nothing rather than an error: the id is well-formed,
+    /// it just cannot have an answer here.
+    pub fn refsets_containing(&self, concept_id: SctId) -> impl Iterator<Item = SctId> + '_ {
+        self.refsets_by_concept
+            .get(&concept_id)
+            .into_iter()
+            .flatten()
+            .copied()
+    }
+
     /// Every distinct `refsetId` with at least one active membership row,
     /// of any refset type — i.e. every concept that is itself a refset
     /// identifier with active content. Order is unspecified. This is
@@ -770,6 +841,23 @@ impl SnapshotStore {
     ) -> &[AssociationRefsetMember] {
         self.association_members
             .get(&(refset_id, component_id))
+            .map(Vec::as_slice)
+            .unwrap_or(&[])
+    }
+
+    /// The components whose association in `refset_id` points at
+    /// `target_id`, in ascending id order — the reverse of
+    /// [`association_members`](Self::association_members).
+    ///
+    /// Historical associations are written on the *inactive* component
+    /// ("this was replaced by that"), so the forward index answers "what
+    /// replaced this retired concept?". A data migration asks the
+    /// opposite question — "which retired concepts point at this active
+    /// one?" — and that is this accessor. Both are needed; neither is
+    /// derivable from the other without scanning every member.
+    pub fn association_sources(&self, refset_id: SctId, target_id: SctId) -> &[SctId] {
+        self.association_sources
+            .get(&(refset_id, target_id))
             .map(Vec::as_slice)
             .unwrap_or(&[])
     }
@@ -1342,6 +1430,65 @@ mod tests {
     }
 
     #[test]
+    fn refsets_containing_inverts_refset_members_for_concepts_only() {
+        let refset_a = SctId::compose(9990, ComponentType::Concept, None).unwrap();
+        let refset_b = SctId::compose(9991, ComponentType::Concept, None).unwrap();
+        let fsn_id = SctId::compose(1003, ComponentType::Description, None).unwrap();
+        let mut b = SnapshotStore::builder();
+        // MI is in both refsets, and `refset_b` sorts after `refset_a`;
+        // inserted in the other order so the ascending result is the
+        // index's doing, not the input's (spec/09 rule 6).
+        b.add_simple_member(SimpleRefsetMember {
+            core: core(
+                MemberId::parse("80000000-0000-4000-8000-000000000021").unwrap(),
+                20190731,
+                true,
+                refset_b,
+                MI,
+            ),
+        });
+        b.add_simple_member(SimpleRefsetMember {
+            core: core(
+                MemberId::parse("80000000-0000-4000-8000-000000000022").unwrap(),
+                20190731,
+                true,
+                refset_a,
+                MI,
+            ),
+        });
+        // Inactive: must not appear.
+        b.add_simple_member(SimpleRefsetMember {
+            core: core(
+                MemberId::parse("80000000-0000-4000-8000-000000000023").unwrap(),
+                20190731,
+                false,
+                ICD10_MAP,
+                MI,
+            ),
+        });
+        // A description membership: indexed nowhere here, because `^R` is
+        // defined only over concept-referencing refsets.
+        b.add_language_member(LanguageRefsetMember {
+            core: core(
+                MemberId::parse("80000000-0000-4000-8000-000000000024").unwrap(),
+                20190731,
+                true,
+                constants::US_ENGLISH_LANGUAGE_REFSET,
+                fsn_id,
+            ),
+            acceptability_id: constants::PREFERRED,
+        });
+        let store = b.build();
+
+        assert_eq!(
+            store.refsets_containing(MI).collect::<Vec<_>>(),
+            vec![refset_a, refset_b]
+        );
+        assert!(store.refsets_containing(fsn_id).next().is_none());
+        assert!(store.refsets_containing(refset_a).next().is_none());
+    }
+
+    #[test]
     fn refset_ids_lists_every_refset_with_active_content() {
         let fsn_id = SctId::compose(1002, ComponentType::Description, None).unwrap();
         let mut b = SnapshotStore::builder();
@@ -1745,5 +1892,60 @@ mod tests {
         assert!(members
             .iter()
             .any(|m| m.owl_expression.contains("404684003")));
+    }
+
+    #[test]
+    fn association_sources_reverse_the_association_index() {
+        // Historical associations are written on the inactive component,
+        // so "what replaced this?" and "what did this replace?" are
+        // different lookups. The reverse one had no index before.
+        let same_as = SctId::compose(9500, ComponentType::Concept, None).unwrap();
+        let retired_a = SctId::compose(9501, ComponentType::Concept, None).unwrap();
+        let retired_b = SctId::compose(9502, ComponentType::Concept, None).unwrap();
+        let current = SctId::compose(9503, ComponentType::Concept, None).unwrap();
+        let other_refset = SctId::compose(9504, ComponentType::Concept, None).unwrap();
+
+        let mut b = SnapshotStore::builder();
+        let association =
+            |uuid: u128, refset: SctId, source: SctId, target: SctId, active: bool| {
+                AssociationRefsetMember {
+                    core: RefsetMemberCore {
+                        id: MemberId::from_u128(uuid),
+                        effective_time: EffectiveTime::new_unchecked(20190731),
+                        active,
+                        module_id: constants::CORE_MODULE,
+                        refset_id: refset,
+                        referenced_component_id: source,
+                    },
+                    target_component_id: target,
+                }
+            };
+        b.add_association_member(association(1, same_as, retired_b, current, true));
+        b.add_association_member(association(2, same_as, retired_a, current, true));
+        // A different refset with the same target, and an inactive row.
+        b.add_association_member(association(3, other_refset, retired_a, current, true));
+        b.add_association_member(association(4, same_as, MI, current, false));
+        let store = b.build();
+
+        // Ascending id order, and scoped to the refset asked about.
+        assert_eq!(
+            store.association_sources(same_as, current),
+            &[retired_a, retired_b]
+        );
+        assert_eq!(
+            store.association_sources(other_refset, current),
+            &[retired_a]
+        );
+        // Inactive members are dropped at build time (spec/09 rule 4), so
+        // they are absent here exactly as they are from the forward index.
+        assert!(!store.association_sources(same_as, current).contains(&MI));
+        // The forward direction still answers its own question.
+        assert_eq!(
+            store.association_members(same_as, retired_a)[0].target_component_id,
+            current
+        );
+        // A target nothing points at, and an unknown refset.
+        assert!(store.association_sources(same_as, retired_a).is_empty());
+        assert!(store.association_sources(MI, current).is_empty());
     }
 }

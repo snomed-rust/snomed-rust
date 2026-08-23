@@ -5,35 +5,42 @@ AST, and evaluator.
 
 ## Read this first
 
-`spec/10-ecl.md` is normative. It documents exactly which grammar subset is
-implemented ("simple expression constraints" — hierarchy operators,
-memberOf, wildcard, AND/OR/MINUS — plus refinements: `attributeId
-(= | !=) value` where `attributeId` is itself any `subExpressionConstraint`
-(not just a plain concept reference), numeric/string concrete value
-comparisons including `concreteStringSet`, AND/OR, parenthesized groups,
-attribute cardinality `[min..max]`, the reverse flag `R`, and attribute
-groups `{ }`; plus a `{{ C ... }}` concept filter constraint —
-`active = true|false|*`, `definitionStatus = primitive|defined`,
-`moduleId = subExpressionConstraint`, and `effectiveTime
-(=|!=|<=|<|>=|>) "YYYYMMDD"`) and lists what is explicitly **not yet
-implemented** (boolean concrete value comparisons, the
-`definitionStatusIdFilter` concept filter kind, `moduleId`'s
-`eclConceptReferenceSet` alternative, `{{ D ... }}`/`{{ M ... }}`
-description/member filters and the marker-less `{{ ... }}` default,
-`^ *`, `^R`, `^ [A, B]`, `!!>`/`!!<`, the history supplement, alternate
-identifiers, a hierarchy prefix combined with `^`, dot notation — treat
-spec/10's own two-bucket list as authoritative, not this summary).
+`spec/10-ecl.md` is normative, and it is the file that carries **every ECL
+rule number** even though the prose is spread over four files (see "The
+spec is four files now" below).
+
+Broadly, what is implemented: the hierarchy operators and wildcard,
+`AND`/`OR`/`MINUS`, the full `refsetOperator` surface (`^ X`, `^ *`,
+`^ ( expr )`, `^R` in all the same shapes, and a `constraintOperator` in
+front of any of them), dot notation (`A . attribute`), refinements
+(attribute names and values that are themselves `subExpressionConstraint`s,
+numeric/string concrete values including `concreteStringSet`, `AND`/`OR`,
+parenthesized groups, cardinality `[min..max]`, the reverse flag `R`, and
+attribute groups `{ }`), and both `{{ C ... }}` concept filters and
+`{{ D ... }}` description filters — the latter including `term` with
+`match:`/`wild:`/`exact:`, `type`/`typeId`, `language`, `dialectId`,
+`moduleId`, `effectiveTime`, and `active`.
+
+**Do not treat that paragraph as authoritative** — it is a summary and
+summaries rot. `spec/10-ecl-unimplemented.md`'s two-bucket list is the
+one to check, and it says what each remaining gap is blocked on rather
+than just naming it.
 
 **The authoritative grammar is the ABNF at
 <https://github.com/IHTSDO/snomed-expression-constraint-language>,
 `syntax/abnf-brief.txt` — not the docs.snomed.org prose pages.** The prose
 guide doesn't state precedence, arity, or case-sensitivity; the ABNF does,
-unambiguously. Fetch it (`gh api
+unambiguously. Fetch it before implementing anything grammar-shaped,
+rather than guessing or trusting memory:
+<https://raw.githubusercontent.com/IHTSDO/snomed-expression-constraint-language/main/syntax/abnf-brief.txt>
+works under WebFetch; `gh api
 repos/IHTSDO/snomed-expression-constraint-language/contents/syntax/abnf-brief.txt
---jq '.content' | base64 -d`, since the raw.githubusercontent.com URL 404s
-under WebFetch for this repo's default branch — use `gh api`) before
-implementing anything grammar-shaped, rather than guessing or trusting
-memory. The ABNF states the *syntax* precisely, but not everything —
+--jq '.content' | base64 -d` is the fallback if it stops.
+
+The docs.snomed.org prose pages move around and 404 under their published
+URLs more often than not. Two things that worked in August 2026: append
+`.md` to a `behaviour-specification-with-examples/...` page path, and
+fetch that section's index page to list the current child URLs. The ABNF states the *syntax* precisely, but not everything —
 cardinality's default value and the reverse flag's meaning came from the
 prose guide's Refinements/Cardinality pages instead (fetch both when
 extending refinements; the ABNF alone won't tell you `[1..*]` is the
@@ -50,21 +57,44 @@ result.** Every construct spec/10 marks "not yet implemented" MUST fail
 parsing — never be silently accepted and evaluated as something else,
 and never panic. Naming the specific feature via
 `EclError::NotYetImplemented { feature, .. }` is strongly preferred (most
-of spec/10's list gets this now) but isn't yet universal: boolean
-concrete value comparisons, the history supplement (`{{+HISTORY}}`), a
-marker-less `{{ ... }}` whose first token isn't `active`, the
-`definitionStatusIdFilter` concept filter kind, and `moduleId`'s
-`eclConceptReferenceSet` form all still surface as a generic
-`UnexpectedToken`/`UnexpectedKeyword`
-because recognizing their shape well enough to name them isn't as simple
-as matching a fixed token sequence — see spec/10 rule 9's two-bucket
-list, which is the authoritative inventory. Moving one from
+of the list gets this now) but isn't yet universal: boolean concrete
+value comparisons, the history supplement (`{{+HISTORY}}`), `moduleId`'s
+`eclConceptReferenceSet` form (`moduleId = (id1 id2)`), and the
+`dialectIdSet` spelling all still surface as a generic
+`UnexpectedToken`/`UnexpectedKeyword`, because recognizing their shape
+well enough to name them isn't as simple as matching a fixed token
+sequence — see `spec/10-ecl-unimplemented.md`'s two-bucket list, which
+rule 9 governs and which is the authoritative inventory. Moving one from
 generic to named, without implementing the underlying feature, is a
-welcome, low-risk improvement on its own; see the recent
-`Dot`/`Top`/`Bottom`/`A#B`-detection additions in `lexer.rs`/`parser.rs`
-for the pattern. This is the same principle the RF2 reader uses
+welcome, low-risk improvement on its own; see the `Top`/`Bottom`/`A#B`
+detection in `lexer.rs`/`parser.rs` for the pattern. This is the same principle the RF2 reader uses
 (row-level errors instead of skipped-and-forgotten data), applied to
 syntax.
+
+## Evaluate per query, never per candidate
+
+`evaluate`'s `Refined` arm builds a `PreparedRefinement` before the
+per-concept loop, and the description filter arm prepares its search
+terms the same way. Both look like tidiness and are not: an attribute
+name, a comparison value, and a search term are the same for every
+candidate, and evaluating them per candidate turns a nested refinement
+into work multiplied by the concept count at each level. The fuzz
+target's slow-unit report caught a 119-byte expression taking 39 seconds
+against an eight-concept store; it is 1 ms now (spec/10 rule 0). If you
+add a construct that evaluates a sub-expression, ask first whether the
+candidate is one of its inputs.
+
+## The lexer tokenizes; the parser decides what is an error
+
+An alphanumeric run the keyword table doesn't know becomes
+`TokenKind::Word`, not a lex error. It has to: a `languageFilter`'s code
+(`en`) is a bare word, and only the parser knows whether the position it
+is in accepts one. `Parser::unexpected` turns a stray `Word` back into the
+same `EclError::UnexpectedKeyword` the lexer used to raise, so error kinds
+for typos are unchanged — route new "this token doesn't belong here"
+errors through that helper rather than building `UnexpectedToken`
+directly, or a typo in the new position will report as a symbol mismatch
+instead of an unknown keyword.
 
 ## The lexer is pull-based, not eager — keep it that way
 
@@ -98,7 +128,7 @@ change.
    `SnapshotStore`'s existing query primitives — never a fresh traversal
    (mirrors `agents/store-engineer.md`'s invariant 2 about hierarchy
    staying in one place).
-6. Move the construct out of spec/10's "Not yet implemented" list into the
+6. Move the construct out of `spec/10-ecl-unimplemented.md`'s list into the
    normative grammar/operator sections, in the same change.
 7. Tests: lexer (tokenization), parser (AST shape + at least one rejected
    malformed case), evaluator (against a small hand-built `SnapshotStore`,
@@ -134,15 +164,21 @@ exists alongside the one being excluded. `Le`/`Lt`/`Ge`/`Gt` have no such
 distinction; they define the per-row predicate directly, since there's no
 "aggregate negation" reading of `<=` to preserve consistency with.
 
-## The spec is two files now
+## The spec is four files now
 
-`spec/10-ecl.md` holds the grammar, the operators, the refinements, and
-*all* the normative rules; `spec/10-ecl-filters.md` holds what each
-`{{ C ... }}`/`{{ D ... }}` filter kind matches. The split is by size,
-not by authority — both are normative, and rule numbers stay in the first
-file so citations like "spec/10 rule 14" keep resolving. When you add a
-filter kind, its prose goes in the filters file and its rule (if it needs
-one) in the rules list.
+`spec/10-ecl.md` holds the grammar, the operators, and *all* the
+normative rules; `spec/10-ecl-refinements.md` holds the `:`
+attribute-value constraints (cardinality, reverse flag, groups, concrete
+values); `spec/10-ecl-filters.md` holds what each
+`{{ C ... }}`/`{{ D ... }}` filter kind matches;
+`spec/10-ecl-unimplemented.md` holds the rejected-construct list and why
+each one is still rejected. The split is by size, not by authority — all
+four are normative, and rule numbers stay in the first file so citations
+like "spec/10 rule 14" keep resolving
+(`crates/snomed/tests/spec_citations.rs` checks that they do). When you
+add a filter kind, its prose goes in the filters file and its rule (if it
+needs one) in the rules list; when you implement a rejected construct,
+delete its entry from the unimplemented file in the same change.
 
 ## `{{ D ... }}` filters conjoin over one description, not over the concept
 
@@ -229,22 +265,25 @@ needs 2 tokens of lookahead: check whether the *very next* token after
 consuming the ambiguous one actually settles it, before assuming real
 backtracking is required.
 
-## `{{ }}` filters: scoped to `{{ C ... }}` concept filters only, deliberately
+## `{{ }}` filters: one filter kind per increment, deliberately
 
 The official grammar's `{{ }}` filter subsystem is large — description,
 concept, and member filter constraints, each with several filter kinds
 (`term`/`language`/`type`/`dialect`/`module`/`effectiveTime`/`active`/
 `definitionStatus`/refset field), most needing their own value-set
-grammar. Implementing all of it in one increment isn't realistic; this
-crate has so far implemented `conceptFilterConstraint`'s `activeFilter`,
-`definitionStatusTokenFilter`, `moduleFilter`'s
-`subExpressionConstraint` alternative, and `effectiveTimeFilter` (four
-separate increments, each its own commit) and left the rest as
-documented gaps — the same incremental strategy used for refinements
-(cardinality, then reverse flag, then groups, then concrete values, then
-attribute names, then `concreteStringSet`). If you're extending this
-further, add one filter kind or one filter constraint type
-(`{{ D ... }}`) at a time, not all of them at once.
+grammar. Implementing all of it in one increment isn't realistic, and it
+hasn't been: `{{ C ... }}` came first (`activeFilter`, then
+`definitionStatusTokenFilter`, then `moduleFilter`, then
+`effectiveTimeFilter`, then `definitionStatusIdFilter` — one commit
+each), and `{{ D ... }}` followed the same way (`term` with its search
+types, `type`/`typeId`, `language`, `dialectId` with its acceptability
+set, `moduleId`, `effectiveTime`, `active`). `{{ M ... }}` is still
+rejected by name, and for a reason that isn't parsing — see
+`spec/10-ecl-unimplemented.md`.
+
+That cadence is the recommendation, not just the history: add one filter
+kind at a time, with its spec prose in `spec/10-ecl-filters.md` and its
+rule (if it needs one) in `10-ecl.md`'s list.
 `parse_boolean_comparison_operator` (factored out during the
 `definitionStatus` increment) is shared by every
 `booleanComparisonOperator` filter (`active`/`definitionStatus`/

@@ -101,6 +101,19 @@ $ snomed-cli ecl ./Snapshot "<< 404684003 MINUS << 64572001"
 
 Pass the expression as a single (shell-quoted) argument.
 
+`^ *` evaluates to every referenced component of every refset in the
+release — which for a full International Edition is dominated by the
+Language refsets' *description* ids, not concepts (spec/10's "`^` returns
+referenced components, whatever their type").
+
+Dot notation returns attribute *values* rather than a subset of the focus
+set, which is worth knowing before you read the output — the ids that come
+back are not descendants of what you asked about:
+
+```sh
+$ snomed-cli ecl ./Snapshot "< 19829001 . 116676008"
+```
+
 ### `export`
 
 ```sh

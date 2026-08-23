@@ -308,7 +308,7 @@ mod tests {
 
     #[test]
     fn degenerate_role_chains_do_not_panic() {
-        // spec/13 rule 6: `Axiom` is public, so a caller can hand-build a
+        // spec/13 rule 1: `Axiom` is public, so a caller can hand-build a
         // chain the OWL parser would have rejected. A one-operand chain is
         // exactly a role hierarchy axiom; an empty one implies nothing and
         // is reported as skipped. Neither may panic.

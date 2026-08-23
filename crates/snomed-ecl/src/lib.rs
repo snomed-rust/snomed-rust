@@ -1,12 +1,13 @@
 //! SNOMED CT Expression Constraint Language (ECL) — simple expression
-//! constraints, refinements (cardinality, reverse flag, attribute groups,
-//! numeric/string concrete value comparisons), and `{{ C ... }}` concept
-//! filter constraints, per `spec/10-ecl.md`.
+//! constraints, `memberOf` and `^R` (including `^ *` and computed
+//! operands),
+//! refinements (cardinality, reverse flag, attribute groups,
+//! numeric/string concrete value comparisons), dot notation, and
+//! `{{ C ... }}`/`{{ D ... }}` filter constraints, per `spec/10-ecl.md`.
 //!
-//! What remains unimplemented (boolean concrete comparisons,
-//! `{{ D }}`/`{{ M }}` description/member filters, the history
-//! supplement, dot notation, alternate identifiers, …) is listed in
-//! `spec/10-ecl.md#not-yet-implemented`. Encountering one is a parse
+//! What remains unimplemented (boolean concrete comparisons, `{{ M }}`
+//! member filters, the history supplement, alternate identifiers, …) is
+//! listed in `spec/10-ecl-unimplemented.md`. Encountering one is a parse
 //! error, never a silently incomplete result.
 //!
 //! ```
@@ -38,7 +39,7 @@ pub mod parser;
 
 pub use ast::{
     AttributeConstraint, ExpressionConstraint, FocusConcept, HierarchyOp, RefinementConstraint,
-    SimpleExpressionConstraint,
+    RefsetOperand, SimpleExpressionConstraint,
 };
 pub use error::EclError;
 pub use eval::evaluate;

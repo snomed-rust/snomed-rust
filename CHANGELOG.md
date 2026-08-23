@@ -11,6 +11,241 @@ together, in dependency order (`snomed-core` → `snomed-rf2` → `snomed-owl`
 → `snomed-store` → `snomed-classify` → `snomed-ecl` → `snomed-fhir` →
 `snomed-cli` → `snomed`), not independently.
 
+## [Unreleased]
+
+## [0.10.0] — 2026-08-23
+
+Three new ECL constructs, a grammar correction that unlocked three more
+forms, a standing guard against spec/code drift, and a round of measured
+corrections to the benchmark suite.
+
+**Breaking:** the ECL AST changed shape — see the `ExpressionConstraint`
+entry under Changed. That is the `#[non_exhaustive]` policy working as
+designed (`spec/rust-api-stability.md`): an exhaustive `match` on the AST
+fails to compile rather than silently ignoring a grammar form and
+returning a plausible wrong set.
+
+### Added
+
+- **ECL `^R` (`refsetContainingAny`)** — spec/10 rule 17. The exact
+  inverse of `^`: "the set of reference sets that contain at least one of
+  the given concepts". Takes the same operand forms and the same optional
+  constraint operator as `^`, so `^R 73211009`, `^R (<< 73211009)`,
+  `^R *`, and `< ^R 73211009` all parse and evaluate. "At least one"
+  makes a set operand a union, not an intersection, and a test pins that.
+
+  Backed by a new `SnapshotStore::refsets_containing` — the reverse of
+  `refset_members`, keyed by referenced **concept** id. Concept-only is
+  the operator's own scope rather than a size compromise: ECL defines
+  `^R` solely over "reference sets whose referenced components are
+  concepts", and the rows that exclusion drops are exactly the Language
+  refsets' millions of description memberships, which no caller can ask
+  about through this index. On the synthetic 20,000-concept release the
+  index costs less to build than the run-to-run noise in
+  `store_build/build_indexes` (measured by stubbing it out: 8.19 ms
+  without, 7.84 ms and 8.51 ms with, across three runs). A lookup is
+  ~43 ns; `^R (<< root)` over 20,000 concepts is ~1.6 ms, of which
+  ~1.1 ms is the `<< root` traversal itself.
+- `benches/`: the synthetic release now emits two overlapping Simple
+  refsets (every third concept in one, every seventh in the other). It
+  had only Language refset members, which are description-referencing, so
+  the concept-only reverse index stayed empty and every `^R` benchmark
+  would have timed an empty lookup. **This changes the fixture**, so
+  criterion's `change:` percentages against earlier runs on the same
+  machine compare two different workloads and mean nothing
+  (`spec/rust-bench.md` rule 3). The ECL benchmark now asserts each
+  expression matches something before timing it.
+- **ECL `memberOf` now takes the operand the grammar gives it**
+  (spec/10 rule 16). `subExpressionConstraint` is
+  `[constraintOperator] [refsetOperator] (eclFocusConcept / "(" expressionConstraint ")")`,
+  and the parser only implemented the narrowest path through it. Four
+  forms come from restructuring it to match:
+
+  - `^ *` — every refset in the store. The guide: "all concepts that are
+    referenced by any reference set in the substrate".
+  - `^ ( < 450973005 )` — a computed set of refsets, unioned.
+  - `< ^ 447562003` — the operator applies to the *member set*: "the
+    descendants of the members of the refset". This is **not** the same
+    as `^ ( < 447562003 )`, and a test asserts the two differ.
+  - `< ( A OR B )` — the same operator-over-a-set rule, on a
+    parenthesized expression.
+
+  The first three were previously named `NotYetImplemented`; the fourth
+  failed with "expected an SCTID".
+
+  `^ X` keeps looking `X` up as a **key into the membership index**
+  rather than resolving it as a concept, so a store built from refset
+  files with no Concept file still answers it. `^ ( X )` does resolve
+  concepts and returns nothing in that same store — the two spellings
+  differ on a partial release, which is why `MemberOfTarget` keeps them
+  as distinct cases instead of collapsing `^ X` into the general form.
+
+  `^ *` costs ~520 µs on the synthetic 20,000-concept release
+  (`ecl_evaluate/member_of_wildcard`, added without touching the
+  generator so existing baselines stay comparable).
+- **Breaking:** `ExpressionConstraint::MemberOf` changes shape — its
+  `refset_id`/`term` fields become one `refsets: RefsetOperand` — and two
+  new variants appear: `RefsetContaining { concepts }` and
+  `Operated { op, inner }` (a constraint operator applied to a set).
+  `RefsetOperand` is shared by `^` and `^R` and is re-exported from
+  `snomed_ecl` and the `snomed` prelude.
+- **Open question raised, not silently decided:** `^` returns RF2
+  membership, i.e. the `referencedComponentId` of any refset type, so
+  `^ 900000000000509007` returns *description* ids and `^ *` includes
+  them. The ECL guide says "concepts" throughout. Filtering to the
+  Concept partition is a one-line change either way, but it would alter a
+  shipped operator's behavior and contradicts an existing deliberate test
+  — so it is priced in `plan.md` under "Open decisions" rather than
+  changed here.
+- **ECL dot notation** (`dottedExpressionConstraint`, spec/10 rule 15):
+  `< 19829001 |Disorder of lung| . 116676008 |Associated morphology|`
+  returns the *values* of an attribute across a set rather than a subset
+  of it — the only expression form whose result need not intersect its
+  own input. Chains left-to-right (`A . x . y`), and the attribute is a
+  full `subExpressionConstraint` (`. << 116676008` works), matching
+  `eclAttributeName` in a refinement.
+
+  The official guide defines the form as sugar for the reverse flag, so
+  this implements it from the same active-inferred relationship rows,
+  read destination-side, and rule 15 makes `A . a` == `* : R a = A` a
+  tested MUST rather than a comment. Two consequences of that equivalence
+  are documented because they otherwise read as bugs: the result is not
+  filtered to active concepts (`*` isn't either), and relationship groups
+  are ignored (an ungrouped refinement ignores them too).
+
+  A dotted chain ends the expression, since the grammar makes it an
+  alternative to `compoundExpressionConstraint`, not an operand of one:
+  `A . x AND B` is a parse error naming the leftover `AND`; write
+  `(A . x) AND B`. Unlike the refinement leniency this parser already
+  allows in nested positions, dot notation is recognized *only* at the
+  top of an `expressionConstraint` — because `eclAttributeName` is itself
+  a `subExpressionConstraint`, so a lenient reading would make
+  `A . x . y` associate right instead of left.
+
+  On the synthetic 20,000-concept release the dotted form costs ~2.9 ms
+  against ~3.2 ms for the reverse-flag spelling of the same query — the
+  same order, as it should be. It is a spelling, not a fast path.
+- **Breaking:** `ExpressionConstraint` gains a `Dotted` variant. The ECL
+  AST enums deliberately carry no `#[non_exhaustive]`
+  (spec/rust-api-stability.md), so an exhaustive `match` on this enum
+  fails to compile rather than silently skipping a grammar form — which
+  is the intended way to learn about this change.
+- `spec/10-ecl-unimplemented.md`: the rejected-construct list moved out of
+  `spec/10-ecl.md`, which was 261 bytes under the 40 KB per-document
+  budget after the dot-notation prose landed. Rule numbers stay in
+  `10-ecl.md`, so every `spec/10 rule N` citation still resolves.
+- `spec/13`: the lone normative rule was numbered **6**, with no rules 1-5
+  anywhere in the file — it had been numbered to avoid clashing with the
+  CR1-CR5 completion rules, which are algorithm steps rather than
+  requirements. Renumbered to 1 under a proper `## Rules` heading, and the
+  eight citations updated with it. Cited as `spec/13 rule 1` now.
+- `benches/`: the synthetic release now contains non-IS-A relationships
+  (an attribute in role group 1 on every other concept) and the metadata
+  concepts an expression-valued filter resolves against. It was pure
+  taxonomy before, so every refinement benchmark measured the "this
+  concept has no attributes" path and `{{ D moduleId = << X }}` measured
+  a value set that was always empty. With real work to do, the refinement
+  benchmarks are 17-64% slower than the numbers they used to report —
+  those numbers were not wrong so much as about nothing.
+- **Correction to 0.9.0's release note.** It reported necessary normal
+  form's property-chain pass as costing "~11% on top of `classify`". That
+  measurement was taken against a synthetic axiom set containing no
+  property chains — so `property_chains` was empty, the second pass was
+  skipped entirely, and the figure measured the *first* pass's overhead
+  and nothing of the feature it claimed to price. With a chain in the
+  axioms, normal form generation is ~20% above `classify` at 2,000
+  concepts, of which the second pass is ~21% of its own runtime. The
+  benchmark's axiom generator now emits a property chain and the
+  `partOf` attributes it traverses, so the pass can no longer be measured
+  by accident as absent.
+- `snomed-fhir`: `$expand`'s `filter` lowercases the search text once per
+  expansion rather than once per candidate concept (~4%).
+- `snomed-ecl`: the same per-candidate evaluation existed in four more
+  places, found by searching for the pattern rather than waiting for
+  another fuzz report: `{{ C moduleId }}`, `{{ C definitionStatusId }}`,
+  `{{ D typeId }}`, and `{{ D moduleId }}` each re-evaluated their value
+  expression for every concept — or, worse, every *description*. All are
+  prepared once per query now; measured at 4.04ms → 2.52ms for
+  `{{ D moduleId = << X }}` over a 20k-concept store, and that value
+  expression matches nothing, so a value covering a real subtree would
+  scale far worse.
+- `snomed-ecl`: **refinement evaluation was exponential in nesting
+  depth.** An attribute constraint re-evaluated its attribute-name and
+  value expressions for every candidate concept, so a refinement whose
+  value was itself a refinement re-ran the inner query per concept, and
+  each nesting level multiplied the work by the concept count. A
+  119-byte expression took 39 *seconds* against an eight-concept store —
+  and would not have finished against a release, from input any caller
+  could submit. Both are now evaluated once per query: the same input
+  takes 1 ms. Found by the `ecl_evaluate` fuzz target's slow-unit report;
+  spec/10 rule 0 states the requirement, and the input is a committed
+  seed.
+- `snomed-ecl`: description filter evaluation prepares each search term
+  once per query instead of once per description — the search words were
+  being re-tokenized, and the wildcard pattern re-lowercased, for every
+  description examined. `match:` filters are ~43% faster (9.5ms → 5.4ms
+  over a 20k-concept store); `wild:` ~5%; `exact:` unchanged. Found by
+  adding benchmarks for the filter paths, which nothing measured before.
+- `snomed-ecl`: a `match:` search term containing no words — `""`,
+  `"-"`, anything that tokenizes to nothing — now matches **nothing**
+  rather than everything. The vacuous-truth reading made the filter
+  silently stop filtering, so a caller whose search box was empty got the
+  whole hierarchy back with no sign anything was wrong.
+- `snomed-store`: `association_sources(refset_id, target_id)` — the
+  reverse of `association_members`. A historical association is written
+  on the *inactive* component ("this was replaced by that"), so the
+  existing index answers "what replaced this retired concept?" while a
+  data migration asks the opposite: "which retired concepts point at this
+  active one?" Neither direction is derivable from the other without
+  scanning every member. Association refsets are small, so the index
+  costs little.
+- `snomed-ecl`: typed search terms — `term = wild:"heart*"`,
+  `term = exact:"Heart attack"`, `term = match:"heart att"` (the default
+  spelled out), and sets that mix them, since the prefix belongs to the
+  term rather than the filter. `wild:` anchors to the whole term, so `*`
+  is meaningful; `exact:` is case-sensitive, which is what distinguishes
+  it from `match:` on a single word. `regex:` is rejected by name — an
+  engine for it would be an external dependency, the only ECL construct
+  this workspace declines for that reason rather than a semantic one.
+  **Breaking:** `TermFilter::values` is now `Vec<SearchTerm>` rather than
+  `Vec<String>`.
+- `snomed-ecl`: `moduleId` and `effectiveTime` inside a `{{ D ... }}`
+  block, filtering the **description's** own columns rather than its
+  concept's. They were previously rejected by name; the data was always
+  there. `{{ C moduleId = X }}` and `{{ D moduleId = X }}` are different
+  questions — a description can be revised in a later release, or come
+  from an extension module, without its concept moving.
+- `snomed-ecl`: the `dialectIdFilter` description filter kind —
+  `{{ D dialectId = 900000000000509007 (preferred) }}`, the "preferred
+  term in US English" query. Membership is `SnapshotStore::acceptability`,
+  which is active-members-only by construction, so no new data was
+  needed; an absent acceptability set means membership alone, and
+  `(preferred)`/`(acceptable)` (or their `prefer`/`accept` spellings)
+  narrow it. The `dialect` **alias** form (`dialect = en-us`) is rejected
+  by name rather than left unimplemented: an alias maps to a refset id
+  only through deployment policy, the same reason `snomed-fhir` takes a
+  refset id rather than a BCP-47 tag.
+- `snomed-ecl`: the `languageFilter` description filter kind —
+  `{{ D language = en }}`, `{{ D language = (en sv) }}`, matching the
+  description's `languageCode` column case-insensitively. Codes are bare
+  words, not quoted strings.
+- `snomed-ecl`: the `typeIdFilter` description filter kind —
+  `{{ D typeId = 900000000000003001 }}`, taking any concept expression
+  where `type` takes an `fsn`/`syn`/`def` token. Both spellings stay: the
+  token form is what a human writes, the id form what a generated query
+  carries. spec/10's description filter now implements every kind except
+  the `dialect` alias form, the multi-dialect `dialectIdSet` spelling,
+  and the typed search-term prefixes.
+
+### Changed
+
+- `snomed-ecl` (internal, but visible in error *positions*): an
+  alphanumeric run the keyword table doesn't know is now a token rather
+  than an immediate lex error, and the parser rejects one it can't use
+  with the same `EclError::UnexpectedKeyword`. Required for bare language
+  codes, since the lexer cannot know that `en` is legitimate in one
+  position and a typo in every other.
+
 ## [0.9.0] — 2026-08-22
 
 ### Changed
@@ -59,9 +294,9 @@ together, in dependency order (`snomed-core` → `snomed-rf2` → `snomed-owl`
   `TransitiveObjectProperty` is the chain `r ∘ r ⊑ r` and needs no
   separate rule. Generation runs two whole-run passes: the first produces
   the forms the reachability graph is built from, the second
-  re-normalizes only the concepts a chain could affect (~11% on top of
-  `classify` at 2,000 concepts). This closes spec/14's last documented
-  scope cut.
+  re-normalizes only the concepts a chain could affect. This closes
+  spec/14's last documented scope cut. (The "~11%" cost first published
+  here was wrong — see the correction under Unreleased.)
 - `snomed-ecl`: the `definitionStatusIdFilter` concept filter kind —
   `{{ C definitionStatusId = 900000000000073002 }}`, and any concept
   expression in that position, alongside the existing
@@ -223,7 +458,7 @@ together, in dependency order (`snomed-core` → `snomed-rf2` → `snomed-owl`
   `snomed-owl`'s parser rejects but the public `Axiom` type permits. One
   operand is now treated as the role hierarchy axiom it is; zero operands
   are reported via the new `SkippedConstruct::EmptyRoleChain`
-  (spec/13 rule 6).
+  (spec/13 rule 1).
 - `snomed-classify`: necessary normal form dropped **all** of a concept's
   parents when two of them were mutually equivalent (each implied the
   other, so each eliminated the other). Equivalent supertypes now keep

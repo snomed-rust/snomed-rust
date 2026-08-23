@@ -76,10 +76,10 @@ exact trap more than once, to exercise the skip path).
 Both `snomed-ecl` and `snomed-owl` implement real, documented subsets of
 their respective languages (spec/10, spec/12), not the full grammar. A
 `NotYetImplemented` error names exactly which construct isn't supported
-— check that spec file's "Not yet implemented" section to confirm it's a
-known gap (and see spec/10 rule 9 specifically: not every ECL gap gets a
-*named* error yet, some still surface as a generic lex/parse error — the
-spec section explains which). This is intentional: neither crate will
+— check `spec/10-ecl-unimplemented.md` (ECL) or spec/12's "Not yet
+implemented" section (OWL) to confirm it's a known gap (and see spec/10
+rule 9 specifically: not every ECL gap gets a *named* error yet, some
+still surface as a generic lex/parse error — that file explains which). This is intentional: neither crate will
 ever silently accept unsupported syntax and evaluate it as something
 else, or as nothing.
 
@@ -122,6 +122,43 @@ job that checks it. It moves whenever stable does; the policy is
 Fuzzing is the one exception: `libfuzzer-sys` needs nightly
 (`cargo +nightly fuzz run ...`), which is exactly why `fuzz/` is not a
 workspace member.
+
+## "My ECL query returned concepts that aren't under what I asked for"
+
+Almost certainly one of the three forms whose result is deliberately
+*not* a subset of the focus set. They are the only ones, and each has a
+distinctive shape:
+
+| You wrote | You got back |
+|---|---|
+| `<< 404684003 . 363698007` | the finding **sites** of those findings — body structures, not findings |
+| `^ 723264001` | the reference set's **members** — not the reference set |
+| `^R 80891009` | the reference **sets containing** that concept — not the concept |
+
+Dot notation (`.`) is the one that surprises people most, because it
+reads like a field access on the focus set. It is defined as sugar for
+the reverse-flag refinement `* : R 363698007 = << 404684003`
+([`spec/10`](../spec/10-ecl.md) rule 15), and the two spellings are
+tested against each other, so if one looks wrong the other will look
+wrong the same way.
+
+Two related non-bugs, both consequences of that definition:
+
+- **Dot notation doesn't filter to active concepts.** `*` in ECL is
+  every concept in the store, not every active one, so neither is `.`'s
+  output. Add `{{ C active = true }}` if you want only active ones.
+- **Dot notation ignores relationship groups.** An ungrouped refinement
+  does too. `A . a` cannot express "the morphology grouped with *this*
+  finding site" — that needs `{ }`, which the dotted form has no syntax
+  for.
+
+And one that is a real, deliberate quirk: `^` returns RF2 *membership*,
+which is `referencedComponentId` of any refset type — so
+`^ 900000000000509007` (a Language refset) returns **description** ids,
+not concept ids, and `^ *` includes them. Whether `^` should filter to
+concepts is an open question, priced in [`plan.md`](../plan.md) under
+"Open decisions". `^R` has no such ambiguity: it is defined over
+concept-referencing refsets only.
 
 ## "The same query printed things in a different order last run"
 

@@ -41,7 +41,7 @@ the workspace so the published crates keep zero dependencies.
    accessor on a type whose constructor doesn't validate (`SctId::
    new_unchecked`, a hand-built `snomed_owl::Axiom`) returns a "no
    answer" value instead of indexing out of bounds. `spec/04` rule 5 and
-   `spec/13` rule 6 state this; the `fuzz/` targets enforce it.
+   `spec/13` rule 1 state this; the `fuzz/` targets enforce it.
 9. A new public **error** enum is `#[non_exhaustive]`; a new public
    **grammar/AST** enum is not — `spec/rust-api-stability.md` has the
    reasoning and the current membership list, and any exception is
@@ -49,6 +49,12 @@ the workspace so the published crates keep zero dependencies.
 10. **Results are deterministic across processes**, not merely
    order-independent in content: anything built by iterating a `HashMap`
    gets sorted before it is exposed (`spec/09` rules 5–6).
+11. Cite rules as `spec/NN rule M`.
+   `crates/snomed/tests/spec_citations.rs` walks the repository and fails
+   if a citation names a rule that doesn't exist, so inserting or
+   renumbering a rule means fixing its citations in the same change.
+   `spec/10` is split across four files for size; every ECL rule number
+   lives in `10-ecl.md` regardless of which file holds the prose.
 
 ## Role playbooks
 

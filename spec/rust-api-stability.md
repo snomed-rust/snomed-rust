@@ -34,6 +34,17 @@ stay exhaustive. Two reasons, both load-bearing here:
    what to do with it — model it, or report it via `SkippedConstruct`.
    That check is worth more than the convenience of never breaking.
 
+0.10.0 is the worked example of reason 1. Three ECL grammar forms landed
+in one release — dot notation, the full `memberOf` operand, and `^R` —
+and between them they added `ExpressionConstraint::Dotted`,
+`::RefsetContaining`, and `::Operated`, replaced `MemberOf`'s fields with
+a new `RefsetOperand`, and broke every exhaustive `match` downstream.
+That is the policy working, not a cost it imposed: an ECL interpreter
+built on this AST that silently ignored `Dotted` would answer
+`< 19829001 . 116676008` with lung disorders instead of their
+morphologies — a plausible-looking wrong set, from code that never got a
+chance to know the form existed.
+
 Some grammar enums (`HierarchyOp`, `NumericComparisonOp`, `ActiveValue`,
 `ReleaseType`, `ComponentType`, `SubsumeOutcome`, …) additionally have
 variant sets fixed by an external specification: a new variant would mean

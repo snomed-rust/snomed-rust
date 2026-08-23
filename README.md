@@ -33,7 +33,7 @@ or analytics pipelines.
 | [`crates/snomed-core`](crates/snomed-core) | SCTID parse/validate/compose (Verhoeff check digit), `EffectiveTime`, `Concept`/`Description`/`Relationship`, well-known constants |
 | [`crates/snomed-rf2`](crates/snomed-rf2) | RF2 file name parsing, Full/Snapshot/Delta types, streaming typed reader, reference set members |
 | [`crates/snomed-store`](crates/snomed-store) | Snapshot builder (latest version wins, order-independent), IS-A hierarchy, ancestors/descendants/subsumption, and a `HistoryStore` for full version history / point-in-time queries |
-| [`crates/snomed-ecl`](crates/snomed-ecl) | Expression Constraint Language: lexer, parser, evaluator for simple expression constraints + basic refinements |
+| [`crates/snomed-ecl`](crates/snomed-ecl) | Expression Constraint Language: lexer, parser, evaluator — hierarchy operators, `memberOf`/`^R`, dot notation, refinements (cardinality, reverse flag, attribute groups, concrete values), and `{{ }}` concept/description filters |
 | [`crates/snomed-fhir`](crates/snomed-fhir) | FHIR terminology service building blocks: `$subsumes`, `$lookup`, `$expand` |
 | [`crates/snomed-owl`](crates/snomed-owl) | Parser for the OWL 2 functional-syntax subset used in the OWL Expression reference set |
 | [`crates/snomed-classify`](crates/snomed-classify) | EL-profile subsumption classifier (completion algorithm) over OWL axioms, plus necessary normal form (RF2 relationship) generation |
@@ -59,10 +59,12 @@ Supporting documents:
   and questions, answered.
 - [`spec/`](spec/README.md) — project-local distillation of the official
   [RF2 Release File Specification](https://docs.snomed.org/snomed-ct-specifications/snomed-ct-release-file-specification);
-  the normative reference for this codebase. It also holds the three
-  project policies that bind the same way:
-  [MSRV](spec/rust-msrv-n-minus-3.md), [fuzzing](spec/rust-fuzz.md), and
-  [benchmarking](spec/rust-bench.md).
+  the normative reference for this codebase. It also holds five project
+  policies that bind the same way:
+  [MSRV](spec/rust-msrv-n-minus-3.md), [fuzzing](spec/rust-fuzz.md),
+  [benchmarking](spec/rust-bench.md),
+  [API stability](spec/rust-api-stability.md), and
+  [the `agents` directory name](spec/agents-directory-name-is-lowercase.md).
 - [`plan.md`](plan.md) — roadmap by phase (with
   [`docs/plan-archive.md`](docs/plan-archive.md) holding the closed
   phases' full design narrative); [`tasks.md`](tasks.md) — execution
@@ -147,8 +149,12 @@ writing, checked in CI against that exact toolchain. The policy, and how it
 moves, is [`spec/rust-msrv-n-minus-3.md`](spec/rust-msrv-n-minus-3.md).
 
 Development is **specification-driven**: behavior is written in `spec/*.md`
-first, code cites the spec it implements, and tests enforce the spec's
-normative rules. See [`plan.md`](plan.md) for the roadmap by phase and
+first, code cites the spec it implements (`// per spec/04 rule 5`), and
+tests enforce the spec's normative rules. Those citations are checked
+rather than trusted — `crates/snomed/tests/spec_citations.rs` walks the
+whole repository and fails if any `spec/NN rule M` names a rule that
+doesn't exist, so renumbering a spec can't silently leave stale pointers
+behind. See [`plan.md`](plan.md) for the roadmap by phase and
 [`tasks.md`](tasks.md) for what's currently scoped next.
 
 ## License

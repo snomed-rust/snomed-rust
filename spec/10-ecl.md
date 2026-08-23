@@ -1,5 +1,11 @@
 # 10 — Expression Constraint Language (ECL) — simple constraints + refinements
 
+Split across four files by size, all normative, with the rule numbers
+(and therefore every `spec/10 rule N` citation) living here: this one,
+`spec/10-ecl-refinements.md` (`:` attribute-value constraints),
+`spec/10-ecl-filters.md` (what each `{{ }}` filter kind matches), and
+`spec/10-ecl-unimplemented.md` (what is still rejected, and why).
+
 Official sources:
 - [SNOMED CT Expression Constraint Language — Specification and
   Guide](https://docs.snomed.org/snomed-ct-specifications/snomed-ct-expression-constraint-language)
@@ -40,14 +46,15 @@ Boolean concrete value comparisons (not
 representable in RF2 — see below), `moduleId`'s
 `eclConceptReferenceSet` spelling, member filter
 constraints (`{{ M ... }}`), the remaining description filter kinds
-(`language`, dialects, `typeId`), the history supplement, and alternate
+(the `dialect` alias form), the history supplement, and alternate
 identifiers are **out of scope for this version** — see
-[Not yet implemented](#not-yet-implemented).
+`spec/10-ecl-unimplemented.md`.
 
 ## Grammar (this subset only, derived from `syntax/abnf-brief.txt`)
 
 ```
 expressionConstraint  := refinedExpressionConstraint
+                       | dottedExpressionConstraint
                        | subExpressionConstraint
                        | conjunctionExpressionConstraint
                        | disjunctionExpressionConstraint
@@ -55,6 +62,16 @@ expressionConstraint  := refinedExpressionConstraint
                        | "(" expressionConstraint ")"
 refinedExpressionConstraint
                       := subExpressionConstraint ":" eclRefinement
+dottedExpressionConstraint
+                      := subExpressionConstraint 1*("." eclAttributeName)
+                        -- NOTE: unlike the refinement leniency below, this
+                        -- one is recognized ONLY here, at the top of an
+                        -- expressionConstraint, never after a nested
+                        -- subExpressionConstraint. That is not politeness
+                        -- to the grammar: eclAttributeName is itself a
+                        -- subExpressionConstraint, so a lenient reading
+                        -- would make `A . x . y` associate right instead
+                        -- of left (rule 15).
 conjunctionExpressionConstraint
                       := subExpressionConstraint 1*("AND" subExpressionConstraint)
 disjunctionExpressionConstraint
@@ -70,8 +87,7 @@ subExpressionConstraint
                         -- NotYetImplemented
                         -- NOTE: the parser applies this same trailing
                         -- structure (filters, then an optional ":"
-                        -- refinement, and the named dot-notation
-                        -- rejection) after EVERY subExpressionConstraint
+                        -- refinement) after EVERY subExpressionConstraint
                         -- position — including nested ones like attribute
                         -- names/values and moduleId filter values — so a
                         -- refinement is accepted in nested positions the
@@ -105,15 +121,32 @@ descriptionFilterConstraint
                          *(ws "," ws descriptionFilter) ws "}}"
                         -- the `D` marker is optional: an unmarked block
                         -- is a description filter
-descriptionFilter     := termFilter | typeTokenFilter | activeFilter
+descriptionFilter     := termFilter | typeTokenFilter | typeIdFilter
+                        | languageFilter | dialectIdFilter | activeFilter
 termFilter            := "term" ws booleanComparisonOp ws
-                         (searchTerm | "(" ws searchTerm *(mws searchTerm) ws ")")
-searchTerm            := '"' <any text except unescaped '"'> '"'
-                        -- the typed prefixes (match:/wild:/regex:/exact:)
-                        -- are not implemented; matching is `match:`
+                         (typedSearchTerm
+                          | "(" ws typedSearchTerm *(mws typedSearchTerm) ws ")")
+typedSearchTerm       := [searchType ":"] '"' <text> '"'
+searchType            := "match" | "wild" | "exact"
+                        -- "regex" is rejected by name: an engine for it
+                        -- would be an external dependency
 typeTokenFilter       := "type" ws booleanComparisonOp ws
                          (typeToken | "(" ws typeToken *(mws typeToken) ws ")")
 typeToken             := "fsn" | "syn" | "def"
+typeIdFilter          := "typeId" ws booleanComparisonOp ws
+                         subExpressionConstraint
+languageFilter        := "language" ws booleanComparisonOp ws
+                         (languageCode | "(" ws languageCode
+                          *(mws languageCode) ws ")")
+languageCode          := alpha *(alpha | digit | "-")   -- bare, unquoted
+dialectIdFilter       := "dialectId" ws booleanComparisonOp ws sctid
+                         [ws acceptabilitySet]
+acceptabilitySet      := "(" ws acceptabilityToken
+                         *(mws acceptabilityToken) ws ")"
+acceptabilityToken    := "preferred" | "prefer" | "acceptable" | "accept"
+                        -- the dialectAlias form (`dialect = en-us`) is
+                        -- rejected by name: an alias maps to a refset id
+                        -- only by deployment policy
                         -- both definitionStatus spellings are
                         -- implemented: the keyword form below and
                         -- definitionStatusIdFilter, which takes a
@@ -244,13 +277,87 @@ miscategorized them.
 `^ conceptReference` evaluates to `refset_members(refsetId)` (spec/08's
 membership rule: any refset type, active only).
 
-Per the official grammar, `subExpressionConstraint` allows a hierarchy
-prefix to wrap a `memberOf` (`< ^ 447562003` is syntactically valid: "the
-descendants of every member of refset 447562003"). This version does **not**
-implement that combination — a hierarchy prefix immediately followed by `^`
-is a clear `NotYetImplemented` parse error, not silently ignored. The refset
-id itself MUST be a concrete concept reference in this version — `^ *`
-("member of any refset") is likewise not yet implemented.
+The official grammar gives `memberOf` the same operand a plain focus
+takes:
+
+```
+subExpressionConstraint = [constraintOperator ws] ( ( [refsetOperator ws]
+    (eclFocusConcept / "(" ws expressionConstraint ws ")") ...
+memberOf = "^" [ ws "[" ws (refsetFieldNameSet / wildCard) ws "]" ]
+```
+
+so three forms are implemented, all reachable from that one production:
+
+- `^ 447562003` — one refset, by id.
+- `^ *` — every refset. The guide: "the expression constraint below
+  evaluates to all concepts that are referenced by any reference set in
+  the substrate: `^*`".
+- `^ ( < 450973005 )` — a *computed* set of refsets. The guide: "The
+  memberOf function may also be applied to an expression constraint that
+  returns a set of concept-based reference set concepts", giving "the
+  union of applying the memberOf function to each of the descendants of
+  `| GP/FP health issue reference set|`".
+
+### A hierarchy prefix on `^`, and on a parenthesized set
+
+`constraintOperator` precedes `refsetOperator` in the production above, so
+the operator applies to the *result* of the memberOf: `< ^ 447562003` is
+"the descendants of the members of refset 447562003". The other reading —
+"the members of the refsets under 447562003" — is what the parentheses in
+`^ ( < 447562003 )` are for, and the two return different sets. The
+guide's rule for an operator over a set is the one used here: "the
+resulting set of matching expressions is the union of applying the
+constraint operator to each of its members". The same production allows
+`< ( A OR B )`, which is implemented the same way.
+
+### `^R` (refsetContainingAny) — the inverse
+
+`refsetOperator = memberOf / refsetContainingAny`, so `^R` takes the same
+operand `^` does and the same optional `constraintOperator` in front. It
+answers the opposite question. From the guide:
+
+> "The constraint is satisfied the set of reference sets that contain at
+> least one of the given concepts." … "The following expression
+> constraint is satisfied by the set of refset concepts that have an
+> active member with a referenced component of the concept 73211009
+> |Diabetes mellitus|: `^R 73211009 |Diabetes mellitus|`"
+
+"At least one" makes a set operand a union, not an intersection:
+`^R ( A OR B )` is every refset containing A **or** B.
+
+The guide also bounds the operator, and the bound is what sizes the index
+behind it:
+
+> "This function may be applied only to reference sets whose referenced
+> components are concepts. The SNOMED CT Expression Constraint Language
+> does not support use of the refsetContaining function on reference sets
+> whose referencedComponents are not concepts."
+
+So `SnapshotStore::refsets_containing` indexes referenced components in
+the Concept partition only (spec/09's derived index list), and `^R *` —
+"every refset containing at least one of every concept" — is every refset
+with a concept member, which excludes the Language refsets.
+
+### A literal refset id is a key, not a concept
+
+`^ X` looks `X` up in the membership index without requiring `X` to be a
+concept in the store, so a store built from refset files with no Concept
+file still answers it. `^ ( X )` — the computed form — does resolve
+concepts, and returns nothing in that same store. The two spellings
+therefore differ on a partial release, which is why the AST keeps them as
+distinct `MemberOfTarget` cases instead of collapsing `^ X` into the
+general form.
+
+### `^` returns referenced components, whatever their type
+
+`refset_members` is RF2 membership (spec/08): the `referencedComponentId`
+of an active row of *any* refset type. For a Language refset those are
+description ids, so `^ 900000000000509007` returns descriptions, and
+`^ *` includes them. The guide says "concepts" throughout — it assumes
+concept refsets — and whether `^` should filter to the Concept partition
+is an open question priced in `plan.md`, not a settled one. It is left
+unfiltered here because filtering `^ *` alone would make it disagree with
+`^ X`, and changing both is a behavior change to a shipped operator.
 
 ## Wildcard
 
@@ -275,177 +382,9 @@ A hierarchy prefix combined with wildcard (`eclFocusConcept` includes
 
 ## Refinements (`:` attribute-value constraints)
 
-`focus : attributeId = value` restricts `focus`'s evaluated set to
-concepts that additionally have a matching attribute. Per the official
-grammar, `refinedExpressionConstraint` is a distinct top-level alternative
-of `expressionConstraint` — a refinement isn't "just another operator" at
-the same level as `AND`/`OR`/`MINUS`.
-
-- `focus` is any `subExpressionConstraint`: a plain hierarchy expression
-  (`404684003 : ...`), a parenthesized one
-  (`(<< 404684003 MINUS << 64572001) : ...`), or a `^ memberOf`
-  expression (`^ 447562003 : ...`), since `refinedExpressionConstraint`
-  wraps whichever form preceded the `:`. Filter constraints apply after
-  any of the three too.
-- `attributeId` (`eclAttributeName`) is any `subExpressionConstraint`, per
-  the official grammar — a bare concept reference is just the common case.
-  A hierarchy-prefixed attribute name (`<< 363698007 = value`) matches
-  relationships whose `typeId` is *any* concept in that evaluated set.
-  Evaluation computes that set once per constraint and checks `type_id`
-  membership in it, with no special case for a single id.
-- `=` : the concept MUST satisfy `attributeId`'s cardinality (see below) by
-  active **inferred** relationships (spec/07's hierarchy-view convention,
-  extended here) whose `typeId` is in `attributeId`'s evaluated set and
-  whose destination is in `value`'s evaluated set.
-- `!=` : the concept MUST NOT satisfy that cardinality — `!=` negates the
-  whole cardinality check, not just "has zero matches". With the default
-  `[1..*]`, negating "at least one match" *is* "zero matches", so the
-  pre-cardinality behavior falls out as the default case.
-- `value` is any `subExpressionConstraint` — including hierarchy-prefixed
-  expressions, e.g. `116676008 |Associated morphology| = << 409774005`.
-- `AND`/`OR` chain attribute constraints at the refinement level, following
-  the same rule-5 pattern as the top level: a homogeneous run needs no
-  parens, mixing `AND` and `OR` at one level does. There is **no `MINUS` at
-  refinement level** — the official grammar's `eclRefinement` doesn't define
-  one.
-- Parenthesized groups of attribute constraints (`subRefinement`'s
-  `"(" eclRefinement ")"` alternative) are supported, e.g.
-  `focus : (a = x OR a = y) AND b = z`.
-
-Combining an *unparenthesized* refined expression with top-level
-compound operators is asymmetric in this implementation (the strict
-grammar requires parentheses around the refined part in every case):
-
-- `focus : a = x MINUS otherExpr` parses as `(focus : a = x) MINUS
-  otherExpr` — leniency, since the refinement level has no `MINUS`, so
-  the refinement loop returns before the `MINUS` is consumed.
-- `otherExpr AND focus : a = x` (the refined expression as the *last*
-  operand) parses too, for the same reason.
-- `focus : a = x AND otherExpr` / `... OR otherExpr` (the refined
-  expression as an earlier operand of `AND`/`OR`) is a **parse error**,
-  not a lenient parse: the refinement-level `AND`/`OR` loop greedily
-  consumes the operand after the operator as another attribute
-  constraint, then fails on `otherExpr`'s missing comparison operator.
-  This errs rather than misparses — nothing silently gets the wrong
-  meaning — but it is not accepted; parenthesize the refined part
-  (`(focus : a = x) AND otherExpr`) as the strict grammar requires.
-
-### Cardinality (`[min..max]`)
-
-`[min..max] attributeId = value` requires the *count* of matching
-relationships (rather than just "at least one") to fall within
-`[min, max]`; `max` may be `*` for unbounded. Per the official guide:
-
-> "The default cardinality of each attribute, where not explicitly stated,
-> is [1..*]." … "constrains the number of times the attribute may be
-> included in *any* attribute group" (i.e. counted across every group, not
-> per-group, when written outside `{ }`).
-
-So `attributeId = value` and `[1..*] attributeId = value` parse to the
-same `Cardinality` (`AttributeConstraint::cardinality` defaults to
-`{min: 1, max: None}`, never `Option<Cardinality>` — there's no
-"unspecified" state to track separately from the default).
-
-### Reverse flag (`R`)
-
-`R attributeId = value` swaps which end of the relationship is matched:
-instead of requiring `focus --attributeId--> (something in value)`, it
-requires `(something in value) --attributeId--> focus`. Per the official
-guide's own example:
-
-> `< 91723000 |Anatomical structure| : R 363698007 |Finding site| = <
-> 125605004 |Fracture of bone|` — "anatomical structures that are finding
-> sites of bone fractures."
-
-Implemented via a new `SnapshotStore::relationships_to` accessor (the
-destination-indexed mirror of the existing source-indexed
-`relationships_of`) — never a fresh whole-store scan, matching rule 4
-below.
-
-### Attribute groups (`{ }`)
-
-`[cardinality] { attributeSet }` requires that some number of the
-concept's **role groups** (`relationshipGroup` values, spec/07) — matching
-`cardinality`, default `[1..*]` — each independently satisfy every
-attribute in `attributeSet` using only that group's own relationships.
-Per the official guide:
-
-> "there must exist at least one attribute group for which the given
-> cardinality is satisfied by attributes in that group."
-
-So `{ a = x AND b = y }` requires one group with *both*; without braces,
-`a = x AND b = y` (valid at `eclRefinement` level, not `eclAttributeSet`)
-lets the two matches come from different groups or none at all — grouping
-is a `{ }`-only concept, per the guide's own group/no-group distinction.
-An attribute inside `{ }` may carry its own cardinality
-(`{ [2..*] 363698007 = value }`), independent of the group's.
-
-**Role group `0` is excluded from candidacy.** The official guide doesn't
-say so explicitly, but spec/07 documents `relationshipGroup`'s own
-semantics: `0` means "ungrouped", nonzero values group role attributes —
-so group `0` isn't a role group at all, and treating it as a matchable
-`{ }` candidate would invent meaning the field doesn't carry. A
-documented judgment call, same category as spec/08's `iRefset`/`ciRefset`
-pattern-letter derivation.
-
-**Known limitation: the reverse flag inside `{ }` compares unrelated
-group numbers.** A reverse attribute's relationship belongs to the
-*other* concept (the one pointing at the focus), so that row's
-`relationshipGroup` has nothing to do with the focus concept's own role
-group numbering — yet `{ R attr = value }` currently filters those rows
-by the candidate group id taken from the focus's relationships. The
-visible effect: a focus concept with no nonzero role group of its own can
-never satisfy `{ R ... }`, even when the ungrouped `R ...` matches it.
-Neither the official ECL specification nor the official guide says what
-`R` inside an attribute group should mean, and inventing semantics here
-would be exactly the guessing this spec forbids elsewhere — so the
-behavior is documented and tracked in `tasks.md`, not quietly redefined.
-
-**Candidate groups come from both relationship views.** The set of
-candidate group ids for a `{ }` constraint is the union of the concept's
-active inferred `Relationship` rows' nonzero `relationshipGroup` values
-and its `RelationshipConcreteValue` rows'. A role group can legitimately
-hold either kind or a mix (a substance alongside its strength), so
-`focus : { attr > #500 }` matches a group whose only rows are concrete
-values. (This was a documented limitation until the candidate set was
-widened; the per-group matching itself always honored group scope.)
-
-### Concrete value comparisons
-
-`attributeId numericComparisonOp "#" numericValue` and `attributeId ("="
-| "!=") (concreteString | concreteStringSet)` compare against a
-`RelationshipConcreteValue` row's `Number`/`String` (spec/07's concrete
-domains — `#10` or `#-2.5` for numbers, `"250mg"` or `("250mg" "500mg")`
-for strings) instead of a relationship's destination concept. As with
-the expression form, the *count* of matching rows is what's checked
-against `cardinality` (default `[1..*]`):
-
-- `=`/`!=`/`<=`/`<`/`>=`/`>` are all valid for numbers; only `=`/`!=` for
-  strings (the official grammar's `numericComparisonOperator` vs.
-  `stringComparisonOperator`).
-- For `=`/`!=` specifically, the row-level predicate is always
-  *equality* — `!=` negates the **aggregate** cardinality check
-  afterwards, exactly like the expression form's `negated`, rather than
-  redefining "matches" to mean "not equal" per-row. `<=`/`<`/`>=`/`>`
-  have no such distinction; they define the per-row predicate directly.
-- A `String` value never matches a numeric comparison, and a `Number`
-  value never matches a string comparison — a type mismatch, not an
-  error.
-- The reverse flag (`R`) is rejected at parse time when combined with a
-  concrete value comparison: a concrete value has no "other concept" for
-  `R` to reverse the source/destination roles of, so the combination is
-  syntactically legal per the official grammar but semantically empty.
-- `concreteStringSet` (`("a" "b" ...)`) is an OR'd set: the same per-row
-  `String` equality check, applied across every value. Disambiguating it
-  from a parenthesized `subExpressionConstraint` (both follow `=`/`!=`
-  with `(`) needs no backtracking despite the one-token lookahead: once
-  `(` is consumed, the next token settles it, since a set always starts
-  with a `concreteString` and a parenthesized expression never does.
-
-**Not implemented: boolean comparisons.** `snomed_core::ConcreteValue`
-has no boolean variant, and neither does SNOMED CT's own concrete domain
-model as this project has encountered it — a deeper gap than just
-`snomed-ecl` would need to close.
+Moved to `spec/10-ecl-refinements.md` — cardinality, the reverse flag,
+attribute groups, and concrete value comparisons, with the judgment calls
+each one needed. Rules 6-10 below govern it.
 
 ## Filter constraints (`{{ }}`)
 
@@ -465,75 +404,24 @@ never consulted during evaluation; only the SCTID is evaluated).
 
 ## Not yet implemented
 
-Tracked in `tasks.md`. None of these produce a silently *wrong* result —
-every one is rejected — but only some get a feature-naming
-`EclError::NotYetImplemented`; the rest fall through to a generic
-lexer/parser error, because the parser never recognizes the shape well
-enough to name it. That distinction is itself a tracked gap (rule 9):
-don't assume an item below is named without checking `parser.rs`/
-`lexer.rs`.
-
-Rejected with a named `EclError::NotYetImplemented`:
-
-- `{{ M ... }}` member filter constraints. This one is not just a
-  parsing gap: a member filter selects on a *member row's* own columns,
-  and `SnapshotStore` drops inactive refset members when it builds its
-  indexes (spec/09 rule 4), keeping only the membership facts. So
-  `{{ M active = false }}` could never match, and `moduleId`/
-  `effectiveTime` filters would silently see active rows only.
-  It is worse for the two refset types ECL uses most: Simple and Language
-  refsets keep no member *rows* at all in a snapshot, only the derived
-  membership set and acceptability map, since retaining a release's ~2.8M
-  language members would cost hundreds of megabytes. So implementing
-  member filters honestly means first deciding what a snapshot retains —
-  a spec/09 change with a real memory cost — or whether member filters
-  are a `HistoryStore` question instead, since that store does keep every
-  member version. Either way, the decision belongs in `plan.md` before
-  any parser work.
-- `moduleId`/
-  `effectiveTime` inside a `{{ D ... }}` block (named because their
-  keywords are already tokenized). `{{ C ... }}` and `{{ D ... }}`
-  themselves are implemented — see their own sections above.
-- `^ *` (member of any refset) and a hierarchy prefix combined with `^`
-  (e.g. `< ^ 447562003`).
-- Dot notation (`.` / `dottedExpressionConstraint`) — a lone `.` is its
-  own token (only `..`, the cardinality separator, differs), and the
-  parser names it when it follows a complete sub-expression. A `.` in a
-  position no production expects (`[0.1]` for `[0..1]`) is a generic
-  `UnexpectedToken` instead: dot notation is detected only where it would
-  actually appear.
-- `A#B` alternate identifiers — detected at the lexer by an alpha run
-  (extended through trailing digits/dashes, per
-  `altIdentifierSchemeAlias`) followed by `#`. An alias spelled exactly
-  like a keyword (`R#...`, `C#...`) matches the keyword table first and
-  fails generically instead — an accepted tradeoff of lexing filter
-  keywords unconditionally (`agents/ecl-engineer.md`).
-- `!!>` / `!!<` (`top`/`bottom` — part of `constraintOperator`).
-- `^R` (refsetContainingAny) and `^ [A, B]` (member of, with field
-  selection).
-
-Rejected, but currently only with a generic lex/parse error (not yet
-named) — a genuinely unimplemented construct, not just missing an error
-label, so naming it precisely isn't as simple as recognizing a fixed
-token shape:
-
-- Boolean concrete value comparisons. **Not applicable to RF2 as
-  specified** rather than merely unimplemented: spec/07's `value` column
-  has exactly two wire forms, `#<decimal>` and `"<string>"`, so a boolean
-  concrete value cannot be represented in the data this workspace parses.
-  Implementing the ECL side would add an operator that can never match.
-  If a release ever carries one, that is a spec/07 change first.
-- The history supplement (`{{+HISTORY}}`) — `{{` followed by `+` falls
-  to `parse_filter_constraint`'s catch-all (`+` isn't a recognized
-  filter marker), a generic `UnexpectedToken`.
-- Concept filter kinds other than
-  `moduleFilter`'s `eclConceptReferenceSet` alternative (`moduleId =
-  (id1 id2)`) — rejected once the parenthesized-expression parser
-  reaches a second bare concept reference. Note it is a *spelling* gap,
-  not a capability one: `moduleId = (id1 OR id2)` already works and means
-  the same thing (see "Concept filter constraint" above).
+Moved to `spec/10-ecl-unimplemented.md` — the list, and the reason each
+item is still rejected, outgrew this file's 40 KB budget. Rule 9 below
+still governs it: nothing on that list may be silently accepted.
 
 ## Rules (normative for `snomed-ecl`)
+
+0. Evaluation MUST evaluate each sub-expression that does not depend on
+   the candidate concept — an attribute name's set, a comparison value's
+   set, a description filter's search terms — **once per query**, never
+   once per candidate. This reads like an optimization and is not: an
+   attribute whose value is itself a refinement re-runs the inner query
+   for every concept when this rule is broken, so nesting multiplies the
+   work by the concept count at each level. A 119-byte expression took 39
+   seconds against an *eight-concept* store before this was fixed, and
+   would not have finished against a release — a query anyone could
+   submit. Rule 3's "membership testing is O(1) after evaluation" is the
+   same concern one level up.
+
 
 1. Parsing MUST reject a malformed SCTID with the same error
    ([`SctIdError`](04-sctid.md)) the RF2 parsers use, not a generic "bad
@@ -566,7 +454,7 @@ token shape:
 8. Role group `0` MUST NOT be a candidate group for `{ }` evaluation
    (see "Attribute groups"); candidates come from both the
    `Relationship` and `RelationshipConcreteValue` views.
-9. Nothing in "Not yet implemented" MAY be silently accepted and
+9. Nothing in `spec/10-ecl-unimplemented.md` MAY be silently accepted and
    evaluated as something else, or panic — every one MUST be rejected.
    Naming the missing feature via `EclError::NotYetImplemented` is
    preferred but not required of every item (see the two-group split
@@ -600,3 +488,30 @@ token shape:
     filter constraint"). `term` matching MUST be the grammar's default
     `match:` word-prefix semantics — never a substring search, which
     would accept mid-word matches the search type excludes.
+15. A `dottedExpressionConstraint` (`A . attributeName`) MUST evaluate to
+    the **destinations** of active inferred relationships whose source is
+    in `A` and whose `typeId` is in the evaluated `attributeName` — the
+    same rows rule 6 governs, read from the other end. Concretely it MUST
+    agree with the reverse-flag refinement it is defined as sugar for:
+    `A . a` and `* : R a = A` MUST return the same set, which means it
+    MUST NOT filter its result by concept `active` (`*` doesn't) and MUST
+    NOT restrict by relationship group (a refinement without `{ }` doesn't).
+    A dotted chain MUST associate left: `A . x . y` is `(A . x) . y`.
+16. `memberOf` MUST accept the full `(eclFocusConcept / "("
+    expressionConstraint ")")` operand: `^ X`, `^ *`, and `^ ( expr )`.
+    A `constraintOperator` before it MUST apply to the *member set*,
+    unioning the operator's result over each member — never to the
+    refset id — so `< ^ X` and `^ ( < X )` MUST be able to return
+    different sets. The same applies to `constraintOperator "("
+    expressionConstraint ")"`. `^ X` MUST NOT require `X` to be a concept
+    in the store (it is a key into the membership index); `^ ( X )` MAY,
+    since a computed refset set is computed from concepts.
+17. `^R` (`refsetContainingAny`) MUST evaluate to the refsets with an
+    active member referencing **at least one** concept in its operand —
+    a union over the operand, never an intersection — and MUST be
+    implemented over concept referenced components only, which is the
+    scope the official guide defines it in. It MUST take the same operand
+    forms and the same optional `constraintOperator` as `^` (rule 16).
+    `^R` and `^` MUST be exact inverses on concept refsets: for any
+    concept `c` that is a member of refset `r`, `^R c` MUST contain `r`
+    and `^ r` MUST contain `c`.

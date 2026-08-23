@@ -77,6 +77,7 @@ store.subsumes(finding, mi);                // -> bool  (reflexive: finding == m
 store.is_member(snomed_core::constants::ICD10_EXTENDED_MAP_REFSET, mi); // -> bool, any refset type
 store.refset_members(snomed_core::constants::US_ENGLISH_LANGUAGE_REFSET); // -> impl Iterator<Item = SctId>
 store.refset_ids(); // -> impl Iterator<Item = SctId>, every refsetId with active content
+store.refsets_containing(mi); // -> impl Iterator<Item = SctId>, the reverse: refsets whose members include this concept
 # }
 ```
 
@@ -93,6 +94,13 @@ the full typed member rows rather than just a scalar, and
 relationship data hierarchy queries are built on top of.
 
 ### Validation
+
+Historical associations read in two directions, and the store indexes
+both: `association_members(refset, component)` answers "what replaced
+this retired concept?" (the direction the RF2 rows are written in), and
+`association_sources(refset, target)` answers "which retired concepts
+point at this active one?" — the question a data migration actually asks.
+Neither is derivable from the other without scanning every member.
 
 `store.validate()` checks referential integrity, IS-A acyclicity, and
 whether every active concept is attached to the hierarchy at all, and
@@ -174,6 +182,15 @@ did this become the preferred term?" is a member-history question.
   happens to carry (spec/08 rule 4). `refset_ids` is the same unified
   index's key set — "every refsetId with active content" falls out for
   free once membership itself is unified, no separate index needed.
+- **...but its reverse is concept-only.** `refsets_containing` answers
+  "which refsets is this concept in?", and indexes referenced components
+  in the Concept partition alone. That is the scope of the question, not
+  a size compromise: ECL's `^R`, the operator it backs, is defined only
+  over "reference sets whose referenced components are concepts", and the
+  rows the restriction drops are exactly the Language refsets' millions
+  of description memberships (spec/09's derived-index list, spec/10
+  rule 17). Passing a description id returns nothing rather than an
+  error.
 - **No precomputed transitive closure.** Benchmarked at International
   Edition scale (`crates/snomed-store/examples/benchmark_synthetic_release.rs`)
   — on-demand breadth-first search is µs-scale even at ~370k concepts, with

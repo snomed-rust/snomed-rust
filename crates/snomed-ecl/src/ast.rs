@@ -50,11 +50,32 @@ pub struct SimpleExpressionConstraint {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ExpressionConstraint {
     Simple(SimpleExpressionConstraint),
-    /// `^ conceptReference` — member of the given refset (any refset type,
-    /// active only; spec/08).
+    /// `^ refsets` — the referenced components of every refset the
+    /// operand names (any refset type, active only; spec/08).
     MemberOf {
-        refset_id: SctId,
-        term: Option<String>,
+        refsets: RefsetOperand,
+    },
+    /// `^R concepts` — `refsetContainingAny`: the refset concepts with an
+    /// active member referencing at least one concept in `concepts`
+    /// (spec/10 rule 17). The exact inverse of [`Self::MemberOf`], and
+    /// defined only over refsets whose referenced components are
+    /// concepts.
+    RefsetContaining {
+        concepts: RefsetOperand,
+    },
+    /// `constraintOperator inner` where `inner` is a shape a
+    /// [`SimpleExpressionConstraint`] can't hold — a `memberOf`
+    /// (`< ^ 447562003`) or a parenthesized expression (`< (A OR B)`).
+    /// The operator applies to the *result set*, member by member
+    /// (spec/10 rule 16).
+    ///
+    /// `< 404684003` stays a [`Self::Simple`] rather than being wrapped
+    /// here: the parser builds `Operated` only for the two focus shapes
+    /// `Simple` cannot represent, so there is one representation per
+    /// input. `< (404684003)` is the exception, and evaluates the same.
+    Operated {
+        op: HierarchyOp,
+        inner: Box<ExpressionConstraint>,
     },
     /// `AND`-joined operands (set intersection); flat, since a run of `AND`
     /// needs no parenthesization (spec/10 rule 5).
@@ -85,6 +106,20 @@ pub enum ExpressionConstraint {
         inner: Box<ExpressionConstraint>,
         filters: Vec<ConceptFilterKind>,
     },
+    /// `focus . attributeName` — a `dottedExpressionConstraint`
+    /// (spec/10 rule 15): the set of *values* the named attribute takes
+    /// across the concepts of `focus`, not a subset of `focus` itself.
+    /// This is the one expression form whose result need not intersect
+    /// its own input.
+    ///
+    /// `attribute` is a full `subExpressionConstraint`, like an
+    /// `eclAttributeName` in a refinement — `. << 116676008` is as legal
+    /// as `. 116676008`. A chain (`A . x . y`) nests left-associatively:
+    /// the inner `Dotted` is the outer one's `focus`.
+    Dotted {
+        focus: Box<ExpressionConstraint>,
+        attribute: Box<ExpressionConstraint>,
+    },
     /// `inner {{ D filter (AND filter)* }}` — a
     /// `descriptionFilterConstraint` (spec/10): keeps the concepts of
     /// `inner` that have **one description** satisfying every filter in
@@ -98,6 +133,29 @@ pub enum ExpressionConstraint {
     },
 }
 
+/// The operand of a `refsetOperator` — `^` (memberOf) or `^R`
+/// (refsetContainingAny). The official grammar gives both the same
+/// `eclFocusConcept / "(" expressionConstraint ")"` choice a plain focus
+/// takes (spec/10 rules 16-17).
+///
+/// The three cases are kept distinct rather than collapsed into one
+/// nested [`ExpressionConstraint`] because they resolve differently, and
+/// the difference is observable: a literal id is a **key into the
+/// membership index**, not a concept that has to exist, so `^ X` still
+/// answers on a store built from refset files with no Concept file. A
+/// computed set is, by definition, computed from concepts.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum RefsetOperand {
+    /// One id — a refset for `^`, a referenced component for `^R`. The
+    /// term is non-semantic, kept for round-tripping.
+    Id { id: SctId, term: Option<String> },
+    /// `*` — every refset with active content (`^`), or every concept
+    /// with a membership (`^R`).
+    Wildcard,
+    /// `( < 450973005 )` — the ids named by an expression, unioned.
+    Expression(Box<ExpressionConstraint>),
+}
+
 /// One filter inside a `{{ D ... }}` description filter constraint —
 /// spec/10. Every filter in one block must be satisfied by the **same**
 /// description, which is what makes `{{ D term = "left", type = fsn }}`
@@ -106,13 +164,39 @@ pub enum ExpressionConstraint {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum DescriptionFilterKind {
     /// `term (=|!=) (typedSearchTerm | typedSearchTermSet)` — spec/10.
-    /// Matching is the grammar's default `match:` search type; the
-    /// `wild:`/`regex:`/`exact:` prefixes are not implemented.
+    /// The search type defaults to the grammar's `match:`; `wild:` and
+    /// `exact:` are implemented too (see [`SearchType`]). `regex:` is
+    /// not — an engine would be an external dependency.
     Term(TermFilter),
     /// `type (=|!=) (typeToken | typeTokenSet)` — spec/10, the
-    /// `fsn`/`syn`/`def` keyword form. The `typeId (=|!=)
-    /// subExpressionConstraint` form is not implemented.
+    /// `fsn`/`syn`/`def` keyword form. The id form is
+    /// [`Self::TypeId`].
     Type(TypeFilter),
+    /// `typeId (=|!=) subExpressionConstraint` — spec/10, the
+    /// concept-expression form of the type filter. `type = fsn` and
+    /// `typeId = 900000000000003001` ask the same question; the token
+    /// form is what a human writes, the id form what a generated query
+    /// carries.
+    TypeId(ModuleFilter),
+    /// `language (=|!=) (languageCode | languageCodeSet)` — spec/10.
+    /// Matches the description's `languageCode` column (spec/06),
+    /// case-insensitively, since RF2 writes it lowercase and a query
+    /// shouldn't have to know that.
+    Language(LanguageFilter),
+    /// `dialectId (=|!=) eclConceptReference [acceptabilitySet]` —
+    /// spec/10. Matches a description that is an active member of that
+    /// language reference set (spec/08), optionally narrowed to an
+    /// acceptability. The `dialect` alias form is not implemented: an
+    /// alias like `en-us` maps to a refset id only through
+    /// deployment-specific policy, the same reason `snomed-fhir` takes a
+    /// language refset id rather than a BCP-47 tag (spec/11).
+    Dialect(DialectFilter),
+    /// `moduleId (=|!=) subExpressionConstraint` — the description's own
+    /// `moduleId` column (spec/06), not its concept's.
+    Module(ModuleFilter),
+    /// `effectiveTime (=|!=|<=|<|>=|>) (timeValue | timeValueSet)` — the
+    /// description's own `effectiveTime` (spec/06), not its concept's.
+    EffectiveTime(EffectiveTimeFilter),
     /// `active (=|!=) (true|false|*)` — the same filter the concept
     /// constraint has, applied to the description's own `active` column.
     /// Its presence also turns off the active-only default (spec/10).
@@ -126,7 +210,65 @@ pub struct TermFilter {
     /// `true` for `!=`.
     pub negated: bool,
     /// 1+ search terms; 2+ for a `typedSearchTermSet`, matched OR-wise
-    /// across the set — same shape as `AttributeComparison::String.values`.
+    /// across the set. Each carries its own search type, since the
+    /// grammar allows `term = (match:"heart" wild:"cardi*")`.
+    pub values: Vec<SearchTerm>,
+}
+
+/// `typedSearchTerm` — a quoted search term with its search type.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SearchTerm {
+    pub search_type: SearchType,
+    pub text: String,
+}
+
+/// How a [`SearchTerm`] is compared against a description's term
+/// (spec/10). `match` is the grammar's default when no prefix is written.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SearchType {
+    /// `match:` — every word of the search term must prefix some word of
+    /// the description term, in any order. Case-insensitive.
+    Match,
+    /// `wild:` — the whole description term must match the search term
+    /// read as a pattern, where `*` stands for any run of characters.
+    /// Case-insensitive.
+    Wild,
+    /// `exact:` — the description term equals the search term exactly,
+    /// **case-sensitively**. See spec/10's note: the case question is a
+    /// documented judgment call, since it is what makes `exact:` differ
+    /// from `match:` on a single full word.
+    Exact,
+}
+
+/// `dialectIdKeyword ws booleanComparisonOperator ws eclConceptReference
+/// [ws acceptabilitySet]`.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DialectFilter {
+    /// `true` for `!=`.
+    pub negated: bool,
+    /// The language reference set the description must belong to.
+    pub refset_id: SctId,
+    /// Which acceptabilities count. Empty means "any" — membership alone
+    /// is the test, which is what a bare `dialectId = X` asks.
+    pub acceptability: Vec<AcceptabilityValue>,
+}
+
+/// `acceptabilityToken` — `preferred`/`prefer` or `acceptable`/`accept`,
+/// the two values spec/08's Language reference set uses.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum AcceptabilityValue {
+    Preferred,
+    Acceptable,
+}
+
+/// `languageKeyword ws booleanComparisonOperator ws (languageCode /
+/// languageCodeSet)`.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LanguageFilter {
+    /// `true` for `!=`.
+    pub negated: bool,
+    /// 1+ language codes, lowercased at parse time; 2+ for a
+    /// `languageCodeSet`, matched OR-wise.
     pub values: Vec<String>,
 }
 
@@ -160,9 +302,8 @@ pub enum ConceptFilterKind {
     /// `active (=|!=) (true|false|*)` — spec/10.
     Active(ActiveFilter),
     /// `definitionStatus (=|!=) (definitionStatusToken | definitionStatusTokenSet)`
-    /// — spec/10. The `definitionStatusId (=|!=) subExpressionConstraint`
-    /// form (matching by concept reference instead of the `primitive`/
-    /// `defined` keyword) is not implemented.
+    /// — spec/10, the `primitive`/`defined` keyword form. The concept
+    /// reference form is [`Self::DefinitionStatusId`].
     DefinitionStatus(DefinitionStatusFilter),
     /// `definitionStatusId (=|!=) subExpressionConstraint` — spec/10, the
     /// concept-expression form of the definition status filter. Matches

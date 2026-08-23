@@ -3,9 +3,9 @@
 These documents distill the parts of the official **SNOMED CT Release File
 Specification** (and the other normative sources listed below) that this
 workspace implements, plus a short set of project policies this workspace
-sets for itself — the MSRV, fuzzing, and benchmarking files at the end of
-the index, which have no external specification behind them but bind the
-code here exactly the same way. They are the authoritative
+sets for itself — the five policy files listed after the index, which have
+no external specification behind them but bind the code here exactly the
+same way. They are the authoritative
 source for this codebase: code follows spec, not the other way around. When a
 spec here and the code disagree, the code is wrong; when a spec here and the
 official specification disagree, this spec must be corrected first, then the
@@ -51,8 +51,10 @@ Official sources:
 | [07-relationship-file.md](07-relationship-file.md) | Relationship files | `snomed-core`, `snomed-rf2` |
 | [08-refset-files.md](08-refset-files.md) | Reference set file patterns | `snomed-rf2::refset` |
 | [09-versioning.md](09-versioning.md) | effectiveTime, active, moduleId, snapshot semantics | `snomed-store` |
-| [10-ecl.md](10-ecl.md) | Expression Constraint Language: grammar, operators, refinements | `snomed-ecl` |
+| [10-ecl.md](10-ecl.md) | Expression Constraint Language: grammar, hierarchy operators, `memberOf`/`^R`, dot notation, **and all of ECL's normative rules** | `snomed-ecl` |
+| [10-ecl-refinements.md](10-ecl-refinements.md) | ECL `:` attribute-value constraints: cardinality, reverse flag, attribute groups, concrete values | `snomed-ecl` |
 | [10-ecl-filters.md](10-ecl-filters.md) | ECL filter constraints: `{{ C ... }}` concept filters, `{{ D ... }}` description filters | `snomed-ecl` |
+| [10-ecl-unimplemented.md](10-ecl-unimplemented.md) | ECL constructs still rejected, and what each one is blocked on | `snomed-ecl` |
 | [11-fhir.md](11-fhir.md) | FHIR terminology service building blocks: `$lookup`, `$subsumes`, `$expand` | `snomed-fhir` |
 | [12-owl.md](12-owl.md) | OWL Expression reference set: parsing axioms in OWL 2 functional syntax | `snomed-owl` |
 | [13-classification.md](13-classification.md) | EL-profile subsumption classification (completion algorithm) | `snomed-classify` |
@@ -68,6 +70,12 @@ binding on this workspace in the same way):
 | [rust-bench.md](rust-bench.md) | Criterion benchmarks: what is measured and how | `benches/` |
 | [rust-api-stability.md](rust-api-stability.md) | Which public enums are `#[non_exhaustive]`, and why the ASTs are not | every crate's public enums |
 | [agents-directory-name-is-lowercase.md](agents-directory-name-is-lowercase.md) | Agent instruction directories are named `agents`, lowercase | `agents/` |
+
+`spec/10` is four files because it outgrew the 40 KB per-document budget,
+not because parts of it are less binding. **All ECL rule numbers live in
+`10-ecl.md`**, so a `spec/10 rule N` citation always resolves there
+regardless of which file the prose sits in;
+`crates/snomed/tests/spec_citations.rs` fails the build if one doesn't.
 
 ## Conventions used in these specs
 

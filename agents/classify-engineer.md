@@ -52,7 +52,7 @@ downstream matches — which removes the last reason to hesitate.
 `snomed-owl`'s parser enforces arity (an `ObjectIntersectionOf` or an
 `ObjectPropertyChain` needs two or more operands), but `Axiom` and
 `ClassExpression` are public types a caller can build directly, and
-`classify` takes them as input. spec/13 rule 6 makes the consequence
+`classify` takes them as input. spec/13 rule 1 makes the consequence
 normative: no value of `Axiom` may panic this crate. `add_role_chain`
 is the worked example — a one-operand chain is exactly a role hierarchy
 axiom and is handled as one; an empty chain implies nothing and is
