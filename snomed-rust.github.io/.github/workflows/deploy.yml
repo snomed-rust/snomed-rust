@@ -21,6 +21,15 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      # snomed-rust is public, so this needs no credential at all. The crates
+      # table on the home page is generated from its workspace manifests.
+      - name: Checkout snomed-rust
+        uses: actions/checkout@v4
+        with:
+          repository: snomed-rust/snomed-rust
+          path: .monorepo
+          persist-credentials: false
+
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
 
@@ -32,6 +41,9 @@ jobs:
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+
+      - name: Generate crates table
+        run: pnpm run gen:crates .monorepo
 
       - name: Check
         run: pnpm run check

@@ -16,50 +16,7 @@
 		DataTableTH,
 		DataTableTD
 	} from '$lib/components';
-
-	const crates = [
-		{ name: 'snomed', path: 'crates/snomed', purpose: 'Facade: re-exports everything, prelude, end-to-end tests' },
-		{
-			name: 'snomed-core',
-			path: 'crates/snomed-core',
-			purpose: 'SCTID parse/validate/compose (Verhoeff check digit), EffectiveTime, Concept/Description/Relationship, well-known constants'
-		},
-		{
-			name: 'snomed-rf2',
-			path: 'crates/snomed-rf2',
-			purpose: 'RF2 file name parsing, Full/Snapshot/Delta types, streaming typed reader, reference set members'
-		},
-		{
-			name: 'snomed-store',
-			path: 'crates/snomed-store',
-			purpose: 'Snapshot builder, IS-A hierarchy, ancestors/descendants/subsumption, HistoryStore for point-in-time queries'
-		},
-		{
-			name: 'snomed-ecl',
-			path: 'crates/snomed-ecl',
-			purpose: 'Expression Constraint Language: lexer, parser, evaluator for simple constraints + basic refinements'
-		},
-		{
-			name: 'snomed-fhir',
-			path: 'crates/snomed-fhir',
-			purpose: 'FHIR terminology service building blocks: $subsumes, $lookup, $expand'
-		},
-		{
-			name: 'snomed-owl',
-			path: 'crates/snomed-owl',
-			purpose: 'Parser for the OWL 2 functional-syntax subset used in the OWL Expression reference set'
-		},
-		{
-			name: 'snomed-classify',
-			path: 'crates/snomed-classify',
-			purpose: 'EL-profile subsumption classifier plus necessary normal form (RF2 relationship) generation'
-		},
-		{
-			name: 'snomed-cli',
-			path: 'crates/snomed-cli',
-			purpose: 'snomed-cli binary: sctid, load, lookup, ecl, export, validate, classify, nnf subcommands'
-		}
-	];
+	import { crates } from '$lib/crates';
 
 	const quickStart = `use snomed::prelude::*;
 
