@@ -18,6 +18,8 @@ classification with necessary normal form generation.
   (add `-- --test` for a smoke run) — see `spec/rust-bench.md`
 - Fuzz: `cargo +nightly fuzz run <target>` from `fuzz/`
   (`cargo +nightly fuzz list` for the targets) — see `spec/rust-fuzz.md`
+- Publish the website: `make publish` — splits `snomed-rust.github.io/`
+  and pushes it to the pages repo, which deploys on receipt.
 
 ## Layout
 

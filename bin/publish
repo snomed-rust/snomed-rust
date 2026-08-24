@@ -1,2 +1,0 @@
-#!/bin/sh
-git push website "$(git subtree split --prefix=snomed-rust.github.io)":refs/heads/main --force
