@@ -8,6 +8,26 @@ Entries from before the 2026-08-23 afternoon live in
 keep this file inside the repository's 40 KB per-document budget. Search
 both when asking "has this come up before".
 
+## Done (2026-08-26, release 0.11.1)
+
+- [x] Bumped the workspace to **0.11.1** — a patch bump because the
+      release is documentation-only: the owner-specified trademark notice
+      (the entry below) and nothing else. No public signature was added,
+      removed, or altered; `CHANGELOG.md` says so under "Notes for
+      consumers".
+- [x] Version moved in step across `Cargo.toml` (the workspace package
+      and all seven internal dependency pins), `Cargo.lock`,
+      `CITATION.cff` (version; `date-released` unchanged, same day),
+      `NEWS.md` (current release, milestones, and the maturity line), and
+      `INSTALL.md`'s pinned-install and keep-in-step examples.
+      `SECURITY.md`'s supported-versions table already says 0.11.x and
+      needed no edit.
+- [x] Verified before publishing: `cargo build --all`,
+      `cargo test --all` (353 pass, including `spec_citations`),
+      `cargo clippy --all-targets -- -D warnings`, `cargo fmt --check`,
+      `bin/check-trademarks` (22 markdown files, 9 crate roots), and
+      `bin/check-docs` (82 documents, budget and links).
+
 ## Done (2026-08-26, owner-specified trademark notice)
 
 - [x] **Adopted the owner-specified trademark notice, verbatim** (wording
