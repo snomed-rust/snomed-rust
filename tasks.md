@@ -8,6 +8,23 @@ Entries from before the 2026-08-23 afternoon live in
 keep this file inside the repository's 40 KB per-document budget. Search
 both when asking "has this come up before".
 
+## Done (2026-08-26, repository security settings)
+
+- [x] **Enabled GitHub private vulnerability reporting**, plus the three
+      sibling toggles that were also off: vulnerability alerts, automated
+      security fixes, and secret scanning. Each was enabled via the API
+      (`gh api -X PUT .../private-vulnerability-reporting`, `PUT
+      .../vulnerability-alerts`, `PUT .../automated-security-fixes`,
+      `PATCH` with `security_and_analysis[secret_scanning]`) and then
+      **verified with a GET** rather than assumed from a 204: PVR
+      `enabled: true`, alerts 204, security fixes `enabled: true`, secret
+      scanning `status: enabled`.
+- [x] Updated `SECURITY.md`'s reporting section in the same change, per the
+      item's own instruction: the Security-tab form is now the first-named
+      private channel, email the second. `plan.md` Phase 10 and
+      `spec/professionalization/index.md`'s rule-3 status line no longer
+      list the toggle as an open gap.
+
 ## Done (2026-08-26, professionalization execution)
 
 - [x] **Trademark discipline, spec + notices + checker + CI**:
@@ -412,12 +429,6 @@ both when asking "has this come up before".
       a CI lane with crates.io Trusted Publishing. These were written down
       as gaps rather than quietly omitted, so they should be closed or
       consciously accepted.
-- [ ] **Enable GitHub private vulnerability reporting** (Settings →
-      Security → Private vulnerability reporting; one toggle, or
-      `gh api -X PUT repos/snomed-rust/snomed-rust/private-vulnerability-reporting`).
-      It is currently off, which is why `SECURITY.md` documents email as
-      the private channel. Flipping it means updating that paragraph in
-      the same change.
 - [ ] **`spec/serial-comma/` is unregistered** (correction 2026-08-26: its
       `README.md` is a symlink to `index.md`, not a duplicated file, so
       there is no content divergence — the earlier wording here was wrong).

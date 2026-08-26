@@ -77,9 +77,10 @@ Assessed 2026-08-26, while this spec and the trademark tooling were landing:
   `spec/special-files-for-public-repos/` copy has drifted behind the
   `fhir-rust` canonical version; re-syncing it is a tracked `tasks.md` item.
 - **Rule 3**: met so far — the gaps SECURITY.md, MAINTAINERS.md, and
-  AI_STATEMENT.md declare (unsigned commits/tags, no DOI, manual publishing,
-  private vulnerability reporting off) are all tracked under `tasks.md`
-  "Next up", none silently dropped, none yet closed.
+  AI_STATEMENT.md declare (unsigned commits/tags, no DOI, manual publishing)
+  are all tracked under `tasks.md` "Next up", none silently dropped. Private
+  vulnerability reporting, the fourth such gap, was closed 2026-08-26 with
+  the declaring document updated in the same change, per this rule.
 - **Rule 4**: partly met — tests, clippy, fmt, MSRV, fuzz, and bench run in
   CI (`.github/workflows/ci.yml`), and the trademark check joined them on
   2026-08-26 (the `trademarks` job); the repository-wide link check and the

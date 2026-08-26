@@ -2,11 +2,11 @@
 
 ## Reporting a vulnerability
 
-**Email joel@joelparkerhenderson.com.** Put "SECURITY" in the subject line.
-
-That is the private channel. GitHub's private vulnerability reporting is not
-currently enabled on this repository, so the Security tab offers no form; if
-that changes, this file changes with it.
+**Use GitHub's private vulnerability reporting**: the [Security
+tab](https://github.com/snomed-rust/snomed-rust/security) → "Report a
+vulnerability" (enabled 2026-08-26). Or **email
+joel@joelparkerhenderson.com** with "SECURITY" in the subject line. Both are
+private channels; use whichever you prefer.
 
 **Never include SNOMED CT release content in a report** — not a file, not an
 attachment, not a pasted block of rows. RF2 data is licensed material and must

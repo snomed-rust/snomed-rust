@@ -123,9 +123,12 @@ and harmonizes it with the sibling repositories (`hl7-rust`, `er7-rust`,
   `bin/check-trademarks` and the CI `trademarks` job.
   `LICENSES/` (full license texts, REUSE convention) is missing.
 - **Security and supply chain**: SECURITY.md's "Known posture" items
-  (unsigned commits/tags, manual publishing, no DOI, private vulnerability
-  reporting off) were written down as gaps precisely so they get closed or
-  consciously accepted — several are one-toggle items.
+  (unsigned commits/tags, manual publishing, no DOI) were written down as
+  gaps precisely so they get closed or consciously accepted. Private
+  vulnerability reporting was closed 2026-08-26 — enabled via the API along
+  with vulnerability alerts, automated security fixes, and secret scanning,
+  each verified with a GET, and SECURITY.md now names the Security-tab form
+  first.
 - **Privacy and patient data**: complete — `PHI.md` landed 2026-08-26, the
   root page a hospital reviewer can read, with each claim verified against
   the tree rather than implied by the zero-dependency rule.
