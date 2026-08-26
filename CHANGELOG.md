@@ -13,6 +13,59 @@ together, in dependency order (`snomed-core` → `snomed-rf2` → `snomed-owl`
 
 ## [Unreleased]
 
+## [0.11.0] — 2026-08-26
+
+No behavior changes. This release hardens two properties of the published
+crates and lands the documentation set a professional evaluator asks for
+before reading any code.
+
+### Added
+
+- **`#![forbid(unsafe_code)]` at every crate root** — the nine published
+  crates, `snomed-cli`'s binary root, all thirteen fuzz targets, and all six
+  benchmark files, thirty-one roots in total. The absence of `unsafe` was
+  previously a claim checkable with `grep`; it is now a compiler failure.
+  `forbid` rather than `deny` deliberately: `deny` can be switched off by an
+  `#[allow]` further down the same file and `forbid` cannot, which is the
+  difference between a preference and a boundary. The new policy
+  `spec/rust-no-unsafe/index.md` states what the attribute does *not* prove as
+  carefully as what it does — notably that it is **not** transitive, so it is
+  weaker evidence in most crates than it looks. Here it composes with the
+  zero-dependency rule into a claim that does hold transitively: a consumer
+  inherits no `unsafe` from this workspace beyond the standard library's own.
+- **The SNOMED trademark notice in every crate's rustdoc**, so the
+  non-affiliation statement travels with the published documentation on
+  docs.rs rather than living only in the repository. Enforced by
+  `bin/check-trademarks`, which runs in CI.
+- Root documents for evaluators, adopters, and the press: `LICENSE.md`,
+  `CITATION.cff`, `INSTALL.md`, `COMPARISONS.md`, `BENCHMARKS.md`, `NEWS.md`,
+  `MAINTAINERS.md`, `CONTRIBUTING.md`, `GOVERNANCE.md`, `SECURITY.md`,
+  `RFC.md`, `PHI.md`, `CODE_OF_CONDUCT.md`, `AI_STATEMENT.md`, and
+  `CODEOWNERS`. `BENCHMARKS.md` reports a measured criterion run rather than
+  estimates, with machine and method recorded; `RFC.md` publishes the
+  questions this project does not know the answer to, including two shipped
+  decisions the maintainer is not confident in.
+- `spec/professionalization/`, `spec/special-files-for-public-repos/`, and
+  `spec/serial-comma/` as project policies, alongside the new
+  `spec/rust-no-unsafe/`.
+
+### Changed
+
+- `spec/rust-msrv-n-minus-3.md` and
+  `spec/agents-directory-name-is-lowercase.md` became directories holding
+  `index.md`. Every link to them was repointed, including sibling links
+  *inside* the moved files, which needed `../` to climb out of their new
+  directory.
+
+### Notes for consumers
+
+- **No API change.** Nothing was added to, removed from, or altered in any
+  public signature, so upgrading from 0.10.0 is a version-number edit. The
+  minor bump follows this workspace's release cadence rather than signalling a
+  break.
+- `#![forbid(unsafe_code)]` affects only this workspace's own crates. It
+  cannot and does not constrain your code.
+
 ## [0.10.0] — 2026-08-23
 
 Three new ECL constructs, a grammar correction that unlocked three more
