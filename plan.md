@@ -136,10 +136,13 @@ and harmonizes it with the sibling repositories (`hl7-rust`, `er7-rust`,
   the tree rather than implied by the zero-dependency rule.
 - **Outreach**: researched and sequenced (`help/outreach/index.md`); blocked
   on the naming question and the items above, by its own cautions.
-- **Audit and harmonization**: the 13 root documents are still untracked;
-  the doc conventions (40 KB budget, link integrity) are unenforced by CI;
-  and `spec/special-files-for-public-repos/` has drifted behind the
-  `fhir-rust` canonical version. Itemized in `tasks.md` §Next up.
+- **Audit and harmonization**: complete as of 2026-08-26 — the root
+  documents are committed (2bd203a, 7298d4a);
+  `spec/special-files-for-public-repos/` is re-synced with the `fhir-rust`
+  canonical version, its stray duplicate `AI_STATEMENT.md` resolved into a
+  pointer at the root file; and the doc conventions (40 KB budget, link
+  integrity) are now `spec/docs-budget-and-links/`, enforced by
+  `bin/check-docs` in the CI `docs` job.
 
 ## Open decisions (priced, awaiting a call)
 

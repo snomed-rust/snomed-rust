@@ -82,10 +82,11 @@ Assessed 2026-08-26, while this spec and the trademark tooling were landing:
   are all tracked under `tasks.md` "Next up", none silently dropped. Private
   vulnerability reporting, the fourth such gap, was closed 2026-08-26 with
   the declaring document updated in the same change, per this rule.
-- **Rule 4**: partly met — tests, clippy, fmt, MSRV, fuzz, and bench run in
-  CI (`.github/workflows/ci.yml`), and the trademark check joined them on
-  2026-08-26 (the `trademarks` job); the repository-wide link check and the
-  40 KB per-document budget remain laptop-only, tracked in `tasks.md`.
+- **Rule 4**: met — tests, clippy, fmt, MSRV, fuzz, and bench run in CI
+  (`.github/workflows/ci.yml`); the trademark check joined them on
+  2026-08-26 (the `trademarks` job), and the repository-wide link check and
+  the 40 KB per-document budget joined the same day (the `docs` job,
+  `bin/check-docs`, per `spec/docs-budget-and-links/index.md`).
 - **Rule 5**: met as of 2026-08-26 — notices on every in-scope page
   (`bin/check-trademarks` exits 0: 21 root/help markdown files and 9 crate
   roots scanned), checker in CI. One

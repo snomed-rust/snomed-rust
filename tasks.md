@@ -435,8 +435,8 @@ both when asking "has this come up before".
 - [ ] Nothing currently scoped. State as of 2026-08-26 (0.11.0): 9 crates,
       353 tests, clippy/fmt clean on stable, the pinned MSRV toolchain,
       `fuzz/`, and `benches/`; 13 fuzz targets; 6 criterion benchmark
-      files; 27 `spec/` documents (17 specification distillations, the
-      README index, and 9 project policies), every one registered in the
+      files; 28 `spec/` documents (17 specification distillations, the
+      README index, and 10 project policies), every one registered in the
       README index. Every gap `spec/` documents as missing is closed,
       reclassified, or blocked on a decision below.
 - [ ] **Repository-hygiene gaps named in `MAINTAINERS.md` and
@@ -489,10 +489,18 @@ both when asking "has this come up before".
         header boilerplate). Two files only, because the SPDX expression
         `Apache-2.0 OR MIT` names exactly two licenses. `LICENSE.md`'s
         table and "What OR means" section now point at both locations.
-      - **Docs CI lane**: the repository-wide link check that already found
-        68 files / zero broken links, plus the 40 KB per-document budget —
-        both currently convention-only; a spec file should define the
-        budget it enforces.
+      - ~~**Docs CI lane**~~ — done 2026-08-26:
+        `spec/docs-budget-and-links/` (the tenth project policy, registered
+        in `spec/README.md` and `index.md`, README.md symlink per the
+        directory convention) defines the 40 KB budget and the
+        link-integrity rule; `bin/check-docs` (Python 3, stdlib only,
+        masks code the way `bin/check-trademarks` does) enforces both and
+        runs in CI as the new `docs` job. First real run: 80 tracked
+        markdown documents, all within budget (max: `CHANGELOG.md`,
+        38,090 bytes), zero broken relative links — after it caught nine
+        real dangling links in the stray `AI_STATEMENT.md` duplicate the
+        re-sync item resolved. Verified it catches violations by planting
+        an oversize file and a bad link (both reported, both reverted).
       - ~~**Re-sync `spec/special-files-for-public-repos/`**~~ — done
         2026-08-26: the list now carries the canonical version's five
         additions (CODE_OF_CONDUCT.md, PHI.md, RFC.md wording,

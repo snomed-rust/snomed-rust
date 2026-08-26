@@ -56,6 +56,18 @@ jobs:
       - name: Check trademark notices
         run: bin/check-trademarks
 
+  docs:
+    name: Docs budget and link integrity
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Per spec/docs-budget-and-links/index.md: every tracked markdown
+      # document stays within 40 KB, and every relative link resolves.
+      # Python 3 only, no toolchain needed.
+      - name: Check document budgets and relative links
+        run: bin/check-docs
+
   msrv:
     name: MSRV (current stable minus 3)
     runs-on: ubuntu-latest

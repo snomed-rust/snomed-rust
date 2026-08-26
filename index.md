@@ -73,7 +73,7 @@ stale pointers behind in silence.
 | [13-classification.md](spec/13-classification.md) — EL subsumption | `snomed-classify` |
 | [14-necessary-normal-form.md](spec/14-necessary-normal-form.md) — RF2 relationship generation | `snomed-classify` |
 
-Nine further `spec/` files are project policy rather than a distillation
+Ten further `spec/` files are project policy rather than a distillation
 of an external specification, and bind the same way:
 
 | Policy | Covers | Lives in |
@@ -87,6 +87,7 @@ of an external specification, and bind the same way:
 | [agents-directory-name-is-lowercase/](spec/agents-directory-name-is-lowercase/index.md) | agent instruction directories are named `agents`, lowercase | `agents/` |
 | [serial-comma/](spec/serial-comma/index.md) | English-language prose uses the serial comma | every prose document |
 | [special-files-for-public-repos/](spec/special-files-for-public-repos/index.md) | the special files a public repository carries at its root | the root documents |
+| [docs-budget-and-links/](spec/docs-budget-and-links/index.md) | 40 KB per-document budget; every relative link resolves | `bin/check-docs`, CI `docs` job |
 
 `snomed` (the facade) and `snomed-cli` (the terminal binary) both sit on
 top of every crate above rather than implementing a spec of their own —

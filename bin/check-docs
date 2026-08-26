@@ -1,0 +1,103 @@
+#!/usr/bin/env python3
+"""Enforce spec/docs-budget-and-links/index.md: rules 1 and 2.
+
+Rule 1: every tracked markdown document is at most 40 KB (40,960 bytes).
+Rule 2: every relative link in a tracked markdown document resolves to a
+file or directory that exists in the repository. External URLs and pure
+`#fragment` links are out of scope; a `#fragment` on a path is stripped
+before the path is checked. Links inside code fences and inline code
+spans are masked first, so an example of a broken link is not a broken
+link. Symlinked documents (the `README.md -> index.md` spec convention)
+are skipped; their targets are scanned directly.
+
+Run from the workspace root:  bin/check-docs
+"""
+
+import os
+import re
+import subprocess
+import sys
+import urllib.parse
+
+BUDGET = 40 * 1024
+
+problems = []
+
+
+def blanked(text, patterns):
+    """Replace each match with NULs, so line offsets are preserved."""
+    for pattern in patterns:
+        text = re.sub(pattern, lambda m: "\0" * len(m.group()), text)
+    return text
+
+
+def mask_code(text):
+    return blanked(
+        text,
+        [
+            r"(?ms)^([ \t]*)(`{3,}|~{3,}).*?^\1\2[ \t]*$",  # fenced code
+            r"`[^`\n]+`",  # inline code
+            r"(?s)<!--.*?-->",  # comments
+        ],
+    )
+
+
+# Inline links/images: [text](target) or [text](target "title").
+INLINE = re.compile(r"\]\(\s*<?([^)<>\s]+)>?(?:\s+\"[^\"]*\")?\s*\)")
+# Reference definitions: [label]: target
+REFDEF = re.compile(r"(?m)^\s{0,3}\[[^\]]+\]:\s+<?(\S+?)>?(?:\s|$)")
+
+SCHEME = re.compile(r"^[A-Za-z][A-Za-z0-9+.-]*:")
+
+
+def check_links(path, text):
+    for match in INLINE.finditer(text):
+        check_target(path, text, match)
+    for match in REFDEF.finditer(text):
+        check_target(path, text, match)
+
+
+def check_target(path, text, match):
+    target = match.group(1)
+    if SCHEME.match(target) or target.startswith(("//", "#")):
+        return
+    bare = urllib.parse.unquote(target.split("#")[0])
+    if not bare:
+        return
+    if bare.startswith("/"):
+        resolved = bare.lstrip("/")  # repository-root-relative
+    else:
+        resolved = os.path.normpath(os.path.join(os.path.dirname(path), bare))
+    if not os.path.lexists(resolved):
+        line = text[: match.start()].count("\n") + 1
+        problems.append(f"{path}:{line}: broken relative link -> {target}")
+
+
+tracked = subprocess.run(
+    ["git", "ls-files", "-z", "--", "*.md"],
+    capture_output=True,
+    check=True,
+).stdout.decode()
+files = [p for p in sorted(tracked.split("\0")) if p and not os.path.islink(p)]
+
+for path in files:
+    size = os.path.getsize(path)
+    if size > BUDGET:
+        problems.append(
+            f"{path}: {size} bytes exceeds the {BUDGET}-byte budget "
+            "(split or archive per spec/docs-budget-and-links rule 1)"
+        )
+    with open(path, encoding="utf-8") as handle:
+        check_links(path, mask_code(handle.read()))
+
+if problems:
+    print("Docs check failed. See spec/docs-budget-and-links/index.md.\n")
+    for problem in problems:
+        print(f"  {problem}")
+    print(f"\n{len(problems)} problem(s).")
+    sys.exit(1)
+
+print(
+    f"Docs check passed: {len(files)} tracked markdown documents, every one "
+    f"within the {BUDGET}-byte budget, zero broken relative links."
+)
