@@ -9,6 +9,14 @@
 //! answers "what did it look like at some point in time" (keeps every
 //! version, built from Full-view rows — spec/09's History construction
 //! section).
+//!
+//! # Trademarks
+//!
+//! SNOMED® and SNOMED CT® are registered trademarks of the International
+//! Health Terminology Standards Development Organisation (IHTSDO), trading
+//! as SNOMED International. This project is an independent work: it is not
+//! affiliated with, endorsed by, or certified by SNOMED International, and
+//! it ships no SNOMED CT content.
 
 #![forbid(unsafe_code)]
 // Per spec/rust-no-unsafe/index.md: this workspace contains no `unsafe`, and

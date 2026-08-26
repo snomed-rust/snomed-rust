@@ -14,6 +14,12 @@ relationship) generation — all with zero external dependencies.
 > (RF2 release files) is licensed material distributed by SNOMED International
 > and national release centres (e.g. the NLM in the US); obtain it under your
 > own affiliate license. Never commit release files here.
+>
+> SNOMED® and SNOMED CT® are registered trademarks of the International
+> Health Terminology Standards Development Organisation (IHTSDO), trading as
+> SNOMED International. This project is an independent work: it is not
+> affiliated with, endorsed by, or certified by SNOMED International, and it
+> ships no SNOMED CT content.
 
 ## Where this fits
 
@@ -59,12 +65,13 @@ Supporting documents:
   and questions, answered.
 - [`spec/`](spec/README.md) — project-local distillation of the official
   [RF2 Release File Specification](https://docs.snomed.org/snomed-ct-specifications/snomed-ct-release-file-specification);
-  the normative reference for this codebase. It also holds six project
+  the normative reference for this codebase. It also holds seven project
   policies that bind the same way:
   [MSRV](spec/rust-msrv-n-minus-3/index.md), [fuzzing](spec/rust-fuzz.md),
   [benchmarking](spec/rust-bench.md),
   [API stability](spec/rust-api-stability.md),
-  [no `unsafe`](spec/rust-no-unsafe/index.md), and
+  [no `unsafe`](spec/rust-no-unsafe/index.md),
+  [professionalization](spec/professionalization/index.md), and
   [the `agents` directory name](spec/agents-directory-name-is-lowercase/index.md).
 - [`plan.md`](plan.md) — roadmap by phase (with
   [`docs/plan-archive.md`](docs/plan-archive.md) holding the closed
@@ -188,5 +195,9 @@ Code: dual-licensed under [Apache-2.0](LICENSE-APACHE) or [MIT](LICENSE-MIT),
 at your option — `SPDX-License-Identifier: Apache-2.0 OR MIT`. See
 [`LICENSE.md`](LICENSE.md) for what that covers, what it does not, and why the
 dependency-free design makes the bill of materials trivial to audit.
-SNOMED CT® is a registered trademark of SNOMED International; this project is
-not affiliated with or endorsed by SNOMED International.
+SNOMED® and SNOMED CT® are registered trademarks of the International Health
+Terminology Standards Development Organisation (IHTSDO), trading as SNOMED
+International. This project is an independent work: it is not affiliated with,
+endorsed by, or certified by SNOMED International, and it ships no SNOMED CT
+content. The per-page notice rule is
+[`spec/professionalization/`](spec/professionalization/index.md).

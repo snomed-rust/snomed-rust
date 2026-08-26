@@ -36,6 +36,14 @@
 //! assert!(report.classification.is_subsumed_by(mi, finding)); // transitively entailed
 //! assert!(report.skipped.is_empty());
 //! ```
+//!
+//! # Trademarks
+//!
+//! SNOMED® and SNOMED CT® are registered trademarks of the International
+//! Health Terminology Standards Development Organisation (IHTSDO), trading
+//! as SNOMED International. This project is an independent work: it is not
+//! affiliated with, endorsed by, or certified by SNOMED International, and
+//! it ships no SNOMED CT content.
 
 #![forbid(unsafe_code)]
 // Per spec/rust-no-unsafe/index.md: this workspace contains no `unsafe`, and
