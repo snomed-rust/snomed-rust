@@ -125,11 +125,9 @@ and harmonizes it with the sibling repositories (`hl7-rust`, `er7-rust`,
   (unsigned commits/tags, manual publishing, no DOI, private vulnerability
   reporting off) were written down as gaps precisely so they get closed or
   consciously accepted — several are one-toggle items.
-- **Privacy and patient data**: no `PHI.md`; the family convention is a root
-  page a hospital reviewer can read, stating plainly what the software does
-  and does not do with patient data (for this workspace: it ships no
-  content, holds whatever release the user loads, and never phones home —
-  said in one place instead of implied by the zero-dependency rule).
+- **Privacy and patient data**: complete — `PHI.md` landed 2026-08-26, the
+  root page a hospital reviewer can read, with each claim verified against
+  the tree rather than implied by the zero-dependency rule.
 - **Outreach**: researched and sequenced (`help/outreach/index.md`); blocked
   on the naming question and the items above, by its own cautions.
 - **Audit and harmonization**: the 13 root documents are still untracked;

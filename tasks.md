@@ -10,6 +10,19 @@ both when asking "has this come up before".
 
 ## Done (2026-08-26, professionalization execution)
 
+- [x] **`PHI.md`**: the privacy-officer Q&A, far shorter than
+      `fhir-rust`'s because the honest headline is shorter — this
+      workspace has no patient-data pathway at all. Claims were verified
+      against the tree before being written, not assumed: `std::net`/
+      `TcpStream`/`UdpSocket` grep across `crates/`, `fuzz/`, `benches/`
+      returns zero uses; file I/O exists only in `snomed-store`'s release
+      loader and `snomed-cli` (paths the caller names — `snomed-rf2`'s
+      reader takes any `BufRead`); the workspace manifests confirm zero
+      external dependencies; `.gitignore` blocks `sct2_*`/`der2_*`/
+      `data/`. States what it does NOT provide (no de-identification, no
+      access control, no audit trail, no encryption, no retention) so the
+      clean posture cannot be over-read.
+
 - [x] **`CODE_OF_CONDUCT.md`**: Contributor Covenant 2.1 adapted from
       `fhir-rust`'s copy, keeping the claim-accuracy clause (overstating
       what the software does is a conduct problem, grounded here in
@@ -405,11 +418,7 @@ both when asking "has this come up before".
         pushing.
       - ~~**`CODE_OF_CONDUCT.md`**~~ — done 2026-08-26; see the Done
         section above.
-      - **`PHI.md`** at the root: what this workspace does and does not do
-        with patient data, in one page — ships no clinical content, holds
-        whatever release the user loads in memory, no file/network/telemetry
-        beyond what the user invokes; model on `fhir-rust/PHI.md`'s
-        privacy-officer Q&A shape.
+      - ~~**`PHI.md`**~~ — done 2026-08-26; see the Done section above.
       - **Trademark discipline**: a `spec/` rule for SNOMED-mark usage and
         the non-endorsement disclaimer per page (currently on ~4 of 18 root
         documents, with no rule and no checker), modeled on the siblings'
