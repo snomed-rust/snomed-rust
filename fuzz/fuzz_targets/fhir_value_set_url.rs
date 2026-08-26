@@ -5,6 +5,8 @@
 //! properties worth asserting are that it never panics on a truncated or
 //! non-hex escape, never produces invalid UTF-8, and is deterministic.
 #![no_main]
+#![forbid(unsafe_code)]
+// Per spec/rust-no-unsafe/index.md.
 
 use libfuzzer_sys::fuzz_target;
 use snomed_fhir::{parse_implicit_value_set, ImplicitValueSet};

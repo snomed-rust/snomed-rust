@@ -7,6 +7,10 @@
 //!
 //! This crate has no dependencies outside the Rust standard library.
 
+#![forbid(unsafe_code)]
+// Per spec/rust-no-unsafe/index.md: this workspace contains no `unsafe`, and
+// the compiler enforces that rather than a grep.
+
 pub mod components;
 pub mod concrete_value;
 pub mod constants;

@@ -26,30 +26,34 @@ the workspace so the published crates keep zero dependencies.
    external crates live in their own packages outside the workspace
    (`fuzz/`, `benches/`), which is what keeps `cargo build`/`test`/
    `clippy` dependency-free.
-4. Never add SNOMED CT release data (RF2 rows beyond trivial hand-written
+4. Every crate root carries `#![forbid(unsafe_code)]`
+   (`spec/rust-no-unsafe/index.md`); a new one gets it too. Do not write
+   `unsafe` — the build will refuse it, and the answer is never to lift the
+   attribute.
+5. Never add SNOMED CT release data (RF2 rows beyond trivial hand-written
    fixtures) to the repo or tests — it is licensed content.
-5. Update `tasks.md` (and `plan.md` when direction changes) in the same
+6. Update `tasks.md` (and `plan.md` when direction changes) in the same
    change as the work itself.
-6. Public API items carry doc comments citing their spec section; follow the
+7. Public API items carry doc comments citing their spec section; follow the
    existing error-enum style (hand-rolled `Display` + `std::error::Error`,
    no `thiserror`).
-7. The MSRV is the current stable Rust release minus three
-   (`spec/rust-msrv-n-minus-3.md`). Don't use a feature newer than that;
+8. The MSRV is the current stable Rust release minus three
+   (`spec/rust-msrv-n-minus-3/index.md`). Don't use a feature newer than that;
    when you raise `rust-version`, move the CI `msrv` job's pin in the
    same change and re-run clippy — MSRV-gated lints change with it.
-8. **No panics on public API input.** A parser returns a typed error; an
+9. **No panics on public API input.** A parser returns a typed error; an
    accessor on a type whose constructor doesn't validate (`SctId::
    new_unchecked`, a hand-built `snomed_owl::Axiom`) returns a "no
    answer" value instead of indexing out of bounds. `spec/04` rule 5 and
    `spec/13` rule 1 state this; the `fuzz/` targets enforce it.
-9. A new public **error** enum is `#[non_exhaustive]`; a new public
+10. A new public **error** enum is `#[non_exhaustive]`; a new public
    **grammar/AST** enum is not — `spec/rust-api-stability.md` has the
    reasoning and the current membership list, and any exception is
    recorded there in the same change.
-10. **Results are deterministic across processes**, not merely
+11. **Results are deterministic across processes**, not merely
    order-independent in content: anything built by iterating a `HashMap`
    gets sorted before it is exposed (`spec/09` rules 5–6).
-11. Cite rules as `spec/NN rule M`.
+12. Cite rules as `spec/NN rule M`.
    `crates/snomed/tests/spec_citations.rs` walks the repository and fails
    if a citation names a rule that doesn't exist, so inserting or
    renumbering a rule means fixing its citations in the same change.
@@ -59,7 +63,7 @@ the workspace so the published crates keep zero dependencies.
 ## Role playbooks
 
 Specialized instructions live in `agents/` — lowercase, per
-`spec/agents-directory-name-is-lowercase.md`; the `AGENTS.md` file beside
+`spec/agents-directory-name-is-lowercase/index.md`; the `AGENTS.md` file beside
 it keeps its uppercase name, which is the file-level convention:
 
 - `agents/spec-librarian.md` — maintaining `spec/*.md` against the official

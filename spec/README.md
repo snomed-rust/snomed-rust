@@ -3,7 +3,7 @@
 These documents distill the parts of the official **SNOMED CT Release File
 Specification** (and the other normative sources listed below) that this
 workspace implements, plus a short set of project policies this workspace
-sets for itself — the five policy files listed after the index, which have
+sets for itself — the six policy files listed after the index, which have
 no external specification behind them but bind the code here exactly the
 same way. They are the authoritative
 source for this codebase: code follows spec, not the other way around. When a
@@ -65,11 +65,12 @@ binding on this workspace in the same way):
 
 | Policy | Covers | Recorded in |
 |---|---|---|
-| [rust-msrv-n-minus-3.md](rust-msrv-n-minus-3.md) | Minimum Supported Rust Version: current stable minus three | `Cargo.toml`, `.github/workflows/ci.yml` |
+| [rust-msrv-n-minus-3/](rust-msrv-n-minus-3/index.md) | Minimum Supported Rust Version: current stable minus three | `Cargo.toml`, `.github/workflows/ci.yml` |
 | [rust-fuzz.md](rust-fuzz.md) | Fuzz targets, the no-panic invariant, seed corpora | `fuzz/` |
 | [rust-bench.md](rust-bench.md) | Criterion benchmarks: what is measured and how | `benches/` |
 | [rust-api-stability.md](rust-api-stability.md) | Which public enums are `#[non_exhaustive]`, and why the ASTs are not | every crate's public enums |
-| [agents-directory-name-is-lowercase.md](agents-directory-name-is-lowercase.md) | Agent instruction directories are named `agents`, lowercase | `agents/` |
+| [rust-no-unsafe/](rust-no-unsafe/index.md) | No `unsafe` anywhere; `#![forbid(unsafe_code)]` at every crate root | every crate root, including `fuzz/` and `benches/` |
+| [agents-directory-name-is-lowercase/](agents-directory-name-is-lowercase/index.md) | Agent instruction directories are named `agents`, lowercase | `agents/` |
 
 `spec/10` is four files because it outgrew the 40 KB per-document budget,
 not because parts of it are less binding. **All ECL rule numbers live in

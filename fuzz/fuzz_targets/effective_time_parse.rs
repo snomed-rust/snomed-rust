@@ -1,6 +1,8 @@
 //! Fuzzes `effectiveTime` parsing (`spec/09-versioning.md`): accepted values
 //! are 8 digits, round-trip through `Display`, and order as integers.
 #![no_main]
+#![forbid(unsafe_code)]
+// Per spec/rust-no-unsafe/index.md.
 
 use libfuzzer_sys::fuzz_target;
 use snomed_core::time::EffectiveTime;

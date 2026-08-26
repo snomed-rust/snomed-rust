@@ -27,6 +27,10 @@
 //! assert!(store.is_active(constants::ROOT_CONCEPT));
 //! ```
 
+#![forbid(unsafe_code)]
+// Per spec/rust-no-unsafe/index.md: this workspace contains no `unsafe`, and
+// the compiler enforces that rather than a grep.
+
 pub use snomed_classify as classify;
 pub use snomed_core as core;
 pub use snomed_ecl as ecl;

@@ -2,6 +2,9 @@
 //! evaluation walks the hierarchy and is what a terminology server pays for
 //! on every request.
 
+#![forbid(unsafe_code)]
+// Per spec/rust-no-unsafe/index.md.
+
 use std::hint::black_box;
 
 use criterion::{criterion_group, criterion_main, Criterion};

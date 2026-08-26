@@ -4,6 +4,8 @@
 //! accepted id renders back to the exact input, re-parses to the same value,
 //! and has one of the six valid partitions.
 #![no_main]
+#![forbid(unsafe_code)]
+// Per spec/rust-no-unsafe/index.md.
 
 use libfuzzer_sys::fuzz_target;
 use snomed_core::sctid::SctId;

@@ -4,6 +4,8 @@
 //! and evaluation must be deterministic — the fixture store never changes
 //! between the two calls.
 #![no_main]
+#![forbid(unsafe_code)]
+// Per spec/rust-no-unsafe/index.md.
 
 use std::sync::OnceLock;
 

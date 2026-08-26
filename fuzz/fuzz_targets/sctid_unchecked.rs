@@ -2,6 +2,8 @@
 //! rule 5): `new_unchecked` accepts any `u64`, and no accessor may panic on
 //! one — including values with too few digits to hold a partition.
 #![no_main]
+#![forbid(unsafe_code)]
+// Per spec/rust-no-unsafe/index.md.
 
 use libfuzzer_sys::fuzz_target;
 use snomed_core::sctid::SctId;

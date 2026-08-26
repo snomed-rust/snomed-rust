@@ -23,6 +23,10 @@
 //! ));
 //! ```
 
+#![forbid(unsafe_code)]
+// Per spec/rust-no-unsafe/index.md: this workspace contains no `unsafe`, and
+// the compiler enforces that rather than a grep.
+
 mod ast;
 mod error;
 mod lexer;

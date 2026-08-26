@@ -2,6 +2,9 @@
 //! measured over in-memory file text so the numbers are parser cost, not
 //! filesystem cost.
 
+#![forbid(unsafe_code)]
+// Per spec/rust-no-unsafe/index.md.
+
 use std::hint::black_box;
 
 use criterion::{criterion_group, criterion_main, Criterion, Throughput};

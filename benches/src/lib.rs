@@ -9,6 +9,9 @@
 //! Everything is seeded, so two runs of the same benchmark see byte-identical
 //! input and criterion's comparison against the previous run is meaningful.
 
+#![forbid(unsafe_code)]
+// Per spec/rust-no-unsafe/index.md.
+
 use snomed_core::components::{Concept, Description, Relationship};
 use snomed_core::constants;
 use snomed_core::member_id::MemberId;

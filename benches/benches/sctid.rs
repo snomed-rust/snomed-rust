@@ -2,6 +2,9 @@
 //! identifier in every row of a release, so it is the hottest arithmetic in
 //! the workspace.
 
+#![forbid(unsafe_code)]
+// Per spec/rust-no-unsafe/index.md.
+
 use std::hint::black_box;
 
 use criterion::{criterion_group, criterion_main, Criterion, Throughput};

@@ -6,6 +6,8 @@
 //! sorted ascending (rule 3), and point-in-time reconstruction returns the
 //! greatest version at or before the asked-for date (rule 4).
 #![no_main]
+#![forbid(unsafe_code)]
+// Per spec/rust-no-unsafe/index.md.
 
 use libfuzzer_sys::fuzz_target;
 use snomed_core::sctid::SctId;

@@ -37,6 +37,10 @@
 //! assert!(report.skipped.is_empty());
 //! ```
 
+#![forbid(unsafe_code)]
+// Per spec/rust-no-unsafe/index.md: this workspace contains no `unsafe`, and
+// the compiler enforces that rather than a grep.
+
 mod complete;
 mod normal_form;
 mod normalize;

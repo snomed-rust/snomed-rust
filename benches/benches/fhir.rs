@@ -1,6 +1,9 @@
 //! FHIR terminology operation benchmarks (`spec/11-fhir.md`): `$lookup`,
 //! `$subsumes`, and `$expand` as a server would call them.
 
+#![forbid(unsafe_code)]
+// Per spec/rust-no-unsafe/index.md.
+
 use std::hint::black_box;
 
 use criterion::{criterion_group, criterion_main, Criterion, Throughput};

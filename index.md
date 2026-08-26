@@ -10,7 +10,7 @@ Start here rather than guessing which file to open:
 | **Role playbooks** | "I'm about to change this crate — what conventions/gotchas apply?" | [`agents/*.md`](agents) |
 | **Tutorial** | "I'm new — walk me through it step by step." | [`docs/tutorial.md`](docs/tutorial.md) |
 | **Troubleshooting** | "I hit an error / something looks wrong — is this expected?" | [`docs/troubleshooting.md`](docs/troubleshooting.md) |
-| **Project policies** | "What Rust version, how is this verified beyond unit tests, what breaks downstream?" | [`spec/rust-msrv-n-minus-3.md`](spec/rust-msrv-n-minus-3.md), [`spec/rust-fuzz.md`](spec/rust-fuzz.md), [`spec/rust-bench.md`](spec/rust-bench.md), [`spec/rust-api-stability.md`](spec/rust-api-stability.md), [`spec/agents-directory-name-is-lowercase.md`](spec/agents-directory-name-is-lowercase.md) |
+| **Project policies** | "What Rust version, how is this verified beyond unit tests, what breaks downstream?" | [`spec/rust-msrv-n-minus-3/index.md`](spec/rust-msrv-n-minus-3/index.md), [`spec/rust-fuzz.md`](spec/rust-fuzz.md), [`spec/rust-bench.md`](spec/rust-bench.md), [`spec/rust-api-stability.md`](spec/rust-api-stability.md), [`spec/rust-no-unsafe/index.md`](spec/rust-no-unsafe/index.md), [`spec/agents-directory-name-is-lowercase/index.md`](spec/agents-directory-name-is-lowercase/index.md) |
 
 Plus two process documents that aren't reference material:
 [`plan.md`](plan.md) (the roadmap by phase, with the *why* behind
@@ -18,6 +18,24 @@ non-obvious decisions — the closed phases' full narrative lives in
 [`docs/plan-archive.md`](docs/plan-archive.md)) and [`tasks.md`](tasks.md)
 (the execution checklist, more granular than `plan.md`, with its own
 [archive](docs/tasks-archive.md)).
+
+And a set of root documents answering the questions an evaluator, adopter, or
+journalist asks before reading any code:
+
+| Question | Where |
+|---|---|
+| "How do I install and run this?" | [`INSTALL.md`](INSTALL.md) |
+| "What are the terms, and what do they cover?" | [`LICENSE.md`](LICENSE.md), [`CITATION.cff`](CITATION.cff) |
+| "How does this compare to Snowstorm, hermes, and the rest — and what does it *not* do?" | [`COMPARISONS.md`](COMPARISONS.md) |
+| "How fast is it, measured how, on what?" | [`BENCHMARKS.md`](BENCHMARKS.md) |
+| "Who maintains this, and what happens if they stop?" | [`MAINTAINERS.md`](MAINTAINERS.md), [`CODEOWNERS`](CODEOWNERS) |
+| "What changed, and what should I write about it?" | [`CHANGELOG.md`](CHANGELOG.md), [`NEWS.md`](NEWS.md) |
+| "How is AI used to build this, and who is accountable?" | [`AI_STATEMENT.md`](AI_STATEMENT.md) |
+| "How can I help, and what would help most?" | [`CONTRIBUTING.md`](CONTRIBUTING.md) |
+| "What is this project unsure about, and can I settle it?" | [`RFC.md`](RFC.md) |
+| "Who decides, and what constrains them?" | [`GOVERNANCE.md`](GOVERNANCE.md) |
+| "How do I report a vulnerability, and what counts as one?" | [`SECURITY.md`](SECURITY.md) |
+| "Where is this work worth presenting?" | [`help/outreach/index.md`](help/outreach/index.md) |
 
 `spec/*.md` is the **normative single source of truth**: when code and a
 spec disagree, one of them is a bug — fix the spec first if the official
@@ -60,11 +78,12 @@ of an external specification, and bind the same way:
 
 | Policy | Covers | Lives in |
 |---|---|---|
-| [rust-msrv-n-minus-3.md](spec/rust-msrv-n-minus-3.md) | MSRV = current stable Rust minus three | `Cargo.toml`, CI `msrv` job |
+| [rust-msrv-n-minus-3/](spec/rust-msrv-n-minus-3/index.md) | MSRV = current stable Rust minus three | `Cargo.toml`, CI `msrv` job |
 | [rust-fuzz.md](spec/rust-fuzz.md) | fuzz targets, the no-panic invariant, seed corpora | `fuzz/` (outside the workspace) |
 | [rust-bench.md](spec/rust-bench.md) | criterion benchmarks: what is measured, and how | `benches/` (outside the workspace) |
 | [rust-api-stability.md](spec/rust-api-stability.md) | which public enums are `#[non_exhaustive]` | every crate's public enums |
-| [agents-directory-name-is-lowercase.md](spec/agents-directory-name-is-lowercase.md) | agent instruction directories are named `agents`, lowercase | `agents/` |
+| [rust-no-unsafe/](spec/rust-no-unsafe/index.md) | no `unsafe`, enforced by `#![forbid(unsafe_code)]` | every crate root |
+| [agents-directory-name-is-lowercase/](spec/agents-directory-name-is-lowercase/index.md) | agent instruction directories are named `agents`, lowercase | `agents/` |
 
 `snomed` (the facade) and `snomed-cli` (the terminal binary) both sit on
 top of every crate above rather than implementing a spec of their own —

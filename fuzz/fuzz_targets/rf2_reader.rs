@@ -2,6 +2,8 @@
 //! bytes: a malformed file must surface as a typed error on the offending
 //! row, never a panic, and never a silently accepted row.
 #![no_main]
+#![forbid(unsafe_code)]
+// Per spec/rust-no-unsafe/index.md.
 
 use libfuzzer_sys::fuzz_target;
 use snomed_core::components::{Concept, Description, Relationship};

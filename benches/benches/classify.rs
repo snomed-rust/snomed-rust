@@ -3,6 +3,9 @@
 //! most expensive thing this workspace does, and normal form generation runs
 //! on top of its output.
 
+#![forbid(unsafe_code)]
+// Per spec/rust-no-unsafe/index.md.
+
 use std::hint::black_box;
 
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};

@@ -4,6 +4,8 @@
 //! or malformed syntax MUST come back as a typed error naming what is
 //! missing — never a panic, and never a silent misparse.
 #![no_main]
+#![forbid(unsafe_code)]
+// Per spec/rust-no-unsafe/index.md.
 
 use libfuzzer_sys::fuzz_target;
 use snomed_ecl::parse;

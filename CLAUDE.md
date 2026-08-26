@@ -75,9 +75,14 @@ classification with necessary normal form generation.
    short-format ids meet the 6-digit minimum.
 6. Keep `tasks.md` checked off in the same change that completes the work.
 7. The MSRV is the current stable Rust release minus three
-   (`spec/rust-msrv-n-minus-3.md`); `rust-version` in the root `Cargo.toml`
+   (`spec/rust-msrv-n-minus-3/index.md`); `rust-version` in the root `Cargo.toml`
    and the CI `msrv` job pin move together.
-8. Cite rules as `spec/NN rule M`. `crates/snomed/tests/spec_citations.rs`
+8. **No `unsafe`.** Every crate root carries `#![forbid(unsafe_code)]` —
+   `crates/*/src/lib.rs`, `crates/snomed-cli/src/main.rs`, every
+   `fuzz/fuzz_targets/*.rs`, and every `benches/benches/*.rs`. A new crate
+   root gets the attribute in the same change that creates it
+   (`spec/rust-no-unsafe/index.md`).
+9. Cite rules as `spec/NN rule M`. `crates/snomed/tests/spec_citations.rs`
    checks every such citation in the repo resolves, so **inserting or
    renumbering a rule means updating its citations in the same change** —
    the test will say if you missed one. `spec/10` is four files, and all

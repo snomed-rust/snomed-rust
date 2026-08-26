@@ -5,6 +5,9 @@
 //! input, so the fuzzer spends its budget on the parser/evaluator under test
 //! instead of on rediscovering how to build a valid store.
 
+#![forbid(unsafe_code)]
+// Per spec/rust-no-unsafe/index.md.
+
 use snomed_core::components::{Concept, Description, Relationship};
 use snomed_core::constants;
 use snomed_core::member_id::MemberId;

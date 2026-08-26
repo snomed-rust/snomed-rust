@@ -17,6 +17,10 @@
 //! inline-`valueSet` inputs remain not yet implemented — see spec/11's
 //! "Not yet implemented" section and the root `tasks.md`.
 
+#![forbid(unsafe_code)]
+// Per spec/rust-no-unsafe/index.md: this workspace contains no `unsafe`, and
+// the compiler enforces that rather than a grep.
+
 mod error;
 mod expand;
 mod lookup;

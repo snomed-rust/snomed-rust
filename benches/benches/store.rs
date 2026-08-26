@@ -1,6 +1,9 @@
 //! Snapshot store benchmarks (`spec/09-versioning.md`): building the derived
 //! indexes, and the hierarchy queries everything else is built on.
 
+#![forbid(unsafe_code)]
+// Per spec/rust-no-unsafe/index.md.
+
 use std::hint::black_box;
 
 use criterion::{criterion_group, criterion_main, BatchSize, Criterion, Throughput};

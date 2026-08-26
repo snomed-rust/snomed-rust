@@ -59,19 +59,44 @@ Supporting documents:
   and questions, answered.
 - [`spec/`](spec/README.md) — project-local distillation of the official
   [RF2 Release File Specification](https://docs.snomed.org/snomed-ct-specifications/snomed-ct-release-file-specification);
-  the normative reference for this codebase. It also holds five project
+  the normative reference for this codebase. It also holds six project
   policies that bind the same way:
-  [MSRV](spec/rust-msrv-n-minus-3.md), [fuzzing](spec/rust-fuzz.md),
+  [MSRV](spec/rust-msrv-n-minus-3/index.md), [fuzzing](spec/rust-fuzz.md),
   [benchmarking](spec/rust-bench.md),
-  [API stability](spec/rust-api-stability.md), and
-  [the `agents` directory name](spec/agents-directory-name-is-lowercase.md).
+  [API stability](spec/rust-api-stability.md),
+  [no `unsafe`](spec/rust-no-unsafe/index.md), and
+  [the `agents` directory name](spec/agents-directory-name-is-lowercase/index.md).
 - [`plan.md`](plan.md) — roadmap by phase (with
   [`docs/plan-archive.md`](docs/plan-archive.md) holding the closed
   phases' full design narrative); [`tasks.md`](tasks.md) — execution
   checklist; [`CHANGELOG.md`](CHANGELOG.md) — what changed per published
   version.
 - [`CLAUDE.md`](CLAUDE.md) / [`AGENTS.md`](AGENTS.md) /
-  [`agents/`](agents) — instructions for AI coding agents.
+  [`agents/`](agents) — instructions for AI coding agents;
+  [`AI_STATEMENT.md`](AI_STATEMENT.md) — how AI tools are used to build
+  this, who is accountable, and what that does and does not prove.
+
+Project documents:
+
+- [`INSTALL.md`](INSTALL.md) — requirements, installing the crates and the
+  CLI, obtaining RF2 release files, and a first run.
+- [`COMPARISONS.md`](COMPARISONS.md) — where this sits among Snowstorm,
+  snomed-owl-toolkit, hermes, and the rest, including what it does *not* do;
+  [`BENCHMARKS.md`](BENCHMARKS.md) — measured numbers, method, and machine.
+- [`LICENSE.md`](LICENSE.md) — SPDX terms, what the license does and does not
+  cover, and the trademark position;
+  [`CITATION.cff`](CITATION.cff) — how to cite this work.
+- [`MAINTAINERS.md`](MAINTAINERS.md) — who maintains this, what happens if
+  they are unavailable, and where the publishing identities live;
+  [`NEWS.md`](NEWS.md) — release news, boilerplate, and press contact.
+- [`CONTRIBUTING.md`](CONTRIBUTING.md) — what actually helps here (the most
+  valuable contributions are not code), the rules a change must satisfy, and
+  an honest answer about money;
+  [`RFC.md`](RFC.md) — the questions this project does *not* know the answer
+  to, published so people who do can answer them.
+- [`GOVERNANCE.md`](GOVERNANCE.md) — who decides, and what constrains them;
+  [`SECURITY.md`](SECURITY.md) — how to report a vulnerability, what counts as
+  one here, and the posture gaps stated rather than left to be discovered.
 
 ## Quick start
 
@@ -146,7 +171,7 @@ cargo +nightly fuzz run ecl_parse                       # from fuzz/, needs carg
 
 **MSRV: the current stable Rust release minus three** — 1.95 as of this
 writing, checked in CI against that exact toolchain. The policy, and how it
-moves, is [`spec/rust-msrv-n-minus-3.md`](spec/rust-msrv-n-minus-3.md).
+moves, is [`spec/rust-msrv-n-minus-3/`](spec/rust-msrv-n-minus-3/index.md).
 
 Development is **specification-driven**: behavior is written in `spec/*.md`
 first, code cites the spec it implements (`// per spec/04 rule 5`), and
@@ -160,6 +185,8 @@ behind. See [`plan.md`](plan.md) for the roadmap by phase and
 ## License
 
 Code: dual-licensed under [Apache-2.0](LICENSE-APACHE) or [MIT](LICENSE-MIT),
-at your option.
+at your option — `SPDX-License-Identifier: Apache-2.0 OR MIT`. See
+[`LICENSE.md`](LICENSE.md) for what that covers, what it does not, and why the
+dependency-free design makes the bill of materials trivial to audit.
 SNOMED CT® is a registered trademark of SNOMED International; this project is
 not affiliated with or endorsed by SNOMED International.

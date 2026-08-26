@@ -6,6 +6,8 @@
 //! non-terminating or panicking loop, and the invariants below are the ones
 //! spec/13 states: the subsumer sets are transitively closed and strict.
 #![no_main]
+#![forbid(unsafe_code)]
+// Per spec/rust-no-unsafe/index.md.
 
 use std::collections::HashSet;
 

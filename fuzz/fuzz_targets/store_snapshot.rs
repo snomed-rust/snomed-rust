@@ -6,6 +6,8 @@
 //! indexes — the part of the workspace every query is built on. The
 //! properties asserted are spec/09's own rules, not incidental behavior.
 #![no_main]
+#![forbid(unsafe_code)]
+// Per spec/rust-no-unsafe/index.md.
 
 use std::collections::HashMap;
 

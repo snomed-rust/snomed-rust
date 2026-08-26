@@ -2,6 +2,8 @@
 //! form is `#<decimal>` or `"<text>"`, and an accepted value keeps its text
 //! verbatim so precision and trailing zeros survive.
 #![no_main]
+#![forbid(unsafe_code)]
+// Per spec/rust-no-unsafe/index.md.
 
 use libfuzzer_sys::fuzz_target;
 use snomed_core::concrete_value::ConcreteValue;
