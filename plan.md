@@ -57,7 +57,7 @@ this file outgrew its size budget. Summarized:
 
 ## Phase 8 — Toolchain policy, fuzzing, benchmarking ✅ (2026-08-20)
 
-- **MSRV policy** (`spec/rust-msrv-n-minus-3.md`): the minimum supported
+- **MSRV policy** (`spec/rust-msrv-n-minus-3/index.md`): the minimum supported
   Rust version is the current stable release minus three, a rolling
   ~18-week window. Recorded in `[workspace.package].rust-version` and
   verified by a dedicated CI job rather than merely declared.
@@ -103,6 +103,39 @@ percent-decoding and `$lookup` concept model attributes.
   timing an error path; `classify` panicking on a hand-built one-operand
   chain. Two came from fuzz targets written for exactly that, one from a
   review pass, one from reading a benchmark's own assertion.
+
+## Phase 10 — professionalization across the five-repo family (in progress, 2026-08)
+
+The 2026-08-26 pass built the evaluator-facing document set (`tasks.md`
+records it: LICENSE.md, CITATION.cff, GOVERNANCE.md, SECURITY.md,
+CONTRIBUTING.md, RFC.md, MAINTAINERS.md, AI_STATEMENT.md, the outreach
+research, and the rest). This phase finishes the job to the standard the
+audience requires — healthcare professionals, worldwide, production use —
+and harmonizes it with the sibling repositories (`hl7-rust`, `er7-rust`,
+`fhir-rust`, `openehr-rust`), which run the same six workstreams:
+
+- **Governance**: complete — `CODE_OF_CONDUCT.md` landed 2026-08-26, and
+  GOVERNANCE.md routes behavior disputes to it.
+- **Compliance — licensing and trademarks**: the SNOMED CT crate-naming
+  question stays open in RFC.md §5 and gates outreach; separately, mark
+  usage and the non-endorsement disclaimer appear on only a few root
+  documents, and unlike `fhir-rust`/`er7-rust` there is no per-page rule and
+  no checker. `LICENSES/` (full license texts, REUSE convention) is missing.
+- **Security and supply chain**: SECURITY.md's "Known posture" items
+  (unsigned commits/tags, manual publishing, no DOI, private vulnerability
+  reporting off) were written down as gaps precisely so they get closed or
+  consciously accepted — several are one-toggle items.
+- **Privacy and patient data**: no `PHI.md`; the family convention is a root
+  page a hospital reviewer can read, stating plainly what the software does
+  and does not do with patient data (for this workspace: it ships no
+  content, holds whatever release the user loads, and never phones home —
+  said in one place instead of implied by the zero-dependency rule).
+- **Outreach**: researched and sequenced (`help/outreach/index.md`); blocked
+  on the naming question and the items above, by its own cautions.
+- **Audit and harmonization**: the 13 root documents are still untracked;
+  the doc conventions (40 KB budget, link integrity) are unenforced by CI;
+  and `spec/special-files-for-public-repos/` has drifted behind the
+  `fhir-rust` canonical version. Itemized in `tasks.md` §Next up.
 
 ## Open decisions (priced, awaiting a call)
 
@@ -204,6 +237,6 @@ set rather than an error.
   HTTP server for `snomed-fhir` (the standing candidate in `tasks.md`)
   probably cannot, which is exactly why it stays a user decision.
 - MSRV moves on a schedule, not on demand: current stable minus three
-  (`spec/rust-msrv-n-minus-3.md`). Raising it is routine; the thing to
+  (`spec/rust-msrv-n-minus-3/index.md`). Raising it is routine; the thing to
   watch is that a bump can surface previously-suppressed clippy lints,
   since MSRV-gated lints activate with `rust-version`.

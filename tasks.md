@@ -8,6 +8,125 @@ Entries from before the 2026-08-23 afternoon live in
 keep this file inside the repository's 40 KB per-document budget. Search
 both when asking "has this come up before".
 
+## Done (2026-08-26, professionalization execution)
+
+- [x] **`CODE_OF_CONDUCT.md`**: Contributor Covenant 2.1 adapted from
+      `fhir-rust`'s copy, keeping the claim-accuracy clause (overstating
+      what the software does is a conduct problem, grounded here in
+      `SECURITY.md`'s wrong-answer-severity position and
+      `AI_STATEMENT.md` §12 rather than fhir-rust's overclaim register,
+      which this repository does not have) and the honest
+      single-maintainer enforcement limits; contact
+      joel@joelparkerhenderson.com. GOVERNANCE.md's contest-a-decision
+      ladder now routes behavior disputes to it, and CONTRIBUTING.md
+      gained a Conduct section — closing the gap plan.md Phase 10 named.
+
+## Done (2026-08-26, outreach research and the root document set)
+
+- [x] **`help/outreach/index.md`** (new, outside `spec/` deliberately —
+      it is research, not a normative document): where the professionals
+      who could use this workspace gather, what each channel accepts, and
+      in what order to approach them. Covers the SNOMED International
+      ecosystem, HL7/FHIR, OHDSI and openEHR, the Rust channels, academic
+      publication, trade press, and direct outreach; plus the assets to
+      build first, a phased sequence, and the cautions.
+- [x] Flagged in that document, and **not resolved**: the Affiliate
+      License Agreement restricts Affiliates from using product names
+      containing "SNOMED", and this workspace's crate names are exactly
+      the high-visibility use that draws attention to it. Whether it binds
+      a code-only project that ships no content is a real question, and
+      it is cheaper to answer before a launch than after.
+- [x] **Root documents for evaluators and adopters**: `LICENSE.md` (SPDX
+      terms, scope, trademarks, and the trivial SBOM the zero-dependency
+      rule produces), `CITATION.cff` (ORCID, version, release date),
+      `INSTALL.md`, `COMPARISONS.md`, `BENCHMARKS.md`, `NEWS.md`,
+      `MAINTAINERS.md`, `CODEOWNERS`, and `AI_STATEMENT.md`. `index.md`
+      and `README.md` route to all of them.
+- [x] `BENCHMARKS.md` is **measured, not written**: a full criterion run
+      on 2026-08-26 (M4 Max, rustc 1.98.0), all 66 cases, machine and
+      method recorded, batch figures distinguished from derived per-item
+      arithmetic. The finding worth keeping: classification scales at
+      roughly n^1.6 across 500/2,000/8,000 concepts, so the 8,000-concept
+      number cannot be multiplied up to an International Edition.
+- [x] `MAINTAINERS.md` and `AI_STATEMENT.md` state the gaps rather than
+      implying they are covered: commits and tags are unsigned, there is
+      no Zenodo DOI, no CI publish lane, and no second machine opinion on
+      pull requests. Each is a candidate task, listed under "Next up".
+- [x] **`GOVERNANCE.md` and `SECURITY.md`**, which closed two of those
+      gaps and so required updating every place that had said they were
+      open — `MAINTAINERS.md` twice, `CONTRIBUTING.md`, and
+      `AI_STATEMENT.md` §14 and §15. Governance's substance is the
+      constraints that bind the maintainer as much as a contributor
+      (spec-first, zero dependencies, no silent wrong answers), since with
+      one person a decision table alone would be theatre; the appeal body
+      is a fork, and the document says so. `SECURITY.md` scopes what
+      counts as a vulnerability in a library with no network, no
+      cryptography, and no `unsafe`: a panic on type-permitted input, a
+      disproportionate resource blowup, and — treated as the most serious
+      class — an incorrect subsumption or ECL result, because a crash is
+      visible and a wrong terminology answer is not. Response times are
+      stated as targets, with advance permission to publish after fourteen
+      days without acknowledgement.
+- [x] Verified rather than assumed, via the GitHub API: **private
+      vulnerability reporting is disabled** on the repository, so
+      `SECURITY.md` names email as the private channel instead of pointing
+      at a Security tab form that does not exist.
+- [x] **`#![forbid(unsafe_code)]` at every crate root**, and a policy to
+      go with it. The attribute is on all 31 crate roots: the nine
+      published crates, `snomed-cli`'s binary root, all 13 fuzz targets
+      plus `fuzz/src/lib.rs`, and all 6 benchmark files plus
+      `benches/src/lib.rs`. `forbid` rather than `deny` deliberately —
+      `deny` can be switched off by an `#[allow]` further down the file
+      and `forbid` cannot, which is the entire difference between a
+      preference and a boundary.
+- [x] Wrote `spec/rust-no-unsafe/index.md` as the sixth project policy,
+      because a binding rule with no spec behind it is exactly the drift
+      rule 1 exists to prevent. It states what the attribute does *not*
+      prove as carefully as what it does: not correctness, not `std`, and
+      not other people's crates — the attribute is not transitive, which
+      is why it is weaker evidence in most crates than it looks. Here it
+      composes with the zero-dependency rule into a claim that does hold
+      transitively, and that pairing is the point.
+- [x] Verified empirically rather than assumed: the fuzz targets compile
+      under `forbid` (libfuzzer-sys keeps its `unsafe` inside its own
+      crate), so `fuzz/` and `benches/` are covered too rather than
+      exempted. `cargo fmt` needed a re-run in `fuzz/` afterwards — the
+      attribute landed a blank line after `#![no_main]`.
+- [x] Full verification: `cargo build --all`, `cargo test --all` (353
+      pass), `cargo clippy --all-targets -D warnings`, `cargo bench
+      --benches -- --test`, and `cargo +nightly fuzz build` all clean;
+      `cargo fmt --check` clean in all three packages.
+- [x] Registered the policy in `spec/README.md` (five policies became
+      six), `README.md`, and `index.md`, and updated every place that had
+      described the no-`unsafe` property as a grep rather than a compiler
+      guarantee: `AI_STATEMENT.md` §7, `SECURITY.md` twice,
+      `COMPARISONS.md`, `CONTRIBUTING.md`, `GOVERNANCE.md`, `CLAUDE.md`,
+      and `AGENTS.md` (whose ground rules needed renumbering).
+- [x] **`CONTRIBUTING.md`**: ordered by what actually helps, which puts
+      "tell us where we are wrong about SNOMED CT" and "run it against a
+      real release" above code, since both are open to people who write no
+      Rust and both close gaps the maintainer structurally cannot. States
+      the seven hard rules with their reasons, the AI-disclosure
+      requirement, and — since no sponsorship channel exists and inventing
+      one would be dishonest — that money is not the binding constraint,
+      naming the three things that would move the project further.
+- [x] **`RFC.md`**: the nine questions this project does not know the
+      answer to, including two it has already shipped a decision on
+      without confidence (`^` partition filtering, fallible evaluation),
+      the crate-naming/trademark question, and the conformance-without-
+      content design problem. Cross-referenced with `plan.md`'s "Open
+      decisions" rather than duplicating the arguments there.
+- [x] **Repaired the spec-directory rename.** Moving
+      `spec/rust-msrv-n-minus-3.md` and
+      `spec/agents-directory-name-is-lowercase.md` into directories left
+      ~25 dangling links across the repository, including sibling links
+      *inside* the two moved files, which needed `../` to climb out of
+      their new directory. All repointed at the explicit `index.md` —
+      GitHub renders `README.md` in a directory listing, not `index.md`,
+      so a bare directory link shows a file list rather than the document.
+      A repository-wide check now reports 68 markdown files and zero
+      broken relative links.
+
 ## Done (2026-08-23, a standing check that spec citations resolve)
 
 - [x] **Audited all 123 `spec/NN rule M` citations** across code and docs.
@@ -229,9 +348,30 @@ both when asking "has this come up before".
 - [ ] Nothing currently scoped. State as of 2026-08-23 (0.10.0): 9 crates,
       353 tests, clippy/fmt clean on stable, the pinned MSRV toolchain,
       `fuzz/`, and `benches/`; 13 fuzz targets; 6 criterion benchmark
-      files; 23 `spec/*.md` files (17 specification distillations, the
-      README index, and 5 project policies). Every gap `spec/` documents as missing is closed,
+      files; 24 `spec/` documents (17 specification distillations, the
+      README index, and 6 project policies), plus `spec/serial-comma/`
+      and `spec/special-files-for-public-repos/`, neither registered in
+      the README index yet. Every gap `spec/` documents as missing is closed,
       reclassified, or blocked on a decision below.
+- [ ] **Repository-hygiene gaps named in `MAINTAINERS.md` and
+      `AI_STATEMENT.md`**, each independently pickable and none blocked:
+      sign commits and tags; create a Zenodo deposit wired to GitHub
+      releases so a version has a DOI; decide whether publishing moves to
+      a CI lane with crates.io Trusted Publishing. These were written down
+      as gaps rather than quietly omitted, so they should be closed or
+      consciously accepted.
+- [ ] **Enable GitHub private vulnerability reporting** (Settings →
+      Security → Private vulnerability reporting; one toggle, or
+      `gh api -X PUT repos/snomed-rust/snomed-rust/private-vulnerability-reporting`).
+      It is currently off, which is why `SECURITY.md` documents email as
+      the private channel. Flipping it means updating that paragraph in
+      the same change.
+- [ ] **`spec/serial-comma/` is unregistered** (correction 2026-08-26: its
+      `README.md` is a symlink to `index.md`, not a duplicated file, so
+      there is no content divergence — the earlier wording here was wrong).
+      Still open: neither it nor `spec/special-files-for-public-repos/` has
+      an entry in `spec/README.md`'s tables, and the symlink-vs-two-files
+      question should be settled once and applied to the other moved specs.
 - [ ] Decisions, not tasks — each needs a call before code:
       - **`{{ M ... }}` member filters** (`snomed-ecl`): now priced in
         `plan.md` under "Open decisions". The blocker turned out not to be
@@ -257,6 +397,38 @@ both when asking "has this come up before".
       wrong inactive concepts. The store side is ready
       (`association_sources`), so this is one afternoon's work the day the
       profile membership can be cited.
+- [ ] **Professionalization (Phase 10 in `plan.md`, added 2026-08-26)** —
+      the family-harmonized workstreams; each item independently pickable:
+      - **Commit the 13 untracked root documents** plus the rename
+        link-repair diff already in the working tree — until they land,
+        GitHub shows none of the 2026-08-26 governance work. Ask before
+        pushing.
+      - ~~**`CODE_OF_CONDUCT.md`**~~ — done 2026-08-26; see the Done
+        section above.
+      - **`PHI.md`** at the root: what this workspace does and does not do
+        with patient data, in one page — ships no clinical content, holds
+        whatever release the user loads in memory, no file/network/telemetry
+        beyond what the user invokes; model on `fhir-rust/PHI.md`'s
+        privacy-officer Q&A shape.
+      - **Trademark discipline**: a `spec/` rule for SNOMED-mark usage and
+        the non-endorsement disclaimer per page (currently on ~4 of 18 root
+        documents, with no rule and no checker), modeled on the siblings'
+        `hl7-trademarks-fair-use` spec + checker pair — written so it does
+        not prejudge RFC.md §5's open naming question.
+      - **`LICENSES/` directory** with the full text of every license in
+        the SPDX expression (REUSE convention; `LICENSE-APACHE` and
+        `LICENSE-MIT` at root today, non-REUSE).
+      - **Docs CI lane**: the repository-wide link check that already found
+        68 files / zero broken links, plus the 40 KB per-document budget —
+        both currently convention-only; a spec file should define the
+        budget it enforces.
+      - **Re-sync `spec/special-files-for-public-repos/`** with the
+        `fhir-rust` canonical version (local copy omits CODE_OF_CONDUCT.md,
+        PHI.md, LICENSES/, FUNDING.yml and the status section), and resolve
+        its stray duplicate `AI_STATEMENT.md` in favor of the root file.
+      - `.github/FUNDING.yml` is a **decision, not a gap**:
+        CONTRIBUTING.md deliberately states money is not the binding
+        constraint; add the file only if that position changes.
 - [ ] Smaller documented gaps, each independently pickable: the `dialect`
       alias form (needs an alias→refset mapping this crate deliberately
       doesn't own), the `dialectIdSet` spelling, `regex:` search terms
