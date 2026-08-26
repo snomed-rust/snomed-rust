@@ -1,5 +1,12 @@
 # snomed-ecl
 
+SNOMED® ECL.
+
+SNOMED®, SNOMED CT®, and IHTSDO® are registered trademarks of International
+Health Terminology Standards Development Organisation (IHTSDO). Use of the
+trademarks does not constitute endorsement of this product by IHTSDO. This
+project is an independent work.
+
 A hand-written lexer, recursive-descent parser, and set-based evaluator for
 SNOMED CT's **Expression Constraint Language (ECL)** — the query language
 behind refset/value-set definitions, MRCM range constraints, and

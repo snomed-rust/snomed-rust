@@ -1,5 +1,16 @@
 # snomed-fhir
 
+SNOMED® FHIR®.
+
+SNOMED®, SNOMED CT®, and IHTSDO® are registered trademarks of International
+Health Terminology Standards Development Organisation (IHTSDO). Use of the
+trademarks does not constitute endorsement of this product by IHTSDO. This
+project is an independent work.
+
+HL7®, and FHIR® are the registered trademarks of
+Health Level Seven International and their use of these trademarks does not
+constitute an endorsement by HL7.
+
 Semantic building blocks for FHIR terminology service operations over a
 SNOMED CT [`SnapshotStore`](../snomed-store) — `$lookup`, `$subsumes`,
 `$expand`. See [`spec/11-fhir.md`](../../spec/11-fhir.md) — the normative

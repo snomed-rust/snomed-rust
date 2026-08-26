@@ -1,5 +1,12 @@
 # snomed-owl
 
+SNOMED® OWL.
+
+SNOMED®, SNOMED CT®, and IHTSDO® are registered trademarks of International
+Health Terminology Standards Development Organisation (IHTSDO). Use of the
+trademarks does not constitute endorsement of this product by IHTSDO. This
+project is an independent work.
+
 A hand-written lexer and recursive-descent parser for the **OWL 2
 functional-syntax subset SNOMED CT actually uses** in its OWL Expression
 reference set (`sct2_sRefset_OWLExpression*` files — see

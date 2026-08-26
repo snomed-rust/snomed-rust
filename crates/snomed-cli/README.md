@@ -1,9 +1,16 @@
 # snomed-cli
 
-A command-line binary over the `snomed` workspace: validate an SCTID,
-sanity-check an RF2 release directory, look up a concept's neighborhood,
-run an ECL query, classify a release's OWL axioms, or compute their
-necessary normal form — all from the terminal, without writing Rust.
+SNOMED® command line interface.
+
+SNOMED®, SNOMED CT®, and IHTSDO® are registered trademarks of International
+Health Terminology Standards Development Organisation (IHTSDO). Use of the
+trademarks does not constitute endorsement of this product by IHTSDO. This
+project is an independent work.
+
+A command-line interface binary over the `snomed` workspace: validate an SCTID,
+sanity-check an RF2 release directory, look up a concept's neighborhood, run an
+ECL query, classify a release's OWL axioms, or compute their necessary normal
+form — all from the terminal, without writing Rust.
 
 ## Install / run
 

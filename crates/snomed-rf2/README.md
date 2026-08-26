@@ -1,5 +1,12 @@
 # snomed-rf2
 
+SNOMED® RF2.
+
+SNOMED®, SNOMED CT®, and IHTSDO® are registered trademarks of International
+Health Terminology Standards Development Organisation (IHTSDO). Use of the
+trademarks does not constitute endorsement of this product by IHTSDO. This
+project is an independent work.
+
 Parses SNOMED CT **RF2** release files: file name decoding, a streaming
 typed reader with header validation and line-numbered errors, the four
 core component record types (Concept, Description, Relationship,

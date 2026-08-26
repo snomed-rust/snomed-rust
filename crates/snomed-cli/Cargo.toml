@@ -1,6 +1,6 @@
 [package]
 name = "snomed-cli"
-description = "Command-line toolkit for SNOMED CT RF2: SCTID validation, release loading, concept lookup, ECL queries, OWL classification and necessary normal form"
+description = "SNOMED® command-line interface toolkit for RF2: SCTID validation, release loading, concept lookup, ECL queries, OWL classification and necessary normal form. NOMED®, SNOMED CT®, and IHTSDO® are registered trademarks of International Health Terminology Standards Development Organisation (IHTSDO). Use of the trademarks does not constitute endorsement of this product by IHTSDO. This project is an independent work.."
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true

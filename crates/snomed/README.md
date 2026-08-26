@@ -1,7 +1,12 @@
-# snomed
+# snomed®
 
 The facade crate: one dependency that re-exports the whole workspace, plus
 a `prelude` module with the commonly-needed names already imported.
+
+SNOMED®, SNOMED CT®, and IHTSDO® are registered trademarks of International
+Health Terminology Standards Development Organisation (IHTSDO). Use of the
+trademarks does not constitute endorsement of this product by IHTSDO. This
+project is an independent work.
 
 If you're consuming this workspace as a library from outside the repo,
 depend on `snomed` rather than the individual `snomed-*` crates directly —

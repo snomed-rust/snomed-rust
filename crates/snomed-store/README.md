@@ -1,5 +1,12 @@
 # snomed-store
 
+SNOMED® store.
+
+SNOMED®, SNOMED CT®, and IHTSDO® are registered trademarks of International
+Health Terminology Standards Development Organisation (IHTSDO). Use of the
+trademarks does not constitute endorsement of this product by IHTSDO. This
+project is an independent work.
+
 Two in-memory stores built from parsed RF2 rows:
 
 - **`SnapshotStore`** — "what does the terminology look like now": one

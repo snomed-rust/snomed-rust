@@ -1,5 +1,12 @@
 # snomed-core
 
+SNOMED® core.
+
+SNOMED®, SNOMED CT®, and IHTSDO® are registered trademarks of International
+Health Terminology Standards Development Organisation (IHTSDO). Use of the
+trademarks does not constitute endorsement of this product by IHTSDO. This
+project is an independent work.
+
 Core SNOMED CT types shared by every crate in the `snomed` workspace:
 **SCTID** parsing/validation/generation (with the Verhoeff check digit),
 **component records** (`Concept`, `Description`, `Relationship`,

@@ -1,5 +1,12 @@
 # snomed-classify
 
+SNOMED® classify.
+
+SNOMED®, SNOMED CT®, and IHTSDO® are registered trademarks of International
+Health Terminology Standards Development Organisation (IHTSDO). Use of the
+trademarks does not constitute endorsement of this product by IHTSDO. This
+project is an independent work.
+
 An **EL-profile subsumption classifier** for SNOMED CT OWL axioms — the
 completion (saturation) algorithm from Baader/Brandt/Lutz, ["Pushing the
 EL Envelope"](https://www.ijcai.org/Proceedings/05/Papers/0372.pdf)

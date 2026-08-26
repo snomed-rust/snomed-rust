@@ -1,6 +1,6 @@
 [package]
 name = "snomed-fhir"
-description = "Semantic building blocks for FHIR terminology service operations ($lookup, $subsumes, $expand) over a SNOMED CT SnapshotStore"
+description = "SNOMED® semantic building blocks for FHIR terminology service operations ($lookup, $subsumes, $expand) over a SNOMED CT SnapshotStore. SNOMED®, SNOMED CT®, and IHTSDO® are registered trademarks of International Health Terminology Standards Development Organisation (IHTSDO). Use of the trademarks does not constitute endorsement of this product by IHTSDO. This project is an independent work.."
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
