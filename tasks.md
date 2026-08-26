@@ -8,6 +8,31 @@ Entries from before the 2026-08-23 afternoon live in
 keep this file inside the repository's 40 KB per-document budget. Search
 both when asking "has this come up before".
 
+## Done (2026-08-26, release 0.11.3: descriptions carry the notice, enforced)
+
+- [x] **Applied the owner's canonical three-part description shape to all
+      nine crates** — short description with ® on the marks, then the
+      verbatim notice, then "This project is an independent work." — and
+      fixed the two typos 0.11.2 published in its descriptions: "NOMED®"
+      for "SNOMED®" (`snomed-cli`, `snomed-classify`) and the trailing
+      double period ("independent work..", all nine).
+- [x] **Extended `bin/check-trademarks`** to require the verbatim notice
+      in every publishable crate's Cargo.toml `description` (skipping any
+      with `publish = false`); rule 5 of
+      `spec/professionalization/index.md` records the extended scope.
+      Plant-tested: with one description's notice broken, the checker
+      failed on exactly that manifest and passed again on revert (22
+      markdown files, 9 crate roots, 9 manifests scanned).
+- [x] Bumped the workspace to **0.11.3** (0.11.2 was published from the
+      owner's manifest-only bump, so the fix is a further patch); version
+      moved across `Cargo.toml` (workspace and the seven pins),
+      `Cargo.lock`, `CITATION.cff`, `NEWS.md`, and `INSTALL.md`, and
+      `CHANGELOG.md` gained both the 0.11.3 entry and the 0.11.2 entry
+      that release shipped without.
+- [x] Verified before publishing: `cargo build --all`, `cargo test --all`,
+      `cargo clippy --all-targets -- -D warnings`, `cargo fmt --check`,
+      `bin/check-trademarks`, `bin/check-docs`.
+
 ## Done (2026-08-26, release 0.11.1)
 
 - [x] Bumped the workspace to **0.11.1** — a patch bump because the

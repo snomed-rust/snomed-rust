@@ -30,7 +30,12 @@ and [`tasks.md`](../../tasks.md); this file holds the rules.
    Development Organisation (IHTSDO). The binding per-page rule is **notice
    presence**: every root document, every document under `help/`, and every
    crate-level rustdoc that uses the marks in prose carries this notice,
-   verbatim (wording specified by the project owner, 2026-08-26):
+   verbatim (wording specified by the project owner, 2026-08-26); every
+   publishable crate's Cargo.toml `description` also carries it verbatim
+   (owner directive, 2026-08-26), in the canonical three-part shape —
+   the short description with ® on the marks, then the notice, then "This
+   project is an independent work." — because descriptions are what
+   crates.io shows in listings and search results, ahead of any README:
 
    > SNOMED®, SNOMED CT®, and IHTSDO® are registered trademarks of
    > International Health Terminology Standards Development Organisation
@@ -92,10 +97,13 @@ Assessed 2026-08-26, while this spec and the trademark tooling were landing:
   the 40 KB per-document budget joined the same day (the `docs` job,
   `bin/check-docs`, per `spec/docs-budget-and-links/index.md`).
 - **Rule 5**: met as of 2026-08-26 — notices on every in-scope page
-  (`bin/check-trademarks` exits 0: 22 root/help markdown files and 9 crate
-  roots scanned), checker in CI. The notice wording was replaced on
-  2026-08-26 with the owner-specified text now quoted in the rule; releases
-  up to and including 0.11.0 carry the earlier wording. One
+  (`bin/check-trademarks` exits 0: 22 root/help markdown files, 9 crate
+  roots, and 9 publishable-crate descriptions scanned), checker in CI. The
+  notice wording was replaced on 2026-08-26 with the owner-specified text
+  now quoted in the rule; releases up to and including 0.11.0 carry the
+  earlier wording, and 0.11.2's published crate descriptions carry two
+  typos ("NOMED®" in two crates, a trailing double period in all nine)
+  fixed in 0.11.3, the release that also added the description check. One
   deliberate scope decision: `spec/**` is **out of the checker's scope**.
   The specification distillations name SNOMED CT in nearly every file
   (15 of them today) because describing RF2 is their job; stamping the

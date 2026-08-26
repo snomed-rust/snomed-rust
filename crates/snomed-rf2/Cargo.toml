@@ -1,6 +1,6 @@
 [package]
 name = "snomed-rf2"
-description = "SNOMED® RF2 release file parsing: file names, core component files, reference sets. SNOMED®, SNOMED CT®, and IHTSDO® are registered trademarks of International Health Terminology Standards Development Organisation (IHTSDO). Use of the trademarks does not constitute endorsement of this product by IHTSDO. This project is an independent work.."
+description = "SNOMED® RF2 release file parsing: file names, core component files, reference sets. SNOMED®, SNOMED CT®, and IHTSDO® are registered trademarks of International Health Terminology Standards Development Organisation (IHTSDO). Use of the trademarks does not constitute endorsement of this product by IHTSDO. This project is an independent work."
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true

@@ -1,6 +1,6 @@
 [package]
 name = "snomed-classify"
-description = "SNOMED® EL-profile subsumption classifier for SNOMED CT OWL axioms (Baader/Brandt/Lutz completion algorithm). NOMED®, SNOMED CT®, and IHTSDO® are registered trademarks of International Health Terminology Standards Development Organisation (IHTSDO). Use of the trademarks does not constitute endorsement of this product by IHTSDO. This project is an independent work.."
+description = "SNOMED® EL-profile subsumption classifier for SNOMED CT OWL axioms (Baader/Brandt/Lutz completion algorithm). SNOMED®, SNOMED CT®, and IHTSDO® are registered trademarks of International Health Terminology Standards Development Organisation (IHTSDO). Use of the trademarks does not constitute endorsement of this product by IHTSDO. This project is an independent work."
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
