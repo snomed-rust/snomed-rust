@@ -88,9 +88,15 @@ jobs:
       - uses: actions/checkout@v4
 
       # libfuzzer-sys needs nightly; see spec/rust-fuzz.md for why `fuzz/`
-      # is its own package outside the workspace.
+      # is its own package outside the workspace. rustfmt and clippy are
+      # named explicitly: this action installs a minimal toolchain, and the
+      # fmt and clippy steps below run on nightly (it is the only toolchain
+      # this job installs) — without the components both fail with
+      # "'cargo-fmt' is not installed for the toolchain 'nightly'".
       - name: Install Rust nightly
         uses: dtolnay/rust-toolchain@nightly
+        with:
+          components: rustfmt, clippy
 
       - name: Cache cargo registry and build artifacts
         uses: actions/cache@v4
