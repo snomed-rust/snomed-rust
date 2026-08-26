@@ -50,6 +50,29 @@ both when asking "has this come up before".
       ladder now routes behavior disputes to it, and CONTRIBUTING.md
       gained a Conduct section — closing the gap plan.md Phase 10 named.
 
+## Done (2026-08-26, release 0.11.0)
+
+- [x] Bumped the workspace to **0.11.0** — a minor bump because that is
+      this workspace's release cadence, not because anything broke: no
+      public signature was added, removed, or altered, and `CHANGELOG.md`
+      says so under "Notes for consumers" so a reader does not have to
+      diff to find out.
+- [x] Version moved in step across `Cargo.toml` (the workspace package
+      and all seven internal dependency pins), `Cargo.lock`,
+      `CITATION.cff` (version and `date-released`), `NEWS.md` (current
+      release, milestones, and the maturity line), `SECURITY.md`'s
+      supported-versions table, and `INSTALL.md`'s pinned-install example.
+- [x] Verified before publishing: `cargo test --all` (353 pass),
+      `cargo clippy --all-targets -D warnings`, `cargo fmt --check`,
+      `bin/check-trademarks`, and a repository-wide link check (78
+      markdown files, zero broken relative links).
+- [x] `cargo publish --dry-run` passes for `snomed-core` and cannot pass
+      for the other eight until their dependencies are on the registry —
+      a dependent resolves `snomed-core = "0.11.0"` from crates.io, not
+      from the path. That is the ordinary shape of a sequential
+      workspace release, not a defect, and it is why the publish order is
+      dependency order.
+
 ## Done (2026-08-26, outreach research and the root document set)
 
 - [x] **`help/outreach/index.md`** (new, outside `spec/` deliberately —
@@ -374,7 +397,7 @@ both when asking "has this come up before".
 
 ## Next up
 
-- [ ] Nothing currently scoped. State as of 2026-08-23 (0.10.0): 9 crates,
+- [ ] Nothing currently scoped. State as of 2026-08-26 (0.11.0): 9 crates,
       353 tests, clippy/fmt clean on stable, the pinned MSRV toolchain,
       `fuzz/`, and `benches/`; 13 fuzz targets; 6 criterion benchmark
       files; 24 `spec/` documents (17 specification distillations, the

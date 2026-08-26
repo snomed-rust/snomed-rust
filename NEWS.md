@@ -11,7 +11,7 @@ human-readable layer above it.
 
 | | |
 |---|---|
-| Version | **0.10.0**, released 2026-08-23 |
+| Version | **0.11.0**, released 2026-08-26 |
 | Crates | nine, released together and sharing one version number |
 | Rust MSRV | 1.95 (current stable minus three) |
 | License | `Apache-2.0 OR MIT` |
@@ -19,10 +19,11 @@ human-readable layer above it.
 | Packages | <https://crates.io/crates/snomed> |
 | Documentation | <https://docs.rs/snomed> · <https://snomed-rust.github.io/> |
 
-0.10.0 added three Expression Constraint Language constructs, corrected a
-grammar reading that unlocked three more forms, and introduced a build-time
-guard against specification and code drifting apart. Full detail is in the
-[changelog](CHANGELOG.md).
+0.11.0 changes no behavior. It puts `#![forbid(unsafe_code)]` at every crate
+root, so the absence of `unsafe` is a compiler guarantee rather than a claim;
+carries the trademark non-affiliation notice into every crate's published
+rustdoc; and lands the documentation set an evaluator asks for before reading
+code. Full detail is in the [changelog](CHANGELOG.md).
 
 **Pre-1.0 caveat, stated up front because it affects anyone writing about
 adoption:** a minor version bump may include breaking API changes. The
@@ -35,6 +36,7 @@ project is young and says so.
 | 2026-08-02 | First commit |
 | 2026-08-03 | First release published to crates.io |
 | 2026-08-23 | 0.10.0 — the tenth minor release in three weeks |
+| 2026-08-26 | 0.11.0 — `unsafe` forbidden at every crate root; the evaluator-facing document set |
 
 ## Following updates
 
@@ -112,7 +114,7 @@ remains licensed material obtained separately from SNOMED International.
 - **What it is not.** Not a terminology server, not an authoring platform, not
   a browser, and not a replacement for Snowstorm. [COMPARISONS.md](COMPARISONS.md)
   states the limitations at length and names the tools that do those jobs.
-- **Maturity.** Version 0.10.0, first published in August 2026, one
+- **Maturity.** Version 0.11.0, first published in August 2026, one
   maintainer, pre-1.0. [MAINTAINERS.md](MAINTAINERS.md) states the bus factor
   and the continuity position without softening, and is the right source for
   any risk framing.
