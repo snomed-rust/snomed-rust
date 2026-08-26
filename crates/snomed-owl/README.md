@@ -84,3 +84,11 @@ grammar becomes this same error, uniformly.
   `"xsd:decimal"`) as a `String` rather than a hard-coded enum — SNOMED
   CT's concrete domains use a handful of XSD datatypes and there's no
   benefit to this crate maintaining an exhaustive list up front.
+
+## Trademarks
+
+SNOMED®, SNOMED CT®, and IHTSDO® are registered trademarks of International
+Health Terminology Standards Development Organisation (IHTSDO). Use of the
+trademarks does not constitute endorsement of this product by IHTSDO. This
+project is an independent work: it is not affiliated with, endorsed by, or
+certified by SNOMED International, and it ships no SNOMED CT content.

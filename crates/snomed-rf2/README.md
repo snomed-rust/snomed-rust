@@ -121,3 +121,11 @@ the repo root for the exact steps (confirm the column layout against
 `spec/05..08`, implement `Rf2Record`, use the shared parsing helpers in
 `record.rs` so error messages stay uniform, test the happy path plus the
 spec's failure modes).
+
+## Trademarks
+
+SNOMED®, SNOMED CT®, and IHTSDO® are registered trademarks of International
+Health Terminology Standards Development Organisation (IHTSDO). Use of the
+trademarks does not constitute endorsement of this product by IHTSDO. This
+project is an independent work: it is not affiliated with, endorsed by, or
+certified by SNOMED International, and it ships no SNOMED CT content.

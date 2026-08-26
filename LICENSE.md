@@ -58,11 +58,11 @@ license to the documents it opens.
 
 ## Trademarks
 
-SNOMED® and SNOMED CT® are registered trademarks of the International Health
-Terminology Standards Development Organisation (IHTSDO), trading as SNOMED
-International. This project is an independent work: it is not affiliated
-with, endorsed by, or certified by SNOMED International, and it ships no
-SNOMED CT content. The marks appear here descriptively, to identify the
+SNOMED®, SNOMED CT®, and IHTSDO® are registered trademarks of International
+Health Terminology Standards Development Organisation (IHTSDO). Use of the
+trademarks does not constitute endorsement of this product by IHTSDO. This
+project is an independent work: it is not affiliated with, endorsed by, or
+certified by SNOMED International, and it ships no SNOMED CT content. The marks appear here descriptively, to identify the
 terminology this software reads. No trademark license is granted by either the
 Apache-2.0 or the MIT license — Apache-2.0 says so expressly, in section 6.
 

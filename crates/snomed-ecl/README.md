@@ -157,3 +157,11 @@ The full list, with why each one is still open, is
   path. See `spec/10-ecl.md`'s Refinements section for why role group `0`
   is excluded from `{ }` candidacy — a judgment call the official guide
   doesn't make explicitly, grounded in spec/07 instead.
+
+## Trademarks
+
+SNOMED®, SNOMED CT®, and IHTSDO® are registered trademarks of International
+Health Terminology Standards Development Organisation (IHTSDO). Use of the
+trademarks does not constitute endorsement of this product by IHTSDO. This
+project is an independent work: it is not affiliated with, endorsed by, or
+certified by SNOMED International, and it ships no SNOMED CT content.

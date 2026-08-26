@@ -13,6 +13,42 @@ together, in dependency order (`snomed-core` → `snomed-rf2` → `snomed-owl`
 
 ## [Unreleased]
 
+## [0.11.1] — 2026-08-26
+
+No behavior changes and no API changes: a documentation-only patch release
+that replaces the trademark notice everywhere it appears.
+
+### Changed
+
+- **The trademark notice wording was replaced** with the text specified by
+  the project owner on 2026-08-26:
+
+  > SNOMED®, SNOMED CT®, and IHTSDO® are registered trademarks of
+  > International Health Terminology Standards Development Organisation
+  > (IHTSDO). Use of the trademarks does not constitute endorsement of
+  > this product by IHTSDO.
+
+  The previous wording ("SNOMED® and SNOMED CT® are registered trademarks
+  of the International Health Terminology Standards Development Organisation
+  (IHTSDO), trading as SNOMED International. This project is an independent
+  work: …") is retired; the independent-work sentence ("This project is an
+  independent work: it is not affiliated with, endorsed by, or certified by
+  SNOMED International, and it ships no SNOMED CT content.") is kept
+  alongside the new notice wherever the notice appears. Every notice site
+  changed in step: the root and `help/` markdown documents, the nine
+  crates' rustdoc `# Trademarks` sections, `bin/check-trademarks`'s
+  enforced constant, rule 5 of `spec/professionalization/index.md`, and
+  the outreach draft's quotation.
+- **Each crate's packaged `README.md` now carries a `## Trademarks`
+  section**, so the notice renders on the crates.io page of every crate,
+  not only in the repository and on docs.rs.
+
+### Notes for consumers
+
+- Version 0.11.0 as published on crates.io carries the old notice wording;
+  0.11.1 is the first published version with the owner-specified text.
+  Upgrading is a version-number edit.
+
 ## [0.11.0] — 2026-08-26
 
 No behavior changes. This release hardens two properties of the published
@@ -684,8 +720,8 @@ returning a plausible wrong set.
 
 ## Trademarks
 
-SNOMED® and SNOMED CT® are registered trademarks of the International Health
-Terminology Standards Development Organisation (IHTSDO), trading as SNOMED
-International. This project is an independent work: it is not affiliated
-with, endorsed by, or certified by SNOMED International, and it ships no
-SNOMED CT content.
+SNOMED®, SNOMED CT®, and IHTSDO® are registered trademarks of International
+Health Terminology Standards Development Organisation (IHTSDO). Use of the
+trademarks does not constitute endorsement of this product by IHTSDO. This
+project is an independent work: it is not affiliated with, endorsed by, or
+certified by SNOMED International, and it ships no SNOMED CT content.

@@ -98,3 +98,11 @@ prose companion, [`docs/tutorial.md`](../../docs/tutorial.md). See also
 the root [`README.md`](../../README.md) and [`index.md`](../../index.md).
 For the `snomed-cli` binary, which wraps this same API for terminal use,
 see [`snomed-cli`](../snomed-cli/README.md).
+
+## Trademarks
+
+SNOMED®, SNOMED CT®, and IHTSDO® are registered trademarks of International
+Health Terminology Standards Development Organisation (IHTSDO). Use of the
+trademarks does not constitute endorsement of this product by IHTSDO. This
+project is an independent work: it is not affiliated with, endorsed by, or
+certified by SNOMED International, and it ships no SNOMED CT content.

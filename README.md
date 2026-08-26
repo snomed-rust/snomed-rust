@@ -15,11 +15,11 @@ relationship) generation — all with zero external dependencies.
 > and national release centres (e.g. the NLM in the US); obtain it under your
 > own affiliate license. Never commit release files here.
 >
-> SNOMED® and SNOMED CT® are registered trademarks of the International
-> Health Terminology Standards Development Organisation (IHTSDO), trading as
-> SNOMED International. This project is an independent work: it is not
-> affiliated with, endorsed by, or certified by SNOMED International, and it
-> ships no SNOMED CT content.
+> SNOMED®, SNOMED CT®, and IHTSDO® are registered trademarks of International
+> Health Terminology Standards Development Organisation (IHTSDO). Use of the
+> trademarks does not constitute endorsement of this product by IHTSDO. This
+> project is an independent work: it is not affiliated with, endorsed by, or
+> certified by SNOMED International, and it ships no SNOMED CT content.
 
 ## Where this fits
 
@@ -195,9 +195,10 @@ Code: dual-licensed under [Apache-2.0](LICENSE-APACHE) or [MIT](LICENSE-MIT),
 at your option — `SPDX-License-Identifier: Apache-2.0 OR MIT`. See
 [`LICENSE.md`](LICENSE.md) for what that covers, what it does not, and why the
 dependency-free design makes the bill of materials trivial to audit.
-SNOMED® and SNOMED CT® are registered trademarks of the International Health
-Terminology Standards Development Organisation (IHTSDO), trading as SNOMED
-International. This project is an independent work: it is not affiliated with,
-endorsed by, or certified by SNOMED International, and it ships no SNOMED CT
-content. The per-page notice rule is
+SNOMED®, SNOMED CT®, and IHTSDO® are registered trademarks of International
+Health Terminology Standards Development Organisation (IHTSDO). Use of the
+trademarks does not constitute endorsement of this product by IHTSDO. This
+project is an independent work: it is not affiliated with, endorsed by, or
+certified by SNOMED International, and it ships no SNOMED CT content. The
+per-page notice rule is
 [`spec/professionalization/`](spec/professionalization/index.md).

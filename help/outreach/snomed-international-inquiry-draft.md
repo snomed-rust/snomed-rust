@@ -67,9 +67,10 @@ that implements against the specifications without shipping content, so the
 project's current policy was written defensively from general trademark
 principles: every documentation page carries, verbatim, this notice:
 
-> SNOMED® and SNOMED CT® are registered trademarks of the International
-> Health Terminology Standards Development Organisation (IHTSDO), trading
-> as SNOMED International. This project is an independent work: it is not
+> SNOMED®, SNOMED CT®, and IHTSDO® are registered trademarks of
+> International Health Terminology Standards Development Organisation
+> (IHTSDO). Use of the trademarks does not constitute endorsement of this
+> product by IHTSDO. This project is an independent work: it is not
 > affiliated with, endorsed by, or certified by SNOMED International, and
 > it ships no SNOMED CT content.
 

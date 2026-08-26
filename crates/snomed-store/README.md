@@ -197,3 +197,11 @@ did this become the preferred term?" is a member-history question.
   enormous headroom versus any plausible query budget. See `plan.md`
   Phase 4 for the numbers and the reasoning; revisit only if a real-release
   profile says otherwise.
+
+## Trademarks
+
+SNOMED®, SNOMED CT®, and IHTSDO® are registered trademarks of International
+Health Terminology Standards Development Organisation (IHTSDO). Use of the
+trademarks does not constitute endorsement of this product by IHTSDO. This
+project is an independent work: it is not affiliated with, endorsed by, or
+certified by SNOMED International, and it ships no SNOMED CT content.

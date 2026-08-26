@@ -145,3 +145,11 @@ time this. Generating a benchmark ontology this way is in fact what
 caught a real quadratic-time bug during development (an early version of
 the completion loop cloned whole subsumer sets per event — see
 `complete.rs`'s module comment for the fix and why it matters).
+
+## Trademarks
+
+SNOMED®, SNOMED CT®, and IHTSDO® are registered trademarks of International
+Health Terminology Standards Development Organisation (IHTSDO). Use of the
+trademarks does not constitute endorsement of this product by IHTSDO. This
+project is an independent work: it is not affiliated with, endorsed by, or
+certified by SNOMED International, and it ships no SNOMED CT content.

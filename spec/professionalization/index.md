@@ -25,18 +25,22 @@ and [`tasks.md`](../../tasks.md); this file holds the rules.
 4. **CI enforces what documents claim.** Every check a document says this
    repository runs (tests, clippy, fmt, MSRV, trademark rules, doc gates)
    runs in CI on every push. A laptop-only check is a claim, not a guarantee.
-5. **Trademark discipline.** The marks are **SNOMED®** and **SNOMED CT®**,
-   owned by the International Health Terminology Standards Development
-   Organisation (IHTSDO), trading as SNOMED International. The binding
-   per-page rule is **notice presence**: every root document, every document
-   under `help/`, and every crate-level rustdoc that uses the marks in prose
-   carries this notice, verbatim:
+5. **Trademark discipline.** The marks are **SNOMED®**, **SNOMED CT®**, and
+   **IHTSDO®**, owned by the International Health Terminology Standards
+   Development Organisation (IHTSDO). The binding per-page rule is **notice
+   presence**: every root document, every document under `help/`, and every
+   crate-level rustdoc that uses the marks in prose carries this notice,
+   verbatim (wording specified by the project owner, 2026-08-26):
 
-   > SNOMED® and SNOMED CT® are registered trademarks of the International
-   > Health Terminology Standards Development Organisation (IHTSDO), trading
-   > as SNOMED International. This project is an independent work: it is not
-   > affiliated with, endorsed by, or certified by SNOMED International, and
-   > it ships no SNOMED CT content.
+   > SNOMED®, SNOMED CT®, and IHTSDO® are registered trademarks of
+   > International Health Terminology Standards Development Organisation
+   > (IHTSDO). Use of the trademarks does not constitute endorsement of
+   > this product by IHTSDO.
+
+   Pages may pair the notice with the project's independent-work sentence
+   ("This project is an independent work: it is not affiliated with,
+   endorsed by, or certified by SNOMED International, and it ships no
+   SNOMED CT content."); only the notice above is enforced verbatim.
 
    This is deliberately narrower than the HL7-style rule the sibling
    repositories enforce (® on first prose use of each mark, per page), and
@@ -88,8 +92,10 @@ Assessed 2026-08-26, while this spec and the trademark tooling were landing:
   the 40 KB per-document budget joined the same day (the `docs` job,
   `bin/check-docs`, per `spec/docs-budget-and-links/index.md`).
 - **Rule 5**: met as of 2026-08-26 — notices on every in-scope page
-  (`bin/check-trademarks` exits 0: 21 root/help markdown files and 9 crate
-  roots scanned), checker in CI. One
+  (`bin/check-trademarks` exits 0: 22 root/help markdown files and 9 crate
+  roots scanned), checker in CI. The notice wording was replaced on
+  2026-08-26 with the owner-specified text now quoted in the rule; releases
+  up to and including 0.11.0 carry the earlier wording. One
   deliberate scope decision: `spec/**` is **out of the checker's scope**.
   The specification distillations name SNOMED CT in nearly every file
   (15 of them today) because describing RF2 is their job; stamping the

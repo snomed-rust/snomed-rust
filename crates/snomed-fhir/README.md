@@ -219,3 +219,11 @@ Scoped in `spec/11-fhir.md`, not yet built (see the root `tasks.md`):
   release on every call. The caller computes a `NecessaryNormalFormReport`
   once and passes the same one into every `lookup` call, mirroring how
   `version` is supplied rather than derived.
+
+## Trademarks
+
+SNOMED®, SNOMED CT®, and IHTSDO® are registered trademarks of International
+Health Terminology Standards Development Organisation (IHTSDO). Use of the
+trademarks does not constitute endorsement of this product by IHTSDO. This
+project is an independent work: it is not affiliated with, endorsed by, or
+certified by SNOMED International, and it ships no SNOMED CT content.

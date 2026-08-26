@@ -8,6 +8,37 @@ Entries from before the 2026-08-23 afternoon live in
 keep this file inside the repository's 40 KB per-document budget. Search
 both when asking "has this come up before".
 
+## Done (2026-08-26, owner-specified trademark notice)
+
+- [x] **Adopted the owner-specified trademark notice, verbatim** (wording
+      specified by the project owner, 2026-08-26): "SNOMED®, SNOMED CT®,
+      and IHTSDO® are registered trademarks of International Health
+      Terminology Standards Development Organisation (IHTSDO). Use of the
+      trademarks does not constitute endorsement of this product by
+      IHTSDO." It replaces the previous "…trading as SNOMED
+      International…" wording at every notice site: `bin/check-trademarks`'s
+      enforced constant, all 22 in-scope root/`help/` markdown documents,
+      the nine crates' rustdoc `# Trademarks` sections, rule 5 of
+      `spec/professionalization/index.md` (which quotes the notice as the
+      rule), `spec/special-files-for-public-repos/index.md`, and the
+      outreach draft's verbatim quotation. The independent-work sentence
+      is kept alongside the notice wherever the two were paired.
+- [x] **Verified the checker enforces the new wording**: with the constant
+      updated, all 30 in-scope files failed until rewritten; after the
+      rewrite, planting the old wording back into `PHI.md` made
+      `bin/check-trademarks` fail on exactly that file, and reverting the
+      plant returned it to green (22 markdown files and 9 crate roots
+      scanned).
+- [x] **Each crate's packaged `README.md` gained a `## Trademarks`
+      section**, so crates.io renders the notice on every crate's page —
+      cargo packages `crates/<name>/README.md` by auto-detection
+      (`cargo package --list` confirms), and none of the nine carried any
+      notice before.
+- [x] Gates re-run green: `bin/check-trademarks`, `bin/check-docs` (82
+      documents, budget and links), `cargo test --all` (including
+      `spec_citations`), `cargo clippy --all-targets -- -D warnings`,
+      `cargo fmt --check`.
+
 ## Done (2026-08-26, SNOMED International inquiry draft)
 
 - [x] **Drafted the inquiry letter to SNOMED International** that RFC.md
@@ -550,8 +581,8 @@ both when asking "has this come up before".
 
 ## Trademarks
 
-SNOMED® and SNOMED CT® are registered trademarks of the International Health
-Terminology Standards Development Organisation (IHTSDO), trading as SNOMED
-International. This project is an independent work: it is not affiliated
-with, endorsed by, or certified by SNOMED International, and it ships no
-SNOMED CT content.
+SNOMED®, SNOMED CT®, and IHTSDO® are registered trademarks of International
+Health Terminology Standards Development Organisation (IHTSDO). Use of the
+trademarks does not constitute endorsement of this product by IHTSDO. This
+project is an independent work: it is not affiliated with, endorsed by, or
+certified by SNOMED International, and it ships no SNOMED CT content.

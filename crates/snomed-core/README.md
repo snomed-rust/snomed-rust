@@ -111,3 +111,11 @@ All error enums (`SctIdError`, `EffectiveTimeError`, `ConcreteValueError`)
 follow the same house style: hand-rolled `Display` + `std::error::Error`,
 no `thiserror`. Variants are specific enough to build a good message
 without string formatting at the call site.
+
+## Trademarks
+
+SNOMED®, SNOMED CT®, and IHTSDO® are registered trademarks of International
+Health Terminology Standards Development Organisation (IHTSDO). Use of the
+trademarks does not constitute endorsement of this product by IHTSDO. This
+project is an independent work: it is not affiliated with, endorsed by, or
+certified by SNOMED International, and it ships no SNOMED CT content.

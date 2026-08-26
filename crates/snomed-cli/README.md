@@ -294,3 +294,11 @@ Tracked in the root `tasks.md`: `validate` doesn't check refset
 `referencedComponentId` dangling references (documented gap, see
 `crates/snomed-store/README.md`), and ECL expressions must be passed as one
 pre-quoted argument (no multi-argument reassembly).
+
+## Trademarks
+
+SNOMED®, SNOMED CT®, and IHTSDO® are registered trademarks of International
+Health Terminology Standards Development Organisation (IHTSDO). Use of the
+trademarks does not constitute endorsement of this product by IHTSDO. This
+project is an independent work: it is not affiliated with, endorsed by, or
+certified by SNOMED International, and it ships no SNOMED CT content.

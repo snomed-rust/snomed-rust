@@ -193,8 +193,8 @@ licensed content should not travel through an issue tracker.
 
 ## Trademarks
 
-SNOMED® and SNOMED CT® are registered trademarks of the International Health
-Terminology Standards Development Organisation (IHTSDO), trading as SNOMED
-International. This project is an independent work: it is not affiliated
-with, endorsed by, or certified by SNOMED International, and it ships no
-SNOMED CT content.
+SNOMED®, SNOMED CT®, and IHTSDO® are registered trademarks of International
+Health Terminology Standards Development Organisation (IHTSDO). Use of the
+trademarks does not constitute endorsement of this product by IHTSDO. This
+project is an independent work: it is not affiliated with, endorsed by, or
+certified by SNOMED International, and it ships no SNOMED CT content.
