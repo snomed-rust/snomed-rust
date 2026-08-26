@@ -8,6 +8,27 @@ Entries from before the 2026-08-23 afternoon live in
 keep this file inside the repository's 40 KB per-document budget. Search
 both when asking "has this come up before".
 
+## Done (2026-08-26, SNOMED International inquiry draft)
+
+- [x] **Drafted the inquiry letter to SNOMED International** that RFC.md
+      §5 (crate naming) and §10 (mark-usage terms) have been waiting for:
+      `help/outreach/snomed-international-inquiry-draft.md`, clearly
+      headed as a draft the maintainer has not sent — the maintainer
+      sends it personally, and the file says to record the send date
+      there when that happens. It asks the two questions in one letter
+      (§10 raised exactly that option), lists the nine published crate
+      names verified against `Cargo.toml`, quotes the per-page notice
+      verbatim, and states plainly that the project will rename if asked.
+      No inquiry address is recorded in the outreach research, so the
+      draft's header flags the recipient as **unverified** (contact form
+      or `info@snomed.org`, to be confirmed before sending) rather than
+      inventing one. RFC.md §5, RFC.md §10, and the outreach Cautions
+      naming item now point at the draft. No open item tracked this;
+      it advances the Phase 10 compliance line in `plan.md` ("the
+      crate-naming question stays open in RFC.md §5 and gates
+      outreach") — the question stays open until an answer arrives, but
+      the ask is now written.
+
 ## Done (2026-08-26, spec-directory convention and registration)
 
 - [x] **Settled the symlink-vs-two-files question** the way the repository

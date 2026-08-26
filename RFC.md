@@ -147,7 +147,11 @@ which may well put it outside those obligations — but "may well" is not an
 answer, and the cost of renaming rises with every download.
 
 `help/outreach/index.md` flags this as something to settle **before** any
-high-visibility launch rather than after.
+high-visibility launch rather than after. A ready-to-send draft of the
+inquiry to SNOMED International — covering this question and [§10](#10-what-are-snomed-internationals-actual-terms-for-using-the-marks)
+together — is at
+[help/outreach/snomed-international-inquiry-draft.md](help/outreach/snomed-international-inquiry-draft.md);
+as of 2026-08-26 the maintainer has not sent it.
 
 **Who can settle this:** anyone at a national release centre or a vendor who
 has been through this, and anyone who has had the naming conversation with
@@ -244,6 +248,11 @@ Specifically:
 **Who can settle this:** anyone with a pointer to the published terms, or who
 has asked SNOMED International and can report the answer. §5's closing
 question applies here verbatim.
+
+A ready-to-send draft asking SNOMED International both this question and
+§5's is at
+[help/outreach/snomed-international-inquiry-draft.md](help/outreach/snomed-international-inquiry-draft.md);
+as of 2026-08-26 the maintainer has not sent it.
 
 ## Trademarks
 

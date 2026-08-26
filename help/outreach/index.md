@@ -297,7 +297,10 @@ These constrain what may be said, not merely how.
    Read the current [licensing guidance](https://docs.snomed.org/snomed-ct-practical-guides/vendor-introduction-to-snomed-ct/7-licensing)
    and the [license itself](https://www.snomed.org/get-snomed), and resolve
    the naming question **before** a large public launch, not after. Getting
-   this wrong late is far more expensive than renaming early.
+   this wrong late is far more expensive than renaming early. A
+   ready-to-send draft of the inquiry to SNOMED International is at
+   [snomed-international-inquiry-draft.md](snomed-international-inquiry-draft.md);
+   as of 2026-08-26 the maintainer has not sent it.
 4. **Make no performance claim without a published benchmark**, and none at
    all against a system that has not been measured on the same workload.
 5. **No astroturfing.** Disclose maintainer status in every post. One
