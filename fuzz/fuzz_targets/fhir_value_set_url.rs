@@ -21,9 +21,15 @@ fuzz_target!(|data: &str| {
         // A decoded payload is a `String`, so it is UTF-8 by construction;
         // what matters is that decoding never invented a delimiter — the
         // `?`/`fhir_vs=` splits happen before it.
-        ImplicitValueSet::Ecl(ecl) => {
-            assert!(data.contains("fhir_vs=ecl/"));
-            assert!(!ecl.is_empty() || data.ends_with("ecl/"));
+        ImplicitValueSet::Ecl(_) => {
+            // Only the `?` and `fhir_vs=` splits happen on the raw text;
+            // the `ecl/` sub-form prefix is matched *after* decoding by
+            // deliberate, unit-tested design (`isa%2f...` parses — see
+            // `percent_encoded_urls_decode`), so `fhir_vs=ecl%2F...` is
+            // legitimately accepted and the raw text need not contain
+            // `fhir_vs=ecl/` literally. Asserting that it did was an
+            // oracle bug this target tripped in CI on 2026-08-26.
+            assert!(data.contains("fhir_vs="));
         }
         ImplicitValueSet::IsA(id) | ImplicitValueSet::Refset(id) => {
             // An accepted id is a fully valid SCTID (spec/04), whether it
