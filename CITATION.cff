@@ -1,0 +1,44 @@
+cff-version: 1.2.0
+title: "snomed: SNOMED CT for Rust"
+message: >-
+  If you use this work and you want to cite it,
+  then you can use the metadata from this file.
+type: software
+authors:
+  - given-names: Joel Parker
+    family-names: Henderson
+    email: joel@joelparkerhenderson.com
+    affiliation: joelparkerhenderson.com
+    orcid: 'https://orcid.org/0009-0000-4681-282X'
+identifiers:
+  - type: url
+    value: 'https://github.com/snomed-rust/snomed-rust'
+    description: "snomed: SNOMED CT for Rust"
+repository-code: 'https://github.com/snomed-rust/snomed-rust'
+url: 'https://snomed-rust.github.io/'
+abstract: >-
+  A local-first Rust workspace for working with SNOMED CT, the international
+  clinical terminology used in electronic health records. It parses official
+  RF2 release files, validates SCTIDs, builds an in-memory snapshot store,
+  runs hierarchy and subsumption queries, evaluates Expression Constraint
+  Language queries, answers FHIR terminology-service operations, parses OWL
+  axioms from the OWL Expression reference set, and classifies them, using
+  EL-profile subsumption plus necessary normal form generation, all with zero
+  external dependencies. The repository contains code only; SNOMED CT release
+  content is licensed material and is never distributed here.
+keywords:
+  - snomed
+  - snomed-ct
+  - healthcare
+  - terminology
+  - rf2
+  - ecl
+  - fhir
+  - owl
+  - classification
+  - rust
+license:
+  - Apache-2.0
+  - MIT
+version: 0.10.0
+date-released: '2026-08-23'

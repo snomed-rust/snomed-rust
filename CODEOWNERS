@@ -1,0 +1,11 @@
+# Code owners for this repository.
+#
+# GitHub requests a review from the owners listed here whenever a pull
+# request touches a matching path. This project has one maintainer, so one
+# line covers the whole tree; see MAINTAINERS.md for what that means in
+# practice, and for the route to adding a second name here.
+#
+# The email below must stay verified on the owning GitHub account, otherwise
+# GitHub silently assigns no reviewer at all.
+
+*       joel@joelparkerhenderson.com
