@@ -10,7 +10,7 @@ Start here rather than guessing which file to open:
 | **Role playbooks** | "I'm about to change this crate — what conventions/gotchas apply?" | [`agents/*.md`](agents) |
 | **Tutorial** | "I'm new — walk me through it step by step." | [`docs/tutorial.md`](docs/tutorial.md) |
 | **Troubleshooting** | "I hit an error / something looks wrong — is this expected?" | [`docs/troubleshooting.md`](docs/troubleshooting.md) |
-| **Project policies** | "What Rust version, how is this verified beyond unit tests, what breaks downstream?" | [`spec/rust-msrv-n-minus-3/index.md`](spec/rust-msrv-n-minus-3/index.md), [`spec/rust-fuzz.md`](spec/rust-fuzz.md), [`spec/rust-bench.md`](spec/rust-bench.md), [`spec/rust-api-stability.md`](spec/rust-api-stability.md), [`spec/rust-no-unsafe/index.md`](spec/rust-no-unsafe/index.md), [`spec/agents-directory-name-is-lowercase/index.md`](spec/agents-directory-name-is-lowercase/index.md) |
+| **Project policies** | "What Rust version, how is this verified beyond unit tests, what breaks downstream?" | [`spec/rust-msrv-n-minus-3/index.md`](spec/rust-msrv-n-minus-3/index.md), [`spec/rust-fuzz.md`](spec/rust-fuzz.md), [`spec/rust-bench.md`](spec/rust-bench.md), [`spec/rust-api-stability.md`](spec/rust-api-stability.md), [`spec/rust-no-unsafe/index.md`](spec/rust-no-unsafe/index.md), [`spec/professionalization/index.md`](spec/professionalization/index.md), [`spec/agents-directory-name-is-lowercase/index.md`](spec/agents-directory-name-is-lowercase/index.md) |
 
 Plus two process documents that aren't reference material:
 [`plan.md`](plan.md) (the roadmap by phase, with the *why* behind
@@ -83,6 +83,7 @@ of an external specification, and bind the same way:
 | [rust-bench.md](spec/rust-bench.md) | criterion benchmarks: what is measured, and how | `benches/` (outside the workspace) |
 | [rust-api-stability.md](spec/rust-api-stability.md) | which public enums are `#[non_exhaustive]` | every crate's public enums |
 | [rust-no-unsafe/](spec/rust-no-unsafe/index.md) | no `unsafe`, enforced by `#![forbid(unsafe_code)]` | every crate root |
+| [professionalization/](spec/professionalization/index.md) | verified plans, accurate special files, CI-backed claims, trademark notice presence | root documents, `help/`, crate rustdoc, CI |
 | [agents-directory-name-is-lowercase/](spec/agents-directory-name-is-lowercase/index.md) | agent instruction directories are named `agents`, lowercase | `agents/` |
 
 `snomed` (the facade) and `snomed-cli` (the terminal binary) both sit on

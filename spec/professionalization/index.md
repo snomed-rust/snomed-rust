@@ -1,0 +1,102 @@
+# Professionalization
+
+This specification defines what "professional" means for this repository and
+binds the maintainer as much as any contributor. The audience is healthcare
+professionals and the engineers who serve them, worldwide, in production use;
+the standing constraint is that a wrong claim in this domain has clinical
+cost. Rationale and current execution state live in [`plan.md`](../../plan.md)
+and [`tasks.md`](../../tasks.md); this file holds the rules.
+
+## Rules
+
+1. **Plans are files, and a checked box is a verified fact.** `plan.md` and
+   `tasks.md` exist at the repository root. A `[x]` means the work was done
+   and verified, with the evidence named — never that it is intended,
+   assumed, or inherited from a sibling repository.
+2. **The special files exist and stay accurate.** The canonical list is
+   [`spec/special-files-for-public-repos/`](../special-files-for-public-repos/index.md).
+   Every countable claim in those files (crate counts, test counts, coverage
+   lists, "X is enabled/disabled") is measured before it is written and
+   re-verified when cited.
+3. **Self-declared gaps are promises.** A gap named in SECURITY.md,
+   MAINTAINERS.md, or AI_STATEMENT.md ("no CI", "unsigned commits") is either
+   closed or consciously accepted in `tasks.md` — and the declaring document
+   is updated in the same change that closes it.
+4. **CI enforces what documents claim.** Every check a document says this
+   repository runs (tests, clippy, fmt, MSRV, trademark rules, doc gates)
+   runs in CI on every push. A laptop-only check is a claim, not a guarantee.
+5. **Trademark discipline.** The marks are **SNOMED®** and **SNOMED CT®**,
+   owned by the International Health Terminology Standards Development
+   Organisation (IHTSDO), trading as SNOMED International. The binding
+   per-page rule is **notice presence**: every root document, every document
+   under `help/`, and every crate-level rustdoc that uses the marks in prose
+   carries this notice, verbatim:
+
+   > SNOMED® and SNOMED CT® are registered trademarks of the International
+   > Health Terminology Standards Development Organisation (IHTSDO), trading
+   > as SNOMED International. This project is an independent work: it is not
+   > affiliated with, endorsed by, or certified by SNOMED International, and
+   > it ships no SNOMED CT content.
+
+   This is deliberately narrower than the HL7-style rule the sibling
+   repositories enforce (® on first prose use of each mark, per page), and
+   the reasons are stated rather than implied: RFC.md §5's naming question —
+   whether this project may use "snomed" in crate names at all — is
+   unresolved, and this repository has no quoted fair-use terms from SNOMED
+   International to build a per-use rule on (RFC.md §10 asks for them; HL7
+   publishes such terms, SNOMED International's could not be found). Until
+   either is settled, the defensible floor is that no page using the marks
+   lacks the acknowledgement and the non-affiliation statement. The
+   automated check is `bin/check-trademarks`, run in CI.
+6. **Patient data is addressed in plain language.** `PHI.md` at the root
+   states what the software does and does not do with patient data, for a
+   reader who is a privacy officer, not a Rust programmer. It never claims
+   compliance or certification.
+7. **Conduct has a document and a path.** `CODE_OF_CONDUCT.md` at the root
+   (Contributor Covenant 2.1 plus this family's claim-accuracy clause:
+   overstating what the software does is a conduct matter, not only a bug).
+8. **Harmonization runs through the family.** The sibling repositories
+   (`hl7-rust`, `er7-rust`, `fhir-rust`, `openehr-rust`) share these rules,
+   the special-files list, and the six workstreams (governance; compliance —
+   licensing and trademarks; security and supply chain; privacy and patient
+   data; outreach; audit and harmonization). Conventions sync from the
+   repository that owns the canonical copy rather than drifting
+   independently.
+9. **Outreach is gated.** No promotion while a rule above is unmet for the
+   surface being promoted; `help/outreach/index.md` names the prerequisites.
+
+## Status in this repository
+
+Assessed 2026-08-26, while this spec and the trademark tooling were landing:
+
+- **Rule 1**: met — `plan.md` and `tasks.md` exist and are kept to the
+  checked-box-is-verified standard (see the dated Done sections in
+  `tasks.md`, which name their evidence).
+- **Rule 2**: partly met — the special files exist and their counts were
+  measured on 2026-08-26 (`BENCHMARKS.md` most strictly), but the local
+  `spec/special-files-for-public-repos/` copy has drifted behind the
+  `fhir-rust` canonical version; re-syncing it is a tracked `tasks.md` item.
+- **Rule 3**: met so far — the gaps SECURITY.md, MAINTAINERS.md, and
+  AI_STATEMENT.md declare (unsigned commits/tags, no DOI, manual publishing,
+  private vulnerability reporting off) are all tracked under `tasks.md`
+  "Next up", none silently dropped, none yet closed.
+- **Rule 4**: partly met — tests, clippy, fmt, MSRV, fuzz, and bench run in
+  CI (`.github/workflows/ci.yml`); the trademark check joins them with this
+  change set; the repository-wide link check and the 40 KB per-document
+  budget remain laptop-only, tracked in `tasks.md`.
+- **Rule 5**: being landed in this change set (spec first, then notices,
+  then checker, then CI) — see `tasks.md` for the completion record. One
+  deliberate scope decision: `spec/**` is **out of the checker's scope**.
+  The specification distillations name SNOMED CT in nearly every file
+  (15 of them today) because describing RF2 is their job; stamping the
+  notice on each would add repetition without adding protection, and the
+  root documents carry it for the repository as a whole. If SNOMED International's own terms surface (RFC.md §10) and ask
+  for more, this scope is the first thing to revisit.
+- **Rule 6**: met — `PHI.md` landed 2026-08-26, claims verified against the
+  tree.
+- **Rule 7**: met — `CODE_OF_CONDUCT.md` landed 2026-08-26, pointed to from
+  GOVERNANCE.md and CONTRIBUTING.md.
+- **Rule 8**: partly met — this spec is the family template adapted; the
+  known drift (rule 2's special-files copy) is named rather than hidden.
+- **Rule 9**: met by inaction — no outreach has occurred, and
+  `help/outreach/index.md` gates it on RFC.md §5 among other prerequisites.

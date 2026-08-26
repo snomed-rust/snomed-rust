@@ -3,7 +3,7 @@
 These documents distill the parts of the official **SNOMED CT Release File
 Specification** (and the other normative sources listed below) that this
 workspace implements, plus a short set of project policies this workspace
-sets for itself — the six policy files listed after the index, which have
+sets for itself — the seven policy files listed after the index, which have
 no external specification behind them but bind the code here exactly the
 same way. They are the authoritative
 source for this codebase: code follows spec, not the other way around. When a
@@ -70,6 +70,7 @@ binding on this workspace in the same way):
 | [rust-bench.md](rust-bench.md) | Criterion benchmarks: what is measured and how | `benches/` |
 | [rust-api-stability.md](rust-api-stability.md) | Which public enums are `#[non_exhaustive]`, and why the ASTs are not | every crate's public enums |
 | [rust-no-unsafe/](rust-no-unsafe/index.md) | No `unsafe` anywhere; `#![forbid(unsafe_code)]` at every crate root | every crate root, including `fuzz/` and `benches/` |
+| [professionalization/](professionalization/index.md) | What "professional" means here: verified plans, accurate special files, CI-backed claims, SNOMED® trademark notice presence, PHI and conduct documents | root documents, `help/`, crate rustdoc, `bin/check-trademarks`, CI |
 | [agents-directory-name-is-lowercase/](agents-directory-name-is-lowercase/index.md) | Agent instruction directories are named `agents`, lowercase | `agents/` |
 
 `spec/10` is four files because it outgrew the 40 KB per-document budget,
