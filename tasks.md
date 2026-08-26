@@ -473,10 +473,10 @@ both when asking "has this come up before".
       profile membership can be cited.
 - [ ] **Professionalization (Phase 10 in `plan.md`, added 2026-08-26)** —
       the family-harmonized workstreams; each item independently pickable:
-      - **Commit the 13 untracked root documents** plus the rename
-        link-repair diff already in the working tree — until they land,
-        GitHub shows none of the 2026-08-26 governance work. Ask before
-        pushing.
+      - ~~**Commit the 13 untracked root documents**~~ — done: they landed
+        in `2bd203a` (Release 0.11.0) and `7298d4a` (the trademark
+        notices), verified via `git log` per file; the working tree was
+        clean of them when this box was ticked on 2026-08-26.
       - ~~**`CODE_OF_CONDUCT.md`**~~ — done 2026-08-26; see the Done
         section above.
       - ~~**`PHI.md`**~~ — done 2026-08-26; see the Done section above.
@@ -493,10 +493,16 @@ both when asking "has this come up before".
         68 files / zero broken links, plus the 40 KB per-document budget —
         both currently convention-only; a spec file should define the
         budget it enforces.
-      - **Re-sync `spec/special-files-for-public-repos/`** with the
-        `fhir-rust` canonical version (local copy omits CODE_OF_CONDUCT.md,
-        PHI.md, LICENSES/, FUNDING.yml and the status section), and resolve
-        its stray duplicate `AI_STATEMENT.md` in favor of the root file.
+      - ~~**Re-sync `spec/special-files-for-public-repos/`**~~ — done
+        2026-08-26: the list now carries the canonical version's five
+        additions (CODE_OF_CONDUCT.md, PHI.md, RFC.md wording,
+        LICENSES/, FUNDING.yml) and a Status section adapted honestly —
+        everything exists except FUNDING.yml, which stays a decision, not
+        a gap. The stray duplicate `AI_STATEMENT.md` is now a pointer at
+        the root file (same fifteen-section skeleton verified before
+        claiming the root is the fuller source; draft text remains in git
+        history), which also cleared the nine dangling links
+        `bin/check-docs` found in it on its first run.
       - `.github/FUNDING.yml` is a **decision, not a gap**:
         CONTRIBUTING.md deliberately states money is not the binding
         constraint; add the file only if that position changes.

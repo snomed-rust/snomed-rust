@@ -72,10 +72,11 @@ Assessed 2026-08-26, while this spec and the trademark tooling were landing:
 - **Rule 1**: met — `plan.md` and `tasks.md` exist and are kept to the
   checked-box-is-verified standard (see the dated Done sections in
   `tasks.md`, which name their evidence).
-- **Rule 2**: partly met — the special files exist and their counts were
-  measured on 2026-08-26 (`BENCHMARKS.md` most strictly), but the local
-  `spec/special-files-for-public-repos/` copy has drifted behind the
-  `fhir-rust` canonical version; re-syncing it is a tracked `tasks.md` item.
+- **Rule 2**: met — the special files exist and their counts were
+  measured on 2026-08-26 (`BENCHMARKS.md` most strictly), and the local
+  `spec/special-files-for-public-repos/` copy was re-synced with the
+  `fhir-rust` canonical version on 2026-08-26, its status section stating
+  the one deliberate absence (`.github/FUNDING.yml`).
 - **Rule 3**: met so far — the gaps SECURITY.md, MAINTAINERS.md, and
   AI_STATEMENT.md declare (unsigned commits/tags, no DOI, manual publishing)
   are all tracked under `tasks.md` "Next up", none silently dropped. Private
@@ -98,7 +99,8 @@ Assessed 2026-08-26, while this spec and the trademark tooling were landing:
   tree.
 - **Rule 7**: met — `CODE_OF_CONDUCT.md` landed 2026-08-26, pointed to from
   GOVERNANCE.md and CONTRIBUTING.md.
-- **Rule 8**: partly met — this spec is the family template adapted; the
-  known drift (rule 2's special-files copy) is named rather than hidden.
+- **Rule 8**: met as of 2026-08-26 — this spec is the family template
+  adapted, and the one known drift (rule 2's special-files copy) was
+  re-synced from the canonical `fhir-rust` copy that same day.
 - **Rule 9**: met by inaction — no outreach has occurred, and
   `help/outreach/index.md` gates it on RFC.md §5 among other prerequisites.
