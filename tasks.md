@@ -8,6 +8,24 @@ Entries from before the 2026-08-23 afternoon live in
 keep this file inside the repository's 40 KB per-document budget. Search
 both when asking "has this come up before".
 
+## Done (2026-08-26, spec-directory convention and registration)
+
+- [x] **Settled the symlink-vs-two-files question** the way the repository
+      had already voted: a spec directory keeps its document in `index.md`
+      with a `README.md` symlink to it (`spec/serial-comma/` and
+      `spec/professionalization/` were already this shape). One file, two
+      names, no divergence; `index.md` for site-style links, the symlink
+      for GitHub's directory rendering. Recorded in `spec/README.md`'s
+      conventions section and applied to the four directories that lacked
+      the symlink: `rust-msrv-n-minus-3/`, `agents-directory-name-is-
+      lowercase/`, `rust-no-unsafe/`, and `special-files-for-public-repos/`.
+      All six spec directories now conform.
+- [x] **Registered the two unregistered specs** — `spec/serial-comma/` and
+      `spec/special-files-for-public-repos/` — in `spec/README.md`'s policy
+      table, which now lists nine policies; the intro's count and the state
+      line above were corrected in the same change (27 `spec/` documents:
+      17 distillations, the README index, 9 policies).
+
 ## Done (2026-08-26, repository security settings)
 
 - [x] **Enabled GitHub private vulnerability reporting**, plus the three
@@ -417,10 +435,9 @@ both when asking "has this come up before".
 - [ ] Nothing currently scoped. State as of 2026-08-26 (0.11.0): 9 crates,
       353 tests, clippy/fmt clean on stable, the pinned MSRV toolchain,
       `fuzz/`, and `benches/`; 13 fuzz targets; 6 criterion benchmark
-      files; 24 `spec/` documents (17 specification distillations, the
-      README index, and 6 project policies), plus `spec/serial-comma/`
-      and `spec/special-files-for-public-repos/`, neither registered in
-      the README index yet. Every gap `spec/` documents as missing is closed,
+      files; 27 `spec/` documents (17 specification distillations, the
+      README index, and 9 project policies), every one registered in the
+      README index. Every gap `spec/` documents as missing is closed,
       reclassified, or blocked on a decision below.
 - [ ] **Repository-hygiene gaps named in `MAINTAINERS.md` and
       `AI_STATEMENT.md`**, each independently pickable and none blocked:
@@ -429,12 +446,6 @@ both when asking "has this come up before".
       a CI lane with crates.io Trusted Publishing. These were written down
       as gaps rather than quietly omitted, so they should be closed or
       consciously accepted.
-- [ ] **`spec/serial-comma/` is unregistered** (correction 2026-08-26: its
-      `README.md` is a symlink to `index.md`, not a duplicated file, so
-      there is no content divergence — the earlier wording here was wrong).
-      Still open: neither it nor `spec/special-files-for-public-repos/` has
-      an entry in `spec/README.md`'s tables, and the symlink-vs-two-files
-      question should be settled once and applied to the other moved specs.
 - [ ] Decisions, not tasks — each needs a call before code:
       - **`{{ M ... }}` member filters** (`snomed-ecl`): now priced in
         `plan.md` under "Open decisions". The blocker turned out not to be

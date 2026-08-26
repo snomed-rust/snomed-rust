@@ -3,7 +3,7 @@
 These documents distill the parts of the official **SNOMED CT Release File
 Specification** (and the other normative sources listed below) that this
 workspace implements, plus a short set of project policies this workspace
-sets for itself — the seven policy files listed after the index, which have
+sets for itself — the nine policy files listed after the index, which have
 no external specification behind them but bind the code here exactly the
 same way. They are the authoritative
 source for this codebase: code follows spec, not the other way around. When a
@@ -72,6 +72,8 @@ binding on this workspace in the same way):
 | [rust-no-unsafe/](rust-no-unsafe/index.md) | No `unsafe` anywhere; `#![forbid(unsafe_code)]` at every crate root | every crate root, including `fuzz/` and `benches/` |
 | [professionalization/](professionalization/index.md) | What "professional" means here: verified plans, accurate special files, CI-backed claims, SNOMED® trademark notice presence, PHI and conduct documents | root documents, `help/`, crate rustdoc, `bin/check-trademarks`, CI |
 | [agents-directory-name-is-lowercase/](agents-directory-name-is-lowercase/index.md) | Agent instruction directories are named `agents`, lowercase | `agents/` |
+| [serial-comma/](serial-comma/index.md) | English-language prose uses the serial comma | every prose document |
+| [special-files-for-public-repos/](special-files-for-public-repos/index.md) | The special files a public repository carries at its root, and what each must contain | the root documents |
 
 `spec/10` is four files because it outgrew the 40 KB per-document budget,
 not because parts of it are less binding. **All ECL rule numbers live in
@@ -83,6 +85,14 @@ regardless of which file the prose sits in;
 
 - Column names are given exactly as they appear in RF2 header rows
   (camelCase).
+- A spec that lives in its own directory keeps its document in `index.md`
+  and carries a `README.md` **symlink** to it — one file, two names, no
+  content to diverge. `index.md` is what site-style links target;
+  the symlink is what GitHub renders in a directory listing (GitHub shows
+  `README.md`, not `index.md`, so a bare directory link would otherwise
+  show a file list). Settled 2026-08-26, following the pattern
+  `serial-comma/` and `professionalization/` already used; every spec
+  directory now conforms.
 - "SCTID" means a SNOMED CT identifier as defined in
   [04-sctid.md](04-sctid.md).
 - MUST / SHOULD / MAY are used in the RFC 2119 sense.
