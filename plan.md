@@ -121,7 +121,9 @@ and harmonizes it with the sibling repositories (`hl7-rust`, `er7-rust`,
   rule, the notices themselves, and the checker landed 2026-08-26 — rule 5
   of `spec/professionalization/index.md`, enforced by
   `bin/check-trademarks` and the CI `trademarks` job.
-  `LICENSES/` (full license texts, REUSE convention) is missing.
+  `LICENSES/` landed 2026-08-26: `Apache-2.0.txt` and `MIT.txt`,
+  byte-identical to the root texts — two files, not five, because the SPDX
+  expression is `Apache-2.0 OR MIT` and names nothing else.
 - **Security and supply chain**: SECURITY.md's "Known posture" items
   (unsigned commits/tags, manual publishing, no DOI) were written down as
   gaps precisely so they get closed or consciously accepted. Private

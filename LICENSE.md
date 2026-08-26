@@ -12,8 +12,8 @@ tooling typically has to live beside.
 | | |
 |---|---|
 | SPDX expression | `Apache-2.0 OR MIT` |
-| Apache-2.0 full text | [LICENSE-APACHE](LICENSE-APACHE) |
-| MIT full text | [LICENSE-MIT](LICENSE-MIT) |
+| Apache-2.0 full text | [LICENSE-APACHE](LICENSE-APACHE), also at [LICENSES/Apache-2.0.txt](LICENSES/Apache-2.0.txt) |
+| MIT full text | [LICENSE-MIT](LICENSE-MIT), also at [LICENSES/MIT.txt](LICENSES/MIT.txt) |
 | Declared in | `[workspace.package] license` in [`Cargo.toml`](Cargo.toml), inherited by every published crate |
 | Copyright holder | Joel Parker Henderson (joel@joelparkerhenderson.com) |
 
@@ -28,6 +28,12 @@ notice obligation. Neither choice requires the other's conditions.
 If your tooling needs a single identifier and cannot express a choice, either
 `Apache-2.0` or `MIT` alone is a correct and sufficient statement of the terms
 you have accepted.
+
+For tooling that looks in the [REUSE](https://reuse.software/)-conventional
+place, the `LICENSES/` directory holds the same two texts under their SPDX
+identifiers — `LICENSES/Apache-2.0.txt` and `LICENSES/MIT.txt`, byte-identical
+copies of the root files. The SPDX expression names exactly these two
+licenses, so those are the only two files the directory holds.
 
 ## Scope: what this license covers
 

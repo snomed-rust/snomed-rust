@@ -482,9 +482,13 @@ both when asking "has this come up before".
       - ~~**`PHI.md`**~~ — done 2026-08-26; see the Done section above.
       - ~~**Trademark discipline**~~ — done 2026-08-26, spec and checker
         both; see the Done section above.
-      - **`LICENSES/` directory** with the full text of every license in
-        the SPDX expression (REUSE convention; `LICENSE-APACHE` and
-        `LICENSE-MIT` at root today, non-REUSE).
+      - ~~**`LICENSES/` directory**~~ — done 2026-08-26: `Apache-2.0.txt`
+        and `MIT.txt` under their SPDX identifiers, byte-identical copies
+        of the root `LICENSE-APACHE`/`LICENSE-MIT` (verified with `diff`;
+        the root Apache file was checked to be the full 11 KB license, not
+        header boilerplate). Two files only, because the SPDX expression
+        `Apache-2.0 OR MIT` names exactly two licenses. `LICENSE.md`'s
+        table and "What OR means" section now point at both locations.
       - **Docs CI lane**: the repository-wide link check that already found
         68 files / zero broken links, plus the 40 KB per-document budget —
         both currently convention-only; a spec file should define the
