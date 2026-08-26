@@ -99,3 +99,11 @@ cargo bench --manifest-path benches/Cargo.toml -- --test   # smoke run
 Changing a parser or an algorithm? Check `fuzz/fuzz_targets/` for the
 properties a target already asserts about it, and add the new one there
 alongside the unit test.
+
+## Trademarks
+
+SNOMED® and SNOMED CT® are registered trademarks of the International Health
+Terminology Standards Development Organisation (IHTSDO), trading as SNOMED
+International. This project is an independent work: it is not affiliated
+with, endorsed by, or certified by SNOMED International, and it ships no
+SNOMED CT content.

@@ -1,0 +1,129 @@
+#!/usr/bin/env python3
+"""Enforce rule 5 of spec/professionalization/index.md: notice presence.
+
+Every file in scope whose PROSE uses the SNOMED marks carries, verbatim
+(modulo line wrapping and comment prefixes), the notice:
+
+    SNOMED® and SNOMED CT® are registered trademarks of the International
+    Health Terminology Standards Development Organisation (IHTSDO), trading
+    as SNOMED International. This project is an independent work: it is not
+    affiliated with, endorsed by, or certified by SNOMED International, and
+    it ships no SNOMED CT content.
+
+Scope, per that rule and its Status section: root *.md, help/**/*.md, and
+the crate-root rustdoc of crates/*/src/lib.rs. spec/** is deliberately out
+of scope — the distillations name SNOMED CT in nearly every file because
+describing RF2 is their job; the reasoning is recorded in the spec's
+Status section. Code spans, code fences, link targets, and autolinks are
+masked before the prose test, so crate names like `snomed-core` do not
+count as uses of the mark.
+
+Run from the workspace root:  bin/check-trademarks
+"""
+
+import glob
+import os
+import re
+import sys
+
+MARK = r"\bSNOMED\b"
+
+NOTICE = (
+    "SNOMED® and SNOMED CT® are registered trademarks of the International "
+    "Health Terminology Standards Development Organisation (IHTSDO), trading "
+    "as SNOMED International. This project is an independent work: it is not "
+    "affiliated with, endorsed by, or certified by SNOMED International, and "
+    "it ships no SNOMED CT content."
+)
+
+problems = []
+
+
+def has_notice(text):
+    """The verbatim notice, allowing line wrapping and comment prefixes."""
+    flat = re.sub(r"\s+", " ", re.sub(r"(?m)^\s*(//[!/]|#|>)\s?", "", text))
+    return NOTICE in flat
+
+
+def blanked(text, patterns):
+    """Replace each match with NULs, so line offsets are preserved."""
+    for pattern in patterns:
+        text = re.sub(pattern, lambda m: "\0" * len(m.group()), text)
+    return text
+
+
+def prose_markdown(text):
+    return blanked(
+        text,
+        [
+            r"(?ms)^([ \t]*)(`{3,}|~{3,}).*?^\1\2[ \t]*$",  # fenced code
+            r"`[^`\n]+`",  # inline code
+            r"\]\([^)]*\)",  # link targets
+            r"<[^ >\n]+>",  # autolinks / bare tags
+            r"(?s)<!--.*?-->",  # comments
+        ],
+    )
+
+
+def prose_rust_docs(text):
+    """Only `//!`/`///` doc comments, with their code fences removed."""
+    kept, fence = [], False
+    for line in text.split("\n"):
+        stripped = line.lstrip()
+        if not (stripped.startswith("//!") or stripped.startswith("///")):
+            kept.append("")
+            continue
+        body = re.sub(r"^\s*//[!/]", "", line)
+        if re.match(r"\s*```", body):
+            fence = not fence
+            kept.append("")
+            continue
+        kept.append("" if fence else body)
+    return blanked("\n".join(kept), [r"`[^`\n]+`", r"\]\([^)]*\)"])
+
+
+def check(path, prose, raw):
+    first = re.search(MARK, prose)
+    if not first:
+        return
+    if not has_notice(raw):
+        line = prose[: first.start()].count("\n") + 1
+        problems.append(
+            f'{path}: prose uses "SNOMED" (first at line {line}) '
+            "but the file carries no verbatim notice"
+        )
+
+
+def read(path):
+    with open(path, encoding="utf-8") as handle:
+        return handle.read()
+
+
+in_scope_md = sorted(glob.glob("*.md")) + sorted(
+    os.path.normpath(p)
+    for p in glob.glob("help/**/*.md", recursive=True)
+    if not os.path.islink(p)
+)
+in_scope_rs = sorted(glob.glob("crates/*/src/lib.rs"))
+
+for path in in_scope_md:
+    text = read(path)
+    check(path, prose_markdown(text), text)
+
+for path in in_scope_rs:
+    text = read(path)
+    prose = prose_rust_docs(text)
+    check(path, prose, prose)
+
+if problems:
+    print("Trademark check failed. See spec/professionalization/index.md.\n")
+    for problem in problems:
+        print(f"  {problem}")
+    print(f"\n{len(problems)} problem(s).")
+    sys.exit(1)
+
+print(
+    "Trademark check passed: every in-scope file whose prose uses the "
+    f"SNOMED marks carries the notice ({len(in_scope_md)} markdown files "
+    f"and {len(in_scope_rs)} crate roots scanned)."
+)

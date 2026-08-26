@@ -137,3 +137,11 @@ Like everything else: a pull request, decided by the maintainer, recorded in
 organisation, a funding relationship — that fact belongs here and in
 [MAINTAINERS.md](MAINTAINERS.md) on the day it becomes true, not the day it is
 convenient.
+
+## Trademarks
+
+SNOMED® and SNOMED CT® are registered trademarks of the International Health
+Terminology Standards Development Organisation (IHTSDO), trading as SNOMED
+International. This project is an independent work: it is not affiliated
+with, endorsed by, or certified by SNOMED International, and it ships no
+SNOMED CT content.

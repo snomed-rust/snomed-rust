@@ -168,3 +168,11 @@ which you can actually run: `cargo run --example tutorial -p snomed`.
 - Curious why something is the shape it is, or what's planned next?
   [`plan.md`](plan.md) has the phase-by-phase history and reasoning;
   [`tasks.md`](tasks.md) has the granular done/next checklist.
+
+## Trademarks
+
+SNOMED® and SNOMED CT® are registered trademarks of the International Health
+Terminology Standards Development Organisation (IHTSDO), trading as SNOMED
+International. This project is an independent work: it is not affiliated
+with, endorsed by, or certified by SNOMED International, and it ships no
+SNOMED CT content.

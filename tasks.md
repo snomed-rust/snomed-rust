@@ -10,6 +10,22 @@ both when asking "has this come up before".
 
 ## Done (2026-08-26, professionalization execution)
 
+- [x] **Trademark discipline, spec + notices + checker + CI**:
+      `spec/professionalization/index.md` (the seventh project policy,
+      adapted from the family template; its rule 5 binds notice presence —
+      deliberately narrower than the siblings' HL7-style first-use rule
+      because RFC.md §5 is unresolved and no SNOMED International fair-use
+      terms could be found to build on, a question now asked as RFC.md
+      §10). The verbatim notice went onto README.md, every root document
+      and `help/outreach/index.md` whose prose uses the marks (17 files
+      were flagged and fixed — LICENSE.md's near-miss variant made
+      verbatim, the rest appended), and the nine published crates'
+      rustdoc as a `# Trademarks` section. `bin/check-trademarks`
+      (Python 3, ports er7-rust's prose-masking and rustdoc-extraction)
+      enforces it — verified exit 0 over 21 markdown files and 9 crate
+      roots — and runs in CI as the new `trademarks` job. `spec/**` is
+      deliberately out of the checker's scope; the spec's Status section
+      records why.
 - [x] **`PHI.md`**: the privacy-officer Q&A, far shorter than
       `fhir-rust`'s because the honest headline is shorter — this
       workspace has no patient-data pathway at all. Claims were verified
@@ -419,11 +435,8 @@ both when asking "has this come up before".
       - ~~**`CODE_OF_CONDUCT.md`**~~ — done 2026-08-26; see the Done
         section above.
       - ~~**`PHI.md`**~~ — done 2026-08-26; see the Done section above.
-      - **Trademark discipline**: a `spec/` rule for SNOMED-mark usage and
-        the non-endorsement disclaimer per page (currently on ~4 of 18 root
-        documents, with no rule and no checker), modeled on the siblings'
-        `hl7-trademarks-fair-use` spec + checker pair — written so it does
-        not prejudge RFC.md §5's open naming question.
+      - ~~**Trademark discipline**~~ — done 2026-08-26, spec and checker
+        both; see the Done section above.
       - **`LICENSES/` directory** with the full text of every license in
         the SPDX expression (REUSE convention; `LICENSE-APACHE` and
         `LICENSE-MIT` at root today, non-REUSE).
@@ -450,3 +463,11 @@ both when asking "has this come up before".
       against a real International Edition release if one becomes
       available. Dot notation came off this list on 2026-08-23 — it was
       the only entry that was a capability rather than a spelling.
+
+## Trademarks
+
+SNOMED® and SNOMED CT® are registered trademarks of the International Health
+Terminology Standards Development Organisation (IHTSDO), trading as SNOMED
+International. This project is an independent work: it is not affiliated
+with, endorsed by, or certified by SNOMED International, and it ships no
+SNOMED CT content.

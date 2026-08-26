@@ -81,11 +81,12 @@ Assessed 2026-08-26, while this spec and the trademark tooling were landing:
   private vulnerability reporting off) are all tracked under `tasks.md`
   "Next up", none silently dropped, none yet closed.
 - **Rule 4**: partly met — tests, clippy, fmt, MSRV, fuzz, and bench run in
-  CI (`.github/workflows/ci.yml`); the trademark check joins them with this
-  change set; the repository-wide link check and the 40 KB per-document
-  budget remain laptop-only, tracked in `tasks.md`.
-- **Rule 5**: being landed in this change set (spec first, then notices,
-  then checker, then CI) — see `tasks.md` for the completion record. One
+  CI (`.github/workflows/ci.yml`), and the trademark check joined them on
+  2026-08-26 (the `trademarks` job); the repository-wide link check and the
+  40 KB per-document budget remain laptop-only, tracked in `tasks.md`.
+- **Rule 5**: met as of 2026-08-26 — notices on every in-scope page
+  (`bin/check-trademarks` exits 0: 21 root/help markdown files and 9 crate
+  roots scanned), checker in CI. One
   deliberate scope decision: `spec/**` is **out of the checker's scope**.
   The specification distillations name SNOMED CT in nearly every file
   (15 of them today) because describing RF2 is their job; stamping the

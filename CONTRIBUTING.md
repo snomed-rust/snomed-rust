@@ -231,3 +231,11 @@ not set up speculatively.
 - No response-time guarantee. One maintainer, and no pretense otherwise.
 - If a contribution is declined, you get the reason, and the reason will be one
   of the rules above rather than taste.
+
+## Trademarks
+
+SNOMED® and SNOMED CT® are registered trademarks of the International Health
+Terminology Standards Development Organisation (IHTSDO), trading as SNOMED
+International. This project is an independent work: it is not affiliated
+with, endorsed by, or certified by SNOMED International, and it ships no
+SNOMED CT content.

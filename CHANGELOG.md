@@ -628,3 +628,11 @@ returning a plausible wrong set.
 - `snomed-cli`: `sctid`, `load`, `lookup`, `ecl`, `export`, `validate`
   subcommands.
 - `snomed`: facade crate re-exporting the above, with a `prelude`.
+
+## Trademarks
+
+SNOMED® and SNOMED CT® are registered trademarks of the International Health
+Terminology Standards Development Organisation (IHTSDO), trading as SNOMED
+International. This project is an independent work: it is not affiliated
+with, endorsed by, or certified by SNOMED International, and it ships no
+SNOMED CT content.

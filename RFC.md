@@ -244,3 +244,11 @@ Specifically:
 **Who can settle this:** anyone with a pointer to the published terms, or who
 has asked SNOMED International and can report the answer. §5's closing
 question applies here verbatim.
+
+## Trademarks
+
+SNOMED® and SNOMED CT® are registered trademarks of the International Health
+Terminology Standards Development Organisation (IHTSDO), trading as SNOMED
+International. This project is an independent work: it is not affiliated
+with, endorsed by, or certified by SNOMED International, and it ships no
+SNOMED CT content.

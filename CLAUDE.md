@@ -109,3 +109,11 @@ classification with necessary normal form generation.
   with a typed error naming what's missing, never be silently accepted
   or misparsed — see `agents/ecl-engineer.md`, `agents/owl-engineer.md`,
   `agents/classify-engineer.md` for the crate-specific mechanics.
+
+## Trademarks
+
+SNOMED® and SNOMED CT® are registered trademarks of the International Health
+Terminology Standards Development Organisation (IHTSDO), trading as SNOMED
+International. This project is an independent work: it is not affiliated
+with, endorsed by, or certified by SNOMED International, and it ships no
+SNOMED CT content.

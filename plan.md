@@ -117,10 +117,11 @@ and harmonizes it with the sibling repositories (`hl7-rust`, `er7-rust`,
 - **Governance**: complete — `CODE_OF_CONDUCT.md` landed 2026-08-26, and
   GOVERNANCE.md routes behavior disputes to it.
 - **Compliance — licensing and trademarks**: the SNOMED CT crate-naming
-  question stays open in RFC.md §5 and gates outreach; separately, mark
-  usage and the non-endorsement disclaimer appear on only a few root
-  documents, and unlike `fhir-rust`/`er7-rust` there is no per-page rule and
-  no checker. `LICENSES/` (full license texts, REUSE convention) is missing.
+  question stays open in RFC.md §5 and gates outreach; the per-page notice
+  rule, the notices themselves, and the checker landed 2026-08-26 — rule 5
+  of `spec/professionalization/index.md`, enforced by
+  `bin/check-trademarks` and the CI `trademarks` job.
+  `LICENSES/` (full license texts, REUSE convention) is missing.
 - **Security and supply chain**: SECURITY.md's "Known posture" items
   (unsigned commits/tags, manual publishing, no DOI, private vulnerability
   reporting off) were written down as gaps precisely so they get closed or
@@ -238,3 +239,11 @@ set rather than an error.
   (`spec/rust-msrv-n-minus-3/index.md`). Raising it is routine; the thing to
   watch is that a bump can surface previously-suppressed clippy lints,
   since MSRV-gated lints activate with `rust-version`.
+
+## Trademarks
+
+SNOMED® and SNOMED CT® are registered trademarks of the International Health
+Terminology Standards Development Organisation (IHTSDO), trading as SNOMED
+International. This project is an independent work: it is not affiliated
+with, endorsed by, or certified by SNOMED International, and it ships no
+SNOMED CT content.

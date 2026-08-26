@@ -43,6 +43,19 @@ jobs:
       - name: Test
         run: cargo test --all
 
+  trademarks:
+    name: Trademark notices (rule 5 of the professionalization spec)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Notice presence per spec/professionalization/index.md: every root
+      # document, help/ document, and crate-root rustdoc whose prose uses
+      # the SNOMED marks carries the verbatim notice. Python 3 only, no
+      # toolchain needed.
+      - name: Check trademark notices
+        run: bin/check-trademarks
+
   msrv:
     name: MSRV (current stable minus 3)
     runs-on: ubuntu-latest
