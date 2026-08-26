@@ -14,8 +14,14 @@ Pages may additionally carry the independent-work sentence ("This project
 is an independent work: ... it ships no SNOMED CT content."); only the
 notice above is enforced.
 
-Scope, per that rule and its Status section: root *.md, help/**/*.md, and
-the crate-root rustdoc of crates/*/src/lib.rs. spec/** is deliberately out
+Every publishable crate's Cargo.toml `description` also carries the
+notice verbatim (owner directive, 2026-08-26) — descriptions are what
+crates.io shows in listings and search results, ahead of any README.
+
+Scope, per that rule and its Status section: root *.md, help/**/*.md,
+the crate-root rustdoc of crates/*/src/lib.rs, and the `description` of
+every crates/*/Cargo.toml that does not set `publish = false`. spec/**
+is deliberately out
 of scope — the distillations name SNOMED CT in nearly every file because
 describing RF2 is their job; the reasoning is recorded in the spec's
 Status section. Code spans, code fences, link targets, and autolinks are
@@ -118,6 +124,21 @@ for path in in_scope_rs:
     prose = prose_rust_docs(text)
     check(path, prose, prose)
 
+in_scope_toml = sorted(glob.glob("crates/*/Cargo.toml"))
+
+for path in in_scope_toml:
+    text = read(path)
+    if re.search(r"(?m)^publish\s*=\s*false", text):
+        continue
+    match = re.search(r'(?m)^description\s*=\s*"(.*)"\s*$', text)
+    if match is None:
+        problems.append(f"{path}: publishable crate has no description")
+    elif NOTICE not in match.group(1):
+        problems.append(
+            f"{path}: publishable crate description does not carry the "
+            "verbatim notice"
+        )
+
 if problems:
     print("Trademark check failed. See spec/professionalization/index.md.\n")
     for problem in problems:
@@ -127,6 +148,8 @@ if problems:
 
 print(
     "Trademark check passed: every in-scope file whose prose uses the "
-    f"SNOMED marks carries the notice ({len(in_scope_md)} markdown files "
-    f"and {len(in_scope_rs)} crate roots scanned)."
+    "SNOMED marks carries the notice, and every publishable crate "
+    f"description carries it verbatim ({len(in_scope_md)} markdown files, "
+    f"{len(in_scope_rs)} crate roots, and {len(in_scope_toml)} manifests "
+    "scanned)."
 )
