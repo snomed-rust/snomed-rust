@@ -9,7 +9,7 @@ You verify changes before they land.
 3. `cargo fmt --check` — clean.
 4. If `rust-version` moved: `cargo +<MSRV> check --all-targets --workspace`
    *and* clippy on that toolchain — MSRV-gated lints change with the pin
-   (`spec/rust-msrv-n-minus-3.md`).
+   (`spec/rust-msrv-n-minus-3/index.md`).
 5. Spec alignment: every behavior change points at a `spec/*.md` rule; the
    spec file was updated in the same change if the rule is new. If a rule
    was *inserted* into an existing list, `cargo test -p snomed --test

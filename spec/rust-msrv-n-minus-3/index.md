@@ -19,7 +19,7 @@ toolchain the code in this workspace may assume.
   (`1.(N-3).x`) are all acceptable; the recorded value uses `.0`.
 - Pre-release channels (beta, nightly) are never the MSRV and MUST NOT be
   required by any workspace target, including the fuzz targets — see
-  [rust-fuzz.md](rust-fuzz.md), which keeps the nightly-only fuzz crate outside
+  [rust-fuzz.md](../rust-fuzz.md), which keeps the nightly-only fuzz crate outside
   the workspace precisely so this rule holds.
 
 Rust ships a stable release every six weeks, so N-3 is a rolling window of

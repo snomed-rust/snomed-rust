@@ -7,7 +7,7 @@ tests in `crates/*` encode the normative MUSTs of `spec/`; the fuzz targets
 in `fuzz/` cover the complementary question — *what does this code do with
 input nobody thought of?*
 
-Like [rust-msrv-n-minus-3.md](rust-msrv-n-minus-3.md), this is a project
+Like [rust-msrv-n-minus-3/](rust-msrv-n-minus-3/index.md), this is a project
 policy rather than a distillation of an external specification.
 
 ## The invariant every target enforces
@@ -62,7 +62,7 @@ fuzz/
 `fuzz/` is **not** a workspace member. `libfuzzer-sys` needs a nightly
 toolchain and links a sanitizer runtime; keeping the package separate means
 `cargo build`, `cargo test`, `cargo clippy`, and the MSRV check
-([rust-msrv-n-minus-3.md](rust-msrv-n-minus-3.md)) stay on stable and stay
+([rust-msrv-n-minus-3/](rust-msrv-n-minus-3/index.md)) stay on stable and stay
 free of external dependencies, exactly as CLAUDE.md rule 2 requires of the
 published crates.
 

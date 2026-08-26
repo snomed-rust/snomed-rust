@@ -4,7 +4,7 @@
 # `[workspace]` table below): `libfuzzer-sys` needs a nightly toolchain and
 # links a sanitizer runtime, and neither may leak into `cargo build`,
 # `cargo test`, or the MSRV check of the published crates
-# (spec/rust-msrv-n-minus-3.md).
+# (spec/rust-msrv-n-minus-3/index.md).
 [package]
 name = "snomed-fuzz"
 version = "0.0.0"

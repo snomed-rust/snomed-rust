@@ -115,7 +115,7 @@ included.
 The current stable release minus three — 1.95 at the time of writing,
 with the exact value in the root `Cargo.toml`'s `rust-version` and a CI
 job that checks it. It moves whenever stable does; the policy is
-[`spec/rust-msrv-n-minus-3.md`](../spec/rust-msrv-n-minus-3.md). If
+[`spec/rust-msrv-n-minus-3/index.md`](../spec/rust-msrv-n-minus-3/index.md). If
 `cargo build` reports "package requires rustc 1.x or newer", run
 `rustup update`.
 

@@ -4,7 +4,7 @@ Completed-work entries moved verbatim out of [`tasks.md`](../tasks.md) when
 that file outgrew this repository's 40 KB per-document budget. Nothing was
 edited in the move; the only change since is the mechanical
 `AGENTS/` -> `agents/` path rename
-([`spec/agents-directory-name-is-lowercase.md`](../spec/agents-directory-name-is-lowercase.md)).
+([`spec/agents-directory-name-is-lowercase.md`](../spec/agents-directory-name-is-lowercase/index.md)).
 
 Index: [`docs/tasks-archive.md`](tasks-archive.md). Current tasks and
 everything still open: [`tasks.md`](../tasks.md). Why any of it was built

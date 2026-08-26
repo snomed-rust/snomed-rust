@@ -19,7 +19,7 @@ SNOMED CT Release File Specification.
   reference it from code.
 - Keep both tables in `spec/README.md` accurate: the numbered
   `NN-topic.md` index (with its "Implemented in" column) and the project
-  policy table below it (`rust-msrv-n-minus-3.md`, `rust-fuzz.md`,
+  policy table below it (`rust-msrv-n-minus-3/index.md`, `rust-fuzz.md`,
   `rust-bench.md` — policies this project sets for itself, with no
   external specification behind them; they are still normative here).
 - Record official-spec facts verbatim where possible (column names exactly as
