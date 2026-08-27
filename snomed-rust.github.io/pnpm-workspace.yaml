@@ -2,3 +2,13 @@ allowBuilds:
   esbuild: true
 onlyBuiltDependencies:
   - esbuild
+# GHSA-pxg6-pf52-xh8x / CVE-2024-47764 (low severity): cookie < 0.7.0
+# under-validates name/path/domain characters. Pulled in transitively by
+# @sveltejs/kit, whose stable 2.x line still declares `cookie: ^0.6.0` as
+# of 2.70.3 — the fix only ships in SvelteKit's 3.0.0 prerelease, which
+# jumps two majors of `cookie` (to ^2.0.1) alongside its own breaking
+# changes. Overriding just the transitive dependency to the advisory's
+# first patched release is the minimal fix: cookie's parse/serialize
+# exports, the only two @sveltejs/kit imports, are unchanged there.
+overrides:
+  cookie: '0.7.2'
