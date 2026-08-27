@@ -17,6 +17,7 @@ so the paths quoted here still resolve.
 | [`tasks-archive-4.md`](tasks-archive-4.md) | 2026-08-06 - 2026-08-20 | The documentation audit that closed the first build-out; the MSRV, fuzzing, and benchmarking policies, and the two bug hunts they prompted |
 | [`tasks-archive-5.md`](tasks-archive-5.md) | 2026-08-21 | `#[non_exhaustive]`, the `agents/` rename, four spec-compliance gaps, `{{ D ... }}` filters, row-based fuzz targets, refset member history |
 | [`tasks-archive-6.md`](tasks-archive-6.md) | 2026-08-22 - 2026-08-23 | Necessary normal form's second pass, `MemberId` as a `u128`, the remaining `{{ D ... }}` filter kinds and typed search terms, the reverse association index, the exponential-refinement bug the fuzzer found, and the two benchmark audits it prompted |
+| [`tasks-archive-7.md`](tasks-archive-7.md) | 2026-08-23 | The standing spec-citation guard, ECL dot notation, `memberOf` gaining its real operand (`^ *`, computed sets, `< ^ X`), `^R` and the reverse membership index, and the documentation audit that closed out 0.10.0 |
 
 Older entries are shorter and more granular than recent ones: they were
 written a change at a time while the workspace was being built from
