@@ -35,12 +35,28 @@ hand over.
 | The crates.io publish credential | the `cargo publish` runs themselves | the maintainer's machine — **publishing is manual; there is no CI publish workflow and no Trusted Publishing configuration in this repository** | none; a successor would need crates.io ownership transferred before they could publish anything |
 | The GitHub Pages repository behind <https://snomed-rust.github.io/> | the documentation site, pushed by `make publish` | the maintainer, using their own push credentials — see the [`Makefile`](Makefile), which notes there is deliberately no deploy key, GitHub App secret, or org-wide setting behind it | tied to GitHub account recovery |
 
-Two gaps are worth stating rather than leaving for a reader to discover:
+One gap remains fully open, and one is partly closed — both worth stating
+rather than leaving for a reader to discover:
 
-- **Commits and tags are not cryptographically signed.** There is no signing
-  key to escrow, and equally no signature to verify. A consumer who needs
-  provenance today has the git history and the crates.io publish record, and
-  nothing stronger.
+- **Commit and tag signing is configured, but not yet verifiable on the
+  forges.** This repository's local git config (`gpg.format = ssh`,
+  `user.signingkey`, `commit.gpgsign`, `tag.gpgsign`) signs new commits and
+  tags with an ed25519 SSH key, and `gpg.ssh.allowedSignersFile` points at
+  the maintainer's `~/.ssh/allowed_signers`, so `git log --show-signature`
+  verifies them locally. The private key is **passphrase-protected and not
+  escrowed anywhere** — it exists only on the maintainer's machine, so
+  unavailability still means no further signed commits, the same as every
+  other row in the table above. Two things this does not yet give a remote
+  viewer: history before this configuration landed is unsigned and stays
+  that way (git does not retroactively sign), and the public key is not yet
+  registered with GitHub, GitLab, or Codeberg as a *signing* key (as
+  distinct from the *authentication* key already on file), so none of the
+  three currently render a "Verified" badge. Registering it needs the
+  maintainer's own interactive session on each host — `gh`'s CLI requires an
+  OAuth scope grant (`gh auth refresh -h github.com -s
+  admin:ssh_signing_key`) that only the account holder can approve, and
+  GitLab/Codeberg have no equivalent CLI installed here, only their web
+  settings. Tracked in `tasks.md`.
 - **No archival DOI exists yet.** [`CITATION.cff`](CITATION.cff) makes the
   work citable by name and version; a Zenodo deposit, which would make a
   release citable after this repository stops existing, has not been created.
