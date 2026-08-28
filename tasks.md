@@ -12,6 +12,61 @@ most recently on 2026-08-28, to keep this file inside the repository's
 40 KB per-document budget. Search both when asking "has this come up
 before".
 
+## Done (2026-08-28, Professionalization (Phase 10), retired from Next up)
+
+Checked "Next up" for anything genuinely unblocked and found nothing new to
+do, but found this: every sub-item below was already struck through as done,
+across sessions from 2026-08-26 through today, yet the parent checkbox was
+still `[ ]` and the whole block still sat under "Next up" — a bookkeeping
+gap against this file's own rule ("check items off in the same change that
+completes them"), not a real gap in the work. Moved here verbatim, checkbox
+corrected, rather than left to keep looking unfinished:
+
+- [x] ~~**Commit the 13 untracked root documents**~~ — done: they landed
+      in `2bd203a` (Release 0.11.0) and `7298d4a` (the trademark
+      notices), verified via `git log` per file; the working tree was
+      clean of them when this box was ticked on 2026-08-26.
+- [x] ~~**`CODE_OF_CONDUCT.md`**~~ — done 2026-08-26; see the archived
+      Done section (`docs/tasks-archive-8.md`).
+- [x] ~~**`PHI.md`**~~ — done 2026-08-26; see the archived Done section.
+- [x] ~~**Trademark discipline**~~ — done 2026-08-26, spec and checker
+      both; see the archived Done section.
+- [x] ~~**`LICENSES/` directory**~~ — done 2026-08-26: `Apache-2.0.txt`
+      and `MIT.txt` under their SPDX identifiers, byte-identical copies
+      of the root `LICENSE-APACHE`/`LICENSE-MIT` (verified with `diff`;
+      the root Apache file was checked to be the full 11 KB license, not
+      header boilerplate). Two files only, because the SPDX expression
+      `Apache-2.0 OR MIT` names exactly two licenses. `LICENSE.md`'s
+      table and "What OR means" section now point at both locations.
+- [x] ~~**Docs CI lane**~~ — done 2026-08-26:
+      `spec/docs-budget-and-links/` (the tenth project policy, registered
+      in `spec/README.md` and `index.md`, README.md symlink per the
+      directory convention) defines the 40 KB budget and the
+      link-integrity rule; `bin/check-docs` (Python 3, stdlib only,
+      masks code the way `bin/check-trademarks` does) enforces both and
+      runs in CI as the new `docs` job. First real run: 80 tracked
+      markdown documents, all within budget (max: `CHANGELOG.md`,
+      38,090 bytes), zero broken relative links — after it caught nine
+      real dangling links in the stray `AI_STATEMENT.md` duplicate the
+      re-sync item resolved. Verified it catches violations by planting
+      an oversize file and a bad link (both reported, both reverted).
+- [x] ~~**Re-sync `spec/special-files-for-public-repos/`**~~ — done
+      2026-08-26: the list now carries the canonical version's five
+      additions (CODE_OF_CONDUCT.md, PHI.md, RFC.md wording,
+      LICENSES/, FUNDING.yml) and a Status section adapted honestly —
+      everything exists except FUNDING.yml, which stays a decision, not
+      a gap (true as of 2026-08-26; reversed 2026-08-28, next bullet).
+      The stray duplicate `AI_STATEMENT.md` is now a pointer at
+      the root file (same fifteen-section skeleton verified before
+      claiming the root is the fuller source; draft text remains in git
+      history), which also cleared the nine dangling links
+      `bin/check-docs` found in it on its first run.
+- [x] ~~**`.github/FUNDING.yml` is a decision, not a gap**~~ — the
+      decision changed: `spec/free-open-source-funding/index.md`
+      recorded it, and it was implemented 2026-08-28; see the Done
+      section "`.github/FUNDING.yml`: the decision reversed itself"
+      elsewhere in this file.
+
 ## Done (2026-08-28, Codeberg now verifies too — all three forges closed)
 
 - [x] **The maintainer verified their `joel@joelparkerhenderson.com`
@@ -268,50 +323,11 @@ before".
       wrong inactive concepts. The store side is ready
       (`association_sources`), so this is one afternoon's work the day the
       profile membership can be cited.
-- [ ] **Professionalization (Phase 10 in `plan.md`, added 2026-08-26)** —
-      the family-harmonized workstreams; each item independently pickable:
-      - ~~**Commit the 13 untracked root documents**~~ — done: they landed
-        in `2bd203a` (Release 0.11.0) and `7298d4a` (the trademark
-        notices), verified via `git log` per file; the working tree was
-        clean of them when this box was ticked on 2026-08-26.
-      - ~~**`CODE_OF_CONDUCT.md`**~~ — done 2026-08-26; see the Done
-        section above.
-      - ~~**`PHI.md`**~~ — done 2026-08-26; see the Done section above.
-      - ~~**Trademark discipline**~~ — done 2026-08-26, spec and checker
-        both; see the Done section above.
-      - ~~**`LICENSES/` directory**~~ — done 2026-08-26: `Apache-2.0.txt`
-        and `MIT.txt` under their SPDX identifiers, byte-identical copies
-        of the root `LICENSE-APACHE`/`LICENSE-MIT` (verified with `diff`;
-        the root Apache file was checked to be the full 11 KB license, not
-        header boilerplate). Two files only, because the SPDX expression
-        `Apache-2.0 OR MIT` names exactly two licenses. `LICENSE.md`'s
-        table and "What OR means" section now point at both locations.
-      - ~~**Docs CI lane**~~ — done 2026-08-26:
-        `spec/docs-budget-and-links/` (the tenth project policy, registered
-        in `spec/README.md` and `index.md`, README.md symlink per the
-        directory convention) defines the 40 KB budget and the
-        link-integrity rule; `bin/check-docs` (Python 3, stdlib only,
-        masks code the way `bin/check-trademarks` does) enforces both and
-        runs in CI as the new `docs` job. First real run: 80 tracked
-        markdown documents, all within budget (max: `CHANGELOG.md`,
-        38,090 bytes), zero broken relative links — after it caught nine
-        real dangling links in the stray `AI_STATEMENT.md` duplicate the
-        re-sync item resolved. Verified it catches violations by planting
-        an oversize file and a bad link (both reported, both reverted).
-      - ~~**Re-sync `spec/special-files-for-public-repos/`**~~ — done
-        2026-08-26: the list now carries the canonical version's five
-        additions (CODE_OF_CONDUCT.md, PHI.md, RFC.md wording,
-        LICENSES/, FUNDING.yml) and a Status section adapted honestly —
-        everything exists except FUNDING.yml, which stays a decision, not
-        a gap. The stray duplicate `AI_STATEMENT.md` is now a pointer at
-        the root file (same fifteen-section skeleton verified before
-        claiming the root is the fuller source; draft text remains in git
-        history), which also cleared the nine dangling links
-        `bin/check-docs` found in it on its first run.
-      - ~~**`.github/FUNDING.yml` is a decision, not a gap**~~ — the
-        decision changed: `spec/free-open-source-funding/index.md`
-        recorded it, and it was implemented 2026-08-28; see the Done
-        section above.
+- [x] ~~**Professionalization (Phase 10 in `plan.md`, added 2026-08-26)**~~
+      — done: all eight workstream items completed across 2026-08-26 and
+      2026-08-28 (the last, `.github/FUNDING.yml`, once the decision
+      itself reversed). Full record moved to the Done section below,
+      "Professionalization (Phase 10), retired from Next up", verbatim.
 - [ ] Smaller documented gaps, each independently pickable: the `dialect`
       alias form (needs an alias→refset mapping this crate deliberately
       doesn't own), the `dialectIdSet` spelling, `regex:` search terms
