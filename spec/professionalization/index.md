@@ -91,11 +91,13 @@ Assessed 2026-08-26, while this spec and the trademark tooling were landing:
   are all tracked under `tasks.md` "Next up", none silently dropped. Private
   vulnerability reporting, the fourth such gap, was closed 2026-08-26 with
   the declaring document updated in the same change, per this rule.
-  Commit/tag signing, the fifth, was **partly** closed 2026-08-27 — both
-  declaring documents (MAINTAINERS.md, SECURITY.md) were updated in the
-  same change, per this rule, to say precisely what changed and what did
-  not: signing is configured and locally verifiable, but no forge shows a
-  "Verified" badge yet, so the gap is downgraded rather than marked done.
+  Commit/tag signing, the fifth, was **partly** closed 2026-08-27 (both
+  declaring documents updated in the same change) and **narrowed further**
+  2026-08-28 once the maintainer registered the key on GitHub and GitLab —
+  both documents updated again, in the same change, to say precisely what
+  is verified (two of three forges, each confirmed against its own API)
+  and what is not (Codeberg, `no_gpg_keys_found`), rather than rounding
+  up to done.
 - **Rule 4**: met — tests, clippy, fmt, MSRV, fuzz, and bench run in CI
   (`.github/workflows/ci.yml`); the trademark check joined them on
   2026-08-26 (the `trademarks` job), and the repository-wide link check and

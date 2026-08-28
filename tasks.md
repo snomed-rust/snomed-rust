@@ -10,6 +10,33 @@ there verbatim, most recently on 2026-08-27, to keep this file inside the
 repository's 40 KB per-document budget. Search both when asking "has this
 come up before".
 
+## Done (2026-08-28, GitHub and GitLab now verify commit signatures)
+
+- [x] **The maintainer registered the SSH code-signing key as a *signing*
+      key on GitHub and GitLab** (distinct from the *authentication* key
+      already on file for both), closing most of the "not forge-verifiable"
+      half of 2026-08-27's signing work.
+- [x] **Confirmed against each host's own API rather than trusted on
+      sight**: GitHub — `gh ssh-key list` now shows `jph-code-signing`
+      typed `signing`; `GET /repos/.../commits/main` returns
+      `commit.verification = {verified: true, reason: "valid"}` for the
+      current HEAD. GitLab — `GET /repository/commits/:sha/signature`
+      returns `verification_status: "verified"`, naming the same key by
+      title. Both checked against `main`'s actual HEAD commit at the time,
+      not a synthetic test.
+- [x] **Codeberg checked and found still open, not silently skipped**:
+      its API (`GET /repos/.../git/commits/main`) returns
+      `verified: false, reason: "gpg.error.no_gpg_keys_found"` for the
+      same commit. No `tea` (Codeberg/Forgejo CLI) is installed here, and
+      registering an SSH signing key needs the maintainer's own session on
+      Codeberg's web settings, the same constraint as GitHub/GitLab had
+      before 2026-08-27's OAuth-scope and browser-based registration.
+- [x] Updated every document that had described this as fully open, in the
+      same change, to say precisely what changed: `MAINTAINERS.md`,
+      `SECURITY.md`, `plan.md`, `spec/professionalization/index.md`'s
+      Rule 3 status note, and `tasks.md`'s own hygiene item — two of three
+      forges now, not "none yet" and not "done".
+
 ## Done (2026-08-28, CI: leaner target/ caches, more runner headroom)
 
 - [x] **Added a "free preinstalled runner bloat" step** to `test`, `msrv`,
@@ -432,14 +459,15 @@ come up before".
       unblocked.
 - [ ] **Repository-hygiene gaps named in `MAINTAINERS.md` and
       `AI_STATEMENT.md`**, each independently pickable:
-      - ~~**Sign commits and tags**~~ — **partly done 2026-08-27**: local
-        git signing is configured and verifiable with
-        `git log --show-signature`; see the Done section above. What is
-        left, and genuinely blocked on the maintainer's own presence: add
-        the public key to GitHub, GitLab, and Codeberg as a *signing* key
-        (not the *authentication* key already on file) so each forge
-        renders a "Verified" badge. No CLI here can do this
-        non-interactively for any of the three.
+      - ~~**Sign commits and tags**~~ — **mostly done**: local git signing
+        configured 2026-08-27, verifiable with `git log --show-signature`;
+        GitHub and GitLab confirmed "Verified" 2026-08-28 once the
+        maintainer registered the public key as a *signing* key on each
+        (see the Done section below for the verification evidence). What
+        is left, genuinely blocked on the maintainer's own presence:
+        register the same key on **Codeberg** — its API still returns
+        `no_gpg_keys_found` for it, and no CLI here (`tea` is not
+        installed) can do this non-interactively.
       - **Create a Zenodo deposit** wired to GitHub releases so a version
         has a DOI. Not started.
       - **Decide whether publishing moves to a CI lane** with crates.io

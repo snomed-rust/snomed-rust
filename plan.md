@@ -132,10 +132,10 @@ and harmonizes it with the sibling repositories (`hl7-rust`, `er7-rust`,
   each verified with a GET, and SECURITY.md now names the Security-tab form
   first. Commit/tag signing was configured 2026-08-27 (`gpg.format = ssh`,
   a passphrase-protected ed25519 key, local `gpg.ssh.allowedSignersFile`
-  verification) but stops short of the forges: none of GitHub/GitLab/
-  Codeberg yet has the public key registered as a signing key, which needs
-  the maintainer's own interactive session on each host, so no "Verified"
-  badge renders yet. Tracked in `tasks.md`, not claimed as closed.
+  verification); the maintainer registered the public key as a signing key
+  on GitHub and GitLab 2026-08-28, both confirmed "Verified" against each
+  host's own API. Codeberg still reports `no_gpg_keys_found` for it.
+  Tracked in `tasks.md` as two of three closed, not fully closed.
 - **Privacy and patient data**: complete — `PHI.md` landed 2026-08-26, the
   root page a hospital reviewer can read, with each claim verified against
   the tree rather than implied by the zero-dependency rule.

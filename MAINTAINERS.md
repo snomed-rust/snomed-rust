@@ -38,7 +38,7 @@ hand over.
 One gap remains fully open, and one is partly closed — both worth stating
 rather than leaving for a reader to discover:
 
-- **Commit and tag signing is configured, but not yet verifiable on the
+- **Commit and tag signing is configured, and verifiable on two of three
   forges.** This repository's local git config (`gpg.format = ssh`,
   `user.signingkey`, `commit.gpgsign`, `tag.gpgsign`) signs new commits and
   tags with an ed25519 SSH key, and `gpg.ssh.allowedSignersFile` points at
@@ -46,17 +46,21 @@ rather than leaving for a reader to discover:
   verifies them locally. The private key is **passphrase-protected and not
   escrowed anywhere** — it exists only on the maintainer's machine, so
   unavailability still means no further signed commits, the same as every
-  other row in the table above. Two things this does not yet give a remote
-  viewer: history before this configuration landed is unsigned and stays
-  that way (git does not retroactively sign), and the public key is not yet
-  registered with GitHub, GitLab, or Codeberg as a *signing* key (as
-  distinct from the *authentication* key already on file), so none of the
-  three currently render a "Verified" badge. Registering it needs the
-  maintainer's own interactive session on each host — `gh`'s CLI requires an
-  OAuth scope grant (`gh auth refresh -h github.com -s
-  admin:ssh_signing_key`) that only the account holder can approve, and
-  GitLab/Codeberg have no equivalent CLI installed here, only their web
-  settings. Tracked in `tasks.md`.
+  other row in the table above. History before this configuration landed
+  is unsigned and stays that way; git does not retroactively sign.
+
+  As of 2026-08-28 the public key is registered as a *signing* key (as
+  distinct from the *authentication* key already on file) on GitHub and
+  GitLab, and both render "Verified" on new commits — confirmed against
+  each host's own API (`GET /repos/.../commits/main` →
+  `commit.verification.verified: true`, `reason: valid` on GitHub;
+  `GET /repository/commits/:sha/signature` → `verification_status:
+  "verified"` on GitLab). **Codeberg does not yet show it**: its API
+  reports `verified: false, reason: gpg.error.no_gpg_keys_found` — the key
+  is not registered there. Registering it needed, and getting the other
+  two working needed, the maintainer's own interactive session on each
+  host; Codeberg (Forgejo) has no CLI installed here to check or automate
+  it further, only its web settings.
 - **No archival DOI exists yet.** [`CITATION.cff`](CITATION.cff) makes the
   work citable by name and version; a Zenodo deposit, which would make a
   release citable after this repository stops existing, has not been created.

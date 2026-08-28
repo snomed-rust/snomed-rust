@@ -105,12 +105,12 @@ categories of vulnerability therefore do not apply. What does apply:
 A reader doing supplier due diligence should have these without having to ask.
 Each is recorded in [MAINTAINERS.md](MAINTAINERS.md) and none is a secret:
 
-- **Commit and tag signing is configured but not forge-verifiable yet.** New
-  commits and tags are signed with a passphrase-protected SSH key, verifiable
-  locally with `git log --show-signature`; history before this landed is
-  unsigned and stays that way, and the public key is not yet registered with
-  GitHub, GitLab, or Codeberg as a signing key, so none show a "Verified"
-  badge today. See [MAINTAINERS.md](MAINTAINERS.md) for the full posture.
+- **Commit and tag signing is configured, and forge-verifiable on GitHub and
+  GitLab; not yet on Codeberg.** New commits and tags are signed with a
+  passphrase-protected SSH key, verifiable locally with `git log
+  --show-signature`; history before this landed is unsigned and stays that
+  way. Codeberg's own API still reports `no_gpg_keys_found` for this key.
+  See [MAINTAINERS.md](MAINTAINERS.md) for the full posture.
 - **Publishing is manual**, from the maintainer's machine. There is no CI
   publish lane and no crates.io Trusted Publishing configuration, so the
   publishing authority terminates at one account.
