@@ -12,6 +12,37 @@ most recently on 2026-08-28, to keep this file inside the repository's
 40 KB per-document budget. Search both when asking "has this come up
 before".
 
+## Done (2026-08-28, `spec/trusted-publishing/`: manual publishing is policy, not a gap)
+
+- [x] Read `spec/trusted-publishing/index.md` (new): the stated policy is
+      to switch `cargo publish` to OIDC-based CI publishing once Trusted
+      Publishing is production-ready across every code forge this project
+      uses (GitHub.com, GitLab.com, Codeberg.org) and every destination it
+      publishes to (crates.io today; npmjs.com if that ever applies).
+- [x] **Verified the criterion is actually unmet, not assumed**: checked
+      crates.io's own 2026-01-21 development update and RFC 3691.
+      Currently supported: GitHub Actions and GitLab.com only — not
+      self-hosted GitLab, not Codeberg/Forgejo (explicitly "should be
+      straightforward" future work per that post, not shipped). This
+      project pushes to all three, so the criterion isn't met.
+- [x] Registered the new spec in `spec/README.md`'s policy table (twelve
+      policies now, eleven before) and `index.md`'s table; bumped the
+      count in `spec/README.md`'s intro and `README.md`.
+- [x] **Rewrote every place that had described manual publishing as an
+      unstated gap** to instead say it is policy, with the criterion:
+      `README.md` (new paragraph in Development), `MAINTAINERS.md`'s
+      publishing-identity table row, `SECURITY.md`'s Known Posture bullet,
+      `plan.md`'s Security-and-supply-chain note, and
+      `spec/professionalization/index.md`'s Rule 3 status. Same discipline
+      applied to `.github/FUNDING.yml` two days ago: a declared absence is
+      either a gap to close or a decision to record, and this one turned
+      out to already be the latter, just unwritten.
+- [x] Struck through the Next-up hygiene sub-item accordingly — decided,
+      not merely "not started."
+- [x] Verified: `bin/check-docs`, `bin/check-trademarks`, `spec_citations`,
+      `cargo test --all` (353 pass), clippy `-D warnings`, `fmt --check` —
+      all pass, unaffected by a documentation-only change.
+
 ## Done (2026-08-28, Professionalization (Phase 10), retired from Next up)
 
 Checked "Next up" for anything genuinely unblocked and found nothing new to
@@ -296,8 +327,17 @@ corrected, rather than left to keep looking unfinished:
         halves of the evidence.
       - **Create a Zenodo deposit** wired to GitHub releases so a version
         has a DOI. Not started.
-      - **Decide whether publishing moves to a CI lane** with crates.io
-        Trusted Publishing. Not started; a decision, not only a task.
+      - ~~**Decide whether publishing moves to a CI lane** with crates.io
+        Trusted Publishing~~ — **decided, 2026-08-28**:
+        `spec/trusted-publishing/index.md` records the policy — wait for
+        production-ready coverage across every remote this project
+        publishes from, then adopt. Verified before writing it down, not
+        assumed: crates.io's Trusted Publishing currently reaches GitHub
+        Actions and GitLab.com only (not self-hosted GitLab, not
+        Codeberg/Forgejo — confirmed against the crates.io team's own
+        2026-01-21 development update), so the criterion isn't met yet.
+        `MAINTAINERS.md`, `SECURITY.md`, `plan.md`, and `README.md`
+        updated to state the policy rather than read as an open gap.
 - [ ] Decisions, not tasks — each needs a call before code:
       - **`{{ M ... }}` member filters** (`snomed-ecl`): now priced in
         `plan.md` under "Open decisions". The blocker turned out not to be

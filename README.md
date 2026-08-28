@@ -65,7 +65,7 @@ Supporting documents:
   and questions, answered.
 - [`spec/`](spec/README.md) — project-local distillation of the official
   [RF2 Release File Specification](https://docs.snomed.org/snomed-ct-specifications/snomed-ct-release-file-specification);
-  the normative reference for this codebase. It also holds eleven project
+  the normative reference for this codebase. It also holds twelve project
   policies that bind the same way — the full table, kept current, is in
   [`spec/README.md`](spec/README.md); the ones most worth knowing up front
   are
@@ -180,6 +180,15 @@ cargo +nightly fuzz run ecl_parse                       # from fuzz/, needs carg
 **MSRV: the current stable Rust release minus three** — 1.95 as of this
 writing, checked in CI against that exact toolchain. The policy, and how it
 moves, is [`spec/rust-msrv-n-minus-3/`](spec/rust-msrv-n-minus-3/index.md).
+
+**Publishing to crates.io is manual, from the maintainer's own machine —
+deliberately, for now.** This project's stated policy is to move to
+OIDC-based CI publishing (crates.io's Trusted Publishing) once it is
+production-ready everywhere the project publishes: currently that reaches
+GitHub Actions and GitLab.com, but not self-hosted GitLab and not
+Codeberg/Forgejo, which this project's own three git remotes span. The
+criterion, and why it waits rather than adopting per-host, is
+[`spec/trusted-publishing/`](spec/trusted-publishing/index.md).
 
 Development is **specification-driven**: behavior is written in `spec/*.md`
 first, code cites the spec it implements (`// per spec/04 rule 5`), and

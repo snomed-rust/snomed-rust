@@ -102,7 +102,17 @@ Assessed 2026-08-26, while this spec and the trademark tooling were landing:
   an unverified account email rather than the key itself. All three
   documents (`MAINTAINERS.md`, `SECURITY.md`, `plan.md`) were updated in
   the same change each time, saying precisely what was verified and what
-  was not, rather than rounding up early.
+  was not, rather than rounding up early. "Manual publishing," the third
+  gap, turned out not to be a gap at all once
+  [`spec/free-open-source-funding/index.md`](../free-open-source-funding/index.md)'s
+  sibling, [`spec/trusted-publishing/index.md`](../trusted-publishing/index.md),
+  recorded the standing policy behind it — verified against crates.io's
+  actual current provider support (GitHub Actions and GitLab.com only)
+  before writing that down, not assumed. Same discipline as `FUNDING.yml`:
+  a declared absence is either a gap to close or a decision to record, and
+  this one was the latter, so `MAINTAINERS.md` and `SECURITY.md` now say
+  "deliberate policy, criteria stated" rather than leaving it read as an
+  open item.
 - **Rule 4**: met — tests, clippy, fmt, MSRV, fuzz, and bench run in CI
   (`.github/workflows/ci.yml`); the trademark check joined them on
   2026-08-26 (the `trademarks` job), and the repository-wide link check and

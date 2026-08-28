@@ -136,7 +136,14 @@ and harmonizes it with the sibling repositories (`hl7-rust`, `er7-rust`,
   on GitHub, GitLab, and Codeberg 2026-08-28, all three now confirmed
   "Verified" against each host's own API. Codeberg needed the commit
   author's email verified on the account too, past a misleading error
-  message — closed 2026-08-28. Fully closed, not partly.
+  message — closed 2026-08-28. Fully closed, not partly. "Manual
+  publishing" was the one item in this list that was never a gap to
+  close, just unstated as policy until `spec/trusted-publishing/`
+  recorded it 2026-08-28: crates.io's Trusted Publishing reaches GitHub
+  Actions and GitLab.com only, not Codeberg/Forgejo, so this project
+  waits for coverage across all three remotes it publishes from rather
+  than adopt it per-host. `MAINTAINERS.md` and `SECURITY.md` updated to
+  say so in the same change.
 - **Privacy and patient data**: complete — `PHI.md` landed 2026-08-26, the
   root page a hospital reviewer can read, with each claim verified against
   the tree rather than implied by the zero-dependency rule.

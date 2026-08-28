@@ -110,9 +110,13 @@ Each is recorded in [MAINTAINERS.md](MAINTAINERS.md) and none is a secret:
   passphrase-protected SSH key, verifiable locally with `git log
   --show-signature`; history before this landed is unsigned and stays that
   way. See [MAINTAINERS.md](MAINTAINERS.md) for the full posture.
-- **Publishing is manual**, from the maintainer's machine. There is no CI
-  publish lane and no crates.io Trusted Publishing configuration, so the
-  publishing authority terminates at one account.
+- **Publishing is manual**, from the maintainer's machine, and deliberately
+  so — not merely unconfigured. crates.io's Trusted Publishing (OIDC, no
+  long-lived token) reaches GitHub Actions and GitLab.com only, not
+  Codeberg/Forgejo, and this project's stated policy is to wait for full
+  coverage across all three remotes it publishes from rather than adopt it
+  per-host. See [`spec/trusted-publishing/`](spec/trusted-publishing/index.md).
+  Until then, the publishing authority terminates at one account.
 - **No archival deposit exists.** There is no DOI, so a release's permanence
   depends on crates.io and GitHub.
 - **No third-party audit has occurred**, and none is claimed anywhere in this

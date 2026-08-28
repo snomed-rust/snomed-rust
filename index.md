@@ -89,6 +89,7 @@ of an external specification, and bind the same way:
 | [special-files-for-public-repos/](spec/special-files-for-public-repos/index.md) | the special files a public repository carries at its root | the root documents |
 | [docs-budget-and-links/](spec/docs-budget-and-links/index.md) | 40 KB per-document budget; every relative link resolves | `bin/check-docs`, CI `docs` job |
 | [free-open-source-funding/](spec/free-open-source-funding/index.md) | funding channels this project accepts, and how to tell a real one from a speculative one | `.github/FUNDING.yml`, `CONTRIBUTING.md`, `NEWS.md` |
+| [trusted-publishing/](spec/trusted-publishing/index.md) | why `cargo publish` stays manual, and the criteria for switching to OIDC-based CI publishing | `MAINTAINERS.md`, `SECURITY.md`, `plan.md` |
 
 `snomed` (the facade) and `snomed-cli` (the terminal binary) both sit on
 top of every crate above rather than implementing a spec of their own —
