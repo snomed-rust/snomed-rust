@@ -84,8 +84,12 @@ Assessed 2026-08-26, while this spec and the trademark tooling were landing:
 - **Rule 2**: met — the special files exist and their counts were
   measured on 2026-08-26 (`BENCHMARKS.md` most strictly), and the local
   `spec/special-files-for-public-repos/` copy was re-synced with the
-  `fhir-rust` canonical version on 2026-08-26, its status section stating
-  the one deliberate absence (`.github/FUNDING.yml`).
+  `fhir-rust` canonical version on 2026-08-26. `.github/FUNDING.yml`, its
+  one noted absence, landed 2026-08-28 once
+  [`spec/free-open-source-funding/index.md`](../free-open-source-funding/index.md)
+  recorded the maintainer's decision to reverse that stance; its status
+  section now says so, including the part still unfinished (Open
+  Collective).
 - **Rule 3**: met so far — the gaps SECURITY.md, MAINTAINERS.md, and
   AI_STATEMENT.md declare (unsigned commits/tags, no DOI, manual publishing)
   are all tracked under `tasks.md` "Next up", none silently dropped. Private

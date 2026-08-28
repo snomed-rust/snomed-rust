@@ -65,14 +65,15 @@ Supporting documents:
   and questions, answered.
 - [`spec/`](spec/README.md) — project-local distillation of the official
   [RF2 Release File Specification](https://docs.snomed.org/snomed-ct-specifications/snomed-ct-release-file-specification);
-  the normative reference for this codebase. It also holds seven project
-  policies that bind the same way:
+  the normative reference for this codebase. It also holds eleven project
+  policies that bind the same way — the full table, kept current, is in
+  [`spec/README.md`](spec/README.md); the ones most worth knowing up front
+  are
   [MSRV](spec/rust-msrv-n-minus-3/index.md), [fuzzing](spec/rust-fuzz.md),
   [benchmarking](spec/rust-bench.md),
   [API stability](spec/rust-api-stability.md),
-  [no `unsafe`](spec/rust-no-unsafe/index.md),
-  [professionalization](spec/professionalization/index.md), and
-  [the `agents` directory name](spec/agents-directory-name-is-lowercase/index.md).
+  [no `unsafe`](spec/rust-no-unsafe/index.md), and
+  [professionalization](spec/professionalization/index.md).
 - [`plan.md`](plan.md) — roadmap by phase (with
   [`docs/plan-archive.md`](docs/plan-archive.md) holding the closed
   phases' full design narrative); [`tasks.md`](tasks.md) — execution

@@ -201,13 +201,18 @@ CLA to sign.
 
 ## Money
 
-**There is no donation channel, no GitHub Sponsors, and no Open Collective.**
-None is set up, and this document is not going to pretend otherwise or invent a
-link.
+**GitHub Sponsors is a real channel: <https://github.com/sponsors/joelparkerhenderson>.**
+It is the maintainer's existing personal Sponsors profile, not something set
+up speculatively for this project alone, and [`.github/FUNDING.yml`](.github/FUNDING.yml)
+points at it — GitHub itself will render a "Sponsor" button on this
+repository. **There is no Open Collective** as of 2026-08-28; setting one up
+means applying to a fiscal host, which needs the maintainer's own submission
+and isn't instant, so `FUNDING.yml` deliberately omits a slug that would
+resolve to nothing rather than adding one speculatively.
 
-If you or your organization want to fund work on this, the honest position is
-that money is not currently the binding constraint, and three other things
-would move the project further:
+That a channel exists doesn't change the honest position underneath it: money
+is not currently the binding constraint on this project, and three other
+things would move it further, sponsorship or not:
 
 - **Access to a licensed release** for conformance testing, in a form that lets
   results be published without redistributing content. This is the gap money
@@ -218,10 +223,10 @@ would move the project further:
 - **A named production deployment** you are willing to be quoted about. Nothing
   else moves adoption comparably, and [NEWS.md](NEWS.md) explains why.
 
-If you still want to fund it — to sponsor a specific piece of work, to cover
-Affiliate licensing in a non-member territory, or to underwrite a conformance
-run — write to joel@joelparkerhenderson.com and it can be arranged. It just is
-not set up speculatively.
+If you want to fund something specific — a piece of work, Affiliate licensing
+in a non-member territory, or underwriting a conformance run — write to
+joel@joelparkerhenderson.com and it can be arranged directly rather than
+through Sponsors' general pool.
 
 ## What you can expect back
 

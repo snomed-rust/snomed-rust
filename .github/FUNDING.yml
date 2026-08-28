@@ -1,0 +1,16 @@
+# Per spec/free-open-source-funding/index.md.
+#
+# github: real and verified — GitHub Sponsors is already enabled on the
+# maintainer's account (github.com/sponsors/joelparkerhenderson), confirmed
+# via the GitHub API (`sponsorsListing.isPublic: true`) before this file was
+# added, so the button this file renders points at something that exists.
+#
+# open_collective is deliberately absent, not merely unlisted: no Open
+# Collective exists for this project or the maintainer as of 2026-08-28
+# (checked against Open Collective's own GraphQL API — `Collective Not
+# Found`), and creating one needs an application to a fiscal host that only
+# the maintainer can submit and that isn't instant. Add the line here once
+# that collective exists; a slug that resolves to nothing is worse than no
+# line at all. See CONTRIBUTING.md's Money section for the fuller context.
+
+github: [joelparkerhenderson]

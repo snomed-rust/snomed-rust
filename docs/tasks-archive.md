@@ -1,7 +1,7 @@
 # Tasks archive — index
 
 [`tasks.md`](../tasks.md) keeps the current checklist and the recent
-entries; everything older lives here, split into six files that each stay
+entries; everything older lives here, split into eight files that each stay
 inside the repository's 40 KB per-document budget. Entries were moved
 verbatim — this is a historical record, not a summary, and it is worth
 searching before assuming a problem is new. The one edit applied since is
@@ -18,6 +18,7 @@ so the paths quoted here still resolve.
 | [`tasks-archive-5.md`](tasks-archive-5.md) | 2026-08-21 | `#[non_exhaustive]`, the `agents/` rename, four spec-compliance gaps, `{{ D ... }}` filters, row-based fuzz targets, refset member history |
 | [`tasks-archive-6.md`](tasks-archive-6.md) | 2026-08-22 - 2026-08-23 | Necessary normal form's second pass, `MemberId` as a `u128`, the remaining `{{ D ... }}` filter kinds and typed search terms, the reverse association index, the exponential-refinement bug the fuzzer found, and the two benchmark audits it prompted |
 | [`tasks-archive-7.md`](tasks-archive-7.md) | 2026-08-23 | The standing spec-citation guard, ECL dot notation, `memberOf` gaining its real operand (`^ *`, computed sets, `< ^ X`), `^R` and the reverse membership index, and the documentation audit that closed out 0.10.0 |
+| [`tasks-archive-8.md`](tasks-archive-8.md) | 2026-08-26 | Releases 0.11.0-0.11.3, the owner-specified trademark notice and its crate-description enforcement, the SNOMED International inquiry draft, the spec-directory `index.md`/`README.md` symlink convention, repository security settings, the professionalization spec and its execution, and the outreach research and root document set |
 
 Older entries are shorter and more granular than recent ones: they were
 written a change at a time while the workspace was being built from

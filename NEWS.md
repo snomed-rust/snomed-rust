@@ -73,6 +73,14 @@ for everyone than a late one.
 purpose, including screenshots of real release data. See
 [Reporting accurately](#reporting-accurately) below.
 
+## Funding
+
+[GitHub Sponsors](https://github.com/sponsors/joelparkerhenderson) is the
+one real channel, as of 2026-08-28; there is no Open Collective. Sponsorship
+isn't what would move this project furthest — see
+[CONTRIBUTING.md's Money section](CONTRIBUTING.md#money) for what would —
+but it's real and it's open.
+
 ## Boilerplate
 
 Copy these rather than paraphrasing; they are written to be accurate at

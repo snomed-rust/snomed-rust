@@ -29,11 +29,15 @@ Re-synced 2026-08-26 with the `fhir-rust` canonical version of this list
 conventions sync from the repository that owns the canonical copy). Three
 notes:
 
-- **All of the above exist as of 2026-08-26, except `.github/FUNDING.yml`
-  — deliberately.** [`CONTRIBUTING.md`](../../CONTRIBUTING.md) states that
-  money is not this project's binding constraint and no sponsorship channel
-  exists, so a funding file would point at nothing. `tasks.md` records it
-  as a decision, not a gap; add the file only if that position changes.
+- **All of the above exist as of 2026-08-28.** `.github/FUNDING.yml` was
+  the last holdout — deliberately absent through 2026-08-26 because no
+  sponsorship channel existed and a funding file would have pointed at
+  nothing. [`spec/free-open-source-funding/index.md`](../free-open-source-funding/index.md)
+  recorded the maintainer's decision to change that; the file now exists,
+  pointing at the maintainer's existing GitHub Sponsors profile (verified
+  against the GitHub API before being added). Open Collective is still not
+  set up — that half is unfinished, not silently dropped, and needs the
+  maintainer's own application to a fiscal host.
 - **`AI_STATEMENT.md` has one source** — the repository root — as of
   2026-08-26. A divergent full draft used to sit in this directory too; it
   is now a pointer at the root document, with the resolution recorded in
