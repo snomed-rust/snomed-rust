@@ -180,14 +180,17 @@ before".
 
 ## Next up
 
-- [ ] Nothing currently scoped. State as of 2026-08-27 (0.11.3, three
-      patch releases since 0.11.0 — see `CHANGELOG.md`): 9 crates, 353
-      tests, clippy/fmt clean on stable, the pinned MSRV toolchain,
-      `fuzz/`, and `benches/`; 13 fuzz targets; 6 criterion benchmark
-      files; 29 `spec/` documents (17 specification distillations, the
-      README index, and 11 project policies), every one registered in the
-      README index. Every gap `spec/` documents as missing is closed,
-      reclassified, or blocked on a decision below.
+- [ ] Nothing currently scoped. State as of 2026-08-28 (0.11.3, no new
+      release since — this session's work was CI, signing, and funding,
+      not a code change; see `CHANGELOG.md`): 9 crates, 353 tests,
+      clippy/fmt clean on stable, the pinned MSRV toolchain, `fuzz/`, and
+      `benches/`; 13 fuzz targets; 6 criterion benchmark files; 29
+      `spec/` documents (17 specification distillations, the README
+      index, and 11 project policies), every one registered in the
+      README index. Commit/tag signing verified on GitHub and GitLab; the maintainer just
+      registered the key on Codeberg too, and this very commit is the
+      check of whether it took effect. Every gap `spec/` documents as missing is
+      closed, reclassified, or blocked on a decision below.
       Checked on 2026-08-27 for anything actually pickable without a
       decision: the two "spelling gap" ECL items below —
       `moduleId`'s `eclConceptReferenceSet` form and `dialectIdSet` — are
