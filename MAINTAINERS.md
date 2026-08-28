@@ -55,12 +55,19 @@ rather than leaving for a reader to discover:
   each host's own API (`GET /repos/.../commits/main` →
   `commit.verification.verified: true`, `reason: valid` on GitHub;
   `GET /repository/commits/:sha/signature` → `verification_status:
-  "verified"` on GitLab). **Codeberg does not yet show it**: its API
-  reports `verified: false, reason: gpg.error.no_gpg_keys_found` — the key
-  is not registered there. Registering it needed, and getting the other
-  two working needed, the maintainer's own interactive session on each
-  host; Codeberg (Forgejo) has no CLI installed here to check or automate
-  it further, only its web settings.
+  "verified"` on GitLab). **Codeberg does not yet show it, and the fix is
+  not "register the key" — that part is already done.** The maintainer
+  registered the SSH key there 2026-08-28, and Codeberg's API still
+  reports `verified: false, reason: gpg.error.no_gpg_keys_found` on new
+  commits. That error string is documented as misleading by Codeberg's
+  own community tracker (issue #1993): the actual requirement is that
+  the *commit author's email* be added and verified on the account, not
+  only the signing key. Commits here are authored as
+  `joel@joelparkerhenderson.com`; Codeberg's API resolves the matched
+  account's public email as `joelparkerhenderson@noreply.codeberg.org`,
+  which points at that address not being verified there yet. Fix:
+  Codeberg Settings → Account → add and verify
+  `joel@joelparkerhenderson.com`.
 - **No archival DOI exists yet.** [`CITATION.cff`](CITATION.cff) makes the
   work citable by name and version; a Zenodo deposit, which would make a
   release citable after this repository stops existing, has not been created.

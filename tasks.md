@@ -187,9 +187,19 @@ before".
       `benches/`; 13 fuzz targets; 6 criterion benchmark files; 29
       `spec/` documents (17 specification distillations, the README
       index, and 11 project policies), every one registered in the
-      README index. Commit/tag signing verified on GitHub and GitLab; the maintainer just
-      registered the key on Codeberg too, and this very commit is the
-      check of whether it took effect. Every gap `spec/` documents as missing is
+      README index. Commit/tag signing verified on GitHub and GitLab.
+      Codeberg still shows `no_gpg_keys_found` on this commit even after
+      the key was registered there — diagnosed, not just retried:
+      Codeberg's own community tracker (issue #1993) documents that this
+      exact error is misleading and the real requirement is that the
+      commit's *author email* be added and verified on the account, not
+      only the SSH key. Commits here are authored as
+      `joel@joelparkerhenderson.com`; the Codeberg API's own commit
+      response resolves the matched account's public email as
+      `joelparkerhenderson@noreply.codeberg.org`, suggesting the former
+      is not yet a verified address there. Fix is on the maintainer's
+      side: Codeberg Settings → Account → add and verify
+      `joel@joelparkerhenderson.com`. Every gap `spec/` documents as missing is
       closed, reclassified, or blocked on a decision below.
       Checked on 2026-08-27 for anything actually pickable without a
       decision: the two "spelling gap" ECL items below —
