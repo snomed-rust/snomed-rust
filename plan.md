@@ -133,9 +133,10 @@ and harmonizes it with the sibling repositories (`hl7-rust`, `er7-rust`,
   first. Commit/tag signing was configured 2026-08-27 (`gpg.format = ssh`,
   a passphrase-protected ed25519 key, local `gpg.ssh.allowedSignersFile`
   verification); the maintainer registered the public key as a signing key
-  on GitHub and GitLab 2026-08-28, both confirmed "Verified" against each
-  host's own API. Codeberg still reports `no_gpg_keys_found` for it.
-  Tracked in `tasks.md` as two of three closed, not fully closed.
+  on GitHub, GitLab, and Codeberg 2026-08-28, all three now confirmed
+  "Verified" against each host's own API. Codeberg needed the commit
+  author's email verified on the account too, past a misleading error
+  message — closed 2026-08-28. Fully closed, not partly.
 - **Privacy and patient data**: complete — `PHI.md` landed 2026-08-26, the
   root page a hospital reviewer can read, with each claim verified against
   the tree rather than implied by the zero-dependency rule.

@@ -12,6 +12,32 @@ most recently on 2026-08-28, to keep this file inside the repository's
 40 KB per-document budget. Search both when asking "has this come up
 before".
 
+## Done (2026-08-28, Codeberg now verifies too — all three forges closed)
+
+- [x] **The maintainer verified their `joel@joelparkerhenderson.com`
+      address on Codeberg**, closing the gap diagnosed and recorded
+      earlier the same day: the SSH signing key was already registered,
+      but Codeberg's `no_gpg_keys_found` error — documented as misleading
+      on Codeberg's own community tracker (issue #1993) — actually meant
+      the commit author's *email* wasn't yet a verified address on the
+      account, not that the key was missing.
+- [x] **Confirmed against Codeberg's own API, on the existing commit
+      already pushed, with no new push needed** — the diagnosis
+      predicted exactly this: Codeberg computes verification at read
+      time against the account's current state, not at push time. `GET
+      .../git/commits/main` now returns `verification.verified: true`,
+      `signer` naming the key's own fingerprint. Cross-checked GitHub and
+      GitLab the same way, both still `verified: true`.
+- [x] **Closed out the documentation, not left half-updated**: rewrote
+      `MAINTAINERS.md`'s signing bullet from "two of three, Codeberg
+      diagnosed but open" to "all three, verified" in one pass rather
+      than layering another partial update; updated `SECURITY.md`,
+      `plan.md`, and `spec/professionalization/index.md`'s Rule 3 status
+      note to match, and struck through the last open half of the
+      hygiene item below.
+- [x] Verified: `bin/check-docs`, `bin/check-trademarks`, `spec_citations`
+      all pass, unaffected by a documentation-only change.
+
 ## Done (2026-08-28, `.github/FUNDING.yml`: the decision reversed itself)
 
 - [x] Read `spec/free-open-source-funding/index.md` (new, five bullets:
@@ -187,20 +213,10 @@ before".
       `benches/`; 13 fuzz targets; 6 criterion benchmark files; 29
       `spec/` documents (17 specification distillations, the README
       index, and 11 project policies), every one registered in the
-      README index. Commit/tag signing verified on GitHub and GitLab.
-      Codeberg still shows `no_gpg_keys_found` on this commit even after
-      the key was registered there — diagnosed, not just retried:
-      Codeberg's own community tracker (issue #1993) documents that this
-      exact error is misleading and the real requirement is that the
-      commit's *author email* be added and verified on the account, not
-      only the SSH key. Commits here are authored as
-      `joel@joelparkerhenderson.com`; the Codeberg API's own commit
-      response resolves the matched account's public email as
-      `joelparkerhenderson@noreply.codeberg.org`, suggesting the former
-      is not yet a verified address there. Fix is on the maintainer's
-      side: Codeberg Settings → Account → add and verify
-      `joel@joelparkerhenderson.com`. Every gap `spec/` documents as missing is
-      closed, reclassified, or blocked on a decision below.
+      README index. Commit/tag signing now verified on all three forges
+      — see the Done section above for how Codeberg's part closed. Every
+      gap `spec/` documents as missing is closed, reclassified, or
+      blocked on a decision below.
       Checked on 2026-08-27 for anything actually pickable without a
       decision: the two "spelling gap" ECL items below —
       `moduleId`'s `eclConceptReferenceSet` form and `dialectIdSet` — are
@@ -216,15 +232,13 @@ before".
       unblocked.
 - [ ] **Repository-hygiene gaps named in `MAINTAINERS.md` and
       `AI_STATEMENT.md`**, each independently pickable:
-      - ~~**Sign commits and tags**~~ — **mostly done**: local git signing
-        configured 2026-08-27, verifiable with `git log --show-signature`;
-        GitHub and GitLab confirmed "Verified" 2026-08-28 once the
-        maintainer registered the public key as a *signing* key on each
-        (see the Done section below for the verification evidence). What
-        is left, genuinely blocked on the maintainer's own presence:
-        register the same key on **Codeberg** — its API still returns
-        `no_gpg_keys_found` for it, and no CLI here (`tea` is not
-        installed) can do this non-interactively.
+      - ~~**Sign commits and tags**~~ — **done, 2026-08-28**: local git
+        signing configured 2026-08-27; GitHub, GitLab, and Codeberg all
+        confirmed "Verified" against their own APIs by end of day
+        2026-08-28. Codeberg needed one extra step past registering the
+        key — its account email had to be verified too, past a
+        misleadingly-worded error. See the Done sections above for both
+        halves of the evidence.
       - **Create a Zenodo deposit** wired to GitHub releases so a version
         has a DOI. Not started.
       - **Decide whether publishing moves to a CI lane** with crates.io

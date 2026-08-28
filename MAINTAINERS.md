@@ -35,10 +35,10 @@ hand over.
 | The crates.io publish credential | the `cargo publish` runs themselves | the maintainer's machine — **publishing is manual; there is no CI publish workflow and no Trusted Publishing configuration in this repository** | none; a successor would need crates.io ownership transferred before they could publish anything |
 | The GitHub Pages repository behind <https://snomed-rust.github.io/> | the documentation site, pushed by `make publish` | the maintainer, using their own push credentials — see the [`Makefile`](Makefile), which notes there is deliberately no deploy key, GitHub App secret, or org-wide setting behind it | tied to GitHub account recovery |
 
-One gap remains fully open, and one is partly closed — both worth stating
+One gap remains fully open; one closed as of 2026-08-28. Both worth stating
 rather than leaving for a reader to discover:
 
-- **Commit and tag signing is configured, and verifiable on two of three
+- **Commit and tag signing is configured, and verified on all three
   forges.** This repository's local git config (`gpg.format = ssh`,
   `user.signingkey`, `commit.gpgsign`, `tag.gpgsign`) signs new commits and
   tags with an ed25519 SSH key, and `gpg.ssh.allowedSignersFile` points at
@@ -49,25 +49,19 @@ rather than leaving for a reader to discover:
   other row in the table above. History before this configuration landed
   is unsigned and stays that way; git does not retroactively sign.
 
-  As of 2026-08-28 the public key is registered as a *signing* key (as
-  distinct from the *authentication* key already on file) on GitHub and
-  GitLab, and both render "Verified" on new commits — confirmed against
-  each host's own API (`GET /repos/.../commits/main` →
-  `commit.verification.verified: true`, `reason: valid` on GitHub;
-  `GET /repository/commits/:sha/signature` → `verification_status:
-  "verified"` on GitLab). **Codeberg does not yet show it, and the fix is
-  not "register the key" — that part is already done.** The maintainer
-  registered the SSH key there 2026-08-28, and Codeberg's API still
-  reports `verified: false, reason: gpg.error.no_gpg_keys_found` on new
-  commits. That error string is documented as misleading by Codeberg's
-  own community tracker (issue #1993): the actual requirement is that
-  the *commit author's email* be added and verified on the account, not
-  only the signing key. Commits here are authored as
-  `joel@joelparkerhenderson.com`; Codeberg's API resolves the matched
-  account's public email as `joelparkerhenderson@noreply.codeberg.org`,
-  which points at that address not being verified there yet. Fix:
-  Codeberg Settings → Account → add and verify
-  `joel@joelparkerhenderson.com`.
+  The public key is registered as a *signing* key (as distinct from the
+  *authentication* key already on file) on GitHub, GitLab, and Codeberg,
+  and all three render "Verified" — confirmed against each host's own API:
+  GitHub (`commit.verification.verified: true, reason: "valid"`), GitLab
+  (`verification_status: "verified"`), and Codeberg
+  (`verification.verified: true, signer` naming the key's fingerprint).
+  Codeberg needed one extra step past registering the key: it also
+  requires the commit author's email — `joel@joelparkerhenderson.com` —
+  to be added and verified on the account, something its own
+  `no_gpg_keys_found` error does not say. Worth knowing if this ever needs
+  redoing: Codeberg computes verification at read time against the
+  account's current state, not at push time, so fixing the account
+  retroactively verified commits already pushed, with no re-push needed.
 - **No archival DOI exists yet.** [`CITATION.cff`](CITATION.cff) makes the
   work citable by name and version; a Zenodo deposit, which would make a
   release citable after this repository stops existing, has not been created.
