@@ -158,8 +158,8 @@ breaks one will be sent back regardless of how good the code is.
    ([`spec/rust-no-unsafe/index.md`](spec/rust-no-unsafe/index.md)). A new
    crate root, fuzz target, or benchmark gets the attribute in the same change
    that creates it.
-7. **Respect the MSRV**: current stable Rust minus three
-   ([`spec/rust-msrv-n-minus-3/index.md`](spec/rust-msrv-n-minus-3/index.md)).
+7. **Respect the MSRV**: current stable Rust minus two
+   ([`spec/rust-msrv-n-minus-2/index.md`](spec/rust-msrv-n-minus-2/index.md)).
    Do not use a feature stabilized after it.
 8. **Do not weaken a test, a spec rule, or a CI gate to make something pass.**
    If a gate is wrong, change the gate deliberately and say why.

@@ -6,7 +6,7 @@ runs each case to a statistical confidence interval and compares it against
 the previous run — so a change that costs 15% shows up as a regression
 instead of as noise.
 
-Like [rust-msrv-n-minus-3/](rust-msrv-n-minus-3/index.md) and
+Like [rust-msrv-n-minus-2/](rust-msrv-n-minus-2/index.md) and
 [rust-fuzz.md](rust-fuzz.md), this is a project policy, not a distillation of
 an external specification.
 
@@ -34,7 +34,7 @@ benches/
 criterion is an external dependency, and CLAUDE.md rule 2 keeps the published
 crates free of those — including dev-dependencies, which every `cargo test`
 would otherwise have to build. The package tracks the same MSRV as the
-workspace ([rust-msrv-n-minus-3/](rust-msrv-n-minus-3/index.md)).
+workspace ([rust-msrv-n-minus-2/](rust-msrv-n-minus-2/index.md)).
 
 `crates/snomed-store/examples/benchmark_synthetic_release.rs` predates these
 benchmarks and stays: it writes a real ~370k-concept RF2 release to disk and

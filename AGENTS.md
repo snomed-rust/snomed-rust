@@ -37,8 +37,8 @@ the workspace so the published crates keep zero dependencies.
 7. Public API items carry doc comments citing their spec section; follow the
    existing error-enum style (hand-rolled `Display` + `std::error::Error`,
    no `thiserror`).
-8. The MSRV is the current stable Rust release minus three
-   (`spec/rust-msrv-n-minus-3/index.md`). Don't use a feature newer than that;
+8. The MSRV is the current stable Rust release minus two
+   (`spec/rust-msrv-n-minus-2/index.md`). Don't use a feature newer than that;
    when you raise `rust-version`, move the CI `msrv` job's pin in the
    same change and re-run clippy — MSRV-gated lints change with it.
 9. **No panics on public API input.** A parser returns a typed error; an

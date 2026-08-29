@@ -65,7 +65,7 @@ binding on this workspace in the same way):
 
 | Policy | Covers | Recorded in |
 |---|---|---|
-| [rust-msrv-n-minus-3/](rust-msrv-n-minus-3/index.md) | Minimum Supported Rust Version: current stable minus three | `Cargo.toml`, `.github/workflows/ci.yml` |
+| [rust-msrv-n-minus-2/](rust-msrv-n-minus-2/index.md) | Minimum Supported Rust Version: current stable minus two | `Cargo.toml`, `.github/workflows/ci.yml` |
 | [rust-fuzz.md](rust-fuzz.md) | Fuzz targets, the no-panic invariant, seed corpora | `fuzz/` |
 | [rust-bench.md](rust-bench.md) | Criterion benchmarks: what is measured and how | `benches/` |
 | [rust-api-stability.md](rust-api-stability.md) | Which public enums are `#[non_exhaustive]`, and why the ASTs are not | every crate's public enums |

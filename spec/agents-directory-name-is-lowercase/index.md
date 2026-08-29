@@ -5,7 +5,7 @@ agents is named **`agents`**, in lowercase. There is one today —
 `agents/`, the role playbooks — and any future one (a tool-specific
 `.claude/agents/`, a `.github/agents/`) uses the same spelling.
 
-Like [rust-msrv-n-minus-3/](../rust-msrv-n-minus-3/index.md),
+Like [rust-msrv-n-minus-2/](../rust-msrv-n-minus-2/index.md),
 [rust-fuzz.md](../rust-fuzz.md), [rust-bench.md](../rust-bench.md), and
 [rust-api-stability.md](../rust-api-stability.md), this is a project policy
 rather than a distillation of an external specification.

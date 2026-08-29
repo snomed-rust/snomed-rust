@@ -9,7 +9,7 @@ name = "snomed-benches"
 version = "0.0.0"
 publish = false
 edition = "2021"
-rust-version = "1.95"
+rust-version = "1.96"
 license = "Apache-2.0 OR MIT"
 
 [workspace]

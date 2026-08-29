@@ -11,20 +11,19 @@ human-readable layer above it.
 
 | | |
 |---|---|
-| Version | **0.11.3**, released 2026-08-26 |
+| Version | **0.12.0**, released 2026-08-29 |
 | Crates | nine, released together and sharing one version number |
-| Rust MSRV | 1.95 (current stable minus three) |
+| Rust MSRV | 1.96 (current stable minus two) |
 | License | `Apache-2.0 OR MIT` |
 | Source | <https://github.com/snomed-rust/snomed-rust> |
 | Packages | <https://crates.io/crates/snomed> |
 | Documentation | <https://docs.rs/snomed> · <https://snomed-rust.github.io/> |
 
-0.11.3 changes no behavior and no API. The 0.11.1–0.11.3 patch series is
-about the trademark notice: 0.11.1 adopted the owner-specified wording at
-every documentation site, 0.11.2 put the notice into each crate's
-crates.io description and at the top of its README, and 0.11.3 fixes the
-two typos 0.11.2 published and makes the description coverage enforced by
-`bin/check-trademarks`. Full detail is in the [changelog](CHANGELOG.md).
+0.12.0 raises the MSRV from 1.95 to 1.96 — the policy tightened from
+current-stable-minus-three to current-stable-minus-two. No public API
+changed, but a build on Rust 1.95 will no longer compile against this
+release; pin to 0.11.3 if you need the older floor. Full detail is in the
+[changelog](CHANGELOG.md).
 
 **Pre-1.0 caveat, stated up front because it affects anyone writing about
 adoption:** a minor version bump may include breaking API changes. The
@@ -40,6 +39,7 @@ project is young and says so.
 | 2026-08-26 | 0.11.0 — `unsafe` forbidden at every crate root; the evaluator-facing document set |
 | 2026-08-26 | 0.11.1 — the owner-specified trademark notice, on every page and every crates.io README |
 | 2026-08-26 | 0.11.2, 0.11.3 — the notice into every crate description, then typo-fixed and enforced |
+| 2026-08-29 | 0.12.0 — MSRV tightened from current-stable-minus-three to current-stable-minus-two (1.96) |
 
 ## Following updates
 
@@ -125,7 +125,7 @@ remains licensed material obtained separately from SNOMED International.
 - **What it is not.** Not a terminology server, not an authoring platform, not
   a browser, and not a replacement for Snowstorm. [COMPARISONS.md](COMPARISONS.md)
   states the limitations at length and names the tools that do those jobs.
-- **Maturity.** Version 0.11.3, first published in August 2026, one
+- **Maturity.** Version 0.12.0, first published in August 2026, one
   maintainer, pre-1.0. [MAINTAINERS.md](MAINTAINERS.md) states the bus factor
   and the continuity position without softening, and is the right source for
   any risk framing.
