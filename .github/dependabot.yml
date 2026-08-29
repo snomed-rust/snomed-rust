@@ -1,0 +1,29 @@
+# Dependabot scheduled update PRs, per spec/dependabot/index.md.
+#
+# Three separate cargo roots, matching the three cargo packages this repo
+# actually builds (CLAUDE.md "Rules that matter here" #2): the workspace
+# at "/", and `fuzz/` and `benches/`, which are deliberately kept outside
+# the workspace so the zero-dependency crates never pull in their deps.
+# Plus one "github-actions" entry for the workflow action versions.
+
+version: 2
+updates:
+  - package-ecosystem: "cargo"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+
+  - package-ecosystem: "cargo"
+    directory: "/fuzz"
+    schedule:
+      interval: "weekly"
+
+  - package-ecosystem: "cargo"
+    directory: "/benches"
+    schedule:
+      interval: "weekly"
+
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
