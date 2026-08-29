@@ -44,7 +44,7 @@ Constraint Language (spec/10), FHIR terminology-service building blocks
 classification (spec/13), and necessary normal form generation (spec/14).
 
 How that implementation is verified is itself specified here:
-[rust-msrv-n-minus-3/](rust-msrv-n-minus-3/index.md) fixes the Rust version
+[rust-msrv-n-minus-2/](rust-msrv-n-minus-2/index.md) fixes the Rust version
 the code may assume, [rust-fuzz.md](rust-fuzz.md) the properties every
 text input must satisfy under fuzzing, and [rust-bench.md](rust-bench.md)
 what gets measured rather than asserted.

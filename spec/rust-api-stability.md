@@ -7,7 +7,7 @@ lets the enum grow forever without another one.
 
 Whether that trade is right depends on what the enum *is*, so this
 workspace draws a line rather than applying the attribute uniformly. Like
-[rust-msrv-n-minus-3/](rust-msrv-n-minus-3/index.md),
+[rust-msrv-n-minus-2/](rust-msrv-n-minus-2/index.md),
 [rust-fuzz.md](rust-fuzz.md), and [rust-bench.md](rust-bench.md), this is
 a project policy, not a distillation of an external specification.
 

@@ -69,7 +69,7 @@ Supporting documents:
   policies that bind the same way — the full table, kept current, is in
   [`spec/README.md`](spec/README.md); the ones most worth knowing up front
   are
-  [MSRV](spec/rust-msrv-n-minus-3/index.md), [fuzzing](spec/rust-fuzz.md),
+  [MSRV](spec/rust-msrv-n-minus-2/index.md), [fuzzing](spec/rust-fuzz.md),
   [benchmarking](spec/rust-bench.md),
   [API stability](spec/rust-api-stability.md),
   [no `unsafe`](spec/rust-no-unsafe/index.md), and
@@ -177,9 +177,9 @@ cargo bench --manifest-path benches/Cargo.toml          # criterion benchmarks
 cargo +nightly fuzz run ecl_parse                       # from fuzz/, needs cargo-fuzz
 ```
 
-**MSRV: the current stable Rust release minus three** — 1.95 as of this
+**MSRV: the current stable Rust release minus two** — 1.96 as of this
 writing, checked in CI against that exact toolchain. The policy, and how it
-moves, is [`spec/rust-msrv-n-minus-3/`](spec/rust-msrv-n-minus-3/index.md).
+moves, is [`spec/rust-msrv-n-minus-2/`](spec/rust-msrv-n-minus-2/index.md).
 
 **Publishing to crates.io is manual, from the maintainer's own machine —
 deliberately, for now.** This project's stated policy is to move to

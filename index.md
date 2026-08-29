@@ -10,7 +10,7 @@ Start here rather than guessing which file to open:
 | **Role playbooks** | "I'm about to change this crate — what conventions/gotchas apply?" | [`agents/*.md`](agents) |
 | **Tutorial** | "I'm new — walk me through it step by step." | [`docs/tutorial.md`](docs/tutorial.md) |
 | **Troubleshooting** | "I hit an error / something looks wrong — is this expected?" | [`docs/troubleshooting.md`](docs/troubleshooting.md) |
-| **Project policies** | "What Rust version, how is this verified beyond unit tests, what breaks downstream?" | [`spec/rust-msrv-n-minus-3/index.md`](spec/rust-msrv-n-minus-3/index.md), [`spec/rust-fuzz.md`](spec/rust-fuzz.md), [`spec/rust-bench.md`](spec/rust-bench.md), [`spec/rust-api-stability.md`](spec/rust-api-stability.md), [`spec/rust-no-unsafe/index.md`](spec/rust-no-unsafe/index.md), [`spec/professionalization/index.md`](spec/professionalization/index.md), [`spec/agents-directory-name-is-lowercase/index.md`](spec/agents-directory-name-is-lowercase/index.md) |
+| **Project policies** | "What Rust version, how is this verified beyond unit tests, what breaks downstream?" | [`spec/rust-msrv-n-minus-2/index.md`](spec/rust-msrv-n-minus-2/index.md), [`spec/rust-fuzz.md`](spec/rust-fuzz.md), [`spec/rust-bench.md`](spec/rust-bench.md), [`spec/rust-api-stability.md`](spec/rust-api-stability.md), [`spec/rust-no-unsafe/index.md`](spec/rust-no-unsafe/index.md), [`spec/professionalization/index.md`](spec/professionalization/index.md), [`spec/agents-directory-name-is-lowercase/index.md`](spec/agents-directory-name-is-lowercase/index.md) |
 
 Plus two process documents that aren't reference material:
 [`plan.md`](plan.md) (the roadmap by phase, with the *why* behind
@@ -78,7 +78,7 @@ of an external specification, and bind the same way:
 
 | Policy | Covers | Lives in |
 |---|---|---|
-| [rust-msrv-n-minus-3/](spec/rust-msrv-n-minus-3/index.md) | MSRV = current stable Rust minus three | `Cargo.toml`, CI `msrv` job |
+| [rust-msrv-n-minus-2/](spec/rust-msrv-n-minus-2/index.md) | MSRV = current stable Rust minus two | `Cargo.toml`, CI `msrv` job |
 | [rust-fuzz.md](spec/rust-fuzz.md) | fuzz targets, the no-panic invariant, seed corpora | `fuzz/` (outside the workspace) |
 | [rust-bench.md](spec/rust-bench.md) | criterion benchmarks: what is measured, and how | `benches/` (outside the workspace) |
 | [rust-api-stability.md](spec/rust-api-stability.md) | which public enums are `#[non_exhaustive]` | every crate's public enums |

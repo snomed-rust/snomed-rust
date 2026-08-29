@@ -13,6 +13,37 @@ together, in dependency order (`snomed-core` → `snomed-rf2` → `snomed-owl`
 
 ## [Unreleased]
 
+## [0.12.0] — 2026-08-29
+
+**Breaking for consumers on an older toolchain, not to the API.** The
+Minimum Supported Rust Version policy tightened from current-stable-minus-3
+to current-stable-minus-2 (`spec/rust-msrv-n-minus-2/index.md`, superseding
+`spec/rust-msrv-n-minus-3.md`); no public signature changed, but the
+`rust-version` field every published crate carries did, and `cargo` enforces
+it. A minor bump because this workspace's own policy treats a floor change
+as belonging with additions rather than with the patch-only manifest fixes
+in 0.11.1–0.11.3.
+
+### Changed
+
+- MSRV raised from 1.95 to **1.96** — current stable (1.98) minus two,
+  rather than minus three. Set in `[workspace.package].rust-version`,
+  inherited by every crate; `benches/`'s own `rust-version` moved in step,
+  per its own policy of tracking the workspace value.
+- The CI `msrv` job's pinned toolchain moved from `dtolnay/rust-toolchain@1.95`
+  to `@1.96`.
+- Verified before publishing, not assumed: `cargo +1.96 check --all-targets
+  --workspace` and, separately, `cargo +1.96 check --all-targets
+  --manifest-path benches/Cargo.toml` both compile clean with no code
+  changes required — the workspace already met the tighter floor.
+
+### Notes for consumers
+
+- **If you build on Rust 1.95, this release will not compile for you.**
+  Update to 1.96 or newer, or pin your dependency to `0.11.3`.
+- No public API changed. `snomed-store 0.12.0` and `snomed-ecl 0.11.3` are
+  API-compatible; only the toolchain floor moved.
+
 ## [0.11.3] — 2026-08-26
 
 No behavior changes and no API changes: a manifest-and-tooling patch that

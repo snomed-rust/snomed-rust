@@ -199,9 +199,13 @@ Concretely, from anyone evaluating terminology tooling:
 
 Four self-imposed policies that could each be wrong:
 
-- **MSRV is current stable minus three**, a rolling window of roughly four
-  months. Is that too aggressive for the environments that would deploy this —
-  hospital build systems, distribution packagers, regulated CI images?
+- **MSRV is current stable minus two** (tightened from minus three
+  2026-08-29), a rolling window of roughly twelve weeks at Rust's usual
+  six-week release cadence — down from roughly four months. Is that too
+  aggressive for the environments that would deploy this — hospital build
+  systems, distribution packagers, regulated CI images? The tightening
+  makes this question more pointed, not less, since it hasn't been
+  answered either way.
 - **Zero external dependencies, absolutely.** Is there a dependency whose
   absence costs users more than its presence would?
 - **Public error enums are `#[non_exhaustive]`, the ECL and OWL AST enums

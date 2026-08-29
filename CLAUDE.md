@@ -74,8 +74,8 @@ classification with necessary normal form generation.
 5. Generated SCTIDs in tests use `SctId::compose(...)` with item ≥ 1000 so
    short-format ids meet the 6-digit minimum.
 6. Keep `tasks.md` checked off in the same change that completes the work.
-7. The MSRV is the current stable Rust release minus three
-   (`spec/rust-msrv-n-minus-3/index.md`); `rust-version` in the root `Cargo.toml`
+7. The MSRV is the current stable Rust release minus two
+   (`spec/rust-msrv-n-minus-2/index.md`); `rust-version` in the root `Cargo.toml`
    and the CI `msrv` job pin move together.
 8. **No `unsafe`.** Every crate root carries `#![forbid(unsafe_code)]` —
    `crates/*/src/lib.rs`, `crates/snomed-cli/src/main.rs`, every

@@ -3,7 +3,7 @@
 This workspace contains no `unsafe` code, and the **compiler** enforces that
 rather than a convention, a review habit, or a `grep`.
 
-Like [rust-msrv-n-minus-3/index.md](../rust-msrv-n-minus-3/index.md),
+Like [rust-msrv-n-minus-2/index.md](../rust-msrv-n-minus-2/index.md),
 [rust-fuzz.md](../rust-fuzz.md), [rust-bench.md](../rust-bench.md), and
 [rust-api-stability.md](../rust-api-stability.md), this is a project policy
 rather than a distillation of an external specification.

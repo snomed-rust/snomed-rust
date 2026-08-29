@@ -13,9 +13,9 @@ members = [
 ]
 
 [workspace.package]
-version = "0.11.3"
+version = "0.12.0"
 edition = "2021"
-rust-version = "1.95"
+rust-version = "1.96"
 license = "Apache-2.0 OR MIT"
 repository = "https://github.com/snomed-rust/snomed-rust"
 keywords = ["snomed", "snomed-ct", "healthcare", "terminology", "rf2"]
@@ -23,10 +23,10 @@ categories = ["science", "parser-implementations"]
 authors = ["Joel Parker Henderson <joel@joelparkerhenderson.com>"]
 
 [workspace.dependencies]
-snomed-classify = { path = "crates/snomed-classify", version = "0.11.3" }
-snomed-core = { path = "crates/snomed-core", version = "0.11.3" }
-snomed-ecl = { path = "crates/snomed-ecl", version = "0.11.3" }
-snomed-fhir = { path = "crates/snomed-fhir", version = "0.11.3" }
-snomed-owl = { path = "crates/snomed-owl", version = "0.11.3" }
-snomed-rf2 = { path = "crates/snomed-rf2", version = "0.11.3" }
-snomed-store = { path = "crates/snomed-store", version = "0.11.3" }
+snomed-classify = { path = "crates/snomed-classify", version = "0.12.0" }
+snomed-core = { path = "crates/snomed-core", version = "0.12.0" }
+snomed-ecl = { path = "crates/snomed-ecl", version = "0.12.0" }
+snomed-fhir = { path = "crates/snomed-fhir", version = "0.12.0" }
+snomed-owl = { path = "crates/snomed-owl", version = "0.12.0" }
+snomed-rf2 = { path = "crates/snomed-rf2", version = "0.12.0" }
+snomed-store = { path = "crates/snomed-store", version = "0.12.0" }

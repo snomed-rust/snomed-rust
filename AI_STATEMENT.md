@@ -134,7 +134,7 @@ is a wish.
 - **Static gates.** `cargo fmt --check`, `cargo clippy --all-targets -D
   warnings`, and `cargo test --all` on every push and pull request, plus a
   separate job that checks the whole workspace against the pinned MSRV
-  toolchain ([`spec/rust-msrv-n-minus-3/`](spec/rust-msrv-n-minus-3/index.md)).
+  toolchain ([`spec/rust-msrv-n-minus-2/`](spec/rust-msrv-n-minus-2/index.md)).
   Every crate root carries `#![forbid(unsafe_code)]` — the published crates,
   the binary, the fuzz targets, and the benchmarks alike — so the absence of
   `unsafe` is a compiler failure rather than a convention
@@ -278,7 +278,7 @@ here): [LICENSE.md](LICENSE.md); [`spec/`](spec/README.md), including
 [`spec/rust-fuzz.md`](spec/rust-fuzz.md),
 [`spec/rust-bench.md`](spec/rust-bench.md),
 [`spec/rust-api-stability.md`](spec/rust-api-stability.md), and
-[`spec/rust-msrv-n-minus-3/`](spec/rust-msrv-n-minus-3/index.md);
+[`spec/rust-msrv-n-minus-2/`](spec/rust-msrv-n-minus-2/index.md);
 [CLAUDE.md](CLAUDE.md), [AGENTS.md](AGENTS.md), and [`agents/`](agents);
 [MAINTAINERS.md](MAINTAINERS.md), [GOVERNANCE.md](GOVERNANCE.md),
 [CONTRIBUTING.md](CONTRIBUTING.md), and [SECURITY.md](SECURITY.md).

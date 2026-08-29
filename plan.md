@@ -57,10 +57,12 @@ this file outgrew its size budget. Summarized:
 
 ## Phase 8 — Toolchain policy, fuzzing, benchmarking ✅ (2026-08-20)
 
-- **MSRV policy** (`spec/rust-msrv-n-minus-3/index.md`): the minimum supported
-  Rust version is the current stable release minus three, a rolling
+- **MSRV policy** (as adopted this phase): the minimum supported Rust
+  version was set to the current stable release minus three, a rolling
   ~18-week window. Recorded in `[workspace.package].rust-version` and
-  verified by a dedicated CI job rather than merely declared.
+  verified by a dedicated CI job rather than merely declared. Tightened
+  to minus two 2026-08-29 — see "Risks & watch items" below and
+  `spec/rust-msrv-n-minus-2/index.md`, which is now the live policy.
 - **Fuzzing** (`spec/rust-fuzz.md`, `fuzz/`): a libFuzzer target per text
   input the workspace accepts (10 at this phase, growing since — later
   ones generate RF2 rows rather than text), each asserting the `spec/`
@@ -256,10 +258,13 @@ set rather than an error.
   be asked whether it can live outside the workspace the same way — an
   HTTP server for `snomed-fhir` (the standing candidate in `tasks.md`)
   probably cannot, which is exactly why it stays a user decision.
-- MSRV moves on a schedule, not on demand: current stable minus three
-  (`spec/rust-msrv-n-minus-3/index.md`). Raising it is routine; the thing to
-  watch is that a bump can surface previously-suppressed clippy lints,
-  since MSRV-gated lints activate with `rust-version`.
+- MSRV moves on a schedule, not on demand: current stable minus two as of
+  2026-08-29 (`spec/rust-msrv-n-minus-2/index.md`, tightened from minus
+  three the same day the spec was written; ~12 weeks' lag at Rust's usual
+  six-week cadence, not ~18). Raising it is routine; the thing to watch is
+  that a bump can surface previously-suppressed clippy lints, since
+  MSRV-gated lints activate with `rust-version` — and a tighter window
+  means that happens more often.
 
 ## Trademarks
 
