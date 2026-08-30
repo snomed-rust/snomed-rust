@@ -127,8 +127,9 @@ Assessed 2026-08-26, while this spec and the trademark tooling were landing:
   typos ("NOMED®" in two crates, a trailing double period in all nine)
   fixed in 0.11.3, the release that also added the description check. One
   deliberate scope decision: `spec/**` is **out of the checker's scope**.
-  The specification distillations name SNOMED CT in nearly every file
-  (15 of them today) because describing RF2 is their job; stamping the
+  The specification distillations name SNOMED CT in most of them (12 of
+  the 17 today, by the same mark-and-masking rule `bin/check-trademarks`
+  applies) because describing RF2 is their job; stamping the
   notice on each would add repetition without adding protection, and the
   root documents carry it for the repository as a whole. If SNOMED International's own terms surface (RFC.md §10) and ask
   for more, this scope is the first thing to revisit.

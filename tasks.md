@@ -12,6 +12,58 @@ most recently on 2026-08-28, to keep this file inside the repository's
 40 KB per-document budget. Search both when asking "has this come up
 before".
 
+## Done (2026-08-30, documentation-harmonization audit)
+
+- [x] **Five parallel audits** (same pattern as the 2026-08-30 morning
+      audit, `25759e0`) over `spec/`, `CLAUDE.md`/`AGENTS.md`/`agents/`,
+      top-level docs (including the new `llms.txt`/`llms.json`),
+      `plan.md`/`tasks.md`, and `snomed-rust.github.io/`, each checked
+      against verified ground truth (9 crates, 353 tests, 13 fuzz
+      targets, 6 benchmark files, MSRV 1.96, version 0.12.0, 32 spec/
+      documents / 14 policies). Three of the five came back clean
+      (top-level docs, the site, and — apart from one item below —
+      `plan.md`/`tasks.md`); two turned up genuine drift, fixed here:
+- [x] **`spec/01-overview.md`**: dropped a stale parenthetical claiming
+      refset-member and `RelationshipConcreteValues` history were
+      "documented gaps — spec/09 rule 5"; `HistoryStore` has covered all
+      eighteen refset member types and all four component types since
+      Phase 9, and spec/09 rule 5 states that scope as shipped, not as a
+      gap. `CHANGELOG.md` and `plan.md`'s own Phase 9 section already
+      said so; only this file hadn't caught up.
+- [x] **`agents/rf2-engineer.md`**: fixed a stale `AGENTS.md` ground-rule
+      citation ("ground rule 8" → "ground rule 9" — the no-panics rule
+      moved when the MSRV rule was inserted ahead of it). This citation
+      class isn't covered by `spec_citations.rs` (that test only walks
+      `spec/NN rule M`), so it drifted silently; worth remembering next
+      time `AGENTS.md`'s rule list is renumbered.
+- [x] **`spec/10-ecl-refinements.md`'s reverse-flag-in-`{ }` known
+      limitation** claimed to be "tracked in `tasks.md`", but wasn't —
+      added it to this file's "Smaller documented gaps" list so the
+      claim is true, rather than weakening the spec's wording.
+      `agents/ecl-engineer.md` repeats the same claim and needed no
+      separate fix once this was true.
+- [x] **`spec/professionalization/index.md`**: Rule 5's status recomputed
+      the specification distillations' trademark-mark count against
+      `bin/check-trademarks`'s own mask-and-match rule — 12 of 17, not
+      the stale "15 of them today" (predates several current files) —
+      and softened "nearly every file" to "most of them" to match.
+- [x] **`plan.md`'s "Open decisions"** for `{{ M ... }}` member filters
+      still read as awaiting a call, when the maintainer decided
+      2026-08-30 (option 1: retain rows for all eighteen refset types,
+      `evaluate()` stays infallible, no API break, ~300 MB accepted).
+      Recorded the decision and the three-part implementation sequence;
+      **not yet implemented**. Mirrored into `tasks.md` (moved out of
+      "Decisions, not tasks" into a genuinely scoped Next-up item) and
+      `spec/10-ecl-unimplemented.md` (dropped the "decision belongs in
+      `plan.md`" framing, now that it's been made there).
+- [x] **`index.md`'s "Project policies" quick-nav row** hand-listed only
+      7 of the 14 policies with no "not exhaustive" framing, unlike
+      README.md's equivalent bullet (which explicitly says "the full
+      table... is in `spec/README.md`; the ones most worth knowing up
+      front are..."). Matched that framing here too.
+- [x] Verified: `bin/check-docs`, `bin/check-trademarks`, `spec_citations`,
+      `cargo test --all` (353 pass), clippy `-D warnings`, `fmt --check`.
+
 ## Done (2026-08-30, `spec/llms-json-and-llms-txt/`: `llms.txt`/`llms.json` published)
 
 - [x] Read `spec/llms-json-and-llms-txt/index.md` (new): two AI-guidance
@@ -464,15 +516,22 @@ corrected, rather than left to keep looking unfinished:
         2026-01-21 development update), so the criterion isn't met yet.
         `MAINTAINERS.md`, `SECURITY.md`, `plan.md`, and `README.md`
         updated to state the policy rather than read as an open gap.
+- [ ] **`{{ M ... }}` member filters** (`snomed-ecl`) — **decided
+      2026-08-30, not yet implemented.** `plan.md`'s "Open decisions"
+      section records the call: retain rows for all eighteen refset
+      types (not just the sixteen `SnapshotStore` already keeps rows
+      for), keep `evaluate()` infallible, no API break, ~300 MB accepted
+      as the memory cost for an International-Edition-sized release.
+      Three-part implementation, in order: (a) widen `spec/09 rule 4`
+      and the snapshot builder to stop reducing Simple/Language members
+      to their compact membership set/acceptability map; (b) add
+      `{{ M ... }}` grammar to `spec/10-ecl-filters.md` and the
+      lexer/parser, replacing the current named
+      `EclError::NotYetImplemented` rejection
+      (`spec/10-ecl-unimplemented.md`); (c) implement the evaluator
+      filter against the now-retained rows, with tests per CLAUDE.md
+      rule 4.
 - [ ] Decisions, not tasks — each needs a call before code:
-      - **`{{ M ... }}` member filters** (`snomed-ecl`): now priced in
-        `plan.md` under "Open decisions". The blocker turned out not to be
-        memory (~300 MB to retain Simple and Language rows, measured
-        against the 48-byte `RefsetMemberCore`) but the evaluator's
-        signature: `evaluate` returns a `HashSet`, so a filter it cannot
-        answer has nowhere to say so, and returning empty would be a
-        silent wrong answer. Recommendation is to make evaluation
-        fallible; that is an API break wanting a deliberate yes.
       - **`$expand` inline `valueSet`** (`snomed-fhir`): shape already
         determined — a typed compose model the caller maps its JSON onto
         (spec/11). Needs a decision that the surface is wanted, not a
@@ -501,7 +560,12 @@ corrected, rather than left to keep looking unfinished:
       `eclConceptReferenceSet` spelling (sugar for `(id1 OR id2)`, which
       works); the ECL history supplement; alternate identifiers;
       `^ [A, B]` field selection (blocked on what a non-id result type
-      looks like, since `evaluate` returns `HashSet<SctId>`);
+      looks like, since `evaluate` returns `HashSet<SctId>`); the reverse
+      flag inside `{ }` comparing unrelated group numbers
+      (`spec/10-ecl-refinements.md`'s "Known limitation" — neither
+      official ECL source defines what `R` inside an attribute group
+      should mean, so this is a documented behavior awaiting a normative
+      answer, not a bug to fix unilaterally);
       re-running the Phase 4/7 benchmarks
       against a real International Edition release if one becomes
       available. Dot notation came off this list on 2026-08-23 — it was

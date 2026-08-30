@@ -23,12 +23,12 @@ Rejected with a named `EclError::NotYetImplemented`:
   It is worse for the two refset types ECL uses most: Simple and Language
   refsets keep no member *rows* at all in a snapshot, only the derived
   membership set and acceptability map, since retaining a release's ~2.8M
-  language members would cost hundreds of megabytes. So implementing
-  member filters honestly means first deciding what a snapshot retains —
-  a spec/09 change with a real memory cost — or whether member filters
-  are a `HistoryStore` question instead, since that store does keep every
-  member version. Either way, the decision belongs in `plan.md` before
-  any parser work.
+  language members would cost hundreds of megabytes. **Decided
+  2026-08-30** (`plan.md`'s "Open decisions"): retain rows for all
+  eighteen refset types rather than making `evaluate()` fallible, at the
+  cost of ~300 MB for an International-Edition-sized release. Not yet
+  implemented — see `tasks.md`'s `{{ M ... }}` entry for the three-part
+  sequence (widen retention, add the grammar, implement the filter).
 - `A#B` alternate identifiers — detected at the lexer by an alpha run
   (extended through trailing digits/dashes, per
   `altIdentifierSchemeAlias`) followed by `#`. An alias spelled exactly

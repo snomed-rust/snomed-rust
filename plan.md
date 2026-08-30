@@ -203,10 +203,22 @@ and harmonizes it with the sibling repositories (`hl7-rust`, `er7-rust`,
      the one unacceptable failure mode. Taking this option means making
      evaluation fallible, a broad but mechanical API change.
   3. *Don't implement it.* The named `NotYetImplemented` error stands.
-  Recommendation: (2), because a fallible evaluator is honest about a
-  question a snapshot genuinely cannot answer, and the change is one-time.
-  But it is an API break across `snomed-ecl`, `snomed-fhir`, and
-  `snomed-cli`, so it wants a deliberate yes rather than an assumption.
+
+  **Decided 2026-08-30: option (1).** The maintainer chose to retain rows
+  for all eighteen refset types rather than make `evaluate()` fallible —
+  `evaluate` keeps its infallible `HashSet<SctId>` signature, no API break
+  across `snomed-ecl`/`snomed-fhir`/`snomed-cli`, and the ~300 MB extra
+  memory for an International-Edition-sized release is accepted as the
+  cost of every filter being answerable. **Not yet implemented**: the
+  store still drops Simple/Language member rows down to their compact
+  membership set/acceptability map (spec/09 rule 4 as currently written),
+  and the parser still rejects `{{ M ... }}` with `NotYetImplemented`.
+  Implementing this means, in order: (a) widen `spec/09 rule 4` and
+  `SnapshotStore`'s builder to retain full rows for every refset type, not
+  just the sixteen it already keeps rows for; (b) add `{{ M ... }}`
+  grammar (member filter constraint) to `spec/10-ecl-filters.md` and the
+  lexer/parser; (c) implement the evaluator filter against the retained
+  rows; (d) move this bullet, and the matching one in `tasks.md`, to Done.
 - **`$expand` inline `valueSet`.** Shape already settled by precedent — a
   typed compose model the hosting server maps its JSON onto, not a JSON
   parser (spec/11). What is undecided is whether the surface is wanted at

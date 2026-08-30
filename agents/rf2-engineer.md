@@ -31,7 +31,7 @@ file/record types.
   `parse_fields`, which is what makes direct `f[i]` indexing safe. If you
   ever add a parse path that doesn't go through `Rf2Reader`, it owes the
   same check — a public API must not panic on malformed input
-  (`AGENTS.md` ground rule 8).
+  (`AGENTS.md` ground rule 9).
 
 ## After a parser change
 

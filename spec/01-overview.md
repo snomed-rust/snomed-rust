@@ -36,12 +36,13 @@ those, stamped with an `effectiveTime`.
 Implemented: core component files, every refset pattern this workspace
 tracks (spec/08's full table, including MRCM and the current Ordered/
 Annotation variants), file naming, SCTID validation/generation, snapshot
-construction and version history for the Concept/Description/Relationship
-component types (refset-member and `RelationshipConcreteValues` history
-are documented gaps — spec/09 rule 5), IS-A hierarchy queries, Expression
-Constraint Language (spec/10), FHIR terminology-service building blocks
-(spec/11), OWL axiom parsing (spec/12), EL-profile subsumption
-classification (spec/13), and necessary normal form generation (spec/14).
+construction, and version history over everything a release ships — all
+four component types (Concept, Description, Relationship, and
+`RelationshipConcreteValues`) plus all eighteen refset member types
+(spec/09 rule 5) — IS-A hierarchy queries, Expression Constraint Language
+(spec/10), FHIR terminology-service building blocks (spec/11), OWL axiom
+parsing (spec/12), EL-profile subsumption classification (spec/13), and
+necessary normal form generation (spec/14).
 
 How that implementation is verified is itself specified here:
 [rust-msrv-n-minus-2/](rust-msrv-n-minus-2/index.md) fixes the Rust version
