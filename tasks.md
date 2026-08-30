@@ -12,6 +12,38 @@ most recently on 2026-08-28, to keep this file inside the repository's
 40 KB per-document budget. Search both when asking "has this come up
 before".
 
+## Done (2026-08-29/30, `spec/dependabot/`: Dependabot enabled and verified)
+
+- [x] Read `spec/dependabot/index.md` (new): two rules — enable
+      `dependabot_security_updates` at the repo level, and add
+      `.github/dependabot.yml` for scheduled update PRs.
+- [x] **Checked repo-level security updates before assuming they were
+      off**: `gh api repos/snomed-rust/snomed-rust/automated-security-fixes`
+      already returned `{"enabled":true,"paused":false}`, and
+      `vulnerability-alerts` already returned 204 — nothing to change there.
+- [x] **Added `.github/dependabot.yml`** with one `cargo` entry per cargo
+      root this repo actually builds — `/` (the nine-crate workspace),
+      `/fuzz`, and `/benches` (both deliberately outside the workspace,
+      CLAUDE.md rule 2) — plus one `github-actions` entry for
+      `.github/workflows/ci.yml`'s pinned actions. Verified `bin/check-docs`
+      still passes before committing.
+- [x] **Cross-checked the other five repos in this family**
+      (`er7-rust`, `hl7-rust`, `fhir-rust`, `openehr-rust`,
+      `main-x-service`) rather than assuming this repo was the only one
+      the spec note reached: each already had both pieces live, clean,
+      and pushed to origin — confirmed directly via `gh api .../
+      automated-security-fixes` (all `enabled: true`) and each repo's own
+      git log, not inferred from file presence.
+- [x] Registered the new policy everywhere the other twelve are
+      registered: `spec/README.md`'s policy table and prose count
+      (twelve → thirteen), `index.md`'s policy table and prose count
+      (the stale "Ten" corrected to match the table, then to thirteen),
+      and `README.md`'s "twelve project policies" mention. Found via a
+      documentation audit on 2026-08-30 that these three files had gone
+      stale between the dependabot commit (`0d6bd91`) and this one — the
+      registration step from CLAUDE.md rule 6 was missed in that commit;
+      closed here instead of left drifting.
+
 ## Done (2026-08-29, release 0.12.0: MSRV tightened to N-2)
 
 - [x] Read `spec/rust-msrv-n-minus-2/index.md` — the maintainer's own
@@ -344,14 +376,14 @@ corrected, rather than left to keep looking unfinished:
 
 ## Next up
 
-- [ ] Nothing currently scoped. State as of 2026-08-29 (0.12.0, released
-      today for the MSRV tightening — see `CHANGELOG.md`): 9 crates, 353
+- [ ] Nothing currently scoped. State as of 2026-08-30 (0.12.0, released
+      2026-08-29 for the MSRV tightening — see `CHANGELOG.md`): 9 crates, 353
       tests, clippy/fmt clean on stable, MSRV now 1.96 (current stable
       minus two, `spec/rust-msrv-n-minus-2/index.md`), `fuzz/`, and
-      `benches/`; 13 fuzz targets; 6 criterion benchmark files; 30
+      `benches/`; 13 fuzz targets; 6 criterion benchmark files; 31
       `spec/` documents (17 specification distillations, the README
-      index, and 12 project policies — the MSRV policy renamed in
-      place, not added to), every one registered in the
+      index, and 13 project policies — `dependabot/` added
+      2026-08-29/30), every one registered in the
       README index. Commit/tag signing verified on all three forges —
       see the Done section above for how Codeberg's part closed. Every
       gap `spec/` documents as missing is closed, reclassified, or

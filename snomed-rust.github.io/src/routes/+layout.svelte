@@ -36,7 +36,10 @@
 			© {year}
 			<a href="https://github.com/snomed-rust">snomed-rust</a>
 			· Code licensed
-			<a href="https://github.com/snomed-rust/snomed-rust/blob/main/LICENSE">Apache-2.0</a>
+			<a
+				href="https://github.com/snomed-rust/snomed-rust/blob/main/snomed-rust.github.io/LICENSE"
+				>Apache-2.0</a
+			>
 			· Built with
 			<a href="https://svelte.dev">SvelteKit</a>
 			and the

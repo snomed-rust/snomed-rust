@@ -38,7 +38,8 @@ Settings → Pages.
 
 ## License
 
-Site source is licensed [Apache-2.0](LICENSE), matching the parent
-[`snomed-rust/snomed-rust`](https://github.com/snomed-rust/snomed-rust) repo.
+Site source is licensed [Apache-2.0](LICENSE). The parent
+[`snomed-rust/snomed-rust`](https://github.com/snomed-rust/snomed-rust) repo is
+dual-licensed `Apache-2.0 OR MIT`; this site is Apache-2.0 only, not a match.
 Vendored third-party components are separately licensed — see
 [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md).

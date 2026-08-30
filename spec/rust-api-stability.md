@@ -60,6 +60,7 @@ change for consumers whatever this attribute says.
 | `SctIdError` | `snomed-core` | error |
 | `EffectiveTimeError` | `snomed-core` | error |
 | `ConcreteValueError` | `snomed-core` | error |
+| `MemberIdError` | `snomed-core` | error |
 | `Rf2Error` | `snomed-rf2` | error |
 | `FileNameError` | `snomed-rf2` | error |
 | `LoadError` | `snomed-store` | error |

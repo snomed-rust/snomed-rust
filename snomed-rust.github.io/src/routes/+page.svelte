@@ -52,7 +52,7 @@ for concept in Rf2Reader::<_, Concept>::new(file)? {
 					<TagGroup label="Project tags">
 						<Tag label="Language">Rust</Tag>
 						<Tag label="Domain">Healthcare terminology</Tag>
-						<Tag label="License">Apache-2.0</Tag>
+						<Tag label="License">Apache-2.0 OR MIT</Tag>
 					</TagGroup>
 				{/snippet}
 				<h1>SNOMED CT for Rust</h1>

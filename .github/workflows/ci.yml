@@ -89,7 +89,7 @@ jobs:
         run: bin/check-docs
 
   msrv:
-    name: MSRV (current stable minus 3)
+    name: MSRV (current stable minus 2)
     runs-on: ubuntu-latest
     steps:
       # See the `test` job above for what this reclaims and why.
