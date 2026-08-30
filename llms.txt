@@ -1,0 +1,78 @@
+# snomed-rust
+
+> SNOMED CT tooling for Rust: RF2 release file parsing, SCTID validation, an
+> in-memory snapshot store with hierarchy queries, ECL (Expression
+> Constraint Language), FHIR terminology building blocks, OWL axiom
+> parsing, and EL-profile subsumption classification with necessary normal
+> form generation. Nine published crates, zero external dependencies.
+
+Independent community project, not affiliated with, endorsed by, or
+certified by SNOMED International. Ships no SNOMED CT content — release
+files are licensed material obtained under your own affiliate license.
+SNOMED®, SNOMED CT®, and IHTSDO® are registered trademarks of International
+Health Terminology Standards Development Organisation (IHTSDO). Use of the
+trademarks does not constitute endorsement of this product by IHTSDO.
+
+## Start here
+
+- [README.md](https://github.com/snomed-rust/snomed-rust/blob/main/README.md): project overview, workspace layout, quickstart
+- [INSTALL.md](https://github.com/snomed-rust/snomed-rust/blob/main/INSTALL.md): install and run
+- [index.md](https://github.com/snomed-rust/snomed-rust/blob/main/index.md): documentation map — which layer answers which question
+- [docs/tutorial.md](https://github.com/snomed-rust/snomed-rust/blob/main/docs/tutorial.md): guided, runnable, six-step walkthrough
+- [snomed-rust.github.io](https://snomed-rust.github.io/): project homepage
+
+## Specification (normative single source of truth)
+
+- [spec/README.md](https://github.com/snomed-rust/snomed-rust/blob/main/spec/README.md): index of every spec and project policy
+- [spec/01-overview.md](https://github.com/snomed-rust/snomed-rust/blob/main/spec/01-overview.md): RF2 goals, terminology, scope
+- [spec/04-sctid.md](https://github.com/snomed-rust/snomed-rust/blob/main/spec/04-sctid.md): SCTID structure, partitions, Verhoeff check digit
+- [spec/09-versioning.md](https://github.com/snomed-rust/snomed-rust/blob/main/spec/09-versioning.md): effectiveTime, active, moduleId, snapshot semantics
+- [spec/10-ecl.md](https://github.com/snomed-rust/snomed-rust/blob/main/spec/10-ecl.md): Expression Constraint Language grammar and every ECL rule number
+- [spec/11-fhir.md](https://github.com/snomed-rust/snomed-rust/blob/main/spec/11-fhir.md): FHIR `$lookup`/`$subsumes`/`$expand`
+- [spec/12-owl.md](https://github.com/snomed-rust/snomed-rust/blob/main/spec/12-owl.md): OWL 2 functional-syntax subset used in the OWL Expression refset
+- [spec/13-classification.md](https://github.com/snomed-rust/snomed-rust/blob/main/spec/13-classification.md): EL-profile subsumption classification
+- [spec/14-necessary-normal-form.md](https://github.com/snomed-rust/snomed-rust/blob/main/spec/14-necessary-normal-form.md): necessary normal form (RF2 relationship) generation
+
+## Crates
+
+- [crates/snomed](https://github.com/snomed-rust/snomed-rust/blob/main/crates/snomed/README.md): facade crate — re-exports everything, `prelude`, end-to-end tests
+- [crates/snomed-core](https://github.com/snomed-rust/snomed-rust/blob/main/crates/snomed-core/README.md): SCTID, `EffectiveTime`, component structs, well-known constants (no dependencies beyond std)
+- [crates/snomed-rf2](https://github.com/snomed-rust/snomed-rust/blob/main/crates/snomed-rf2/README.md): file naming, streaming reader, refset member types
+- [crates/snomed-store](https://github.com/snomed-rust/snomed-rust/blob/main/crates/snomed-store/README.md): snapshot builder, IS-A hierarchy, subsumption, full version history
+- [crates/snomed-ecl](https://github.com/snomed-rust/snomed-rust/blob/main/crates/snomed-ecl/README.md): Expression Constraint Language lexer, parser, evaluator
+- [crates/snomed-fhir](https://github.com/snomed-rust/snomed-rust/blob/main/crates/snomed-fhir/README.md): FHIR terminology service building blocks
+- [crates/snomed-owl](https://github.com/snomed-rust/snomed-rust/blob/main/crates/snomed-owl/README.md): OWL 2 functional-syntax parser
+- [crates/snomed-classify](https://github.com/snomed-rust/snomed-rust/blob/main/crates/snomed-classify/README.md): EL subsumption classifier, necessary normal form generation
+- [crates/snomed-cli](https://github.com/snomed-rust/snomed-rust/blob/main/crates/snomed-cli/README.md): `snomed-cli` binary — `sctid`, `load`, `lookup`, `ecl`, `export`, `validate`, `classify`, `nnf`
+
+## Project policies
+
+- [spec/rust-msrv-n-minus-2/index.md](https://github.com/snomed-rust/snomed-rust/blob/main/spec/rust-msrv-n-minus-2/index.md): Minimum Supported Rust Version, current stable minus two
+- [spec/rust-no-unsafe/index.md](https://github.com/snomed-rust/snomed-rust/blob/main/spec/rust-no-unsafe/index.md): no `unsafe` anywhere, `#![forbid(unsafe_code)]` at every crate root
+- [spec/rust-api-stability.md](https://github.com/snomed-rust/snomed-rust/blob/main/spec/rust-api-stability.md): which public enums are `#[non_exhaustive]`, and why the ASTs are not
+- [spec/rust-fuzz.md](https://github.com/snomed-rust/snomed-rust/blob/main/spec/rust-fuzz.md): fuzz targets, the no-panic invariant, seed corpora
+- [spec/rust-bench.md](https://github.com/snomed-rust/snomed-rust/blob/main/spec/rust-bench.md): criterion benchmarks — what is measured and how
+- [spec/docs-budget-and-links/index.md](https://github.com/snomed-rust/snomed-rust/blob/main/spec/docs-budget-and-links/index.md): 40 KB per-document budget, link integrity
+- [spec/professionalization/index.md](https://github.com/snomed-rust/snomed-rust/blob/main/spec/professionalization/index.md): verified plans, accurate special files, CI-backed claims, trademark notice presence
+- [spec/llms-json-and-llms-txt/index.md](https://github.com/snomed-rust/snomed-rust/blob/main/spec/llms-json-and-llms-txt/index.md): this file and `llms.json` — purpose and size budget
+
+## Process
+
+- [plan.md](https://github.com/snomed-rust/snomed-rust/blob/main/plan.md): roadmap by phase, with the *why* behind non-obvious decisions
+- [tasks.md](https://github.com/snomed-rust/snomed-rust/blob/main/tasks.md): execution checklist, more granular than `plan.md`
+- [CHANGELOG.md](https://github.com/snomed-rust/snomed-rust/blob/main/CHANGELOG.md): what changed per published release
+
+## Optional
+
+- [COMPARISONS.md](https://github.com/snomed-rust/snomed-rust/blob/main/COMPARISONS.md): how this compares to Snowstorm, hermes, and the rest — and what it doesn't do
+- [BENCHMARKS.md](https://github.com/snomed-rust/snomed-rust/blob/main/BENCHMARKS.md): measured performance, methodology
+- [docs/troubleshooting.md](https://github.com/snomed-rust/snomed-rust/blob/main/docs/troubleshooting.md): common errors and questions, answered
+- [CONTRIBUTING.md](https://github.com/snomed-rust/snomed-rust/blob/main/CONTRIBUTING.md): how to help, and what would help most
+- [SECURITY.md](https://github.com/snomed-rust/snomed-rust/blob/main/SECURITY.md): how to report a vulnerability
+- [MAINTAINERS.md](https://github.com/snomed-rust/snomed-rust/blob/main/MAINTAINERS.md): who maintains this, and what happens if they stop
+- [GOVERNANCE.md](https://github.com/snomed-rust/snomed-rust/blob/main/GOVERNANCE.md): who decides, and what constrains them
+- [AI_STATEMENT.md](https://github.com/snomed-rust/snomed-rust/blob/main/AI_STATEMENT.md): how AI is used to build this, and who is accountable
+- [RFC.md](https://github.com/snomed-rust/snomed-rust/blob/main/RFC.md): what this project is unsure about, and can be settled
+- [LICENSE.md](https://github.com/snomed-rust/snomed-rust/blob/main/LICENSE.md): terms — Apache-2.0 OR MIT
+- [CITATION.cff](https://github.com/snomed-rust/snomed-rust/blob/main/CITATION.cff): how to cite this project
+- [agents/](https://github.com/snomed-rust/snomed-rust/tree/main/agents): role playbooks, one per crate with non-trivial domain logic

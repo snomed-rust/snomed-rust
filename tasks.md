@@ -12,6 +12,39 @@ most recently on 2026-08-28, to keep this file inside the repository's
 40 KB per-document budget. Search both when asking "has this come up
 before".
 
+## Done (2026-08-30, `spec/llms-json-and-llms-txt/`: `llms.txt`/`llms.json` published)
+
+- [x] Read `spec/llms-json-and-llms-txt/index.md` (new): two AI-guidance
+      helper files at the repo root, `llms.json` and `llms.txt`, each a
+      curated map of the project's most important content, each under
+      40 KB.
+- [x] **Wrote `llms.txt`** (7,708 bytes) following the llms.txt
+      convention: an H1/blockquote summary, the trademark notice (uses
+      "SNOMED" throughout so it carries the notice even though
+      `bin/check-trademarks` only scopes `*.md`), then curated `##`
+      sections — Start here, Specification, Crates, Project policies,
+      Process, Optional — linking every crate, the core spec files, all
+      fourteen project policies, and the root documents, over GitHub
+      blob URLs so the file resolves identically wherever it's served
+      from.
+- [x] **Wrote `llms.json`** (10,303 bytes), the same map as structured
+      JSON (`name`/`summary`/`repository`/`homepage`/`license`/
+      `affiliation`/`trademark_notice`/`sections[].items[]`). Verified
+      it parses (`python3 -m json.tool`).
+- [x] **Copied both into `snomed-rust.github.io/static/`** so the
+      static-adapter build serves them at the site root
+      (`snomed-rust.github.io/llms.txt`, `.../llms.json`), alongside the
+      existing `robots.txt`/`.nojekyll`.
+- [x] **Registered the new policy everywhere the other thirteen are
+      registered**: `spec/README.md`'s policy table and prose count
+      (thirteen → fourteen), `index.md`'s policy table and prose count
+      (same), and `README.md`'s "thirteen project policies" mention plus
+      a new bullet pointing at `llms.txt`/`llms.json`. `tasks.md`'s
+      "Next up" status paragraph's spec-document count moved 31 → 32.
+- [x] Verified: `bin/check-docs`, `bin/check-trademarks`,
+      `spec_citations`, `cargo test --all`, clippy `-D warnings`,
+      `fmt --check` — all pass, unaffected by files outside `*.md`/code.
+
 ## Done (2026-08-29/30, `spec/dependabot/`: Dependabot enabled and verified)
 
 - [x] Read `spec/dependabot/index.md` (new): two rules — enable
@@ -380,10 +413,10 @@ corrected, rather than left to keep looking unfinished:
       2026-08-29 for the MSRV tightening — see `CHANGELOG.md`): 9 crates, 353
       tests, clippy/fmt clean on stable, MSRV now 1.96 (current stable
       minus two, `spec/rust-msrv-n-minus-2/index.md`), `fuzz/`, and
-      `benches/`; 13 fuzz targets; 6 criterion benchmark files; 31
+      `benches/`; 13 fuzz targets; 6 criterion benchmark files; 32
       `spec/` documents (17 specification distillations, the README
-      index, and 13 project policies — `dependabot/` added
-      2026-08-29/30), every one registered in the
+      index, and 14 project policies — `llms-json-and-llms-txt/` added
+      2026-08-30), every one registered in the
       README index. Commit/tag signing verified on all three forges —
       see the Done section above for how Codeberg's part closed. Every
       gap `spec/` documents as missing is closed, reclassified, or

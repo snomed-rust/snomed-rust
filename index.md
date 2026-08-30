@@ -73,7 +73,7 @@ stale pointers behind in silence.
 | [13-classification.md](spec/13-classification.md) — EL subsumption | `snomed-classify` |
 | [14-necessary-normal-form.md](spec/14-necessary-normal-form.md) — RF2 relationship generation | `snomed-classify` |
 
-Thirteen further `spec/` files are project policy rather than a distillation
+Fourteen further `spec/` files are project policy rather than a distillation
 of an external specification, and bind the same way:
 
 | Policy | Covers | Lives in |
@@ -91,6 +91,7 @@ of an external specification, and bind the same way:
 | [free-open-source-funding/](spec/free-open-source-funding/index.md) | funding channels this project accepts, and how to tell a real one from a speculative one | `.github/FUNDING.yml`, `CONTRIBUTING.md`, `NEWS.md` |
 | [trusted-publishing/](spec/trusted-publishing/index.md) | why `cargo publish` stays manual, and the criteria for switching to OIDC-based CI publishing | `MAINTAINERS.md`, `SECURITY.md`, `plan.md` |
 | [dependabot/](spec/dependabot/index.md) | Dependabot security updates enabled at the repo level, plus scheduled update PRs | repo settings, `.github/dependabot.yml` |
+| [llms-json-and-llms-txt/](spec/llms-json-and-llms-txt/index.md) | AI guidance helper files — `llms.json`/`llms.txt`, a curated map of the project's most important content | `llms.json`, `llms.txt`, `snomed-rust.github.io/static/` |
 
 `snomed` (the facade) and `snomed-cli` (the terminal binary) both sit on
 top of every crate above rather than implementing a spec of their own —
