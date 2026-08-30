@@ -103,9 +103,14 @@ jobs:
 
       # Per spec/rust-msrv-n-minus-2/index.md: MSRV is the current stable
       # release minus two. Keep this pin and `rust-version` in Cargo.toml in
-      # step.
+      # step. This ref IS the Rust toolchain version dtolnay/rust-toolchain
+      # installs, not just the action's own revision — Dependabot's
+      # github-actions updater does not know that distinction and will
+      # walk it toward a nonexistent future Rust version if left alone
+      # (see the ignore rule in .github/dependabot.yml). Move it only by
+      # hand, in the same change that recomputes the MSRV.
       - name: Install Rust
-        uses: dtolnay/rust-toolchain@1.100
+        uses: dtolnay/rust-toolchain@1.96
 
       - name: Cache cargo registry and build artifacts
         uses: actions/cache@v6

@@ -27,3 +27,14 @@ updates:
     directory: "/"
     schedule:
       interval: "weekly"
+    ignore:
+      # dtolnay/rust-toolchain@1.96 in the msrv job: that ref IS the Rust
+      # toolchain version the action installs, not just the action's own
+      # revision. Dependabot's github-actions updater does not know the
+      # difference and will walk it toward the newest tag in that repo,
+      # which can be a not-yet-released Rust version — confirmed live on
+      # 2026-08-30, when it bumped this pin to 1.100 and broke the msrv
+      # job (rustup: "could not download nonexistent rust version
+      # 1.100.0"). This pin moves only by hand, in the same change that
+      # recomputes MSRV per spec/rust-msrv-n-minus-2/index.md.
+      - dependency-name: "dtolnay/rust-toolchain"
