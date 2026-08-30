@@ -32,7 +32,7 @@ jobs:
           components: rustfmt, clippy
 
       - name: Cache cargo registry and build artifacts
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: |
             ~/.cargo/registry
@@ -105,10 +105,10 @@ jobs:
       # release minus two. Keep this pin and `rust-version` in Cargo.toml in
       # step.
       - name: Install Rust
-        uses: dtolnay/rust-toolchain@1.96
+        uses: dtolnay/rust-toolchain@1.100
 
       - name: Cache cargo registry and build artifacts
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: |
             ~/.cargo/registry
@@ -154,7 +154,7 @@ jobs:
           components: rustfmt, clippy
 
       - name: Cache cargo registry and build artifacts
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: |
             ~/.cargo/registry
@@ -226,7 +226,7 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
 
       - name: Cache cargo registry and build artifacts
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: |
             ~/.cargo/registry
