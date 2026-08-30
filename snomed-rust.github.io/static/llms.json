@@ -6,6 +6,7 @@
   "license": "Apache-2.0 OR MIT",
   "affiliation": "Independent community project, not affiliated with, endorsed by, or certified by SNOMED International. Ships no SNOMED CT content — release files are licensed material obtained under your own affiliate license.",
   "trademark_notice": "SNOMED®, SNOMED CT®, and IHTSDO® are registered trademarks of International Health Terminology Standards Development Organisation (IHTSDO). Use of the trademarks does not constitute endorsement of this product by IHTSDO.",
+  "link_targets": "This is the website-appropriate copy of llms.json: this site is a single landing page, so links below resolve on GitHub rather than this domain, except the homepage itself. The source-of-truth version, with repo-relative links, lives at https://github.com/snomed-rust/snomed-rust/blob/main/llms.json (see spec/llms-json-and-llms-txt/index.md).",
   "sections": [
     {
       "title": "Start here",
@@ -14,7 +15,7 @@
         { "title": "INSTALL.md", "url": "https://github.com/snomed-rust/snomed-rust/blob/main/INSTALL.md", "description": "install and run" },
         { "title": "index.md", "url": "https://github.com/snomed-rust/snomed-rust/blob/main/index.md", "description": "documentation map — which layer answers which question" },
         { "title": "docs/tutorial.md", "url": "https://github.com/snomed-rust/snomed-rust/blob/main/docs/tutorial.md", "description": "guided, runnable, six-step walkthrough" },
-        { "title": "snomed-rust.github.io", "url": "https://snomed-rust.github.io/", "description": "project homepage" }
+        { "title": "snomed-rust.github.io", "url": "https://snomed-rust.github.io/", "description": "project homepage (this site)" }
       ]
     },
     {
@@ -55,7 +56,7 @@
         { "title": "spec/rust-bench.md", "url": "https://github.com/snomed-rust/snomed-rust/blob/main/spec/rust-bench.md", "description": "criterion benchmarks — what is measured and how" },
         { "title": "spec/docs-budget-and-links/index.md", "url": "https://github.com/snomed-rust/snomed-rust/blob/main/spec/docs-budget-and-links/index.md", "description": "40 KB per-document budget, link integrity" },
         { "title": "spec/professionalization/index.md", "url": "https://github.com/snomed-rust/snomed-rust/blob/main/spec/professionalization/index.md", "description": "verified plans, accurate special files, CI-backed claims, trademark notice presence" },
-        { "title": "spec/llms-json-and-llms-txt/index.md", "url": "https://github.com/snomed-rust/snomed-rust/blob/main/spec/llms-json-and-llms-txt/index.md", "description": "this file and llms.txt — purpose and size budget" }
+        { "title": "spec/llms-json-and-llms-txt/index.md", "url": "https://github.com/snomed-rust/snomed-rust/blob/main/spec/llms-json-and-llms-txt/index.md", "description": "this file and llms.txt — purpose, size budget, and link-target rule" }
       ]
     },
     {

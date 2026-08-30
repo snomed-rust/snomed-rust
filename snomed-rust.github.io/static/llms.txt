@@ -13,13 +13,20 @@ SNOMED®, SNOMED CT®, and IHTSDO® are registered trademarks of International
 Health Terminology Standards Development Organisation (IHTSDO). Use of the
 trademarks does not constitute endorsement of this product by IHTSDO.
 
+This is the website-appropriate copy of `llms.txt`: this site is a single
+landing page, so links below resolve on GitHub rather than this domain,
+except the homepage itself. The source-of-truth version, with repo-relative
+links, lives at the project repository's own
+[llms.txt](https://github.com/snomed-rust/snomed-rust/blob/main/llms.txt)
+(see `spec/llms-json-and-llms-txt/index.md`).
+
 ## Start here
 
 - [README.md](https://github.com/snomed-rust/snomed-rust/blob/main/README.md): project overview, workspace layout, quickstart
 - [INSTALL.md](https://github.com/snomed-rust/snomed-rust/blob/main/INSTALL.md): install and run
 - [index.md](https://github.com/snomed-rust/snomed-rust/blob/main/index.md): documentation map — which layer answers which question
 - [docs/tutorial.md](https://github.com/snomed-rust/snomed-rust/blob/main/docs/tutorial.md): guided, runnable, six-step walkthrough
-- [snomed-rust.github.io](https://snomed-rust.github.io/): project homepage
+- [snomed-rust.github.io](https://snomed-rust.github.io/): project homepage (this site)
 
 ## Specification (normative single source of truth)
 
@@ -54,7 +61,7 @@ trademarks does not constitute endorsement of this product by IHTSDO.
 - [spec/rust-bench.md](https://github.com/snomed-rust/snomed-rust/blob/main/spec/rust-bench.md): criterion benchmarks — what is measured and how
 - [spec/docs-budget-and-links/index.md](https://github.com/snomed-rust/snomed-rust/blob/main/spec/docs-budget-and-links/index.md): 40 KB per-document budget, link integrity
 - [spec/professionalization/index.md](https://github.com/snomed-rust/snomed-rust/blob/main/spec/professionalization/index.md): verified plans, accurate special files, CI-backed claims, trademark notice presence
-- [spec/llms-json-and-llms-txt/index.md](https://github.com/snomed-rust/snomed-rust/blob/main/spec/llms-json-and-llms-txt/index.md): this file and `llms.json` — purpose and size budget
+- [spec/llms-json-and-llms-txt/index.md](https://github.com/snomed-rust/snomed-rust/blob/main/spec/llms-json-and-llms-txt/index.md): this file and `llms.json` — purpose, size budget, and link-target rule
 
 ## Process
 

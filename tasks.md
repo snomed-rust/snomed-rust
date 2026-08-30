@@ -18,21 +18,29 @@ before".
       helper files at the repo root, `llms.json` and `llms.txt`, each a
       curated map of the project's most important content, each under
       40 KB.
-- [x] **Wrote `llms.txt`** (7,708 bytes) following the llms.txt
-      convention: an H1/blockquote summary, the trademark notice (uses
-      "SNOMED" throughout so it carries the notice even though
+- [x] **Wrote `llms.txt`** (~5.5 KB) following the llms.txt convention:
+      an H1/blockquote summary, the trademark notice (uses "SNOMED"
+      throughout so it carries the notice even though
       `bin/check-trademarks` only scopes `*.md`), then curated `##`
       sections — Start here, Specification, Crates, Project policies,
       Process, Optional — linking every crate, the core spec files, all
-      fourteen project policies, and the root documents, over GitHub
-      blob URLs so the file resolves identically wherever it's served
-      from.
-- [x] **Wrote `llms.json`** (10,303 bytes), the same map as structured
-      JSON (`name`/`summary`/`repository`/`homepage`/`license`/
-      `affiliation`/`trademark_notice`/`sections[].items[]`). Verified
-      it parses (`python3 -m json.tool`).
-- [x] **Copied both into `snomed-rust.github.io/static/`** so the
-      static-adapter build serves them at the site root
+      fourteen project policies, and the root documents, using
+      repo-relative links (resolves in the git checkout).
+- [x] **Wrote `llms.json`** (~8.0 KB), the same map as structured JSON
+      (`name`/`summary`/`repository`/`homepage`/`license`/
+      `affiliation`/`trademark_notice`/`link_targets`/
+      `sections[].items[]`), same repo-relative link choice. Verified it
+      parses (`python3 -m json.tool`).
+- [x] **Caught, and fixed same-day, that a byte-for-byte `cp` into
+      `snomed-rust.github.io/static/` ships broken links**: repo-relative
+      targets like `README.md` don't resolve from the pages site's own
+      domain (a single landing page, no doc mirror). Recorded the rule in
+      the spec itself (`spec/llms-json-and-llms-txt/index.md`, new
+      paragraph) and wrote a **distinct** website-appropriate pair for
+      `snomed-rust.github.io/static/` — same structure and content, but
+      every repo-relative link rewritten to its GitHub blob/tree URL, and
+      the homepage entry pointing at the site itself — so the static-adapter
+      build serves working links at the site root
       (`snomed-rust.github.io/llms.txt`, `.../llms.json`), alongside the
       existing `robots.txt`/`.nojekyll`.
 - [x] **Registered the new policy everywhere the other thirteen are

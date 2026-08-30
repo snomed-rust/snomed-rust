@@ -6,81 +6,82 @@
   "license": "Apache-2.0 OR MIT",
   "affiliation": "Independent community project, not affiliated with, endorsed by, or certified by SNOMED International. Ships no SNOMED CT content — release files are licensed material obtained under your own affiliate license.",
   "trademark_notice": "SNOMED®, SNOMED CT®, and IHTSDO® are registered trademarks of International Health Terminology Standards Development Organisation (IHTSDO). Use of the trademarks does not constitute endorsement of this product by IHTSDO.",
+  "link_targets": "Repo-relative; resolves inside this git checkout (see spec/llms-json-and-llms-txt/index.md). A website-appropriate version of this file is served from https://snomed-rust.github.io/llms.json.",
   "sections": [
     {
       "title": "Start here",
       "items": [
-        { "title": "README.md", "url": "https://github.com/snomed-rust/snomed-rust/blob/main/README.md", "description": "project overview, workspace layout, quickstart" },
-        { "title": "INSTALL.md", "url": "https://github.com/snomed-rust/snomed-rust/blob/main/INSTALL.md", "description": "install and run" },
-        { "title": "index.md", "url": "https://github.com/snomed-rust/snomed-rust/blob/main/index.md", "description": "documentation map — which layer answers which question" },
-        { "title": "docs/tutorial.md", "url": "https://github.com/snomed-rust/snomed-rust/blob/main/docs/tutorial.md", "description": "guided, runnable, six-step walkthrough" },
+        { "title": "README.md", "url": "README.md", "description": "project overview, workspace layout, quickstart" },
+        { "title": "INSTALL.md", "url": "INSTALL.md", "description": "install and run" },
+        { "title": "index.md", "url": "index.md", "description": "documentation map — which layer answers which question" },
+        { "title": "docs/tutorial.md", "url": "docs/tutorial.md", "description": "guided, runnable, six-step walkthrough" },
         { "title": "snomed-rust.github.io", "url": "https://snomed-rust.github.io/", "description": "project homepage" }
       ]
     },
     {
       "title": "Specification (normative single source of truth)",
       "items": [
-        { "title": "spec/README.md", "url": "https://github.com/snomed-rust/snomed-rust/blob/main/spec/README.md", "description": "index of every spec and project policy" },
-        { "title": "spec/01-overview.md", "url": "https://github.com/snomed-rust/snomed-rust/blob/main/spec/01-overview.md", "description": "RF2 goals, terminology, scope" },
-        { "title": "spec/04-sctid.md", "url": "https://github.com/snomed-rust/snomed-rust/blob/main/spec/04-sctid.md", "description": "SCTID structure, partitions, Verhoeff check digit" },
-        { "title": "spec/09-versioning.md", "url": "https://github.com/snomed-rust/snomed-rust/blob/main/spec/09-versioning.md", "description": "effectiveTime, active, moduleId, snapshot semantics" },
-        { "title": "spec/10-ecl.md", "url": "https://github.com/snomed-rust/snomed-rust/blob/main/spec/10-ecl.md", "description": "Expression Constraint Language grammar and every ECL rule number" },
-        { "title": "spec/11-fhir.md", "url": "https://github.com/snomed-rust/snomed-rust/blob/main/spec/11-fhir.md", "description": "FHIR $lookup/$subsumes/$expand" },
-        { "title": "spec/12-owl.md", "url": "https://github.com/snomed-rust/snomed-rust/blob/main/spec/12-owl.md", "description": "OWL 2 functional-syntax subset used in the OWL Expression refset" },
-        { "title": "spec/13-classification.md", "url": "https://github.com/snomed-rust/snomed-rust/blob/main/spec/13-classification.md", "description": "EL-profile subsumption classification" },
-        { "title": "spec/14-necessary-normal-form.md", "url": "https://github.com/snomed-rust/snomed-rust/blob/main/spec/14-necessary-normal-form.md", "description": "necessary normal form (RF2 relationship) generation" }
+        { "title": "spec/README.md", "url": "spec/README.md", "description": "index of every spec and project policy" },
+        { "title": "spec/01-overview.md", "url": "spec/01-overview.md", "description": "RF2 goals, terminology, scope" },
+        { "title": "spec/04-sctid.md", "url": "spec/04-sctid.md", "description": "SCTID structure, partitions, Verhoeff check digit" },
+        { "title": "spec/09-versioning.md", "url": "spec/09-versioning.md", "description": "effectiveTime, active, moduleId, snapshot semantics" },
+        { "title": "spec/10-ecl.md", "url": "spec/10-ecl.md", "description": "Expression Constraint Language grammar and every ECL rule number" },
+        { "title": "spec/11-fhir.md", "url": "spec/11-fhir.md", "description": "FHIR $lookup/$subsumes/$expand" },
+        { "title": "spec/12-owl.md", "url": "spec/12-owl.md", "description": "OWL 2 functional-syntax subset used in the OWL Expression refset" },
+        { "title": "spec/13-classification.md", "url": "spec/13-classification.md", "description": "EL-profile subsumption classification" },
+        { "title": "spec/14-necessary-normal-form.md", "url": "spec/14-necessary-normal-form.md", "description": "necessary normal form (RF2 relationship) generation" }
       ]
     },
     {
       "title": "Crates",
       "items": [
-        { "title": "crates/snomed", "url": "https://github.com/snomed-rust/snomed-rust/blob/main/crates/snomed/README.md", "description": "facade crate — re-exports everything, prelude, end-to-end tests" },
-        { "title": "crates/snomed-core", "url": "https://github.com/snomed-rust/snomed-rust/blob/main/crates/snomed-core/README.md", "description": "SCTID, EffectiveTime, component structs, well-known constants (no dependencies beyond std)" },
-        { "title": "crates/snomed-rf2", "url": "https://github.com/snomed-rust/snomed-rust/blob/main/crates/snomed-rf2/README.md", "description": "file naming, streaming reader, refset member types" },
-        { "title": "crates/snomed-store", "url": "https://github.com/snomed-rust/snomed-rust/blob/main/crates/snomed-store/README.md", "description": "snapshot builder, IS-A hierarchy, subsumption, full version history" },
-        { "title": "crates/snomed-ecl", "url": "https://github.com/snomed-rust/snomed-rust/blob/main/crates/snomed-ecl/README.md", "description": "Expression Constraint Language lexer, parser, evaluator" },
-        { "title": "crates/snomed-fhir", "url": "https://github.com/snomed-rust/snomed-rust/blob/main/crates/snomed-fhir/README.md", "description": "FHIR terminology service building blocks" },
-        { "title": "crates/snomed-owl", "url": "https://github.com/snomed-rust/snomed-rust/blob/main/crates/snomed-owl/README.md", "description": "OWL 2 functional-syntax parser" },
-        { "title": "crates/snomed-classify", "url": "https://github.com/snomed-rust/snomed-rust/blob/main/crates/snomed-classify/README.md", "description": "EL subsumption classifier, necessary normal form generation" },
-        { "title": "crates/snomed-cli", "url": "https://github.com/snomed-rust/snomed-rust/blob/main/crates/snomed-cli/README.md", "description": "snomed-cli binary — sctid, load, lookup, ecl, export, validate, classify, nnf" }
+        { "title": "crates/snomed", "url": "crates/snomed/README.md", "description": "facade crate — re-exports everything, prelude, end-to-end tests" },
+        { "title": "crates/snomed-core", "url": "crates/snomed-core/README.md", "description": "SCTID, EffectiveTime, component structs, well-known constants (no dependencies beyond std)" },
+        { "title": "crates/snomed-rf2", "url": "crates/snomed-rf2/README.md", "description": "file naming, streaming reader, refset member types" },
+        { "title": "crates/snomed-store", "url": "crates/snomed-store/README.md", "description": "snapshot builder, IS-A hierarchy, subsumption, full version history" },
+        { "title": "crates/snomed-ecl", "url": "crates/snomed-ecl/README.md", "description": "Expression Constraint Language lexer, parser, evaluator" },
+        { "title": "crates/snomed-fhir", "url": "crates/snomed-fhir/README.md", "description": "FHIR terminology service building blocks" },
+        { "title": "crates/snomed-owl", "url": "crates/snomed-owl/README.md", "description": "OWL 2 functional-syntax parser" },
+        { "title": "crates/snomed-classify", "url": "crates/snomed-classify/README.md", "description": "EL subsumption classifier, necessary normal form generation" },
+        { "title": "crates/snomed-cli", "url": "crates/snomed-cli/README.md", "description": "snomed-cli binary — sctid, load, lookup, ecl, export, validate, classify, nnf" }
       ]
     },
     {
       "title": "Project policies",
       "items": [
-        { "title": "spec/rust-msrv-n-minus-2/index.md", "url": "https://github.com/snomed-rust/snomed-rust/blob/main/spec/rust-msrv-n-minus-2/index.md", "description": "Minimum Supported Rust Version, current stable minus two" },
-        { "title": "spec/rust-no-unsafe/index.md", "url": "https://github.com/snomed-rust/snomed-rust/blob/main/spec/rust-no-unsafe/index.md", "description": "no unsafe anywhere, forbid(unsafe_code) at every crate root" },
-        { "title": "spec/rust-api-stability.md", "url": "https://github.com/snomed-rust/snomed-rust/blob/main/spec/rust-api-stability.md", "description": "which public enums are non_exhaustive, and why the ASTs are not" },
-        { "title": "spec/rust-fuzz.md", "url": "https://github.com/snomed-rust/snomed-rust/blob/main/spec/rust-fuzz.md", "description": "fuzz targets, the no-panic invariant, seed corpora" },
-        { "title": "spec/rust-bench.md", "url": "https://github.com/snomed-rust/snomed-rust/blob/main/spec/rust-bench.md", "description": "criterion benchmarks — what is measured and how" },
-        { "title": "spec/docs-budget-and-links/index.md", "url": "https://github.com/snomed-rust/snomed-rust/blob/main/spec/docs-budget-and-links/index.md", "description": "40 KB per-document budget, link integrity" },
-        { "title": "spec/professionalization/index.md", "url": "https://github.com/snomed-rust/snomed-rust/blob/main/spec/professionalization/index.md", "description": "verified plans, accurate special files, CI-backed claims, trademark notice presence" },
-        { "title": "spec/llms-json-and-llms-txt/index.md", "url": "https://github.com/snomed-rust/snomed-rust/blob/main/spec/llms-json-and-llms-txt/index.md", "description": "this file and llms.txt — purpose and size budget" }
+        { "title": "spec/rust-msrv-n-minus-2/index.md", "url": "spec/rust-msrv-n-minus-2/index.md", "description": "Minimum Supported Rust Version, current stable minus two" },
+        { "title": "spec/rust-no-unsafe/index.md", "url": "spec/rust-no-unsafe/index.md", "description": "no unsafe anywhere, forbid(unsafe_code) at every crate root" },
+        { "title": "spec/rust-api-stability.md", "url": "spec/rust-api-stability.md", "description": "which public enums are non_exhaustive, and why the ASTs are not" },
+        { "title": "spec/rust-fuzz.md", "url": "spec/rust-fuzz.md", "description": "fuzz targets, the no-panic invariant, seed corpora" },
+        { "title": "spec/rust-bench.md", "url": "spec/rust-bench.md", "description": "criterion benchmarks — what is measured and how" },
+        { "title": "spec/docs-budget-and-links/index.md", "url": "spec/docs-budget-and-links/index.md", "description": "40 KB per-document budget, link integrity" },
+        { "title": "spec/professionalization/index.md", "url": "spec/professionalization/index.md", "description": "verified plans, accurate special files, CI-backed claims, trademark notice presence" },
+        { "title": "spec/llms-json-and-llms-txt/index.md", "url": "spec/llms-json-and-llms-txt/index.md", "description": "this file and llms.txt — purpose, size budget, and link-target rule" }
       ]
     },
     {
       "title": "Process",
       "items": [
-        { "title": "plan.md", "url": "https://github.com/snomed-rust/snomed-rust/blob/main/plan.md", "description": "roadmap by phase, with the why behind non-obvious decisions" },
-        { "title": "tasks.md", "url": "https://github.com/snomed-rust/snomed-rust/blob/main/tasks.md", "description": "execution checklist, more granular than plan.md" },
-        { "title": "CHANGELOG.md", "url": "https://github.com/snomed-rust/snomed-rust/blob/main/CHANGELOG.md", "description": "what changed per published release" }
+        { "title": "plan.md", "url": "plan.md", "description": "roadmap by phase, with the why behind non-obvious decisions" },
+        { "title": "tasks.md", "url": "tasks.md", "description": "execution checklist, more granular than plan.md" },
+        { "title": "CHANGELOG.md", "url": "CHANGELOG.md", "description": "what changed per published release" }
       ]
     },
     {
       "title": "Optional",
       "items": [
-        { "title": "COMPARISONS.md", "url": "https://github.com/snomed-rust/snomed-rust/blob/main/COMPARISONS.md", "description": "how this compares to Snowstorm, hermes, and the rest — and what it doesn't do" },
-        { "title": "BENCHMARKS.md", "url": "https://github.com/snomed-rust/snomed-rust/blob/main/BENCHMARKS.md", "description": "measured performance, methodology" },
-        { "title": "docs/troubleshooting.md", "url": "https://github.com/snomed-rust/snomed-rust/blob/main/docs/troubleshooting.md", "description": "common errors and questions, answered" },
-        { "title": "CONTRIBUTING.md", "url": "https://github.com/snomed-rust/snomed-rust/blob/main/CONTRIBUTING.md", "description": "how to help, and what would help most" },
-        { "title": "SECURITY.md", "url": "https://github.com/snomed-rust/snomed-rust/blob/main/SECURITY.md", "description": "how to report a vulnerability" },
-        { "title": "MAINTAINERS.md", "url": "https://github.com/snomed-rust/snomed-rust/blob/main/MAINTAINERS.md", "description": "who maintains this, and what happens if they stop" },
-        { "title": "GOVERNANCE.md", "url": "https://github.com/snomed-rust/snomed-rust/blob/main/GOVERNANCE.md", "description": "who decides, and what constrains them" },
-        { "title": "AI_STATEMENT.md", "url": "https://github.com/snomed-rust/snomed-rust/blob/main/AI_STATEMENT.md", "description": "how AI is used to build this, and who is accountable" },
-        { "title": "RFC.md", "url": "https://github.com/snomed-rust/snomed-rust/blob/main/RFC.md", "description": "what this project is unsure about, and can be settled" },
-        { "title": "LICENSE.md", "url": "https://github.com/snomed-rust/snomed-rust/blob/main/LICENSE.md", "description": "terms — Apache-2.0 OR MIT" },
-        { "title": "CITATION.cff", "url": "https://github.com/snomed-rust/snomed-rust/blob/main/CITATION.cff", "description": "how to cite this project" },
-        { "title": "agents/", "url": "https://github.com/snomed-rust/snomed-rust/tree/main/agents", "description": "role playbooks, one per crate with non-trivial domain logic" }
+        { "title": "COMPARISONS.md", "url": "COMPARISONS.md", "description": "how this compares to Snowstorm, hermes, and the rest — and what it doesn't do" },
+        { "title": "BENCHMARKS.md", "url": "BENCHMARKS.md", "description": "measured performance, methodology" },
+        { "title": "docs/troubleshooting.md", "url": "docs/troubleshooting.md", "description": "common errors and questions, answered" },
+        { "title": "CONTRIBUTING.md", "url": "CONTRIBUTING.md", "description": "how to help, and what would help most" },
+        { "title": "SECURITY.md", "url": "SECURITY.md", "description": "how to report a vulnerability" },
+        { "title": "MAINTAINERS.md", "url": "MAINTAINERS.md", "description": "who maintains this, and what happens if they stop" },
+        { "title": "GOVERNANCE.md", "url": "GOVERNANCE.md", "description": "who decides, and what constrains them" },
+        { "title": "AI_STATEMENT.md", "url": "AI_STATEMENT.md", "description": "how AI is used to build this, and who is accountable" },
+        { "title": "RFC.md", "url": "RFC.md", "description": "what this project is unsure about, and can be settled" },
+        { "title": "LICENSE.md", "url": "LICENSE.md", "description": "terms — Apache-2.0 OR MIT" },
+        { "title": "CITATION.cff", "url": "CITATION.cff", "description": "how to cite this project" },
+        { "title": "agents/", "url": "agents", "description": "role playbooks, one per crate with non-trivial domain logic" }
       ]
     }
   ]
