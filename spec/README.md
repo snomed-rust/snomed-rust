@@ -3,7 +3,7 @@
 These documents distill the parts of the official **SNOMED CT Release File
 Specification** (and the other normative sources listed below) that this
 workspace implements, plus a short set of project policies this workspace
-sets for itself — the fourteen policy files listed after the index, which have
+sets for itself — the fifteen policy files listed after the index, which have
 no external specification behind them but bind the code here exactly the
 same way. They are the authoritative
 source for this codebase: code follows spec, not the other way around. When a
@@ -79,6 +79,7 @@ binding on this workspace in the same way):
 | [trusted-publishing/](trusted-publishing/index.md) | Why `cargo publish` stays manual: criteria for switching to OIDC-based CI publishing, and why they aren't met yet | `MAINTAINERS.md`, `SECURITY.md`, `plan.md` |
 | [dependabot/](dependabot/index.md) | Dependabot security updates enabled at the repo level, plus `.github/dependabot.yml` for scheduled update PRs | repo settings, `.github/dependabot.yml` |
 | [llms-json-and-llms-txt/](llms-json-and-llms-txt/index.md) | AI guidance helper files at the repo root — `llms.json` and `llms.txt`, a curated map of the project's most important content, each under 40 KB | `llms.json`, `llms.txt`, `snomed-rust.github.io/static/` |
+| [node-current-version/](node-current-version/index.md) | The GitHub Pages site's Node.js version: current major (26), enforced at both CI and install time | `snomed-rust.github.io/.github/workflows/deploy.yml`, `package.json`, `pnpm-workspace.yaml`, `.npmrc` |
 
 `spec/10` is four files because it outgrew the 40 KB per-document budget,
 not because parts of it are less binding. **All ECL rule numbers live in

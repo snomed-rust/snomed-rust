@@ -12,7 +12,15 @@ const config = {
 			fallback: undefined,
 			precompress: false,
 			strict: true
-		})
+		}),
+		prerender: {
+			// Without this, `page.url` resolves to SvelteKit's placeholder
+			// `http://sveltekit-prerender` origin during the prerender crawl,
+			// which SharePicker would then bake into the static HTML as the
+			// shared URL. This makes `page.url.href` the real deployed URL
+			// even in prerendered output.
+			origin: 'https://snomed-rust.github.io'
+		}
 	},
 	vitePlugin: {
 		dynamicCompileOptions: ({ filename }) =>

@@ -1,0 +1,38 @@
+/*
+ * Dark theme — loaded by lily-design-system-svelte-theme-picker's managed
+ * <link> (see src/routes/+layout.svelte's ThemePicker themesUrl="/themes")
+ * whenever [data-theme="dark"] is the active choice. Values mirror the
+ * @media (prefers-color-scheme: dark) fallback in src/lib/theme.css, which
+ * only applies before a choice exists.
+ */
+
+:root[data-theme='dark'] {
+	--color-bg: #0b1416;
+	--color-surface: #101c20;
+	--color-surface-raised: #142428;
+	--color-border: #24393f;
+	--color-text: #e7f0f2;
+	--color-text-muted: #a3b8bf;
+
+	--color-primary: #4fb8c9;
+	--color-primary-strong: #7fd0dd;
+	--color-primary-contrast: #06232a;
+
+	--color-accent: #e08a5c;
+	--color-accent-strong: #f0a878;
+	--color-accent-contrast: #2a1206;
+
+	--color-info: #4fb8c9;
+	--color-success: #5cc98f;
+	--color-warning: #e0af4f;
+	--color-error: #e8686c;
+	--color-info-bg: #10333a;
+	--color-success-bg: #103a26;
+	--color-warning-bg: #3a2c10;
+	--color-error-bg: #3a1416;
+
+	--color-code-bg: #061215;
+	--color-code-text: #cfe8ec;
+
+	color-scheme: dark;
+}

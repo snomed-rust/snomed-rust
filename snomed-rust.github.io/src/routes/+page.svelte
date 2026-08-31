@@ -15,7 +15,8 @@
 		DataTableRow,
 		DataTableTH,
 		DataTableTD
-	} from '$lib/components';
+	} from 'lily-design-system-svelte-headless';
+	import { page } from '$app/state';
 	import { crates } from '$lib/crates';
 
 	const quickStart = `use snomed::prelude::*;
@@ -37,7 +38,7 @@ for concept in Rf2Reader::<_, Concept>::new(file)? {
 </script>
 
 <svelte:head>
-	<title>snomed — SNOMED CT for Rust</title>
+	<title>{page.data.title}</title>
 	<meta
 		name="description"
 		content="A local-first Rust workspace for SNOMED CT: RF2 parsing, SCTID validation, hierarchy queries, ECL, FHIR terminology operations, OWL parsing, and EL classification — zero external dependencies."

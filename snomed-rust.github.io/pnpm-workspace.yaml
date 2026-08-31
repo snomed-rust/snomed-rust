@@ -1,3 +1,9 @@
+# Per spec/node-current-version: package.json's engines.node="=26" alone only
+# warns on a mismatch under pnpm 11 — .npmrc's engine-strict is npm's legacy
+# key and pnpm 11 no longer reads it (settings moved here). This is the key
+# pnpm 11 actually enforces, turning that warning into a hard EBADENGINE
+# install failure.
+engineStrict: true
 allowBuilds:
   esbuild: true
 onlyBuiltDependencies:

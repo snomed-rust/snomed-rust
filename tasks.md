@@ -12,6 +12,49 @@ most recently on 2026-08-28, to keep this file inside the repository's
 40 KB per-document budget. Search both when asking "has this come up
 before".
 
+## Done (2026-08-31, `spec/node-current-version/`: pin the site's Node.js version)
+
+- [x] Read `spec/node-current-version/index.md` (new, 15th project policy):
+      current Node major is 26; enforce it in `snomed-rust.github.io/`'s CI
+      and local install, and pin local dev tooling files if they exist.
+- [x] **`deploy.yml`**: `actions/setup-node`'s `node-version: 22` → `26`.
+- [x] **`package.json`**: added `engines.node: "=26"` (the spec's exact
+      syntax).
+- [x] **`.npmrc`**: already had `engine-strict=true` from an earlier
+      change — no edit needed, but it turned out to be inert under pnpm
+      11 (see next item).
+- [x] **Caught, mid-verification, that `.npmrc`'s `engine-strict` doesn't
+      do anything on pnpm 11**: `pnpm config get engine-strict` came back
+      `undefined`, and an install under Node 25 only warned
+      (`Unsupported engine: ...`) instead of failing. pnpm 11 moved this
+      setting out of `.npmrc` into `pnpm-workspace.yaml` as `engineStrict`
+      (this project already has camelCase settings there —
+      `allowBuilds`/`onlyBuiltDependencies`/`overrides` — so it's already
+      on the current pnpm 11 config model). Added `engineStrict: true`
+      there, with a comment explaining why both files carry a
+      same-sounding setting.
+- [x] **`.nvmrc`, `.tool-versions`**: neither exists in this project (nor
+      anywhere else in the repo), and the spec's wording for both is
+      conditional on the file already existing — no file created.
+- [x] Verified the spec's own acceptance criteria, not just that the
+      files changed: temporarily installed Node 25.9.0 via `mise`,
+      confirmed `pnpm install --frozen-lockfile` now hard-fails there
+      (`ERR_PNPM_UNSUPPORTED_ENGINE`, exit 1) — before the
+      `pnpm-workspace.yaml` fix it exited 0 with only a warning — then
+      confirmed success back under Node 26.8.1, plus `pnpm run check` and
+      `pnpm run build` green. Uninstalled the Node 25 test install
+      afterward; it was never a project dependency.
+- [x] **Registered the new policy everywhere the other fourteen are**:
+      `spec/README.md`'s policy table (new row) and prose count (fourteen
+      → fifteen), `index.md`'s prose count, `README.md`'s "fourteen
+      project policies" mention. `llms.txt`/`llms.json` weren't touched —
+      their "Project policies" section is an explicitly curated subset
+      (8 of the total), not an exhaustive list with a count to keep in
+      sync.
+- [x] Verified: `bin/check-docs`, `bin/check-trademarks` — both pass
+      unaffected (this change touches no Rust code, so `cargo test`/
+      clippy/fmt weren't rerun).
+
 ## Done (2026-08-30, documentation-harmonization audit)
 
 - [x] **Five parallel audits** (same pattern as the 2026-08-30 morning

@@ -1,15 +1,17 @@
 /*
  * snomed-rust theme
  *
- * Styles the Lily Design System's headless components (see
- * src/lib/components/) for this site. Lily ships no CSS of its own — every
+ * Styles the `lily-design-system-svelte-headless` npm package's components
+ * (see package.json) for this site. Lily ships no CSS of its own — every
  * component renders one kebab-case class as a styling hook (e.g. `card`,
  * `data-table`), and semantic variants as `data-type` attributes
  * (e.g. `data-type="warning"`). This file targets those hooks.
  *
  * Palette: a clinical blue/teal (SNOMED CT is a clinical terminology) paired
  * with a rust-orange accent (the implementation language). Light and dark
- * variants are both supported via prefers-color-scheme.
+ * variants both default from prefers-color-scheme, and both are also
+ * selectable manually via [data-theme] (see "Theme picker" below) — the
+ * media query only applies while no explicit choice has been made.
  */
 
 :root {
@@ -61,7 +63,8 @@
 }
 
 @media (prefers-color-scheme: dark) {
-	:root {
+	/* Only while the picker hasn't set an explicit theme — its choice wins. */
+	:root:not([data-theme]) {
 		--color-bg: #0b1416;
 		--color-surface: #101c20;
 		--color-surface-raised: #142428;
@@ -88,7 +91,38 @@
 
 		--color-code-bg: #061215;
 		--color-code-text: #cfe8ec;
+
+		color-scheme: dark;
 	}
+}
+
+/*
+ * The explicit dark/light themes themselves are NOT here — they're the two
+ * swappable stylesheets `static/themes/{light,dark}.css` that
+ * `lily-design-system-svelte-theme-picker` loads via a managed <link>,
+ * keyed off the same [data-theme] attribute it sets on <html>. The media
+ * query above is only the pre-selection fallback (no picker choice made
+ * yet, so no swapped stylesheet has loaded either).
+ */
+
+/* ---------- Text size picker ---------- */
+
+/*
+ * `lily-design-system-svelte-text-size-picker` sets data-text-size on
+ * <html>; these scale the rem root so every existing rem-based size and
+ * space-* token in this file scales with it. "medium" needs no rule — it's
+ * the unscaled 100% default the root already has before any pick is made.
+ */
+:root[data-text-size='small'] {
+	font-size: 87.5%;
+}
+
+:root[data-text-size='large'] {
+	font-size: 112.5%;
+}
+
+:root[data-text-size='x-large'] {
+	font-size: 125%;
 }
 
 /* ---------- Reset & base ---------- */
@@ -204,6 +238,13 @@ section + section {
 	font-size: 0.85rem;
 }
 
+.header-right {
+	display: flex;
+	align-items: center;
+	gap: var(--space-5);
+	flex-wrap: wrap;
+}
+
 .navigation-menu {
 	display: flex;
 	gap: var(--space-5);
@@ -218,6 +259,119 @@ section + section {
 
 .navigation-menu a:hover {
 	color: var(--color-primary);
+}
+
+.header-utilities {
+	display: flex;
+	align-items: center;
+	gap: var(--space-2);
+}
+
+/* ---------- Theme / text-size / share pickers ---------- */
+
+.theme-picker,
+.text-size-picker,
+.share-picker {
+	position: relative;
+}
+
+.theme-picker-button,
+.text-size-picker-button,
+.share-picker-button {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 2.25rem;
+	height: 2.25rem;
+	border-radius: var(--radius);
+	border: 1px solid var(--color-border);
+	background: transparent;
+	color: var(--color-text);
+	font-size: 1rem;
+	line-height: 1;
+	cursor: pointer;
+}
+
+.theme-picker-button:hover,
+.text-size-picker-button:hover,
+.share-picker-button:hover {
+	border-color: var(--color-primary);
+	color: var(--color-primary);
+}
+
+.theme-picker-list,
+.text-size-picker-list,
+.share-picker-list {
+	position: absolute;
+	top: calc(100% + var(--space-2));
+	right: 0;
+	z-index: 50;
+	min-width: 9rem;
+	margin: 0;
+	padding: var(--space-2);
+	list-style: none;
+	background: var(--color-surface-raised);
+	border: 1px solid var(--color-border);
+	border-radius: var(--radius);
+	box-shadow: 0 8px 24px rgb(0 0 0 / 0.16);
+}
+
+.theme-picker-list[hidden],
+.text-size-picker-list[hidden],
+.share-picker-list[hidden] {
+	display: none;
+}
+
+.theme-picker-option,
+.text-size-picker-option {
+	padding: var(--space-2) var(--space-3);
+	border-radius: var(--radius);
+	font-size: 0.9rem;
+	cursor: pointer;
+}
+
+.theme-picker-option:hover,
+.text-size-picker-option:hover,
+.theme-picker-option[data-active],
+.text-size-picker-option[data-active] {
+	background: var(--color-surface);
+}
+
+.theme-picker-option[aria-selected='true'],
+.text-size-picker-option[aria-selected='true'] {
+	color: var(--color-primary);
+	font-weight: 600;
+}
+
+.share-picker-list-item {
+	list-style: none;
+}
+
+.share-picker-target,
+.share-picker-copy {
+	display: block;
+	width: 100%;
+	padding: var(--space-2) var(--space-3);
+	border: none;
+	border-radius: var(--radius);
+	background: none;
+	color: var(--color-text);
+	font: inherit;
+	text-align: left;
+	text-decoration: none;
+	cursor: pointer;
+}
+
+.share-picker-target:hover,
+.share-picker-copy:hover {
+	background: var(--color-surface);
+}
+
+.share-picker-status {
+	margin: var(--space-1) 0 0;
+	padding: 0 var(--space-3);
+	font-size: 0.8rem;
+	color: var(--color-text-muted);
 }
 
 .footer {

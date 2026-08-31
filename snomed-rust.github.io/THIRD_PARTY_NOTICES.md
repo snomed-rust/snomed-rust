@@ -1,9 +1,15 @@
 # Third-party notices
 
-This site vendors a subset of components from the **Lily Design System**
-(Svelte Headless edition), used under the MIT License.
+This site depends on four **Lily Design System** npm packages (Svelte 5
+editions), used under the MIT License. Vite bundles the components it
+actually imports into the static output in `build/`.
 
-- Project: https://github.com/LilyDesignSystem/lily-design-system-svelte-headless
+- Packages:
+  - https://www.npmjs.com/package/lily-design-system-svelte-headless
+  - https://www.npmjs.com/package/lily-design-system-svelte-theme-picker
+  - https://www.npmjs.com/package/lily-design-system-svelte-text-size-picker
+  - https://www.npmjs.com/package/lily-design-system-svelte-share-picker
+- Project: https://github.com/LilyDesignSystem
 - Author: joel@joelparkerhenderson.com
 - License: MIT
 
@@ -31,5 +37,7 @@ THE SOFTWARE.
 
 Lily™ and Lily Design System™ are trademarks of their author.
 
-Vendored component files live under `src/lib/components/`; see the `README.md`
-there for which components were taken and why.
+Components used on this site are imported directly from these npm packages
+in `src/routes/+layout.svelte` and `src/routes/+page.svelte`; see
+`package.json` for pinned versions. The theme picker's two swapped
+stylesheets live at `static/themes/{light,dark}.css`.

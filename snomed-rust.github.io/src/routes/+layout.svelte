@@ -1,7 +1,12 @@
 <script lang="ts">
 	import favicon from '$lib/assets/favicon.svg';
 	import '$lib/theme.css';
-	import { SkipLink, Header, Footer, NavigationMenu } from '$lib/components';
+	import { SkipLink, Header, Footer, NavigationMenu } from 'lily-design-system-svelte-headless';
+	import { ThemePicker } from 'lily-design-system-svelte-theme-picker';
+	import { TextSizePicker } from 'lily-design-system-svelte-text-size-picker';
+	import { SharePicker } from 'lily-design-system-svelte-share-picker';
+	import { page } from '$app/state';
+	import { shareTargets } from '$lib/share-targets';
 
 	let { children } = $props();
 
@@ -19,12 +24,37 @@
 		<a class="brand" href="/">
 			snomed <small>SNOMED CT for Rust</small>
 		</a>
-		<NavigationMenu label="Primary">
-			<a href="#crates-heading">Crates</a>
-			<a href="#quick-start-heading">Quick start</a>
-			<a href="#fits-heading">Where this fits</a>
-			<a href="https://github.com/snomed-rust/snomed-rust">GitHub</a>
-		</NavigationMenu>
+		<div class="header-right">
+			<NavigationMenu label="Primary">
+				<a href="#crates-heading">Crates</a>
+				<a href="#quick-start-heading">Quick start</a>
+				<a href="#fits-heading">Where this fits</a>
+				<a href="https://github.com/snomed-rust/snomed-rust">GitHub</a>
+			</NavigationMenu>
+			<div class="header-utilities">
+				<ThemePicker
+					label="Color theme"
+					themesUrl="/themes"
+					themes={['light', 'dark']}
+					detectFromSystem
+					storageKey="snomed-rust-theme"
+				/>
+				<TextSizePicker
+					label="Text size"
+					sizes={['small', 'medium', 'large', 'x-large']}
+					storageKey="snomed-rust-text-size"
+				/>
+				<SharePicker
+					label="Share this page"
+					url={page.url.href}
+					title={page.data.title}
+					targets={shareTargets}
+					copyLabel="Copy link"
+					copiedLabel="Link copied"
+					copyFailedLabel="Couldn't copy link"
+				/>
+			</div>
+		</div>
 	</div>
 </Header>
 

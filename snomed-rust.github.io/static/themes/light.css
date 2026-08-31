@@ -1,0 +1,12 @@
+/*
+ * Light theme — loaded by lily-design-system-svelte-theme-picker's managed
+ * <link> (see src/routes/+layout.svelte's ThemePicker themesUrl="/themes")
+ * whenever [data-theme="light"] is the active choice. The color tokens
+ * themselves are src/lib/theme.css's plain :root defaults — this file only
+ * needs to state what light mode changes relative to no selection at all:
+ * the native form-control/scrollbar color scheme.
+ */
+
+:root[data-theme='light'] {
+	color-scheme: light;
+}

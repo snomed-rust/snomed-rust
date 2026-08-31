@@ -9,11 +9,13 @@ Built with:
 
 - [SvelteKit](https://svelte.dev/docs/kit) + Svelte 5, statically prerendered
   via [`@sveltejs/adapter-static`](https://svelte.dev/docs/kit/adapter-static)
-- [Lily Design System](https://lilydesignsystem.github.io/) (Svelte Headless)
-  — a curated set of components vendored into `src/lib/components/`; see
-  [`src/lib/components/README.md`](src/lib/components/README.md) and
-  [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md)
-- A custom theme in [`src/lib/theme.css`](src/lib/theme.css)
+- [Lily Design System](https://lilydesignsystem.github.io/) (Svelte 5
+  editions) — layout components from `lily-design-system-svelte-headless`,
+  plus the header's `-theme-picker`, `-text-size-picker`, and
+  `-share-picker` packages; see [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md)
+- A custom theme in [`src/lib/theme.css`](src/lib/theme.css), with the
+  theme picker's two swapped stylesheets in
+  [`static/themes/`](static/themes)
 
 ## Develop
 
@@ -41,5 +43,5 @@ Settings → Pages.
 Site source is licensed [Apache-2.0](LICENSE). The parent
 [`snomed-rust/snomed-rust`](https://github.com/snomed-rust/snomed-rust) repo is
 dual-licensed `Apache-2.0 OR MIT`; this site is Apache-2.0 only, not a match.
-Vendored third-party components are separately licensed — see
-[`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md).
+The `lily-design-system-svelte-headless` npm dependency is separately
+licensed — see [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md).
