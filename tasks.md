@@ -12,6 +12,32 @@ moved there verbatim, most recently on 2026-08-31, to keep this file inside
 the repository's 40 KB per-document budget. Search both when asking "has
 this come up before".
 
+## Done (2026-08-31, `Makefile`: `make github-pages` target)
+
+- [x] Added `make github-pages` -> `git subtree push
+      --prefix=snomed-rust.github.io github-pages main`, the plain
+      `git subtree push` porcelain called for verbatim in
+      `spec/monorepo-github-pages/index.md`, alongside the existing
+      `publish` target (manual split + `--force-with-lease`, which stays
+      the day-to-day one — a bare `git subtree push` refuses on a
+      non-fast-forward rather than safely forcing past it).
+- [x] Adapted the two placeholder names in the spec's example command to
+      this repo's real ones: `snomed-rust.github.io` for the prefix
+      (not the sibling project's `fhir-rust.github.io` the spec's
+      example used), and a **new** `github-pages` remote — added
+      locally with `git remote add github-pages
+      git@github.com:snomed-rust/snomed-rust.github.io.git` — rather
+      than reusing the existing `pages` remote `publish` already uses,
+      per the maintainer's explicit correction mid-task.
+- [x] Verified without actually publishing: `git subtree split -q
+      --prefix=snomed-rust.github.io` succeeds standalone (the read-only
+      half of what the target does), and `make -n github-pages`/
+      `make -n publish` both print the expected commands. Did not run a
+      real push — that deploys the live site, an outward-facing action
+      left for the maintainer to trigger.
+- [x] Documented the new target in `CLAUDE.md`'s Commands section.
+- [x] Verified: `bin/check-docs`, `bin/check-trademarks`.
+
 ## Done (2026-08-31, `spec/monorepo-github-pages/`: read-only sibling export)
 
 - [x] Read `spec/monorepo-github-pages/index.md` (new, 16th project
