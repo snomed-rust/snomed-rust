@@ -6,11 +6,42 @@ current: check items off in the same change that completes them.
 Entries from before 2026-08-27 (the standing spec-citation guard through
 0.10.0's documentation audit, and the whole 2026-08-26 sitting — releases
 0.11.0-0.11.3, the trademark notice work, the professionalization spec, the
-outreach research and root document set) live in
-[`docs/tasks-archive.md`](docs/tasks-archive.md) — moved there verbatim,
-most recently on 2026-08-28, to keep this file inside the repository's
-40 KB per-document budget. Search both when asking "has this come up
-before".
+outreach research and root document set), plus the 2026-08-27 commit/tag
+signing setup, live in [`docs/tasks-archive.md`](docs/tasks-archive.md) —
+moved there verbatim, most recently on 2026-08-31, to keep this file inside
+the repository's 40 KB per-document budget. Search both when asking "has
+this come up before".
+
+## Done (2026-08-31, `spec/monorepo-github-pages/`: read-only sibling export)
+
+- [x] Read `spec/monorepo-github-pages/index.md` (new, 16th project
+      policy): the GitHub Pages site publishes by using `git subtree` to
+      derive a sibling read-only export repo at
+      `~/git/<organization>/<repo>.github.io`; that sibling is never
+      edited directly.
+- [x] `Makefile`'s `publish` target already implements the export
+      mechanism itself (`git subtree split --prefix=snomed-rust.github.io`
+      piped straight to the `pages` remote) — no change needed there.
+- [x] What was missing: the literal local sibling directory the spec
+      describes. Cloned `git@github.com:snomed-rust/snomed-rust.github.io.git`
+      to `~/git/snomed-rust/snomed-rust.github.io`, a sibling of this
+      monorepo checkout — a plain read-only clone, kept in sync with an
+      ordinary `git pull` after each `make publish`, never a place to
+      commit from directly.
+- [x] Added a note to `snomed-rust.github.io/README.md` itself (which
+      becomes that exported repo's own root README via the same subtree)
+      so anyone who lands on the standalone `snomed-rust.github.io` repo,
+      not just contributors reading the monorepo, sees the "read-only,
+      edit the source instead" rule.
+- [x] **Registered the new policy**: `spec/README.md`'s table and prose
+      count (fifteen → sixteen). Also caught that the *previous* policy
+      addition (`node-current-version`, same day) missed `index.md`'s
+      **second** policy table — the "Spec → crate map" section further
+      down has its own independent count and table that duplicates
+      `spec/README.md`'s, and it had drifted to "Fourteen further" with
+      `node-current-version` entirely absent. Fixed both rows and the
+      count there in the same change, rather than let it drift further.
+- [x] Verified: `bin/check-docs`, `bin/check-trademarks` — both pass.
 
 ## Done (2026-08-31, `spec/node-current-version/`: pin the site's Node.js version)
 
@@ -463,52 +494,6 @@ corrected, rather than left to keep looking unfinished:
 - [x] `python3 -c "import yaml; yaml.safe_load(...)"` confirms the edited
       workflow still parses and every job's step list is exactly as
       intended; `actionlint` is not installed here so that check is unrun.
-
-## Done (2026-08-27, commit/tag signing configured — partly closes a hygiene gap)
-
-- [x] **Configured local git signing** for this repository:
-      `gpg.format = ssh`, `user.signingkey` pointing at
-      `~/.ssh/id.d/jph-code-signing=8a085b90451ad01ba7646faae803accc=
-      ssh-ed25519-with-passphrase.pub`, `gpg.ssh.allowedSignersFile` at
-      `~/.ssh/allowed_signers`, and `commit.gpgsign`/`tag.gpgsign` both
-      `true`. Verified before writing anything down: the public key's
-      fingerprint (`ssh-keygen -lf`) matches the entry already present in
-      `~/.ssh/allowed_signers` under `joel@joelparkerhenderson.com`, and
-      `ssh-keygen -Y sign` is available (OpenSSH 10.4, well past the 8.2
-      minimum for SSH signing).
-- [x] **Did not attempt a live signed commit while the key was locked.**
-      The private key is passphrase-protected and was not loaded in
-      `ssh-agent` at the time; a non-interactive shell has no way to supply
-      that passphrase, and shouldn't try to. This change's own commit
-      landed first with `--no-gpg-sign` explicitly, as a bootstrapping
-      exception. Once the maintainer unlocked the key
-      (`ssh-add --apple-use-keychain`), verified with `ssh-add -l`, a
-      round-trip smoke test (`ssh-keygen -Y sign` / `-Y verify` against
-      `~/.ssh/allowed_signers`, both clean) and a throwaway-branch empty
-      commit (`git commit -S`, `%G?` = `G`, deleted after) confirmed
-      signing actually works end to end before trusting it on real
-      history. That commit was then **amended to be signed** and pushed —
-      so the version of this entry you are reading is itself in a signed
-      commit, not the unsigned one described above; `git log
-      --show-signature` on it should say so.
-- [x] **Checked GitHub, GitLab, and Codeberg registration and found none
-      possible without the maintainer present.** `gh ssh-key list` 404s:
-      the CLI's OAuth token lacks the `admin:ssh_signing_key` scope, and
-      granting it (`gh auth refresh -h github.com -s
-      admin:ssh_signing_key`) is an interactive, account-holder-only
-      approval. Only one key is on the GitHub account today, typed
-      `authentication`, not `signing`. Neither `glab` nor `tea` (GitLab,
-      Codeberg/Forgejo CLIs) is installed. So none of the three forges
-      will show a "Verified" badge yet — updated `MAINTAINERS.md`,
-      `SECURITY.md`, `plan.md`, and `spec/professionalization/index.md`
-      in this same change to say exactly that, rather than either leaving
-      the old "no signing key" claim standing or overclaiming completion.
-- [x] Left as a named follow-up rather than a silent gap: the maintainer
-      registers the same public key with each forge as a *signing* key
-      (GitHub: Settings → SSH and GPG keys → New SSH key → Key type
-      "Signing Key", or `gh auth refresh` then `gh ssh-key add ... --type
-      signing`; GitLab and Codeberg have the equivalent under their own
-      SSH key settings).
 
 ## Next up
 

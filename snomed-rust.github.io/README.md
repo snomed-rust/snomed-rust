@@ -5,6 +5,16 @@ GitHub Pages site — a landing page for the
 [`snomed`](https://github.com/snomed-rust/snomed-rust) Rust workspace
 (SNOMED CT: RF2, ECL, FHIR terminology operations, OWL, EL classification).
 
+> [!NOTE]
+> **If you're reading this on the standalone
+> [`snomed-rust/snomed-rust.github.io`](https://github.com/snomed-rust/snomed-rust.github.io)
+> repo (or a local clone of it):** that repo is a read-only export, derived
+> with `git subtree` from this directory in the monorepo — see
+> `spec/monorepo-github-pages/index.md` there. Never commit to it directly;
+> changes belong in
+> [`snomed-rust/snomed-rust`](https://github.com/snomed-rust/snomed-rust)'s
+> `snomed-rust.github.io/`, published from there via `make publish`.
+
 Built with:
 
 - [SvelteKit](https://svelte.dev/docs/kit) + Svelte 5, statically prerendered

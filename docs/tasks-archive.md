@@ -19,6 +19,7 @@ so the paths quoted here still resolve.
 | [`tasks-archive-6.md`](tasks-archive-6.md) | 2026-08-22 - 2026-08-23 | Necessary normal form's second pass, `MemberId` as a `u128`, the remaining `{{ D ... }}` filter kinds and typed search terms, the reverse association index, the exponential-refinement bug the fuzzer found, and the two benchmark audits it prompted |
 | [`tasks-archive-7.md`](tasks-archive-7.md) | 2026-08-23 | The standing spec-citation guard, ECL dot notation, `memberOf` gaining its real operand (`^ *`, computed sets, `< ^ X`), `^R` and the reverse membership index, and the documentation audit that closed out 0.10.0 |
 | [`tasks-archive-8.md`](tasks-archive-8.md) | 2026-08-26 | Releases 0.11.0-0.11.3, the owner-specified trademark notice and its crate-description enforcement, the SNOMED International inquiry draft, the spec-directory `index.md`/`README.md` symlink convention, repository security settings, the professionalization spec and its execution, and the outreach research and root document set |
+| [`tasks-archive-9.md`](tasks-archive-9.md) | 2026-08-27 | Commit/tag signing configured (SSH-format key, `allowed_signers`, verified end to end after a bootstrapping unsigned commit), and the finding that registering it as a *signing* key on GitHub, GitLab, and Codeberg needs the maintainer present |
 
 Older entries are shorter and more granular than recent ones: they were
 written a change at a time while the workspace was being built from

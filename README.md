@@ -65,7 +65,7 @@ Supporting documents:
   and questions, answered.
 - [`spec/`](spec/README.md) — project-local distillation of the official
   [RF2 Release File Specification](https://docs.snomed.org/snomed-ct-specifications/snomed-ct-release-file-specification);
-  the normative reference for this codebase. It also holds fifteen project
+  the normative reference for this codebase. It also holds sixteen project
   policies that bind the same way — the full table, kept current, is in
   [`spec/README.md`](spec/README.md); the ones most worth knowing up front
   are
