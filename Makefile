@@ -9,7 +9,6 @@
 # deploy key, no GitHub App secret, and no org-wide setting behind it.
 
 PAGES_REMOTE := pages
-GITHUB_PAGES_REMOTE := github-pages
 PAGES_PREFIX := snomed-rust.github.io
 
 .PHONY: publish github-pages
@@ -27,9 +26,8 @@ publish:
 # (a `git subtree push` refuses non-fast-forwards outright rather than
 # safely forcing past them). Prefer `publish` day to day; this target is
 # the direct command per spec/monorepo-github-pages/index.md, kept around
-# as the simplest way to reproduce that push by hand. Uses its own remote
-# name, `github-pages` (`git remote add github-pages
-# git@github.com:snomed-rust/snomed-rust.github.io.git` — today the same
-# URL as `pages` above), so this target matches that spec verbatim.
+# as the simplest way to reproduce that push by hand. Delegates to
+# bin/make-github-pages (a standalone POSIX script, not inlined here) —
+# see that script's header for the `github-pages` remote it requires.
 github-pages:
-	git subtree push --prefix=$(PAGES_PREFIX) $(GITHUB_PAGES_REMOTE) main
+	bin/make-github-pages
