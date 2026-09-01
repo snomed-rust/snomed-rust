@@ -18,9 +18,10 @@ before".
 - [x] Closed the `{{ M ... }}` decision `plan.md`'s "Open decisions"
       recorded 2026-08-30 (option 1: retain rows for all eighteen refset
       types, keep `evaluate()` infallible), for the three shared-column
-      filter kinds. The remaining scope (`memberFieldFilter`, `^R`
-      combination) is a new "Next up" entry below, not a further
-      decision.
+      filter kinds. The remaining scope is a new "Next up" entry below:
+      the `^R` combination needs no further decision, but
+      `memberFieldFilter` turned out to need one of its own — checked the
+      same day, see that entry for why.
 - [x] **(a) Widened `spec/09 rule 4` and `SnapshotStoreBuilder::build()`**:
       a new type-erased `member_rows`/`member_components` index retains
       every refset member's shared six columns (`RefsetMemberCore`),
@@ -599,21 +600,28 @@ corrected, rather than left to keep looking unfinished:
 - [ ] **`{{ M ... }}` member filters, remaining scope** (`snomed-ecl`) —
       the `moduleId`/`effectiveTime`/`active` kinds are done (2026-09-01,
       see Done below); two pieces of the original decision's scope are
-      still open, neither blocked on a further call:
+      still open:
+      - `{{ M ... }}` after `^R` (`refsetContainingAny`) — rejected with
+        `EclError::NotYetImplemented`, no further call needed to unblock
+        it, since a member filter there would need a different (and more
+        expensive) query shape than `^`'s: resolving, per candidate
+        refset, which of its rows reference something in the operand.
       - The fourth `memberFilter` grammar alternative, `memberFieldFilter`
         (a refset-type-specific column: `mapTarget`, `correlationId`,
-        `order`, …). Not tokenized, so it fails generically rather than
-        by name. Its own increment, per `agents/ecl-engineer.md`'s
-        established "one filter kind at a time" cadence — the store side
-        is ready (`SnapshotStore::member_rows` returns
-        `RefsetMemberCore`, not the per-type typed row, so reaching a
-        type-specific column needs a per-type lookup added to the
-        evaluator, keyed off which type the filter names).
-      - `{{ M ... }}` after `^R` (`refsetContainingAny`) — rejected with
-        `EclError::NotYetImplemented`, since a member filter there would
-        need a different (and more expensive) query shape than `^`'s:
-        resolving, per candidate refset, which of its rows reference
-        something in the operand.
+        `order`, …). **Checked 2026-09-01, not a free pickup despite the
+        cadence precedent**: `SnapshotStore::member_rows` returns
+        `RefsetMemberCore` only — the columns every refset type shares —
+        never the type-specific ones (`map_target`, …), and every
+        *typed* per-type accessor (`extended_map_members`,
+        `simple_map_members`, …) is active-only by construction, the same
+        problem `{{ M active = false }}` had before 2026-09-01's store
+        change. Reaching a field like `mapTarget` with `{{ M active =
+        false, mapTarget = "22.9" }}` needs the same kind of "retain rows,
+        active and inactive" decision the original `{{ M }}` bullet
+        needed — priced how much memory that costs, for which types, and
+        whether per-type or unified — before code, not during it. Not
+        scoped in `plan.md`'s "Open decisions" yet; add it there before
+        picking this up.
 - [ ] Decisions, not tasks — each needs a call before code:
       - **`$expand` inline `valueSet`** (`snomed-fhir`): shape already
         determined — a typed compose model the caller maps its JSON onto

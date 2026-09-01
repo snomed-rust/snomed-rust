@@ -144,11 +144,10 @@ Two rules this section fixes, mirroring `{{ D }}`'s own (spec/10 rule
    one.
 
 **Not implemented:** the fourth grammar alternative, `memberFieldFilter`
-(a refset-type-specific column such as `mapTarget`/`correlationId`, which
-differs by refset type and so needs its own increment per filter kind —
-`agents/ecl-engineer.md`'s established cadence), and `{{ M ... }}` after
-`^R` (`refsetContainingAny`) — see `spec/10-ecl-unimplemented.md` for
-both.
+(a refset-type-specific column such as `mapTarget`/`correlationId` —
+blocked on a store-retention decision of its own, not just an increment;
+see `plan.md`'s "Open decisions"), and `{{ M ... }}` after `^R`
+(`refsetContainingAny`) — see `spec/10-ecl-unimplemented.md` for both.
 
 ## Description filter constraint (`{{ D ... }}`)
 

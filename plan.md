@@ -192,6 +192,30 @@ and harmonizes it with the sibling repositories (`hl7-rust`, `er7-rust`,
 - **An HTTP server for `snomed-fhir`.** Needs an external dependency, so
   it is explicitly a decision against the zero-dependency policy rather
   than an autonomous pick.
+- **ECL `{{ M ... }}`'s `memberFieldFilter` kind** (a refset-type-specific
+  column: `mapTarget`, `correlationId`, `order`, …) — surfaced 2026-09-01
+  while closing the `{{ M ... }}` decision above for its three
+  shared-column kinds. `SnapshotStore::member_rows` (the index that
+  decision added) returns `RefsetMemberCore` only — the six columns every
+  refset type shares — never a type-specific one, and every *typed*
+  per-type accessor this workspace already had (`extended_map_members`,
+  `simple_map_members`, `mrcm_domain_members`, …) is active-only by
+  construction, the same gap `{{ M active = false }}` had before
+  `member_rows` existed. So a query combining `active = false` with a
+  field filter (`{{ M active = false, mapTarget = "22.9" }}`) needs
+  inactive rows retained for whichever types carry that field — the same
+  shape of decision the original `{{ M }}` bullet needed, not yet priced:
+  how much memory, for which of the sixteen non-Simple/Language types
+  (all of them, or only the ones a first field like `mapTarget` touches —
+  `SimpleMap`/`ExtendedMap`), and whether as a second type-erased index
+  (impossible here, since the value being asked about — `map_target` — is
+  a `String`, not one of `RefsetMemberCore`'s six columns, so "type-erased"
+  isn't available the way it was for `moduleId`/`effectiveTime`/`active`)
+  or as an "also keep inactive" sibling per typed accessor. Until this is
+  priced and decided, `memberFieldFilter` stays rejected — not by a fixed
+  keyword list (`refsetFieldName` is `1*alpha`, confirmed against the
+  official ABNF, so any bare word could in principle be one), but because
+  no field name is wired up to evaluate yet.
 
 ## Non-goals (for now)
 

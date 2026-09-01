@@ -26,14 +26,6 @@ Rejected with a named `EclError::NotYetImplemented`:
   refsets, so a member filter there would mean resolving, per candidate
   refset, which of its rows reference something in the operand — a
   different query shape this crate does not build.
-- A member filter's `memberFieldFilter` kind — a refset-type-specific
-  column (`mapTarget`, `correlationId`, `order`, …), as opposed to the
-  three shared-column kinds (`moduleId`/`effectiveTime`/`active`) already
-  implemented. Not tokenized, so it falls through to a generic
-  "unexpected keyword" error rather than a named one — the next increment
-  in the same one-filter-kind-at-a-time cadence `{{ C }}`/`{{ D }}` were
-  built with (`agents/ecl-engineer.md`), now that `SnapshotStore` retains
-  member rows to filter against.
 - `A#B` alternate identifiers — detected at the lexer by an alpha run
   (extended through trailing digits/dashes, per
   `altIdentifierSchemeAlias`) followed by `#`. An alias spelled exactly
@@ -97,6 +89,24 @@ token shape:
   reaches a second bare concept reference. Note it is a *spelling* gap,
   not a capability one: `moduleId = (id1 OR id2)` already works and means
   the same thing (see "Concept filter constraint" above).
+- A member filter's `memberFieldFilter` kind — a refset-type-specific
+  column (`mapTarget`, `correlationId`, `order`, …), as opposed to the
+  three shared-column kinds (`moduleId`/`effectiveTime`/`active`)
+  implemented 2026-09-01. `refsetFieldName` is `1*alpha` in the official
+  grammar (confirmed against the ABNF, not a fixed keyword list), so any
+  bare word lexes as `TokenKind::Word` and falls to the parser's generic
+  `UnexpectedKeyword`/`UnexpectedToken` — the same bucket a `{{ D }}`
+  language code lexes into when it isn't one this crate recognizes.
+  **Checked 2026-09-01, blocked on a decision, not just an increment**:
+  `SnapshotStore::member_rows` (added the same day) returns
+  `RefsetMemberCore` only, and every *typed* per-type accessor
+  (`extended_map_members`, `simple_map_members`, …) is active-only by
+  construction — the same gap `{{ M active = false }}` had before that
+  index existed. `{{ M active = false, mapTarget = "22.9" }}` needs
+  inactive rows retained for whichever types carry a `mapTarget` column,
+  which is a further-priced `plan.md` "Open decisions" item (see there),
+  not a free continuation of the `{{ C }}`/`{{ D }}` one-kind-at-a-time
+  cadence this crate otherwise follows.
 - The `dialectIdSet` spelling (`{{ D dialectId = (X Y) }}`), for the same
   reason and with the same workaround shape: one `dialectId` per block,
   or an `OR` of two blocks.
