@@ -7,8 +7,8 @@ use crate::ast::{
     AcceptabilityValue, ActiveFilter, ActiveValue, AttributeComparison, AttributeConstraint,
     AttributeGroup, Cardinality, ConceptFilterKind, DefinitionStatusFilter, DefinitionStatusValue,
     DescriptionFilterKind, DescriptionTypeValue, DialectFilter, EffectiveTimeFilter,
-    ExpressionConstraint, FocusConcept, HierarchyOp, LanguageFilter, ModuleFilter,
-    NumericComparisonOp, RefinementConstraint, RefsetOperand, SearchTerm, SearchType,
+    ExpressionConstraint, FocusConcept, HierarchyOp, LanguageFilter, MemberFilterKind,
+    ModuleFilter, NumericComparisonOp, RefinementConstraint, RefsetOperand, SearchTerm, SearchType,
     SimpleExpressionConstraint, TermFilter, TimeComparisonOp, TypeFilter,
 };
 use crate::error::EclError;
@@ -282,11 +282,17 @@ impl Parser {
         Ok(RefsetOperand::Id { id, term })
     }
 
-    /// Parses one `{{ ... }}` filter constraint applied to `inner`. Only
-    /// `conceptFilterConstraint` (`{{ C ... }}`) is implemented;
-    /// description filters (`{{ D ... }}`, or a bare `{{ ... }}` — the
-    /// marker is optional and defaults to a description filter per the
-    /// grammar) and member filters (`{{ M ... }}`) are rejected by name.
+    /// Parses one `{{ ... }}` filter constraint applied to `inner`.
+    /// `conceptFilterConstraint` (`{{ C ... }}`), `descriptionFilterConstraint`
+    /// (`{{ D ... }}`, or a bare `{{ ... }}` — the marker is optional and
+    /// defaults to a description filter per the grammar), and
+    /// `memberFilterConstraint` (`{{ M ... }}`) are all recognized here —
+    /// but a member filter is legal only where the official grammar puts
+    /// it: directly on `inner` when `inner` is a `^` (`MemberOf`) that
+    /// hasn't yet been wrapped by a `constraintOperator`, or a *further*
+    /// `{{ M }}` chained onto a previous one (spec/10 rule 18,
+    /// `EclError::UnexpectedToken`/`NotYetImplemented` otherwise — see
+    /// [`Self::apply_member_filter`]).
     fn parse_filter_constraint(
         &mut self,
         inner: ExpressionConstraint,
@@ -308,14 +314,135 @@ impl Parser {
                 self.advance()?;
                 self.parse_description_filter_tail(inner)
             }
-            TokenKind::MemberFilterMarker => Err(EclError::NotYetImplemented {
-                pos: brace_pos,
-                feature: "member filters (`{{ M ... }}`)",
-            }),
+            TokenKind::MemberFilterMarker => {
+                self.advance()?;
+                let filters = self.parse_member_filter_list()?;
+                self.expect(TokenKind::RBrace, "`}`")?;
+                self.expect(TokenKind::RBrace, "`}`")?;
+                Self::apply_member_filter(inner, filters, brace_pos)
+            }
             // No marker: the grammar's `descriptionFilterConstraint` has
             // an *optional* `D`, so an unmarked block is a description
             // filter (spec/10) — not an error, and not a concept filter.
             _ => self.parse_description_filter_tail(inner),
+        }
+    }
+
+    /// Attaches a parsed `{{ M ... }}` filter list to whatever
+    /// `parse_operated_focus` already built as `inner`.
+    ///
+    /// The official grammar recognizes `memberFilterConstraint` only
+    /// inside `subExpressionConstraint`'s `refsetOperator` branch, before
+    /// any `constraintOperator` wraps the result — see
+    /// [`ExpressionConstraint::MemberFilter`]'s own doc for why. Since
+    /// `parse_operated_focus` parses the `constraintOperator` *before*
+    /// `^`'s operand and wraps immediately (rule 16: `< ^ X` is
+    /// `Operated { op: <, inner: MemberOf { X } }` by the time this
+    /// function runs), a `{{ M }}` reaching here through one or more
+    /// `Operated` layers still means "filter member rows first, then
+    /// apply the hierarchy operator" — so this recurses through
+    /// `Operated` and rebuilds it around the filtered result, rather than
+    /// wrapping outside it.
+    ///
+    /// `^R` (`RefsetContaining`) shares the same grammar branch as `^`
+    /// but is a genuinely different, unimplemented combination (a member
+    /// filter would need to test, for each *result* refset, an active
+    /// member referencing something in the operand — not one fixed
+    /// refset's rows), so it is named rather than folded into the
+    /// catch-all. Anything else (a plain focus, a `{{ C }}`/`{{ D }}`
+    /// result, a parenthesized expression, …) is not a
+    /// `memberFilterConstraint` position at all per the grammar — a
+    /// syntax error, not a missing capability.
+    fn apply_member_filter(
+        inner: ExpressionConstraint,
+        filters: Vec<MemberFilterKind>,
+        brace_pos: usize,
+    ) -> Result<ExpressionConstraint, EclError> {
+        match inner {
+            ExpressionConstraint::MemberOf { refsets } => {
+                Ok(ExpressionConstraint::MemberFilter { refsets, filters })
+            }
+            ExpressionConstraint::MemberFilter {
+                refsets,
+                filters: mut existing,
+            } => {
+                existing.extend(filters);
+                Ok(ExpressionConstraint::MemberFilter {
+                    refsets,
+                    filters: existing,
+                })
+            }
+            ExpressionConstraint::Operated { op, inner } => {
+                let rewrapped = Self::apply_member_filter(*inner, filters, brace_pos)?;
+                Ok(ExpressionConstraint::Operated {
+                    op,
+                    inner: Box::new(rewrapped),
+                })
+            }
+            ExpressionConstraint::RefsetContaining { .. } => Err(EclError::NotYetImplemented {
+                pos: brace_pos,
+                feature: "`{{ M ... }}` after `^R` (refsetContainingAny)",
+            }),
+            _ => Err(EclError::UnexpectedToken {
+                pos: brace_pos,
+                found: "`{{ M`".to_string(),
+                expected: "`{{ M ... }}` directly after `^` (memberOf), per spec/10 rule 18",
+            }),
+        }
+    }
+
+    /// `memberFilter *(ws "," ws memberFilter)` — `,` lexes as
+    /// `TokenKind::And`, the same alternate-AND-spelling token the
+    /// concept/description filter lists use.
+    fn parse_member_filter_list(&mut self) -> Result<Vec<MemberFilterKind>, EclError> {
+        let mut filters = vec![self.parse_member_filter_kind()?];
+        while matches!(self.peek().kind, TokenKind::And) {
+            self.advance()?;
+            filters.push(self.parse_member_filter_kind()?);
+        }
+        Ok(filters)
+    }
+
+    /// A single `memberFilter`: `moduleFilter`, `effectiveTimeFilter`, or
+    /// `activeFilter` — spec/10 rule 18's three implemented kinds, all
+    /// already tokenized for `{{ C }}`, so no new lexer keywords are
+    /// needed. The fourth grammar alternative, `memberFieldFilter`
+    /// (refset-type-specific columns), isn't tokenized, so it falls
+    /// through to the generic "unexpected keyword" bucket rule 9
+    /// describes rather than being named here.
+    fn parse_member_filter_kind(&mut self) -> Result<MemberFilterKind, EclError> {
+        match &self.peek().kind {
+            TokenKind::ModuleIdKeyword => {
+                self.advance()?;
+                let negated = self.parse_boolean_comparison_operator()?;
+                let value = self.parse_sub_expression_constraint()?;
+                Ok(MemberFilterKind::Module(ModuleFilter {
+                    negated,
+                    value: Box::new(value),
+                }))
+            }
+            TokenKind::EffectiveTimeKeyword => {
+                self.advance()?;
+                let operator = self.parse_time_comparison_operator()?;
+                let values = self.parse_time_value_set()?;
+                Ok(MemberFilterKind::EffectiveTime(EffectiveTimeFilter {
+                    operator,
+                    values,
+                }))
+            }
+            TokenKind::ActiveKeyword => {
+                self.advance()?;
+                let negated = self.parse_boolean_comparison_operator()?;
+                let value = self.parse_active_value()?;
+                Ok(MemberFilterKind::Active(ActiveFilter { negated, value }))
+            }
+            _ => {
+                let tok = self.peek().clone();
+                Err(Self::unexpected(
+                    &tok,
+                    "`moduleId`, `effectiveTime`, or `active`",
+                ))
+            }
         }
     }
 
@@ -1381,6 +1508,111 @@ mod tests {
     }
 
     #[test]
+    fn parses_a_member_filter_constraint() {
+        let EC::MemberFilter { refsets, filters } =
+            parse("^ 447562003 {{ M active = true }}").unwrap()
+        else {
+            panic!("expected a member filter");
+        };
+        assert_eq!(
+            refsets,
+            RefsetOperand::Id {
+                id: SctId::parse("447562003").unwrap(),
+                term: None,
+            }
+        );
+        assert_eq!(filters.len(), 1);
+        assert!(matches!(
+            filters[0],
+            crate::ast::MemberFilterKind::Active(crate::ast::ActiveFilter {
+                negated: false,
+                value: ActiveValue::True,
+            })
+        ));
+    }
+
+    /// `moduleId`/`effectiveTime` (spec/10 rule 18) — the same
+    /// tokens/shapes `{{ C }}` already has, applied to a member row's own
+    /// columns instead of a concept's.
+    #[test]
+    fn parses_member_filter_module_and_effective_time() {
+        let EC::MemberFilter { filters, .. } = parse(
+            "^ 447562003 {{ M moduleId = 900000000000207008, effectiveTime >= \"20240101\" }}",
+        )
+        .unwrap() else {
+            panic!("expected a member filter");
+        };
+        assert_eq!(filters.len(), 2);
+        assert!(matches!(
+            filters[0],
+            crate::ast::MemberFilterKind::Module(_)
+        ));
+        assert!(matches!(
+            filters[1],
+            crate::ast::MemberFilterKind::EffectiveTime(_)
+        ));
+    }
+
+    /// Chained `{{ M }} {{ M }}` blocks (the grammar's `*(ws
+    /// memberFilterConstraint)`) merge into one filter list against the
+    /// same `refsets`, rather than nesting or losing the first block.
+    #[test]
+    fn chained_member_filter_blocks_merge_against_the_same_refsets() {
+        let EC::MemberFilter { refsets, filters } =
+            parse("^ 447562003 {{ M active = true }} {{ M moduleId = 900000000000207008 }}")
+                .unwrap()
+        else {
+            panic!("expected a member filter");
+        };
+        assert_eq!(
+            refsets,
+            RefsetOperand::Id {
+                id: SctId::parse("447562003").unwrap(),
+                term: None,
+            }
+        );
+        assert_eq!(filters.len(), 2);
+    }
+
+    /// A `constraintOperator` before `^` wraps *outside* the member
+    /// filter, matching how it already wraps outside a plain `memberOf`
+    /// (rule 16): `{{ M }}` filters the raw members first, and `<<` then
+    /// applies to that filtered set.
+    #[test]
+    fn a_hierarchy_prefix_wraps_outside_a_member_filter() {
+        let EC::Operated { op, inner } = parse("<< ^ 447562003 {{ M active = true }}").unwrap()
+        else {
+            panic!("expected an operated expression");
+        };
+        assert_eq!(op, HierarchyOp::DescendantOrSelfOf);
+        assert!(matches!(*inner, EC::MemberFilter { .. }));
+    }
+
+    /// `{{ M }}` chains before `{{ C }}`/`{{ D }}` in the grammar, never
+    /// after: it belongs to the `refsetOperator` branch specifically,
+    /// while `{{ C }}`/`{{ D }}` belong to the shared trailing loop every
+    /// `subExpressionConstraint` has.
+    #[test]
+    fn member_filter_after_a_concept_filter_is_a_syntax_error() {
+        assert!(matches!(
+            parse("^ 447562003 {{ C active = true }} {{ M active = true }}"),
+            Err(EclError::UnexpectedToken { .. })
+        ));
+    }
+
+    /// `{{ M }}` is only a `memberFilterConstraint` position directly
+    /// after `^` (memberOf) — after a plain focus it is a grammar
+    /// violation, not a missing capability, so it is `UnexpectedToken`
+    /// rather than `NotYetImplemented`.
+    #[test]
+    fn member_filter_after_a_plain_focus_is_a_syntax_error() {
+        assert!(matches!(
+            parse("404684003 {{ M active = true }}"),
+            Err(EclError::UnexpectedToken { .. })
+        ));
+    }
+
+    #[test]
     fn parses_a_hierarchy_prefix_on_a_parenthesized_expression() {
         let EC::Operated { op, inner } = parse("< (404684003 OR 64572001)").unwrap() else {
             panic!("expected an operated expression");
@@ -1531,10 +1763,14 @@ mod tests {
 
     #[test]
     fn rejects_unimplemented_filter_kinds_by_name() {
-        // Member filters, and the description-filter kinds whose keywords
-        // *are* tokenized, get a feature-naming error (spec/10 rule 9).
+        // `{{ M }}` after `^R` (refsetContainingAny), and the
+        // description-filter kinds whose keywords *are* tokenized, get a
+        // feature-naming error (spec/10 rule 9). `{{ M }}` itself is now
+        // implemented after `^` — see
+        // `member_filter_after_a_plain_focus_is_a_syntax_error` and
+        // `parses_a_member_filter_constraint` for the two positions.
         assert!(matches!(
-            parse("404684003 {{ M active = true }}"),
+            parse("^R 404684003 {{ M active = true }}"),
             Err(EclError::NotYetImplemented { .. })
         ));
         // `moduleId`/`effectiveTime` inside `{{ D }}` are implemented now:

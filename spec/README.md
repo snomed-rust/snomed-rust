@@ -53,7 +53,7 @@ Official sources:
 | [09-versioning.md](09-versioning.md) | effectiveTime, active, moduleId, snapshot semantics | `snomed-store` |
 | [10-ecl.md](10-ecl.md) | Expression Constraint Language: grammar, hierarchy operators, `memberOf`/`^R`, dot notation, **and all of ECL's normative rules** | `snomed-ecl` |
 | [10-ecl-refinements.md](10-ecl-refinements.md) | ECL `:` attribute-value constraints: cardinality, reverse flag, attribute groups, concrete values | `snomed-ecl` |
-| [10-ecl-filters.md](10-ecl-filters.md) | ECL filter constraints: `{{ C ... }}` concept filters, `{{ D ... }}` description filters | `snomed-ecl` |
+| [10-ecl-filters.md](10-ecl-filters.md) | ECL filter constraints: `{{ C ... }}` concept filters, `{{ D ... }}` description filters, `{{ M ... }}` member filters | `snomed-ecl` |
 | [10-ecl-unimplemented.md](10-ecl-unimplemented.md) | ECL constructs still rejected, and what each one is blocked on | `snomed-ecl` |
 | [11-fhir.md](11-fhir.md) | FHIR terminology service building blocks: `$lookup`, `$subsumes`, `$expand` | `snomed-fhir` |
 | [12-owl.md](12-owl.md) | OWL Expression reference set: parsing axioms in OWL 2 functional syntax | `snomed-owl` |

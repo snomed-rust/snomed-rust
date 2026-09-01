@@ -1,14 +1,19 @@
-# 10 — ECL filter constraints (`{{ C ... }}`, `{{ D ... }}`)
+# 10 — ECL filter constraints (`{{ C ... }}`, `{{ D ... }}`, `{{ M ... }}`)
 
 Split out of [10-ecl.md](10-ecl.md), which had outgrown one file. This
 covers what each filter kind matches; the grammar productions and the
-normative rules (11-14) stay there, and this file is normative in exactly
-the same way.
+normative rules (11-14, 18) stay there, and this file is normative in
+exactly the same way.
 
-A filter constraint restricts an already-evaluated set. Both kinds attach
-to any `subExpressionConstraint` — a plain focus concept, a parenthesized
-expression, or `^ memberOf` — and multiple blocks chain, each seeing only
-what the previous one let through.
+A filter constraint restricts an already-evaluated set. `{{ C }}`/
+`{{ D }}` attach to any `subExpressionConstraint` — a plain focus
+concept, a parenthesized expression, or `^ memberOf` — and multiple
+blocks chain, each seeing only what the previous one let through.
+`{{ M }}` is narrower: it attaches only directly to `^`'s own operand,
+never to an arbitrary `subExpressionConstraint` — see 10-ecl.md's
+"`{{ M ... }}` — member filter constraints" section for why (it needs a
+specific refset to look member rows up against, which an arbitrary
+already-evaluated set doesn't carry).
 
 ## Concept filter constraint (`{{ C ... }}`)
 
@@ -87,9 +92,63 @@ chain, each seeing only what the previous one let through.
   everywhere else in this lexer — so multiple filters in one block need
   no new separator handling; they're ANDed together.
 
-**Not implemented:** member filter constraints (`{{ M ... }}`), which
-are recognized and rejected by name — see
-`spec/10-ecl-unimplemented.md` for why they are more than a parsing gap.
+## Member filter constraint (`{{ M ... }}`)
+
+`^ refsets {{ M memberFilter (, memberFilter)* }}` restricts `refsets`'s
+referenced components to those with at least one member row — active or
+inactive — satisfying every filter in the block. Unlike `{{ C }}`/
+`{{ D }}`, it attaches only directly to `^`'s operand (see 10-ecl.md's
+grammar excerpt and rule 18), and a `constraintOperator` before `^`
+applies *after* the member filter, not before it.
+
+`moduleFilter`, `effectiveTimeFilter`, and `activeFilter` are
+implemented — the three `memberFilter` kinds that ask about a column
+every refset member type shares (`RefsetMemberCore`, spec/08) — reusing
+the exact `ModuleFilter`/`EffectiveTimeFilter`/`ActiveFilter` AST shapes
+`{{ C }}` already has:
+
+- `moduleId (=|!=) subExpressionConstraint` matches member rows whose own
+  `moduleId` is in the evaluated set — the member row's `moduleId`, not
+  the referenced component's own. A row and its referenced component can
+  legitimately disagree (a member added by an extension module against a
+  core-module concept, say), which is exactly why this asks about the
+  row rather than reusing `{{ C moduleId }}`.
+- `effectiveTime (=|!=|<=|<|>=|>) (timeValue | timeValueSet)` compares
+  against the member row's own `effectiveTime` (spec/08), the same
+  plain-equality/ordering semantics `{{ C effectiveTime }}` has (no
+  aggregate-negation trick — a member row, like a concept, has exactly
+  one `effectiveTime`).
+- `active (=|!=) (true|false|*)` matches the member row's own `active`
+  column — including `false`, which is the whole reason this filter
+  needed a store change before it could be implemented at all (see
+  `spec/10-ecl-unimplemented.md`): a snapshot's other refset-member
+  indexes are active-only by construction (spec/09 rule 4), so nothing
+  before `SnapshotStore::member_rows` could ever have answered
+  `active = false`.
+
+Two rules this section fixes, mirroring `{{ D }}`'s own (spec/10 rule
+14, read one level down — a member row instead of a description):
+
+1. **All filters in one block apply to the same member row.** A
+   component with two member rows in the refset, each satisfying only
+   one filter, does not match `{{ M moduleId = X, effectiveTime >= Y }}`
+   — evaluating the filters independently across different rows would
+   silently accept a combination the block never actually asserts.
+2. **Only active member rows match, unless the block says otherwise.**
+   Without an explicit `active` filter, plain `^ refsets {{ M ... }}`
+   candidates come from the same active-only set plain `^ refsets` does
+   — so a query that never mentions `active` cannot be surprised by a
+   retired membership appearing from nowhere. Writing any `active`
+   filter — including `active = *` — replaces that default, which is
+   what makes a retired membership reachable when a query actually wants
+   one.
+
+**Not implemented:** the fourth grammar alternative, `memberFieldFilter`
+(a refset-type-specific column such as `mapTarget`/`correlationId`, which
+differs by refset type and so needs its own increment per filter kind —
+`agents/ecl-engineer.md`'s established cadence), and `{{ M ... }}` after
+`^R` (`refsetContainingAny`) — see `spec/10-ecl-unimplemented.md` for
+both.
 
 ## Description filter constraint (`{{ D ... }}`)
 

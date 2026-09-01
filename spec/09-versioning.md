@@ -46,12 +46,33 @@ Given any mix of Full, Snapshot, and Delta rows:
    and the difference is load-bearing for anything that wants to filter on
    a member's own columns: Simple refsets are reduced to a
    `(refsetId, componentId)` membership set and Language refsets to a
-   `(refsetId, descriptionId) -> acceptabilityId` map, keeping no rows,
-   while the other sixteen types retain their typed rows behind
-   per-type accessors (`association_members`, `extended_map_members`, …).
-   The two reduced types are the two with the most members by far — a
-   release's language refset alone runs to millions of rows — which is
-   why they are reduced.
+   `(refsetId, descriptionId) -> acceptabilityId` map, keeping no *typed*
+   rows, while the other sixteen types retain their typed rows behind
+   per-type accessors (`association_members`, `extended_map_members`, …),
+   **active members only**. Simple/Language are reduced rather than kept
+   as typed rows because they are the two with the most members by
+   far — a release's language refset alone runs to millions of rows.
+
+   A second, separate index — `member_rows`/`member_components` — retains
+   every refset type's members **stripped to their shared six columns**
+   (`RefsetMemberCore`: id, `effectiveTime`, `active`, `moduleId`,
+   `refsetId`, `referencedComponentId`), **active and inactive alike**,
+   keyed by `(refsetId, referencedComponentId)`. This is what backs
+   `snomed-ecl`'s `{{ M ... }}` member filter constraint (spec/10 rule
+   18): a member filter can ask for a row's own `active`/`moduleId`/
+   `effectiveTime`, including `active = false`, and evaluating it has no
+   way to know statically which refset *type* a given `refsetId` names,
+   so it needs one type-erased view that spans all eighteen types rather
+   than eighteen typed ones. It deliberately does **not** replace the
+   per-type/reduced structures above — those stay active-only, exactly as
+   before, so no existing accessor's behavior changes — it is purely
+   additive. Decided 2026-08-30 (`plan.md`'s "Open decisions", option 1):
+   retain rows for all eighteen refset types rather than make
+   `snomed-ecl::evaluate` fallible; ~48 bytes per `RefsetMemberCore`
+   row (member ids are `u128`), so this costs roughly the same order of
+   magnitude as retaining Simple/Language's rows would alone (the
+   original ~300 MB estimate), since most refset members are active in a
+   real release and the inactive minority does not multiply that figure.
 5. Where two rows contend for one slot and their `effectiveTime`s are
    equal, the tie MUST be broken deterministically by the rows' own
    content — never by which row arrived first and never by hash order.

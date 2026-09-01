@@ -184,41 +184,6 @@ and harmonizes it with the sibling repositories (`hl7-rust`, `er7-rust`,
   `^ *` alone would make it disagree with `^ X`, and changing both is a
   behavior change to a shipped operator — a call, not a cleanup.
 
-- **ECL `{{ M ... }}` member filters.** A member filter selects on a
-  member row's own columns, and a snapshot keeps rows for sixteen of the
-  eighteen refset types: Simple reduces to a `(refsetId, componentId)`
-  membership set and Language to an acceptability map, because those two
-  carry the most rows by far (spec/09 rule 4). Measured, not guessed —
-  `RefsetMemberCore` is 48 bytes since member ids became `u128`, so
-  retaining both types' rows for an International Edition-sized release
-  costs ~227 MB of rows before map overhead, call it ~300 MB in place.
-  Three ways to go, none free:
-  1. *Retain rows for all eighteen.* Every filter answerable, evaluation
-     stays infallible, everyone pays the memory whether or not they use
-     member filters.
-  2. *Implement for the sixteen, reject the other two by name.* No memory
-     cost, but there is nowhere to put the rejection: `evaluate` returns a
-     `HashSet`, not a `Result`, so an unanswerable filter would have to
-     return empty — a silent wrong answer, which this workspace treats as
-     the one unacceptable failure mode. Taking this option means making
-     evaluation fallible, a broad but mechanical API change.
-  3. *Don't implement it.* The named `NotYetImplemented` error stands.
-
-  **Decided 2026-08-30: option (1).** The maintainer chose to retain rows
-  for all eighteen refset types rather than make `evaluate()` fallible —
-  `evaluate` keeps its infallible `HashSet<SctId>` signature, no API break
-  across `snomed-ecl`/`snomed-fhir`/`snomed-cli`, and the ~300 MB extra
-  memory for an International-Edition-sized release is accepted as the
-  cost of every filter being answerable. **Not yet implemented**: the
-  store still drops Simple/Language member rows down to their compact
-  membership set/acceptability map (spec/09 rule 4 as currently written),
-  and the parser still rejects `{{ M ... }}` with `NotYetImplemented`.
-  Implementing this means, in order: (a) widen `spec/09 rule 4` and
-  `SnapshotStore`'s builder to retain full rows for every refset type, not
-  just the sixteen it already keeps rows for; (b) add `{{ M ... }}`
-  grammar (member filter constraint) to `spec/10-ecl-filters.md` and the
-  lexer/parser; (c) implement the evaluator filter against the retained
-  rows; (d) move this bullet, and the matching one in `tasks.md`, to Done.
 - **`$expand` inline `valueSet`.** Shape already settled by precedent — a
   typed compose model the hosting server maps its JSON onto, not a JSON
   parser (spec/11). What is undecided is whether the surface is wanted at
@@ -246,14 +211,23 @@ spec section that documents it) and the deliberately-rejected lists —
 sections of `spec/11`-`spec/14` — where every entry fails with a typed
 error rather than being silently approximated.
 
-Since 0.9.0 the ECL surface has grown by three constructs and one
-grammar correction rather than by new crates: dot notation
-(`A . attribute`), the full `memberOf` operand (`^ *`, `^ ( expr )`,
-`< ^ X`, `< ( A OR B )`), and `^R` (`refsetContainingAny`) with the
-concept-keyed reverse membership index behind it. Each one was confirmed
-against the official ABNF or a verbatim guide quote before implementation,
-because every one of them has a plausible wrong reading that returns a
-set rather than an error.
+Since 0.9.0 the ECL surface has grown by four constructs and one grammar
+correction rather than by new crates: dot notation (`A . attribute`), the
+full `memberOf` operand (`^ *`, `^ ( expr )`, `< ^ X`, `< ( A OR B )`),
+`^R` (`refsetContainingAny`) with the concept-keyed reverse membership
+index behind it, and — 2026-09-01, closing the `{{ M ... }}` decision
+above — the member filter constraint's `moduleId`/`effectiveTime`/`active`
+kinds, which needed a `SnapshotStore` change first: a type-erased
+`member_rows`/`member_components` index retaining every refset member's
+shared columns, active *and* inactive, across all eighteen refset types
+(spec/09 rule 4), landed alongside the grammar/evaluator work so `{{ M
+active = false }}` has something to match. `{{ M ... }}`'s
+refset-type-specific `memberFieldFilter` kind and its use after `^R`
+remain open — tracked in `tasks.md`, not here, since neither needs a
+further decision. Each construct above was confirmed against the
+official ABNF or a verbatim guide quote before implementation, because
+every one of them has a plausible wrong reading that returns a set
+rather than an error.
 
 ## Risks & watch items
 

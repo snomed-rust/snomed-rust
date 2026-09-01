@@ -14,21 +14,26 @@ don't assume an item below is named without checking `parser.rs`/
 
 Rejected with a named `EclError::NotYetImplemented`:
 
-- `{{ M ... }}` member filter constraints. This one is not just a
-  parsing gap: a member filter selects on a *member row's* own columns,
-  and `SnapshotStore` drops inactive refset members when it builds its
-  indexes (spec/09 rule 4), keeping only the membership facts. So
-  `{{ M active = false }}` could never match, and `moduleId`/
-  `effectiveTime` filters would silently see active rows only.
-  It is worse for the two refset types ECL uses most: Simple and Language
-  refsets keep no member *rows* at all in a snapshot, only the derived
-  membership set and acceptability map, since retaining a release's ~2.8M
-  language members would cost hundreds of megabytes. **Decided
-  2026-08-30** (`plan.md`'s "Open decisions"): retain rows for all
-  eighteen refset types rather than making `evaluate()` fallible, at the
-  cost of ~300 MB for an International-Edition-sized release. Not yet
-  implemented — see `tasks.md`'s `{{ M ... }}` entry for the three-part
-  sequence (widen retention, add the grammar, implement the filter).
+- `{{ M ... }}` **after `^R`** (`refsetContainingAny`). `^`'s own
+  `{{ M ... }}` — `moduleId`/`effectiveTime`/`active`, spec/10 rule 18 —
+  is implemented, following the store change and grammar work decided
+  2026-08-30 (`plan.md`'s "Open decisions", now moved to Done — see
+  `spec/09-versioning.md` rule 4's `member_rows`/`member_components`
+  index, `spec/10-ecl-filters.md`'s "Member filter constraint" section,
+  and `spec/10-ecl.md`'s "`{{ M ... }}`" section). `^R`'s combination is
+  the one still rejected: unlike `^`, where one member filter tests one
+  fixed refset's rows, `^R`'s result concepts are themselves different
+  refsets, so a member filter there would mean resolving, per candidate
+  refset, which of its rows reference something in the operand — a
+  different query shape this crate does not build.
+- A member filter's `memberFieldFilter` kind — a refset-type-specific
+  column (`mapTarget`, `correlationId`, `order`, …), as opposed to the
+  three shared-column kinds (`moduleId`/`effectiveTime`/`active`) already
+  implemented. Not tokenized, so it falls through to a generic
+  "unexpected keyword" error rather than a named one — the next increment
+  in the same one-filter-kind-at-a-time cadence `{{ C }}`/`{{ D }}` were
+  built with (`agents/ecl-engineer.md`), now that `SnapshotStore` retains
+  member rows to filter against.
 - `A#B` alternate identifiers — detected at the lexer by an alpha run
   (extended through trailing digits/dashes, per
   `altIdentifierSchemeAlias`) followed by `#`. An alias spelled exactly

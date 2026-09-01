@@ -99,9 +99,7 @@ pub enum ExpressionConstraint {
     /// `inner {{ C filter (AND filter)* }}` — a `conceptFilterConstraint`
     /// (spec/10): restricts `inner`'s evaluated set to concepts whose own
     /// row matches every filter in `filters`. See [`ConceptFilterKind`]
-    /// for which filter kinds are implemented. Member filters
-    /// (`{{ M ... }}`) are rejected — see spec/10's "Not yet
-    /// implemented" section.
+    /// for which filter kinds are implemented.
     ConceptFilter {
         inner: Box<ExpressionConstraint>,
         filters: Vec<ConceptFilterKind>,
@@ -130,6 +128,30 @@ pub enum ExpressionConstraint {
     DescriptionFilter {
         inner: Box<ExpressionConstraint>,
         filters: Vec<DescriptionFilterKind>,
+    },
+    /// `^ refsets {{ M filter (AND filter)* }}` — a
+    /// `memberFilterConstraint` (spec/10 rule 18): restricts the
+    /// referenced components of `refsets` to those with at least one
+    /// member row — active or inactive — satisfying every filter in
+    /// `filters`, the same "one row, all filters" and "active unless
+    /// stated otherwise" rules `{{ D }}` uses (spec/10 rule 14), read one
+    /// level down: a member row rather than a description.
+    ///
+    /// Unlike [`Self::ConceptFilter`]/[`Self::DescriptionFilter`], this
+    /// holds `refsets: RefsetOperand` directly rather than an arbitrary
+    /// boxed inner constraint: the official grammar attaches
+    /// `memberFilterConstraint` only inside `subExpressionConstraint`'s
+    /// `refsetOperator` branch, immediately after `^`'s operand and
+    /// before any `constraintOperator` wraps the result or any `{{ C
+    /// }}`/`{{ D }}` block runs — so a member filter always has a
+    /// specific refset operand to test member rows against, never an
+    /// arbitrary already-evaluated set (which would leave no refset id to
+    /// look member rows up by). `^R` (`refsetContainingAny`) shares the
+    /// same grammar branch but is not implemented here — see
+    /// `spec/10-ecl-unimplemented.md`.
+    MemberFilter {
+        refsets: RefsetOperand,
+        filters: Vec<MemberFilterKind>,
     },
 }
 
@@ -320,6 +342,32 @@ pub enum ConceptFilterKind {
     /// `effectiveTime timeComparisonOperator (timeValue | timeValueSet)`
     /// — spec/10.
     EffectiveTime(EffectiveTimeFilter),
+}
+
+/// One filter inside a `{{ M ... }}` member filter constraint (spec/10
+/// rule 18). All three reuse [`ModuleFilter`]/[`EffectiveTimeFilter`]/
+/// [`ActiveFilter`] — the same shapes `{{ C }}` already has, since
+/// `moduleId`/`effectiveTime`/`active` are three of the six columns every
+/// refset member shares (`RefsetMemberCore`, spec/08), asked about the
+/// *member row* rather than a concept's own row.
+///
+/// The official grammar's fourth `memberFilter` kind, `memberFieldFilter`
+/// (a refset-type-specific column, e.g. `mapTarget`), is not implemented
+/// — see [`ExpressionConstraint::MemberFilter`] and
+/// `spec/10-ecl-unimplemented.md`.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum MemberFilterKind {
+    /// `moduleId (=|!=) subExpressionConstraint` — the member row's own
+    /// `moduleId` (spec/08), not the referenced component's.
+    Module(ModuleFilter),
+    /// `effectiveTime (=|!=|<=|<|>=|>) (timeValue | timeValueSet)` — the
+    /// member row's own `effectiveTime` (spec/08).
+    EffectiveTime(EffectiveTimeFilter),
+    /// `active (=|!=) (true|false|*)` — the member row's own `active`
+    /// column. Its presence turns off the implicit active-only default,
+    /// the same override rule `{{ D }}`'s `active` filter has (spec/10
+    /// rule 14) — without it, `active = false` could never match.
+    Active(ActiveFilter),
 }
 
 /// `activeKeyword ws booleanComparisonOperator ws activeValue`.

@@ -128,3 +128,25 @@ different refset type, add its `all_x_members()` the same way rather than
 having the caller reconstruct it externally (which would mean either
 exposing the internal map or duplicating iteration logic outside this
 crate).
+
+## `member_rows`/`member_components`: the one type-erased, non-active-only index
+
+Every accessor above this line is active-only, by spec/09 rule 4's
+long-standing convention — and every one of them is keyed by a caller who
+already knows which refset *type* they're asking about (`extended_map_members`
+for a map, `mrcm_domain_members` for an MRCM row, …). `member_rows`/
+`member_components` break both conventions deliberately, for one specific
+consumer: `snomed-ecl`'s `{{ M ... }}` (spec/10 rule 18), which gets a
+bare `refsetId` at evaluation time with no way to know which of the
+eighteen types it names, and which can filter on `active` itself — so
+the index it reads has to include inactive rows, or `{{ M active = false
+}}` could never match anything (the reason this pair exists at all; see
+spec/09 rule 4's own note). They are built once, at the very top of
+`build()`, by *borrowing* every member map (`collect_member_rows`) before
+any of the per-type reductions below consume those same maps — reorder
+that and the borrow becomes a use-after-move. If you add a nineteenth
+refset type, it needs a `collect_member_rows(&self.new_type, |m| &m.core,
+&mut member_rows)` call alongside the other seventeen, or `{{ M }}` will
+silently miss it — nothing else here would catch that omission at compile
+time, since `RefsetMemberCore` doesn't know which type it came from once
+it's inside `member_rows`.

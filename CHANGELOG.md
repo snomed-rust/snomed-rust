@@ -13,6 +13,30 @@ together, in dependency order (`snomed-core` → `snomed-rf2` → `snomed-owl`
 
 ## [Unreleased]
 
+### Added
+
+- `snomed-ecl`: the ECL `{{ M ... }}` member filter constraint, for the
+  three filter kinds every refset member type shares —
+  `moduleId`/`effectiveTime`/`active` — attached directly to `^`
+  (`^ refsetId {{ M active = false }}`, say). New public API:
+  `ExpressionConstraint::MemberFilter`, `MemberFilterKind`. Closes the
+  `{{ M ... }}` decision recorded in `plan.md` on 2026-08-30. Its
+  refset-type-specific `memberFieldFilter` kind (e.g. `mapTarget`) and
+  its combination with `^R` remain unimplemented — see
+  `spec/10-ecl-unimplemented.md`.
+- `snomed-store`: `SnapshotStore::member_rows`/`member_components`, a new
+  index retaining every refset member's shared six columns
+  (`RefsetMemberCore`), active **and** inactive, across all eighteen
+  refset types — the store-side support `{{ M ... }}` needed, since every
+  existing refset-member accessor is active-only and per-type. Purely
+  additive: no existing accessor's behavior changed.
+
+### Changed
+
+- `snomed-ecl` now depends on `snomed-rf2` directly (previously a
+  dev-dependency only), since `SnapshotStore::member_rows` returns an
+  RF2 type (`RefsetMemberCore`) the evaluator now consumes.
+
 ## [0.12.0] — 2026-08-29
 
 **Breaking for consumers on an older toolchain, not to the API.** The

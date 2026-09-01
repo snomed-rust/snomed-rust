@@ -13,6 +13,68 @@ most recently on 2026-08-31, to keep this file inside the repository's
 40 KB per-document budget. Search both when asking "has this come up
 before".
 
+## Done (2026-09-01, ECL `{{ M ... }}` member filter constraint: `moduleId`/`effectiveTime`/`active`)
+
+- [x] Closed the `{{ M ... }}` decision `plan.md`'s "Open decisions"
+      recorded 2026-08-30 (option 1: retain rows for all eighteen refset
+      types, keep `evaluate()` infallible), for the three shared-column
+      filter kinds. The remaining scope (`memberFieldFilter`, `^R`
+      combination) is a new "Next up" entry below, not a further
+      decision.
+- [x] **(a) Widened `spec/09 rule 4` and `SnapshotStoreBuilder::build()`**:
+      a new type-erased `member_rows`/`member_components` index retains
+      every refset member's shared six columns (`RefsetMemberCore`),
+      active *and* inactive, across all eighteen refset types, keyed by
+      `(refsetId, referencedComponentId)`. Built by *borrowing* every
+      member map before the existing per-type reductions consume them —
+      purely additive, so every existing accessor's active-only behavior
+      is unchanged (verified: full workspace test suite green
+      before and after, no existing assertion touched except the ones
+      this change's own tests are about).
+- [x] **(b) Added `{{ M ... }}` grammar**: `spec/10-ecl.md` rule 18 (new),
+      a "`{{ M ... }}`" section explaining the grammar position (inside
+      `refsetOperator`, not the shared `{{ C }}`/`{{ D }}` trailing loop —
+      confirmed against the official ABNF, fetched fresh rather than
+      assumed, since this repo's own prior grammar excerpt didn't carry
+      `memberFilterConstraint`'s production), and a matching "Member
+      filter constraint" section in `spec/10-ecl-filters.md`. Parser:
+      `MemberFilterKind` (ast.rs), `parse_member_filter_list`/
+      `parse_member_filter_kind`, and `apply_member_filter` — the last
+      recurses through `Operated` wrappers so `< ^ X {{ M f }}` filters
+      before the hierarchy operator applies (rule 16 extended one level),
+      and distinguishes a genuine grammar violation
+      (`EclError::UnexpectedToken` — `{{ M }}` after a plain focus or a
+      `{{ C }}`/`{{ D }}` result) from the one still-unimplemented
+      grammatical combination (`EclError::NotYetImplemented` — `{{ M }}`
+      after `^R`).
+- [x] **(c) Implemented the evaluator filter**: `evaluate_member_filter`
+      in `eval.rs`, mirroring `{{ D }}`'s "same row, all filters" and
+      "active unless stated otherwise" rules one level down (a member row
+      instead of a description). `snomed-ecl`'s `Cargo.toml` gained
+      `snomed-rf2` as a real dependency (was dev-only) since
+      `RefsetMemberCore` is now a evaluator-visible type, not just a test
+      fixture.
+- [x] Tests per CLAUDE.md rule 4: `snomed-store` (4 new tests — inactive
+      rows visible where nothing else shows them, ordering, every-type
+      coverage, empty-refset defaults), `snomed-ecl` parser (7 new tests
+      — parses, chains, merges, rejects the two wrong positions correctly
+      distinguished), `snomed-ecl` eval (6 new tests — the motivating
+      `active = false` case, the implicit active-only default, the
+      row's-own-columns distinction, same-row conjunction, operator
+      ordering). Updated two tests whose expectations were the old
+      "always `NotYetImplemented`" behavior
+      (`rejects_unimplemented_filter_kinds_by_name` in `parser.rs`,
+      `ecl_reports_unsupported_syntax_instead_of_a_wrong_result` in
+      `crates/snomed/tests/ecl.rs`) to use `^R ... {{ M }}`, the
+      combination that is still correctly rejected.
+- [x] Full workspace `cargo test`/`cargo clippy --all-targets`/
+      `cargo fmt` all clean, including
+      `crates/snomed/tests/spec_citations.rs` (which required adding rule
+      18 to `10-ecl.md` in the same change, per CLAUDE.md rule 9).
+      `agents/ecl-engineer.md` and `agents/store-engineer.md` updated in
+      step; `plan.md`'s decision bullet moved out of "Open decisions" and
+      folded into "Current status"'s ECL-growth paragraph.
+
 ## Done (2026-08-31, `Makefile`: `make github-pages` target)
 
 - [x] Added `make github-pages` -> `git subtree push
@@ -485,10 +547,12 @@ corrected, rather than left to keep looking unfinished:
 
 ## Next up
 
-- [ ] Nothing currently scoped. State as of 2026-08-30 (0.12.0, released
-      2026-08-29 for the MSRV tightening — see `CHANGELOG.md`): 9 crates, 353
-      tests, clippy/fmt clean on stable, MSRV now 1.96 (current stable
-      minus two, `spec/rust-msrv-n-minus-2/index.md`), `fuzz/`, and
+- [ ] Nothing currently scoped beyond the `{{ M ... }}` remainder above.
+      State as of 2026-09-01 (still unreleased past 0.12.0, which
+      released 2026-08-29 for the MSRV tightening — see `CHANGELOG.md`'s
+      `[Unreleased]` section for what's landed since): 9 crates, 367
+      tests, clippy/fmt clean on stable, MSRV 1.96 (current stable minus
+      two, `spec/rust-msrv-n-minus-2/index.md`), `fuzz/`, and
       `benches/`; 13 fuzz targets; 6 criterion benchmark files; 32
       `spec/` documents (17 specification distillations, the README
       index, and 14 project policies — `llms-json-and-llms-txt/` added
@@ -532,21 +596,24 @@ corrected, rather than left to keep looking unfinished:
         2026-01-21 development update), so the criterion isn't met yet.
         `MAINTAINERS.md`, `SECURITY.md`, `plan.md`, and `README.md`
         updated to state the policy rather than read as an open gap.
-- [ ] **`{{ M ... }}` member filters** (`snomed-ecl`) — **decided
-      2026-08-30, not yet implemented.** `plan.md`'s "Open decisions"
-      section records the call: retain rows for all eighteen refset
-      types (not just the sixteen `SnapshotStore` already keeps rows
-      for), keep `evaluate()` infallible, no API break, ~300 MB accepted
-      as the memory cost for an International-Edition-sized release.
-      Three-part implementation, in order: (a) widen `spec/09 rule 4`
-      and the snapshot builder to stop reducing Simple/Language members
-      to their compact membership set/acceptability map; (b) add
-      `{{ M ... }}` grammar to `spec/10-ecl-filters.md` and the
-      lexer/parser, replacing the current named
-      `EclError::NotYetImplemented` rejection
-      (`spec/10-ecl-unimplemented.md`); (c) implement the evaluator
-      filter against the now-retained rows, with tests per CLAUDE.md
-      rule 4.
+- [ ] **`{{ M ... }}` member filters, remaining scope** (`snomed-ecl`) —
+      the `moduleId`/`effectiveTime`/`active` kinds are done (2026-09-01,
+      see Done below); two pieces of the original decision's scope are
+      still open, neither blocked on a further call:
+      - The fourth `memberFilter` grammar alternative, `memberFieldFilter`
+        (a refset-type-specific column: `mapTarget`, `correlationId`,
+        `order`, …). Not tokenized, so it fails generically rather than
+        by name. Its own increment, per `agents/ecl-engineer.md`'s
+        established "one filter kind at a time" cadence — the store side
+        is ready (`SnapshotStore::member_rows` returns
+        `RefsetMemberCore`, not the per-type typed row, so reaching a
+        type-specific column needs a per-type lookup added to the
+        evaluator, keyed off which type the filter names).
+      - `{{ M ... }}` after `^R` (`refsetContainingAny`) — rejected with
+        `EclError::NotYetImplemented`, since a member filter there would
+        need a different (and more expensive) query shape than `^`'s:
+        resolving, per candidate refset, which of its rows reference
+        something in the operand.
 - [ ] Decisions, not tasks — each needs a call before code:
       - **`$expand` inline `valueSet`** (`snomed-fhir`): shape already
         determined — a typed compose model the caller maps its JSON onto

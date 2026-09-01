@@ -56,7 +56,7 @@ pub enum EclError {
         pos: usize,
     },
     /// A grammar construct spec/10 documents but this version doesn't
-    /// evaluate (`{{ M }}` member filters, `^ [A, B]`, `!!>`/`!!<`, …).
+    /// evaluate (`{{ M ... }}` after `^R`, `^ [A, B]`, `!!>`/`!!<`, …).
     /// Surfaced as a parse error rather than a silently incomplete
     /// result.
     NotYetImplemented {

@@ -12,7 +12,5 @@ authors.workspace = true
 
 [dependencies]
 snomed-core.workspace = true
-snomed-store.workspace = true
-
-[dev-dependencies]
 snomed-rf2.workspace = true
+snomed-store.workspace = true

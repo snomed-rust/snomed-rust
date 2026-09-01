@@ -170,7 +170,7 @@ distinction; they define the per-row predicate directly, since there's no
 normative rules; `spec/10-ecl-refinements.md` holds the `:`
 attribute-value constraints (cardinality, reverse flag, groups, concrete
 values); `spec/10-ecl-filters.md` holds what each
-`{{ C ... }}`/`{{ D ... }}` filter kind matches;
+`{{ C ... }}`/`{{ D ... }}`/`{{ M ... }}` filter kind matches;
 `spec/10-ecl-unimplemented.md` holds the rejected-construct list and why
 each one is still rejected. The split is by size, not by authority — all
 four are normative, and rule numbers stay in the first file so citations
@@ -277,9 +277,14 @@ hasn't been: `{{ C ... }}` came first (`activeFilter`, then
 `effectiveTimeFilter`, then `definitionStatusIdFilter` — one commit
 each), and `{{ D ... }}` followed the same way (`term` with its search
 types, `type`/`typeId`, `language`, `dialectId` with its acceptability
-set, `moduleId`, `effectiveTime`, `active`). `{{ M ... }}` is still
-rejected by name, and for a reason that isn't parsing — see
-`spec/10-ecl-unimplemented.md`.
+set, `moduleId`, `effectiveTime`, `active`). `{{ M ... }}` picked up the
+same three kinds in one increment (`moduleId`, `effectiveTime`, `active`
+— they share `ModuleFilter`/`EffectiveTimeFilter`/`ActiveFilter` with
+`{{ C }}`, so there was no new value-set grammar to design), after the
+`SnapshotStore` change spec/09 rule 4's `member_rows`/`member_components`
+index required first. Its refset-type-specific `memberFieldFilter` kind
+(`mapTarget`, …) and its combination with `^R` are still rejected by
+name — see `spec/10-ecl-unimplemented.md`.
 
 That cadence is the recommendation, not just the history: add one filter
 kind at a time, with its spec prose in `spec/10-ecl-filters.md` and its

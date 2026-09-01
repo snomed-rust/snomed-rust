@@ -41,13 +41,18 @@ restricting a set to concepts whose own row matches — `active =
 true|false|*`, `definitionStatus = primitive|defined`, `moduleId =
 subExpressionConstraint`, and `effectiveTime (=|!=|<=|<|>=|>) "YYYYMMDD"`),
 evaluated against a [`SnapshotStore`]. Description filter
-constraints (`{{ D ... }}`, `term`/`type`/`active`) are implemented too.
+constraints (`{{ D ... }}`, `term`/`type`/`active`) are implemented too,
+and so is a **member filter constraint** (`{{ M ... }}`, restricting `^`'s
+referenced components to those with a member row matching —
+`moduleId`/`effectiveTime`/`active`, the columns every refset member type
+shares).
 Boolean concrete value comparisons (not
 representable in RF2 — see below), `moduleId`'s
-`eclConceptReferenceSet` spelling, member filter
-constraints (`{{ M ... }}`), the remaining description filter kinds
-(the `dialect` alias form), the history supplement, and alternate
-identifiers are **out of scope for this version** — see
+`eclConceptReferenceSet` spelling, a member filter's refset-type-specific
+`memberFieldFilter` kind (e.g. `mapTarget`) and its use after `^R`, the
+remaining description filter kinds (the `dialect` alias form), the
+history supplement, and alternate identifiers are **out of scope for this
+version** — see
 `spec/10-ecl-unimplemented.md`.
 
 ## Grammar (this subset only, derived from `syntax/abnf-brief.txt`)
@@ -83,8 +88,14 @@ subExpressionConstraint
                          *(conceptFilterConstraint | descriptionFilterConstraint)
                         -- conceptFilterConstraint and
                         -- descriptionFilterConstraint are both recognized
-                        -- here; memberFilterConstraint (`M`) is named as
-                        -- NotYetImplemented
+                        -- here, after any focus shape.
+                        -- memberFilterConstraint (`M`) is NOT here — the
+                        -- official grammar attaches it only inside the
+                        -- refsetOperator branch, directly after `^`'s
+                        -- operand and before constraintOperator wraps the
+                        -- result (see "## memberOf" below and rule 18);
+                        -- `^R X {{ M ... }}` is the one combination still
+                        -- rejected, as NotYetImplemented
                         -- NOTE: the parser applies this same trailing
                         -- structure (filters, then an optional ":"
                         -- refinement) after EVERY subExpressionConstraint
@@ -338,6 +349,78 @@ the Concept partition only (spec/09's derived index list), and `^R *` —
 "every refset containing at least one of every concept" — is every refset
 with a concept member, which excludes the Language refsets.
 
+`^R X {{ M ... }}` is not implemented, even though `refsetOperator`
+covers both `^` and `^R`: unlike `^`, where one member filter tests one
+fixed refset's rows, `^R`'s result concepts are themselves *different*
+refsets, so testing a member filter against each would mean resolving,
+per candidate refset, which of its rows reference something in `X` — a
+different (and more expensive) shape of query this crate does not build.
+Rejected by name (`EclError::NotYetImplemented`), not silently folded
+into `^`'s behavior.
+
+### `{{ M ... }}` — member filter constraints
+
+`^ refsets {{ M filter (AND filter)* }}` restricts `refsets`'s referenced
+components to those with at least one member row satisfying every filter
+in the block (spec/10-ecl-filters.md has the filter-by-filter prose; rule
+18 below is the normative summary). `moduleId`, `effectiveTime`, and
+`active` are implemented — the three `memberFilter` grammar alternatives
+that ask about columns every refset member type shares
+(`RefsetMemberCore`, spec/08) — and reuse the exact same
+`ModuleFilter`/`EffectiveTimeFilter`/`ActiveFilter` shapes `{{ C }}`
+already has. The fourth alternative, `memberFieldFilter` (a
+refset-type-specific column such as `mapTarget`), is not — see
+`spec/10-ecl-unimplemented.md`.
+
+Grammatically, `memberFilterConstraint` sits *inside* the
+`refsetOperator` branch, not in the trailing `*(conceptFilterConstraint |
+descriptionFilterConstraint)` loop every `subExpressionConstraint`
+shares:
+
+```
+subExpressionConstraint = [constraintOperator ws] ( ( [refsetOperator ws]
+    (eclFocusConcept / "(" ws expressionConstraint ws ")")
+    *(ws memberFilterConstraint)) / ... ) *(ws (descriptionFilterConstraint
+    / conceptFilterConstraint)) ...
+memberFilterConstraint = "{{" ws ("m" / "M") ws memberFilter
+    *(ws "," ws memberFilter) ws "}}"
+memberFilter = moduleFilter / effectiveTimeFilter / activeFilter
+    / memberFieldFilter
+```
+
+Two consequences follow directly from that position, both load-bearing
+(rule 18):
+
+- **A `constraintOperator` before `^` applies *after* `{{ M }}`.**
+  `< ^ X {{ M f }}` parses as `constraintOperator` wrapping
+  `(refsetOperator X) *(memberFilterConstraint f)` as a whole — filter the
+  raw members first, *then* union the hierarchy operator over the
+  filtered result — the same order rule 16 already establishes for `<`
+  and plain `^`, one layer further in. This crate's parser reflects that
+  order structurally: `parse_operated_focus` builds `Operated { op, inner:
+  MemberOf { X } }` for `< ^ X`, and attaching `{{ M f }}` afterward
+  reaches through the `Operated` wrapper to filter `inner` and rebuilds
+  the same wrapper around the result, rather than wrapping outside it.
+- **`{{ M }}` can only follow `^` itself, or a previous `{{ M }}` block**
+  (the grammar's `*(ws memberFilterConstraint)` lets several chain,
+  conjoined). Anywhere else `{{ M ... }}` might appear — after a plain
+  focus, after `{{ C }}`/`{{ D }}`, after a parenthesized expression — is
+  not a `memberFilterConstraint` position at all, so it is a parse error
+  (`EclError::UnexpectedToken`) rather than `NotYetImplemented`: the
+  grammar itself doesn't allow it there, independent of what this crate
+  has built.
+
+A component matches when **one** of its member rows in the resolved
+refset(s) satisfies every filter in the block together — mirroring
+`{{ D }}`'s "same description" rule (rule 14) one level down, since a
+component can have more than one member row in a refset (a map with
+several targets, say). Absent an explicit `active` filter of its own, the
+candidate rows are **active only** — the same implicit default `{{ D }}`
+already has, applied here so a query that never mentions `active` cannot
+be surprised by a retired membership; writing `active = false` (or
+`= *`) is what makes the wider, inactive-inclusive candidate set the
+right one to scan.
+
 ### A literal refset id is a key, not a concept
 
 `^ X` looks `X` up in the membership index without requiring `X` to be a
@@ -395,6 +478,10 @@ stay in the grammar block above, since there is one grammar; what moved is
 the prose that says what each filter kind matches and which judgment calls
 it rests on. Their normative rules stay numbered in this file's "Rules"
 section (11-14), so citations like "spec/10 rule 14" keep resolving.
+Member filters (`{{ M ... }}`) get the same filter-by-filter treatment in
+that file too, but their grammar position is different enough from
+`{{ C }}`/`{{ D }}` (see "## memberOf" above) that it stays here, in
+rule 18.
 
 ## Concept reference terms
 
@@ -515,3 +602,19 @@ still governs it: nothing on that list may be silently accepted.
     `^R` and `^` MUST be exact inverses on concept refsets: for any
     concept `c` that is a member of refset `r`, `^R c` MUST contain `r`
     and `^ r` MUST contain `c`.
+18. `{{ M ... }}` (a `memberFilterConstraint`) MUST be recognized only
+    directly after `^`'s operand, before any `constraintOperator` wraps
+    the result and before any `{{ C }}`/`{{ D }}` filter runs — a
+    `constraintOperator` before `^` MUST still apply *after* the member
+    filter, mirroring rule 16 one level further in
+    (`<< ^ X {{ M f }}` filters the raw members, then unions `<<` over
+    the filtered result — never the reverse). A component MUST match when
+    **one** of its member rows in the resolved refset(s) satisfies every
+    filter in the block — the same "one row, all filters" rule 14 already
+    requires for `{{ D }}`'s descriptions — and, absent an `active` filter
+    of its own, only **active** member rows MUST be candidates (rule 14's
+    default, again read one level down). `{{ M ... }}` written anywhere
+    else that isn't `^R` (`refsetContainingAny`, itself a named
+    `NotYetImplemented` combination — see `spec/10-ecl-unimplemented.md`)
+    MUST be a parse error, never silently ignored or evaluated as a
+    `{{ C }}`/`{{ D }}` block.

@@ -28,9 +28,9 @@ pub enum TokenKind {
     Minus,
     /// `:` — starts a refinement.
     Colon,
-    /// `{{` — a filter constraint: `{{ C ... }}` concept filters are
-    /// implemented; `{{ D ... }}`/`{{ M ... }}` description/member
-    /// filters are rejected by name (spec/10).
+    /// `{{` — a filter constraint: `{{ C ... }}` concept filters,
+    /// `{{ D ... }}` description filters, and `{{ M ... }}` member
+    /// filters (directly after `^`) are all implemented (spec/10).
     LBrace2,
     /// `{` alone — starts an attribute group.
     LBrace,
@@ -78,8 +78,8 @@ pub enum TokenKind {
     /// `D`/`d` immediately after `{{` — a description filter constraint.
     /// Also the default when no marker is written, per the grammar.
     DescriptionFilterMarker,
-    /// `M`/`m` immediately after `{{` — a member filter constraint (not
-    /// yet implemented).
+    /// `M`/`m` immediately after `{{` — a member filter constraint,
+    /// implemented directly after `^` (spec/10 rule 18).
     MemberFilterMarker,
     /// `active` — a concept/description/member filter's `activeFilter`.
     ActiveKeyword,

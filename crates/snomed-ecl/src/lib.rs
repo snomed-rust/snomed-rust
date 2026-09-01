@@ -3,10 +3,12 @@
 //! operands),
 //! refinements (cardinality, reverse flag, attribute groups,
 //! numeric/string concrete value comparisons), dot notation, and
-//! `{{ C ... }}`/`{{ D ... }}` filter constraints, per `spec/10-ecl.md`.
+//! `{{ C ... }}`/`{{ D ... }}`/`{{ M ... }}` filter constraints, per
+//! `spec/10-ecl.md`.
 //!
-//! What remains unimplemented (boolean concrete comparisons, `{{ M }}`
-//! member filters, the history supplement, alternate identifiers, …) is
+//! What remains unimplemented (boolean concrete comparisons, a member
+//! filter's refset-type-specific `memberFieldFilter` kind and its use
+//! after `^R`, the history supplement, alternate identifiers, …) is
 //! listed in `spec/10-ecl-unimplemented.md`. Encountering one is a parse
 //! error, never a silently incomplete result.
 //!

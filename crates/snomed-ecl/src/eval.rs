@@ -10,12 +10,14 @@ use snomed_core::concrete_value::ConcreteValue;
 use snomed_core::time::EffectiveTime;
 use snomed_core::{constants, Concept, Description};
 
+use snomed_rf2::refset::RefsetMemberCore;
+
 use crate::ast::{
     AcceptabilityValue, ActiveFilter, ActiveValue, AttributeComparison, AttributeConstraint,
     Cardinality, ConceptFilterKind, DefinitionStatusFilter, DefinitionStatusValue,
     DescriptionFilterKind, DescriptionTypeValue, DialectFilter, EffectiveTimeFilter,
-    ExpressionConstraint, FocusConcept, HierarchyOp, LanguageFilter, ModuleFilter,
-    NumericComparisonOp, RefinementConstraint, RefsetOperand, SearchTerm, SearchType,
+    ExpressionConstraint, FocusConcept, HierarchyOp, LanguageFilter, MemberFilterKind,
+    ModuleFilter, NumericComparisonOp, RefinementConstraint, RefsetOperand, SearchTerm, SearchType,
     SimpleExpressionConstraint, TermFilter, TimeComparisonOp, TypeFilter,
 };
 
@@ -181,6 +183,124 @@ pub fn evaluate(expr: &ExpressionConstraint, store: &SnapshotStore) -> HashSet<S
                         .any(|d| description_matches(filters, &prepared, d, store))
                 })
                 .collect()
+        }
+        // `^ refsets {{ M ... }}` (spec/10 rule 18).
+        ExpressionConstraint::MemberFilter { refsets, filters } => {
+            evaluate_member_filter(refsets, filters, store)
+        }
+    }
+}
+
+/// Resolves a `RefsetOperand` (the operand of `^`, `^R`, and now
+/// `{{ M }}`) to the concrete refset ids it names, without also unioning
+/// each id's members the way the `MemberOf`/`RefsetContaining` arms of
+/// `evaluate` do — `{{ M }}` needs the ids themselves, to look up each
+/// one's own member rows. A literal id is used as-is, never resolved as a
+/// concept — see [`RefsetOperand`]'s own doc for why that distinction is
+/// observable.
+fn resolve_refset_operand_ids(operand: &RefsetOperand, store: &SnapshotStore) -> HashSet<SctId> {
+    match operand {
+        RefsetOperand::Id { id, .. } => HashSet::from([*id]),
+        RefsetOperand::Wildcard => store.refset_ids().collect(),
+        // Evaluated once, not once per candidate (spec/10 rule 0).
+        RefsetOperand::Expression(inner) => evaluate(inner, store),
+    }
+}
+
+/// `^ refsets {{ M filter (AND filter)* }}` (spec/10 rule 18): the
+/// referenced components of `refsets` with at least one member row
+/// satisfying every filter in `filters` — the same "one row, all
+/// filters" and "active unless the block says otherwise" rules
+/// `description_matches` uses (spec/10 rule 14), read one level down: a
+/// member row rather than a description.
+fn evaluate_member_filter(
+    refsets: &RefsetOperand,
+    filters: &[MemberFilterKind],
+    store: &SnapshotStore,
+) -> HashSet<SctId> {
+    let states_active = filters
+        .iter()
+        .any(|f| matches!(f, MemberFilterKind::Active(_)));
+    // `moduleId` takes an expression, and that doesn't depend on the
+    // member row being tested (spec/10 rule 0).
+    let prepared: Vec<PreparedMemberFilter> = filters
+        .iter()
+        .map(|f| prepare_member_filter(f, store))
+        .collect();
+    let mut out = HashSet::new();
+    for refset_id in resolve_refset_operand_ids(refsets, store) {
+        // Without an explicit `active` filter, the candidate set is
+        // active-only — matching plain `^`, and every other accessor's
+        // default here — so a query that never mentions `active` cannot
+        // be surprised by retired memberships appearing from nowhere.
+        // Writing `active = false` (or `= *`) is what makes
+        // `member_components`'s wider, inactive-inclusive set the right
+        // one to scan instead.
+        let candidates: Box<dyn Iterator<Item = SctId>> = if states_active {
+            Box::new(store.member_components(refset_id))
+        } else {
+            Box::new(store.refset_members(refset_id))
+        };
+        for component_id in candidates {
+            let matched = store
+                .member_rows(refset_id, component_id)
+                .iter()
+                .any(|row| {
+                    (states_active || row.active)
+                        && filters
+                            .iter()
+                            .zip(&prepared)
+                            .all(|(f, p)| member_filter_matches(f, p, row))
+                });
+            if matched {
+                out.insert(component_id);
+            }
+        }
+    }
+    out
+}
+
+/// One `{{ M ... }}` filter's query-fixed part: the evaluated set for
+/// `moduleId` (an expression), nothing for the kinds that compare
+/// literals.
+enum PreparedMemberFilter {
+    Concepts(HashSet<SctId>),
+    Literal,
+}
+
+fn prepare_member_filter(filter: &MemberFilterKind, store: &SnapshotStore) -> PreparedMemberFilter {
+    match filter {
+        MemberFilterKind::Module(ModuleFilter { value, .. }) => {
+            PreparedMemberFilter::Concepts(evaluate(value, store))
+        }
+        _ => PreparedMemberFilter::Literal,
+    }
+}
+
+/// A single `{{ M ... }}` filter against one member row — see
+/// [`MemberFilterKind`] for which kinds are implemented.
+fn member_filter_matches(
+    filter: &MemberFilterKind,
+    prepared: &PreparedMemberFilter,
+    row: &RefsetMemberCore,
+) -> bool {
+    match filter {
+        MemberFilterKind::Module(ModuleFilter { negated, .. }) => {
+            let PreparedMemberFilter::Concepts(values) = prepared else {
+                unreachable!("a moduleId filter prepares to `Concepts`")
+            };
+            values.contains(&row.module_id) != *negated
+        }
+        MemberFilterKind::EffectiveTime(EffectiveTimeFilter { operator, values }) => values
+            .iter()
+            .any(|v| time_comparison_matches(*operator, row.effective_time, *v)),
+        MemberFilterKind::Active(ActiveFilter { negated, value }) => {
+            let matches = match value {
+                ActiveValue::True => row.active,
+                ActiveValue::False => !row.active,
+                ActiveValue::Wildcard => true,
+            };
+            matches != *negated
         }
     }
 }
@@ -1052,6 +1172,208 @@ mod tests {
 
         let expr = format!("^ {}", constants::US_ENGLISH_LANGUAGE_REFSET);
         assert_eq!(eval(&expr, &store), HashSet::from([fsn_id]));
+    }
+
+    fn simple_member(
+        uuid: &str,
+        time: u32,
+        active: bool,
+        refset_id: SctId,
+        component_id: SctId,
+    ) -> SimpleRefsetMember {
+        SimpleRefsetMember {
+            core: RefsetMemberCore {
+                id: MemberId::parse(uuid).unwrap(),
+                effective_time: EffectiveTime::new_unchecked(time),
+                active,
+                module_id: constants::CORE_MODULE,
+                refset_id,
+                referenced_component_id: component_id,
+            },
+        }
+    }
+
+    const ICD10_MAP: SctId = constants::ICD10_EXTENDED_MAP_REFSET;
+
+    /// The motivating case from `spec/10-ecl-unimplemented.md`: before the
+    /// member-row retention this filter needed, `{{ M active = false }}`
+    /// could never match anything, because every derived index dropped
+    /// inactive rows. It must now reach a component whose *only*
+    /// membership in the refset is inactive — invisible to plain `^ X`.
+    #[test]
+    fn member_filter_active_false_reaches_an_inactive_only_membership() {
+        let mut b = SnapshotStore::builder();
+        b.add_concept(concept(MI));
+        b.add_simple_member(simple_member(
+            "80000000-0000-4000-8000-000000000040",
+            20200131,
+            false,
+            ICD10_MAP,
+            MI,
+        ));
+        let store = b.build();
+
+        let expr = format!("^ {ICD10_MAP} {{{{ M active = false }}}}");
+        assert_eq!(eval("^ 447562003", &store), HashSet::new());
+        assert_eq!(eval(&expr, &store), HashSet::from([MI]));
+    }
+
+    /// Without an explicit `active` filter, `{{ M }}` stays active-only —
+    /// the same default `{{ D }}` uses (spec/10 rule 14), read down to a
+    /// member row: a `moduleId`/`effectiveTime` filter must not
+    /// accidentally surface a retired membership just because it also
+    /// happens to satisfy the stated filter.
+    #[test]
+    fn member_filter_without_active_stays_active_only_by_default() {
+        let other_module = SctId::new_unchecked(900000000000012004); // model module
+        let mut b = SnapshotStore::builder();
+        b.add_concept(concept(MI));
+        b.add_concept(concept(DISEASE));
+        // `moduleId = X`'s value is a `subExpressionConstraint`: it must
+        // itself resolve to a concept in the store, same caveat spec/10's
+        // `{{ C moduleId }}` documents (an absent concept evaluates to the
+        // empty set, so the filter would match nothing rather than
+        // erroring).
+        b.add_concept(concept(other_module));
+        b.add_simple_member(SimpleRefsetMember {
+            core: RefsetMemberCore {
+                id: MemberId::parse("80000000-0000-4000-8000-000000000041").unwrap(),
+                effective_time: EffectiveTime::new_unchecked(20200131),
+                active: false,
+                module_id: other_module,
+                refset_id: ICD10_MAP,
+                referenced_component_id: MI,
+            },
+        });
+        b.add_simple_member(SimpleRefsetMember {
+            core: RefsetMemberCore {
+                id: MemberId::parse("80000000-0000-4000-8000-000000000042").unwrap(),
+                effective_time: EffectiveTime::new_unchecked(20190731),
+                active: true,
+                module_id: other_module,
+                refset_id: ICD10_MAP,
+                referenced_component_id: DISEASE,
+            },
+        });
+        let store = b.build();
+
+        let expr = format!("^ {ICD10_MAP} {{{{ M moduleId = {other_module} }}}}");
+        // MI's only row is inactive: excluded by the implicit default even
+        // though its moduleId matches. DISEASE's active row matches.
+        assert_eq!(eval(&expr, &store), HashSet::from([DISEASE]));
+    }
+
+    /// `moduleId`/`effectiveTime` compare the *member row's* own columns
+    /// (spec/08), not the referenced component's — proven by giving the
+    /// concept and its membership row different values for both.
+    #[test]
+    fn member_filter_module_and_effective_time_use_the_rows_own_columns() {
+        let member_module = SctId::new_unchecked(900000000000012004); // model module
+        let mut b = SnapshotStore::builder();
+        b.add_concept(Concept {
+            module_id: constants::CORE_MODULE,
+            ..concept(MI)
+        });
+        b.add_concept(concept(member_module));
+        b.add_simple_member(SimpleRefsetMember {
+            core: RefsetMemberCore {
+                id: MemberId::parse("80000000-0000-4000-8000-000000000043").unwrap(),
+                effective_time: EffectiveTime::new_unchecked(20210701),
+                active: true,
+                module_id: member_module,
+                refset_id: ICD10_MAP,
+                referenced_component_id: MI,
+            },
+        });
+        let store = b.build();
+
+        let module_expr = format!("^ {ICD10_MAP} {{{{ M moduleId = {member_module} }}}}");
+        assert_eq!(eval(&module_expr, &store), HashSet::from([MI]));
+        let wrong_module_expr = format!("^ {ICD10_MAP} {{{{ M moduleId = {} }}}}", MI);
+        assert_eq!(eval(&wrong_module_expr, &store), HashSet::new());
+
+        let time_expr = format!("^ {ICD10_MAP} {{{{ M effectiveTime >= \"20200101\" }}}}");
+        assert_eq!(eval(&time_expr, &store), HashSet::from([MI]));
+        let too_early_expr = format!("^ {ICD10_MAP} {{{{ M effectiveTime < \"20200101\" }}}}");
+        assert_eq!(eval(&too_early_expr, &store), HashSet::new());
+    }
+
+    /// Every filter in one `{{ M ... }}` block must be satisfied by the
+    /// **same** member row (spec/10 rule 18, mirroring `{{ D }}`'s rule
+    /// 14): a component with two separate rows, each matching only one
+    /// filter, must not match the conjoined block.
+    #[test]
+    fn member_filter_conjoins_filters_against_the_same_row() {
+        let module_a = SctId::new_unchecked(900000000000012004);
+        let module_b = constants::CORE_MODULE;
+        let mut b = SnapshotStore::builder();
+        b.add_concept(concept(MI));
+        b.add_concept(concept(module_a));
+        b.add_concept(concept(module_b));
+        // Row 1: module_a, old effectiveTime.
+        b.add_simple_member(SimpleRefsetMember {
+            core: RefsetMemberCore {
+                id: MemberId::parse("80000000-0000-4000-8000-000000000044").unwrap(),
+                effective_time: EffectiveTime::new_unchecked(20100101),
+                active: true,
+                module_id: module_a,
+                refset_id: ICD10_MAP,
+                referenced_component_id: MI,
+            },
+        });
+        // Row 2: module_b, new effectiveTime — different member UUID, same
+        // (refset, component) pair (e.g. a map with more than one row).
+        b.add_simple_member(SimpleRefsetMember {
+            core: RefsetMemberCore {
+                id: MemberId::parse("80000000-0000-4000-8000-000000000045").unwrap(),
+                effective_time: EffectiveTime::new_unchecked(20210101),
+                active: true,
+                module_id: module_b,
+                refset_id: ICD10_MAP,
+                referenced_component_id: MI,
+            },
+        });
+        let store = b.build();
+
+        // No single row has both module_a AND a post-2020 effectiveTime.
+        let mismatched = format!(
+            "^ {ICD10_MAP} {{{{ M moduleId = {module_a}, effectiveTime >= \"20200101\" }}}}"
+        );
+        assert_eq!(eval(&mismatched, &store), HashSet::new());
+        // Row 2 alone satisfies both.
+        let matched = format!(
+            "^ {ICD10_MAP} {{{{ M moduleId = {module_b}, effectiveTime >= \"20200101\" }}}}"
+        );
+        assert_eq!(eval(&matched, &store), HashSet::from([MI]));
+    }
+
+    /// A constraint operator before `^` applies *after* the member filter
+    /// (rule 16, extended by rule 18): filtering happens on the raw
+    /// members first, then the hierarchy operator unions over the
+    /// filtered result — never the other way around.
+    #[test]
+    fn hierarchy_prefix_applies_after_the_member_filter() {
+        let mut b = SnapshotStore::builder();
+        for c in [ROOT, FINDING, DISEASE, MI] {
+            b.add_concept(concept(c));
+        }
+        b.add_relationship(is_a(1, FINDING, ROOT));
+        b.add_relationship(is_a(2, DISEASE, FINDING));
+        b.add_relationship(is_a(3, MI, DISEASE));
+        b.add_simple_member(simple_member(
+            "80000000-0000-4000-8000-000000000046",
+            20190731,
+            true,
+            ICD10_MAP,
+            DISEASE,
+        ));
+        let store = b.build();
+
+        // `^ ICD10_MAP {{ M active = true }}` = { DISEASE }; `<<` over
+        // that is DISEASE plus its descendants, never touching FINDING or
+        // ROOT (which would appear if `<<` had wrongly applied first).
+        let expr = format!("<< ^ {ICD10_MAP} {{{{ M active = true }}}}");
+        assert_eq!(eval(&expr, &store), HashSet::from([DISEASE, MI]));
     }
 
     /// A store for the `memberOf` forms of spec/10 rule 16.

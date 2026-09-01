@@ -142,6 +142,25 @@ fn sort_index(index: &mut HashMap<SctId, Vec<SctId>>) {
     }
 }
 
+/// Folds one refset type's members into the type-erased, active-and-inactive
+/// `member_rows` index (spec/09 rule 4's second index): every member's
+/// shared six columns, keyed by `(refsetId, referencedComponentId)`,
+/// regardless of the type-specific columns the caller's `T` also carries.
+/// Borrows rather than consumes `members`, so this runs before the
+/// existing per-type reduction/grouping below, which still needs the map.
+fn collect_member_rows<T>(
+    members: &HashMap<MemberId, T>,
+    core_of: impl Fn(&T) -> &RefsetMemberCore,
+    into: &mut HashMap<(SctId, SctId), Vec<RefsetMemberCore>>,
+) {
+    for member in members.values() {
+        let core = core_of(member);
+        into.entry((core.refset_id, core.referenced_component_id))
+            .or_default()
+            .push(core.clone());
+    }
+}
+
 impl SnapshotStoreBuilder {
     pub fn new() -> Self {
         Self::default()
@@ -318,6 +337,89 @@ impl SnapshotStoreBuilder {
     /// Freezes the builder into a queryable store, computing the derived
     /// indexes of `spec/09-versioning.md`.
     pub fn build(self) -> SnapshotStore {
+        // The type-erased, active-and-inactive member index (spec/09 rule
+        // 4's second index) — computed first, and by borrowing every
+        // member map, because every other refset-member index below
+        // consumes those same maps (and drops inactive rows in the
+        // process). Backs `snomed-ecl`'s `{{ M ... }}` (spec/10 rule 18).
+        let mut member_rows: HashMap<(SctId, SctId), Vec<RefsetMemberCore>> = HashMap::new();
+        collect_member_rows(&self.simple_members, |m| &m.core, &mut member_rows);
+        collect_member_rows(&self.language_members, |m| &m.core, &mut member_rows);
+        collect_member_rows(&self.association_members, |m| &m.core, &mut member_rows);
+        collect_member_rows(&self.attribute_value_members, |m| &m.core, &mut member_rows);
+        collect_member_rows(&self.simple_map_members, |m| &m.core, &mut member_rows);
+        collect_member_rows(&self.extended_map_members, |m| &m.core, &mut member_rows);
+        collect_member_rows(&self.owl_expression_members, |m| &m.core, &mut member_rows);
+        collect_member_rows(
+            &self.module_dependency_members,
+            |m| &m.core,
+            &mut member_rows,
+        );
+        collect_member_rows(
+            &self.refset_descriptor_members,
+            |m| &m.core,
+            &mut member_rows,
+        );
+        collect_member_rows(
+            &self.description_type_members,
+            |m| &m.core,
+            &mut member_rows,
+        );
+        collect_member_rows(&self.mrcm_domain_members, |m| &m.core, &mut member_rows);
+        collect_member_rows(
+            &self.mrcm_attribute_domain_members,
+            |m| &m.core,
+            &mut member_rows,
+        );
+        collect_member_rows(
+            &self.mrcm_attribute_range_members,
+            |m| &m.core,
+            &mut member_rows,
+        );
+        collect_member_rows(
+            &self.mrcm_module_scope_members,
+            |m| &m.core,
+            &mut member_rows,
+        );
+        collect_member_rows(
+            &self.ordered_component_members,
+            |m| &m.core,
+            &mut member_rows,
+        );
+        collect_member_rows(
+            &self.ordered_association_members,
+            |m| &m.core,
+            &mut member_rows,
+        );
+        collect_member_rows(
+            &self.component_annotation_members,
+            |m| &m.core,
+            &mut member_rows,
+        );
+        collect_member_rows(
+            &self.member_annotation_members,
+            |m| &m.core,
+            &mut member_rows,
+        );
+        // Deterministic order within a pair (spec/09 rule 6): ascending by
+        // member UUID, same key `group_by_refset_and_component` sorts by.
+        for rows in member_rows.values_mut() {
+            rows.sort_by_key(|r| r.id);
+        }
+        // The candidate-set companion index: every component with at
+        // least one row (active or inactive) in a refset, ascending —
+        // `member_rows`'s key set, grouped by refset id.
+        let mut member_components: HashMap<SctId, Vec<SctId>> = HashMap::new();
+        for &(refset_id, component_id) in member_rows.keys() {
+            member_components
+                .entry(refset_id)
+                .or_default()
+                .push(component_id);
+        }
+        for components in member_components.values_mut() {
+            components.sort_unstable();
+        }
+
         let mut descriptions_by_concept: HashMap<SctId, Vec<SctId>> = HashMap::new();
         for d in self.descriptions.values() {
             descriptions_by_concept
@@ -513,6 +615,8 @@ impl SnapshotStoreBuilder {
         }
 
         SnapshotStore {
+            member_rows,
+            member_components,
             concepts: self.concepts,
             descriptions: self.descriptions,
             relationships: self.relationships,
@@ -550,6 +654,15 @@ impl SnapshotStoreBuilder {
 /// A queryable snapshot: exactly one (latest) version per component.
 #[derive(Debug)]
 pub struct SnapshotStore {
+    /// Every refset member's shared six columns (`RefsetMemberCore`),
+    /// active *and* inactive, across all eighteen refset types, keyed by
+    /// `(refsetId, referencedComponentId)`. Unlike every other
+    /// refset-member field below, not active-only, and not type-specific
+    /// — see [`Self::member_rows`].
+    member_rows: HashMap<(SctId, SctId), Vec<RefsetMemberCore>>,
+    /// `member_rows`'s key set, grouped by refset id: every component
+    /// with at least one row (active or inactive) in a refset, ascending.
+    member_components: HashMap<SctId, Vec<SctId>>,
     concepts: HashMap<SctId, Concept>,
     descriptions: HashMap<SctId, Description>,
     relationships: HashMap<SctId, Relationship>,
@@ -830,6 +943,41 @@ impl SnapshotStore {
     /// needed.
     pub fn refset_ids(&self) -> impl Iterator<Item = SctId> + '_ {
         self.refset_memberships.keys().copied()
+    }
+
+    /// Every member row — active **and** inactive — for `(refset_id,
+    /// component_id)`, across all eighteen refset types, ordered by
+    /// member UUID (spec/09 rule 6). Unlike every other refset-member
+    /// accessor here, this is not active-only and not type-specific: it
+    /// exists for `snomed-ecl`'s `{{ M ... }}` member filter constraint
+    /// (spec/10 rule 18), which can filter on a row's own `active` column
+    /// and has no way to know statically which refset type `refset_id`
+    /// names. Reaches only the six columns every member type shares
+    /// (`RefsetMemberCore`) — a type-specific column (e.g. `mapTarget`)
+    /// needs the per-type accessor instead (e.g.
+    /// [`Self::extended_map_members`]), which stays active-only.
+    pub fn member_rows(&self, refset_id: SctId, component_id: SctId) -> &[RefsetMemberCore] {
+        self.member_rows
+            .get(&(refset_id, component_id))
+            .map(Vec::as_slice)
+            .unwrap_or(&[])
+    }
+
+    /// Every component with at least one member row — active or inactive
+    /// — in `refset_id`, across all eighteen refset types. Order is
+    /// unspecified.
+    ///
+    /// Unlike [`Self::refset_members`], includes components whose only
+    /// membership in `refset_id` is inactive — the candidate set a
+    /// `{{ M ... }}` block needs once it writes its own `active` filter
+    /// (spec/10 rule 18), since `refset_members` alone could never
+    /// surface a component `{{ M active = false }}` should match.
+    pub fn member_components(&self, refset_id: SctId) -> impl Iterator<Item = SctId> + '_ {
+        self.member_components
+            .get(&refset_id)
+            .into_iter()
+            .flatten()
+            .copied()
     }
 
     /// Active Association refset members for `component_id` in `refset_id`
@@ -1947,5 +2095,86 @@ mod tests {
         // A target nothing points at, and an unknown refset.
         assert!(store.association_sources(same_as, retired_a).is_empty());
         assert!(store.association_sources(MI, current).is_empty());
+    }
+
+    #[test]
+    fn member_rows_include_inactive_rows_unlike_every_other_accessor() {
+        // The whole point of `member_rows`/`member_components`: unlike
+        // `is_member`/`refset_members`/every per-type accessor, an
+        // inactive membership must still be visible here, since
+        // `{{ M active = false }}` (spec/10 rule 18) has nothing to match
+        // otherwise.
+        let mut b = SnapshotStore::builder();
+        b.add_simple_member(SimpleRefsetMember {
+            core: core(
+                MemberId::parse("80000000-0000-4000-8000-000000000030").unwrap(),
+                20200131,
+                false,
+                ICD10_MAP,
+                MI,
+            ),
+        });
+        let store = b.build();
+
+        assert!(!store.is_member(ICD10_MAP, MI), "inactive: not a member");
+        let rows = store.member_rows(ICD10_MAP, MI);
+        assert_eq!(rows.len(), 1);
+        assert!(!rows[0].active);
+        assert_eq!(
+            store.member_components(ICD10_MAP).collect::<Vec<_>>(),
+            vec![MI],
+            "the candidate set must include an inactive-only membership"
+        );
+    }
+
+    #[test]
+    fn member_rows_span_every_refset_type_and_stay_ordered_by_member_uuid() {
+        // Two active rows for the same (refset, component) pair, inserted
+        // out of UUID order, via a type that previously kept no rows at
+        // all in a snapshot (Language) — proving both "every type" and
+        // "ordered by member UUID" (spec/09 rule 6).
+        let fsn_id = SctId::compose(1005, ComponentType::Description, None).unwrap();
+        let later = MemberId::parse("80000000-0000-4000-8000-000000000032").unwrap();
+        let earlier = MemberId::parse("80000000-0000-4000-8000-000000000031").unwrap();
+        let mut b = SnapshotStore::builder();
+        b.add_language_member(LanguageRefsetMember {
+            core: core(
+                later,
+                20200131,
+                true,
+                constants::GB_ENGLISH_LANGUAGE_REFSET,
+                fsn_id,
+            ),
+            acceptability_id: constants::ACCEPTABLE,
+        });
+        b.add_language_member(LanguageRefsetMember {
+            core: core(
+                earlier,
+                20190731,
+                true,
+                constants::US_ENGLISH_LANGUAGE_REFSET,
+                fsn_id,
+            ),
+            acceptability_id: constants::PREFERRED,
+        });
+        let store = b.build();
+
+        let rows = store.member_rows(constants::US_ENGLISH_LANGUAGE_REFSET, fsn_id);
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].id, earlier);
+
+        // A component with rows in two different refsets: each refset's
+        // `member_rows` sees only its own row, not the other's.
+        assert_eq!(
+            store.member_rows(constants::GB_ENGLISH_LANGUAGE_REFSET, fsn_id)[0].id,
+            later
+        );
+    }
+
+    #[test]
+    fn member_rows_and_member_components_are_empty_for_an_unknown_refset() {
+        let store = SnapshotStore::builder().build();
+        assert!(store.member_rows(ICD10_MAP, MI).is_empty());
+        assert!(store.member_components(ICD10_MAP).next().is_none());
     }
 }

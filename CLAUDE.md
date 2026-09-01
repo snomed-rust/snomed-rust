@@ -36,7 +36,7 @@ classification with necessary normal form generation.
 - `crates/snomed-ecl` — Expression Constraint Language: lexer, parser,
   evaluator (hierarchy operators, `memberOf`/`^R`, dot notation,
   refinements incl. cardinality/reverse-flag/attribute groups, and
-  `{{ }}` concept/description filters).
+  `{{ }}` concept/description/member filters).
 - `crates/snomed-fhir` — FHIR terminology service building blocks:
   `$lookup`, `$subsumes`, `$expand`.
 - `crates/snomed-owl` — parser for the OWL 2 functional-syntax subset used
