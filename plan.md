@@ -225,8 +225,8 @@ and harmonizes it with the sibling repositories (`hl7-rust`, `er7-rust`,
 
 ## Current status
 
-All eight phases above are closed. As of 0.12.0 the workspace is 9
-published crates with zero dependencies, 353 tests, a clean
+All eight phases above are closed. As of 0.13.0 the workspace is 9
+published crates with zero dependencies, 367 tests, a clean
 `cargo clippy --all-targets`, 13 fuzz targets, and six criterion
 benchmark files. What is *not* done is tracked in two places and nowhere
 else: `tasks.md`'s "Next up" (scoped work and known gaps, each with the

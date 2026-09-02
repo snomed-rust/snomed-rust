@@ -13,6 +13,14 @@ together, in dependency order (`snomed-core` → `snomed-rf2` → `snomed-owl`
 
 ## [Unreleased]
 
+## [0.13.0] — 2026-09-02
+
+**New ECL capability, additive.** The `{{ M ... }}` member filter constraint
+closes the decision recorded in `plan.md` on 2026-08-30 (retain rows for
+all eighteen refset types rather than make `evaluate()` fallible). A minor
+bump: new public API, no removals or signature changes to anything
+existing.
+
 ### Added
 
 - `snomed-ecl`: the ECL `{{ M ... }}` member filter constraint, for the
@@ -36,6 +44,16 @@ together, in dependency order (`snomed-core` → `snomed-rf2` → `snomed-owl`
 - `snomed-ecl` now depends on `snomed-rf2` directly (previously a
   dev-dependency only), since `SnapshotStore::member_rows` returns an
   RF2 type (`RefsetMemberCore`) the evaluator now consumes.
+
+### Notes for consumers
+
+- No public API removed or changed signature; existing code compiles
+  unmodified against `0.13.0`.
+- `snomed-ecl` gaining a direct (non-dev) dependency on `snomed-rf2` is
+  visible only if you inspect `Cargo.lock`/dependency trees — `snomed-rf2`
+  was already pulled in transitively via `snomed-store` for anyone using
+  `snomed-ecl`, so this does not add a new crate to a typical dependency
+  tree.
 
 ## [0.12.0] — 2026-08-29
 
