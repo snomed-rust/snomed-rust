@@ -548,11 +548,6 @@ before".
       wrong inactive concepts. The store side is ready
       (`association_sources`), so this is one afternoon's work the day the
       profile membership can be cited.
-- [x] ~~**Professionalization (Phase 10 in `plan.md`, added 2026-08-26)**~~
-      — done: all eight workstream items completed across 2026-08-26 and
-      2026-08-28 (the last, `.github/FUNDING.yml`, once the decision
-      itself reversed). Full record moved to the Done section below,
-      "Professionalization (Phase 10), retired from Next up", verbatim.
 - [ ] Smaller documented gaps, each independently pickable: the `dialect`
       alias form (needs an alias→refset mapping this crate deliberately
       doesn't own), the `dialectIdSet` spelling, `regex:` search terms
