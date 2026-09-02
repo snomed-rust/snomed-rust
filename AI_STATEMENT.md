@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| Version | 1.2.0 |
+| Version | 1.3.0 |
 | Effective date | 2026-09-02 |
 | Status | Active |
 | Author and owner | Joel Parker Henderson, maintainer |
@@ -71,11 +71,15 @@ builds and tests — under a human's direction, as opposed to inline completion.
 One named human — the maintainer, listed in
 [MAINTAINERS.md](MAINTAINERS.md) — is the author of and accountable for every
 change in this repository, whatever tool produced the bytes and whatever a
-commit trailer says. Where an agentic session produces a commit or a pull
-request, it carries a `Co-Authored-By` trailer naming the tool — a provenance
-disclosure, stating which tool executed the change and, per §6, under what
-direction — never a claim that the tool bears responsibility, and never a
-transfer of accountability away from the maintainer: a tool cannot be
+commit trailer says. A commit or pull request an agentic session produces
+**shall** carry a `Co-Authored-By` trailer naming the tool — kept
+deliberately, this project's own disclosure mechanism for its own use, not a
+practice §10's contributor rule argues against (that rule is about what a
+*contributor* is asked for, not about what this project does with its own
+commits — the two are not the same rule read twice). The trailer is a
+provenance disclosure, stating which tool executed the change and, per §6,
+under what direction — never a claim that the tool bears responsibility, and
+never a transfer of accountability away from the maintainer: a tool cannot be
 responsible for accuracy, integrity, or originality, and responsibility that
 cannot be borne cannot be assigned. There is no *independent* AI-issued
 sign-off: every commit, merge, or publish executes under the maintainer's
@@ -207,19 +211,23 @@ because such claims go stale silently.
 
 ## 10. Rules for contributors
 
-Contributors **may** use AI tools. A contribution with **ai-generated**
-content per §3 **shall** say so in the pull-request description: which tool,
-and what it did. That is the one disclosure asked of every contributor,
-regardless of whether any individual commit also carries a trailer of the
-contributor's own choosing — the wider ecosystem has no agreed commit-trailer
-convention to hold a contributor to, with the same trailer some communities
-recommend and others forbid, so this project asks for one maintained
-disclosure rather than mandating a trailer format. This project's own
-agentic-session commits are a different case, not a general rule: they carry
-a `Co-Authored-By` trailer naming the tool, because `CLAUDE.md` fixes one
-specific format for this project's own use (§4). A contributor's commits are
-not required to match it, and nothing here forbids them from carrying one of
-their own.
+Contributors **may** use AI tools. Two different asks apply, not one rule
+covering both — worth stating as two, since collapsing them is exactly how
+the previous wording of this section went wrong (Annex A, 1.2.0):
+
+- **A contributor's disclosure** is the pull-request description: which tool,
+  and what it did, for any **ai-generated** content per §3. That is the one
+  thing asked of every contributor, regardless of whether any individual
+  commit also carries a trailer of the contributor's own choosing. No trailer
+  format is mandated, because the wider ecosystem has no agreed one to hold a
+  contributor to — the same trailer some communities recommend, others
+  forbid.
+- **This project's own agentic-session commits** carry a `Co-Authored-By`
+  trailer naming the tool, and **shall** keep doing so (§4) — `CLAUDE.md`
+  fixes one specific format for this project's own use. That practice is
+  this project's own choice, not a rule extended to contributors: a
+  contributor's commits are not required to match it, and nothing here
+  forbids them from carrying one of their own.
 
 The contributor remains responsible for their submission in full, under the
 same bar as any other work: understood, explainable on request, tested, and
@@ -343,6 +351,7 @@ project's facts.
 
 | Version | Date | Change |
 |---|---|---|
+| 1.3.0 | 2026-09-02 | Strengthened §4 from descriptive ("it carries a trailer") to normative ("**shall** carry a trailer... kept deliberately"): the practice is a standing rule, not incidental fact. Restructured §10, and the mirroring section of `CONTRIBUTING.md`, from one paragraph mixing two different asks into two explicit items — a contributor's PR-description disclosure, and this project's own trailer convention — so the distinction can't be read as one rule stretched to cover both, which is exactly how 1.1.0's wording still read after 1.2.0's fix. |
 | 1.2.0 | 2026-09-02 | 1.1.0 missed one spot: §10 still said contributor disclosure lives in the pull-request description "rather than in commit trailers", unqualified — read together with §4's now-corrected text, that left the document implying trailers are avoided project-wide, when this project's own agentic commits carry one intentionally (`CLAUDE.md`). Restated §10 to keep the contributor-facing ask (PR-description disclosure, no trailer format mandated, since the ecosystem has none agreed) while naming the project's own practice as the deliberate exception it is, not evidence the earlier text was right. `CONTRIBUTING.md`'s "If you use AI tools" section had the same claim, more bluntly ("Not in commit trailers"), and is corrected in the same commit. |
 | 1.1.0 | 2026-09-02 | Reconciled §4/§6/§11 with actual practice: agentic sessions already committed, merged, and produced signed, `Co-Authored-By`-trailed changes under the maintainer's direction, which §4/§11 had stated shall not happen. Restated the accountability and signing claims to match (the trailer discloses provenance, not authorship or a transfer of responsibility; signing is the maintainer's git configuration, not a tool action). Split §5's "Release decisions and publishing" row into a decision row (still `none`) and a new execution row (`ai-assisted`): per the maintainer's direction, an agentic session **may** run `cargo publish` for a release already decided, from the maintainer's own machine and credential. Added a §12 residual-risk bullet naming that this authority is procedurally, not mechanically, gated. |
 | 1.0.0 | 2026-08-26 | First issue. |
@@ -354,7 +363,7 @@ authoritative where the two could ever disagree.
 
 ```yaml
 ai-statement:
-  version: 1.2.0
+  version: 1.3.0
   last-updated: 2026-09-02
   vocabulary: w3c-ai-content-disclosure
   disclosure-default: ai-generated
