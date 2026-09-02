@@ -116,11 +116,11 @@ fn ecl_concept_filter_through_the_facade() {
 
 #[test]
 fn ecl_reports_unsupported_syntax_instead_of_a_wrong_result() {
-    // `{{ M ... }}` after `^R` (refsetContainingAny) is recognized but not
-    // yet implemented — `^`'s own `{{ M }}`, `{{ C ... }}`, and
-    // `{{ D ... }}` all are, so this exercises the one still-unsupported
-    // sibling combination (spec/10 rule 18).
-    let err = parse_ecl("^R 404684003 {{ M active = true }}").unwrap_err();
+    // `!!>`/`!!<` (`top`/`bottom`, part of `constraintOperator`) are
+    // recognized but not implemented — named rather than silently
+    // misparsed (spec/10 rule 9), unlike `^`/`^R`'s own `{{ M }}` and
+    // `{{ C ... }}`/`{{ D ... }}`, which all are (spec/10 rule 18).
+    let err = parse_ecl("!!> 404684003").unwrap_err();
     assert!(matches!(err, EclError::NotYetImplemented { .. }), "{err}");
 }
 

@@ -14,18 +14,6 @@ don't assume an item below is named without checking `parser.rs`/
 
 Rejected with a named `EclError::NotYetImplemented`:
 
-- `{{ M ... }}` **after `^R`** (`refsetContainingAny`). `^`'s own
-  `{{ M ... }}` — `moduleId`/`effectiveTime`/`active`, spec/10 rule 18 —
-  is implemented, following the store change and grammar work decided
-  2026-08-30 (`plan.md`'s "Open decisions", now moved to Done — see
-  `spec/09-versioning.md` rule 4's `member_rows`/`member_components`
-  index, `spec/10-ecl-filters.md`'s "Member filter constraint" section,
-  and `spec/10-ecl.md`'s "`{{ M ... }}`" section). `^R`'s combination is
-  the one still rejected: unlike `^`, where one member filter tests one
-  fixed refset's rows, `^R`'s result concepts are themselves different
-  refsets, so a member filter there would mean resolving, per candidate
-  refset, which of its rows reference something in the operand — a
-  different query shape this crate does not build.
 - `A#B` alternate identifiers — detected at the lexer by an alpha run
   (extended through trailing digits/dashes, per
   `altIdentifierSchemeAlias`) followed by `#`. An alias spelled exactly
@@ -92,7 +80,8 @@ token shape:
 - A member filter's `memberFieldFilter` kind — a refset-type-specific
   column (`mapTarget`, `correlationId`, `order`, …), as opposed to the
   three shared-column kinds (`moduleId`/`effectiveTime`/`active`)
-  implemented 2026-09-01. `refsetFieldName` is `1*alpha` in the official
+  implemented 2026-09-01 after both `^` and `^R`. `refsetFieldName` is
+  `1*alpha` in the official
   grammar (confirmed against the ABNF, not a fixed keyword list), so any
   bare word lexes as `TokenKind::Word` and falls to the parser's generic
   `UnexpectedKeyword`/`UnexpectedToken` — the same bucket a `{{ D }}`

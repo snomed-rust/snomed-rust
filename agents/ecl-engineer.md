@@ -282,13 +282,17 @@ same three kinds in one increment (`moduleId`, `effectiveTime`, `active`
 — they share `ModuleFilter`/`EffectiveTimeFilter`/`ActiveFilter` with
 `{{ C }}`, so there was no new value-set grammar to design), after the
 `SnapshotStore` change spec/09 rule 4's `member_rows`/`member_components`
-index required first. `{{ M ... }}` after `^R` is still rejected by
-name; its refset-type-specific `memberFieldFilter` kind (`mapTarget`, …)
-is rejected only generically — reaching a type-specific column needs its
+index required first. `{{ M ... }}` after `^R` followed on 2026-09-02,
+needing its own store index (`member_refsets`/`all_member_concepts` —
+the inactive-inclusive reverse of `refsets_containing`, spec/09 rule 4)
+since `^R`'s row-per-candidate shape can't reuse `^`'s. Its
+refset-type-specific `memberFieldFilter` kind (`mapTarget`, …) is
+rejected only generically — reaching a type-specific column needs its
 *own* store-retention decision first (`plan.md`'s "Open decisions"), the
-same shape of call the `member_rows` index itself needed, so this is the
-one place the cadence below doesn't apply cleanly: not every remaining
-filter kind is a free next increment. See `spec/10-ecl-unimplemented.md`.
+same shape of call `member_rows`/`member_refsets` both needed, so this is
+the one place the cadence below doesn't apply cleanly: not every
+remaining filter kind is a free next increment. See
+`spec/10-ecl-unimplemented.md`.
 
 That cadence is the recommendation for a filter kind that IS free, not
 the history alone: add one filter

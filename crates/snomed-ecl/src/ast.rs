@@ -147,10 +147,29 @@ pub enum ExpressionConstraint {
     /// specific refset operand to test member rows against, never an
     /// arbitrary already-evaluated set (which would leave no refset id to
     /// look member rows up by). `^R` (`refsetContainingAny`) shares the
-    /// same grammar branch but is not implemented here — see
-    /// `spec/10-ecl-unimplemented.md`.
+    /// same grammar branch — see [`Self::RefsetContainingFilter`] for its
+    /// own, differently-shaped version of this.
     MemberFilter {
         refsets: RefsetOperand,
+        filters: Vec<MemberFilterKind>,
+    },
+    /// `^R concepts {{ M filter (AND filter)* }}` — the `^R`
+    /// (`refsetContainingAny`) counterpart to [`Self::MemberFilter`].
+    /// `^R concepts` (spec/10 rule 17) evaluates to the refsets with an
+    /// active member referencing at least one of `concepts`; this
+    /// restricts that result to refsets where a row that *connects the
+    /// refset to `concepts`* also satisfies every filter in `filters` —
+    /// the same "one row, all filters" and "active unless stated
+    /// otherwise" rules [`Self::MemberFilter`] applies, read for `^R`'s
+    /// own row: a refset's member row referencing one of `concepts`, not
+    /// (as for `^`) the referenced component's own row. Kept as a
+    /// separate variant rather than folded into `MemberFilter`, because
+    /// the two evaluate against fundamentally different row sets — one
+    /// member filter tests one fixed refset's rows (`^`), the other tests
+    /// a different candidate refset's rows per result (`^R`) — and
+    /// collapsing them would hide that distinction from the evaluator.
+    RefsetContainingFilter {
+        concepts: RefsetOperand,
         filters: Vec<MemberFilterKind>,
     },
 }

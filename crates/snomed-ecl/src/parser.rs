@@ -288,11 +288,11 @@ impl Parser {
     /// defaults to a description filter per the grammar), and
     /// `memberFilterConstraint` (`{{ M ... }}`) are all recognized here —
     /// but a member filter is legal only where the official grammar puts
-    /// it: directly on `inner` when `inner` is a `^` (`MemberOf`) that
-    /// hasn't yet been wrapped by a `constraintOperator`, or a *further*
-    /// `{{ M }}` chained onto a previous one (spec/10 rule 18,
-    /// `EclError::UnexpectedToken`/`NotYetImplemented` otherwise — see
-    /// [`Self::apply_member_filter`]).
+    /// it: directly on `inner` when `inner` is a `^` (`MemberOf`) or `^R`
+    /// (`RefsetContaining`) that hasn't yet been wrapped by a
+    /// `constraintOperator`, or a *further* `{{ M }}` chained onto a
+    /// previous one (spec/10 rule 18, `EclError::UnexpectedToken`
+    /// otherwise — see [`Self::apply_member_filter`]).
     fn parse_filter_constraint(
         &mut self,
         inner: ExpressionConstraint,
@@ -344,15 +344,15 @@ impl Parser {
     /// `Operated` and rebuilds it around the filtered result, rather than
     /// wrapping outside it.
     ///
-    /// `^R` (`RefsetContaining`) shares the same grammar branch as `^`
-    /// but is a genuinely different, unimplemented combination (a member
-    /// filter would need to test, for each *result* refset, an active
-    /// member referencing something in the operand — not one fixed
-    /// refset's rows), so it is named rather than folded into the
-    /// catch-all. Anything else (a plain focus, a `{{ C }}`/`{{ D }}`
-    /// result, a parenthesized expression, …) is not a
-    /// `memberFilterConstraint` position at all per the grammar — a
-    /// syntax error, not a missing capability.
+    /// `^R` (`RefsetContaining`) shares the same grammar branch as `^`,
+    /// and — since `spec/10 rule 18` was extended to cover it — builds
+    /// [`ExpressionConstraint::RefsetContainingFilter`] the same way this
+    /// builds `MemberFilter`: a fresh `^R` becomes one, a further
+    /// `{{ M }}` on an existing `RefsetContainingFilter` merges into it.
+    /// Anything else (a plain focus, a `{{ C }}`/`{{ D }}` result, a
+    /// parenthesized expression, …) is not a `memberFilterConstraint`
+    /// position at all per the grammar — a syntax error, not a missing
+    /// capability.
     fn apply_member_filter(
         inner: ExpressionConstraint,
         filters: Vec<MemberFilterKind>,
@@ -372,6 +372,19 @@ impl Parser {
                     filters: existing,
                 })
             }
+            ExpressionConstraint::RefsetContaining { concepts } => {
+                Ok(ExpressionConstraint::RefsetContainingFilter { concepts, filters })
+            }
+            ExpressionConstraint::RefsetContainingFilter {
+                concepts,
+                filters: mut existing,
+            } => {
+                existing.extend(filters);
+                Ok(ExpressionConstraint::RefsetContainingFilter {
+                    concepts,
+                    filters: existing,
+                })
+            }
             ExpressionConstraint::Operated { op, inner } => {
                 let rewrapped = Self::apply_member_filter(*inner, filters, brace_pos)?;
                 Ok(ExpressionConstraint::Operated {
@@ -379,14 +392,10 @@ impl Parser {
                     inner: Box::new(rewrapped),
                 })
             }
-            ExpressionConstraint::RefsetContaining { .. } => Err(EclError::NotYetImplemented {
-                pos: brace_pos,
-                feature: "`{{ M ... }}` after `^R` (refsetContainingAny)",
-            }),
             _ => Err(EclError::UnexpectedToken {
                 pos: brace_pos,
                 found: "`{{ M`".to_string(),
-                expected: "`{{ M ... }}` directly after `^` (memberOf), per spec/10 rule 18",
+                expected: "`{{ M ... }}` directly after `^` or `^R`, per spec/10 rule 18",
             }),
         }
     }
@@ -1763,16 +1772,9 @@ mod tests {
 
     #[test]
     fn rejects_unimplemented_filter_kinds_by_name() {
-        // `{{ M }}` after `^R` (refsetContainingAny), and the
-        // description-filter kinds whose keywords *are* tokenized, get a
-        // feature-naming error (spec/10 rule 9). `{{ M }}` itself is now
-        // implemented after `^` — see
-        // `member_filter_after_a_plain_focus_is_a_syntax_error` and
-        // `parses_a_member_filter_constraint` for the two positions.
-        assert!(matches!(
-            parse("^R 404684003 {{ M active = true }}"),
-            Err(EclError::NotYetImplemented { .. })
-        ));
+        // The description-filter kinds whose keywords *are* tokenized get
+        // a feature-naming error (spec/10 rule 9) when the kind itself
+        // isn't implemented — the `dialect` alias case below.
         // `moduleId`/`effectiveTime` inside `{{ D }}` are implemented now:
         // they filter the *description's* own columns, which the store has.
         for input in [
@@ -2093,6 +2095,62 @@ mod tests {
         };
         assert_eq!(op, HierarchyOp::DescendantOf);
         assert!(matches!(*inner, EC::RefsetContaining { .. }));
+    }
+
+    #[test]
+    fn parses_a_member_filter_constraint_after_refset_containing_any() {
+        let EC::RefsetContainingFilter { concepts, filters } =
+            parse("^R 73211009 {{ M active = true }}").unwrap()
+        else {
+            panic!("expected a refset-containing filter");
+        };
+        assert_eq!(
+            concepts,
+            RefsetOperand::Id {
+                id: SctId::parse("73211009").unwrap(),
+                term: None,
+            }
+        );
+        assert_eq!(filters.len(), 1);
+        assert!(matches!(
+            filters[0],
+            crate::ast::MemberFilterKind::Active(crate::ast::ActiveFilter {
+                negated: false,
+                value: ActiveValue::True,
+            })
+        ));
+    }
+
+    /// Chained `{{ M }} {{ M }}` after `^R`, mirroring
+    /// `chained_member_filter_blocks_merge_against_the_same_refsets`.
+    #[test]
+    fn chained_member_filter_blocks_merge_after_refset_containing_any() {
+        let EC::RefsetContainingFilter { concepts, filters } =
+            parse("^R 73211009 {{ M active = true }} {{ M moduleId = 900000000000207008 }}")
+                .unwrap()
+        else {
+            panic!("expected a refset-containing filter");
+        };
+        assert_eq!(
+            concepts,
+            RefsetOperand::Id {
+                id: SctId::parse("73211009").unwrap(),
+                term: None,
+            }
+        );
+        assert_eq!(filters.len(), 2);
+    }
+
+    /// A `constraintOperator` before `^R` wraps *outside* the member
+    /// filter, mirroring `a_hierarchy_prefix_wraps_outside_a_member_filter`.
+    #[test]
+    fn a_hierarchy_prefix_wraps_outside_a_refset_containing_filter() {
+        let EC::Operated { op, inner } = parse("< ^R 73211009 {{ M active = true }}").unwrap()
+        else {
+            panic!("expected an operated expression");
+        };
+        assert_eq!(op, HierarchyOp::DescendantOf);
+        assert!(matches!(*inner, EC::RefsetContainingFilter { .. }));
     }
 
     /// `memberOf = "^" [ ws "[" ... "]" ]` — the field selection sits

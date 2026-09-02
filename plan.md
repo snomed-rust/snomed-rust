@@ -235,20 +235,23 @@ spec section that documents it) and the deliberately-rejected lists —
 sections of `spec/11`-`spec/14` — where every entry fails with a typed
 error rather than being silently approximated.
 
-Since 0.9.0 the ECL surface has grown by four constructs and one grammar
+Since 0.9.0 the ECL surface has grown by five constructs and one grammar
 correction rather than by new crates: dot notation (`A . attribute`), the
 full `memberOf` operand (`^ *`, `^ ( expr )`, `< ^ X`, `< ( A OR B )`),
 `^R` (`refsetContainingAny`) with the concept-keyed reverse membership
-index behind it, and — 2026-09-01, closing the `{{ M ... }}` decision
-above — the member filter constraint's `moduleId`/`effectiveTime`/`active`
-kinds, which needed a `SnapshotStore` change first: a type-erased
-`member_rows`/`member_components` index retaining every refset member's
-shared columns, active *and* inactive, across all eighteen refset types
-(spec/09 rule 4), landed alongside the grammar/evaluator work so `{{ M
-active = false }}` has something to match. `{{ M ... }}`'s
-refset-type-specific `memberFieldFilter` kind and its use after `^R`
-remain open — tracked in `tasks.md`, not here, since neither needs a
-further decision. Each construct above was confirmed against the
+index behind it, and — closing the `{{ M ... }}` decision above —
+the member filter constraint's `moduleId`/`effectiveTime`/`active`
+kinds, first after `^` (2026-09-01, needing a `SnapshotStore` change
+first: a type-erased `member_rows`/`member_components` index retaining
+every refset member's shared columns, active *and* inactive, across all
+eighteen refset types, spec/09 rule 4, so `{{ M active = false }}` has
+something to match) and then after `^R` (2026-09-02, needing its own
+index — `member_refsets`/`all_member_concepts`, the inactive-inclusive
+reverse of `refsets_containing` — since `^R`'s row-per-candidate shape
+can't reuse `^`'s). `{{ M ... }}`'s refset-type-specific
+`memberFieldFilter` kind remains open, priced in "Open decisions" below
+rather than tracked as a free `tasks.md` increment, since it needs its
+own store-retention call. Each construct above was confirmed against the
 official ABNF or a verbatim guide quote before implementation, because
 every one of them has a plausible wrong reading that returns a set
 rather than an error.

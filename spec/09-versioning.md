@@ -73,6 +73,16 @@ Given any mix of Full, Snapshot, and Delta rows:
    magnitude as retaining Simple/Language's rows would alone (the
    original ~300 MB estimate), since most refset members are active in a
    real release and the inactive minority does not multiply that figure.
+
+   A third index — `member_refsets`/`all_member_concepts` — is
+   `member_rows`'s reverse, restricted to Concept referenced components
+   (mirroring `refsets_containing`'s own scope, spec/10 rule 17): every
+   refset with a row, active or inactive, referencing a given concept.
+   This is what backs `^R X {{ M ... }}` (spec/10 rule 18) — `^R`'s own
+   forward index, `refsets_containing`, is active-only, the same gap
+   `member_rows` closed for `^`'s own `{{ M }}`. Cost is bounded the same
+   way `refsets_containing` already is: concept-scoped, not spanning the
+   Language refsets' millions of description memberships.
 5. Where two rows contend for one slot and their `effectiveTime`s are
    equal, the tie MUST be broken deterministically by the rows' own
    content — never by which row arrived first and never by hash order.

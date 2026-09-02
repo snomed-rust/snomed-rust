@@ -15,6 +15,68 @@ most recently on 2026-09-02, to keep this file inside the repository's
 40 KB per-document budget. Search both when asking "has this come up
 before".
 
+## Done (2026-09-02, ECL `{{ M ... }}` member filter constraint after `^R`)
+
+- [x] Closed the remaining half of the `{{ M ... }}` decision's scope:
+      `moduleId`/`effectiveTime`/`active` now work after `^R`
+      (`refsetContainingAny`), not only after `^`.
+- [x] **New store index**: `SnapshotStore::member_refsets`/
+      `all_member_concepts` (spec/09 rule 4) — the inactive-inclusive
+      reverse of `refsets_containing`, scoped to Concept referenced
+      components the same way, built as a second pass over `member_rows`'s
+      own keys rather than the raw member maps again. Needed because
+      `^R`'s row-per-candidate shape (a different refset's row per
+      result, not one fixed refset's rows like `^`) can't reuse
+      `member_rows`/`member_components` directly — `refsets_containing`
+      alone would silently miss `{{ M active = false }}` after `^R`, the
+      same gap `member_rows` closed for `^`.
+- [x] **AST/parser**: new `ExpressionConstraint::RefsetContainingFilter`
+      variant (kept separate from `MemberFilter` rather than folded in,
+      since the two evaluate against fundamentally different row sets).
+      `Parser::apply_member_filter`'s `RefsetContaining` arm now builds
+      it instead of returning `NotYetImplemented`; a matching merge arm
+      handles chained `{{ M }} {{ M }}` blocks after `^R`, mirroring
+      `MemberFilter`'s own. The existing `Operated`-recursion arm needed
+      no changes — it already generically rewraps whatever
+      `apply_member_filter` returns, so `< ^R X {{ M f }}`'s "filter
+      first, then apply the operator" ordering (rule 16 extended by rule
+      18) worked without special-casing.
+- [x] **Evaluator**: `evaluate_refset_containing_filter`, handling all
+      three `RefsetOperand` forms — `Id`/`Expression` resolve to
+      concrete concepts and look candidates up via
+      `refsets_containing`/`member_refsets` directly; `Wildcard` with an
+      explicit `active` filter is the one path with no single operand
+      concept to key off, so it enumerates via `all_member_concepts`
+      instead (the case that actually exercises the new index end to
+      end — the default, active-only `Wildcard` path reuses `^R`'s own
+      existing active-only logic and never touches `member_refsets`).
+      Factored the shared "does any row of this (refset, component) pair
+      satisfy every filter" check into `member_row_matches`, used by both
+      `evaluate_member_filter` and the new function, rather than
+      duplicating it.
+- [x] Tests: 3 new `snomed-store` tests (inactive-only membership
+      visible where `refsets_containing` isn't, concept-only scoping,
+      empty case), 3 new parser tests (parses, chains, operator
+      precedence), 6 new eval tests (the motivating `active = false`
+      case, the implicit active-only default, the row's-own-columns
+      distinction, same-row conjunction, operator-applies-after-filter
+      ordering, and the `Wildcard`+`active`-filter path specifically,
+      since it is the one branch the other cases don't reach) — 12 new
+      tests total (367 → 379). Updated two tests whose expectations were
+      the old "`^R` + `{{ M }}` always rejected" behavior
+      (`rejects_unimplemented_filter_kinds_by_name` in `parser.rs`,
+      `ecl_reports_unsupported_syntax_instead_of_a_wrong_result` in
+      `crates/snomed/tests/ecl.rs`, the latter switched to `!!>` as its
+      still-unsupported-construct example).
+- [x] Full workspace `cargo build`/`clippy --all-targets`/`fmt`/`test`,
+      `bin/check-docs`, `bin/check-trademarks`, and `spec_citations` all
+      clean. `spec/09-versioning.md` rule 4, `spec/10-ecl.md` rule 18 and
+      its "`{{ M ... }}` after `^R`" section, `spec/10-ecl-filters.md`,
+      `spec/10-ecl-unimplemented.md` (the named-`NotYetImplemented` entry
+      removed, since the combination is no longer rejected),
+      `agents/ecl-engineer.md`, `agents/store-engineer.md`, `plan.md`,
+      and this file's own "Next up" entry updated in the same change.
+
 ## Done (2026-09-02, Release 0.13.0 — the first release executed under `spec/ai-release-authority/`)
 
 - [x] **Decided and executed the release itself**, per §1-5 of the same-day
@@ -480,10 +542,12 @@ before".
 
 - [ ] Nothing currently scoped beyond the `{{ M ... }}` remainder below.
       State as of 2026-09-02: **0.13.0 released** (the ECL `{{ M ... }}`
-      member filter constraint — see `CHANGELOG.md`), the first release
-      decided and executed under `spec/ai-release-authority/`'s
-      criteria rather than a fresh per-release maintainer go-ahead. 9
-      crates, 367 tests, clippy/fmt clean on stable, MSRV 1.96 (current
+      member filter constraint after `^` — see `CHANGELOG.md`), the first
+      release decided and executed under `spec/ai-release-authority/`'s
+      criteria rather than a fresh per-release maintainer go-ahead;
+      `{{ M ... }}` after `^R` landed the same day, unreleased so far
+      (see `CHANGELOG.md`'s `[Unreleased]`). 9 crates, 379 tests,
+      clippy/fmt clean on stable, MSRV 1.96 (current
       stable minus two, `spec/rust-msrv-n-minus-2/index.md`), `fuzz/`,
       and `benches/`; 13 fuzz targets; 6 criterion benchmark files; 35
       `spec/` documents (17 specification distillations, the README
@@ -507,30 +571,25 @@ before".
       question, not a lexer/parser gap. Nothing here was actually
       unblocked.
 - [ ] **`{{ M ... }}` member filters, remaining scope** (`snomed-ecl`) —
-      the `moduleId`/`effectiveTime`/`active` kinds are done (2026-09-01,
-      see Done below); two pieces of the original decision's scope are
-      still open:
-      - `{{ M ... }}` after `^R` (`refsetContainingAny`) — rejected with
-        `EclError::NotYetImplemented`, no further call needed to unblock
-        it, since a member filter there would need a different (and more
-        expensive) query shape than `^`'s: resolving, per candidate
-        refset, which of its rows reference something in the operand.
+      the `moduleId`/`effectiveTime`/`active` kinds are done after both
+      `^` (2026-09-01) and `^R` (2026-09-02, see Done below); one piece
+      of the original decision's scope is still open:
       - The fourth `memberFilter` grammar alternative, `memberFieldFilter`
         (a refset-type-specific column: `mapTarget`, `correlationId`,
         `order`, …). **Checked 2026-09-01, not a free pickup despite the
-        cadence precedent**: `SnapshotStore::member_rows` returns
-        `RefsetMemberCore` only — the columns every refset type shares —
-        never the type-specific ones (`map_target`, …), and every
-        *typed* per-type accessor (`extended_map_members`,
+        cadence precedent**: `SnapshotStore::member_rows`/`member_refsets`
+        return `RefsetMemberCore` only — the columns every refset type
+        shares — never the type-specific ones (`map_target`, …), and
+        every *typed* per-type accessor (`extended_map_members`,
         `simple_map_members`, …) is active-only by construction, the same
         problem `{{ M active = false }}` had before 2026-09-01's store
         change. Reaching a field like `mapTarget` with `{{ M active =
         false, mapTarget = "22.9" }}` needs the same kind of "retain rows,
         active and inactive" decision the original `{{ M }}` bullet
         needed — priced how much memory that costs, for which types, and
-        whether per-type or unified — before code, not during it. Not
-        scoped in `plan.md`'s "Open decisions" yet; add it there before
-        picking this up.
+        whether per-type or unified — before code, not during it. Priced
+        in `plan.md`'s "Open decisions" (added 2026-09-02); pick this up
+        once that call is made, not before.
 - [ ] Decisions, not tasks — each needs a call before code:
       - **`$expand` inline `valueSet`** (`snomed-fhir`): shape already
         determined — a typed compose model the caller maps its JSON onto

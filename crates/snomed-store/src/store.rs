@@ -419,6 +419,27 @@ impl SnapshotStoreBuilder {
         for components in member_components.values_mut() {
             components.sort_unstable();
         }
+        // The reverse of `member_components`, restricted to Concept
+        // referenced components (mirroring `refsets_containing`'s own
+        // concept-only scope, spec/10 rule 17 — `^R` is defined only over
+        // refsets whose referenced components are concepts). Unlike
+        // `refsets_containing`, this is active-*and*-inactive: it backs
+        // `^R X {{ M ... }}` (spec/10 rule 18), which — like `^ X {{ M
+        // active = false }}` before it — needs a row `refsets_containing`
+        // has already dropped.
+        let mut member_refsets: HashMap<SctId, Vec<SctId>> = HashMap::new();
+        for &(refset_id, component_id) in member_rows.keys() {
+            if component_id.component_type() == Some(ComponentType::Concept) {
+                member_refsets
+                    .entry(component_id)
+                    .or_default()
+                    .push(refset_id);
+            }
+        }
+        for refsets in member_refsets.values_mut() {
+            refsets.sort_unstable();
+            refsets.dedup();
+        }
 
         let mut descriptions_by_concept: HashMap<SctId, Vec<SctId>> = HashMap::new();
         for d in self.descriptions.values() {
@@ -617,6 +638,7 @@ impl SnapshotStoreBuilder {
         SnapshotStore {
             member_rows,
             member_components,
+            member_refsets,
             concepts: self.concepts,
             descriptions: self.descriptions,
             relationships: self.relationships,
@@ -663,6 +685,11 @@ pub struct SnapshotStore {
     /// `member_rows`'s key set, grouped by refset id: every component
     /// with at least one row (active or inactive) in a refset, ascending.
     member_components: HashMap<SctId, Vec<SctId>>,
+    /// The reverse of `member_components`, restricted to Concept
+    /// referenced components: every refset with at least one row (active
+    /// or inactive) referencing this concept, ascending. See
+    /// [`Self::member_refsets`].
+    member_refsets: HashMap<SctId, Vec<SctId>>,
     concepts: HashMap<SctId, Concept>,
     descriptions: HashMap<SctId, Description>,
     relationships: HashMap<SctId, Relationship>,
@@ -978,6 +1005,31 @@ impl SnapshotStore {
             .into_iter()
             .flatten()
             .copied()
+    }
+
+    /// Every refset with at least one member row — active or inactive —
+    /// referencing `concept_id`, ascending. The inactive-inclusive
+    /// counterpart to [`Self::refsets_containing`], scoped the same way
+    /// (Concept referenced components only, spec/10 rule 17) — backs
+    /// `snomed-ecl`'s `^R X {{ M ... }}` (spec/10 rule 18), which needs a
+    /// row `refsets_containing` has already dropped, the same reason
+    /// [`Self::member_rows`] exists for `^`'s own `{{ M }}`.
+    pub fn member_refsets(&self, concept_id: SctId) -> impl Iterator<Item = SctId> + '_ {
+        self.member_refsets
+            .get(&concept_id)
+            .into_iter()
+            .flatten()
+            .copied()
+    }
+
+    /// Every concept with at least one refset member row — active or
+    /// inactive — referencing it, i.e. `member_refsets`'s key set. Order
+    /// is unspecified. Backs `^R * {{ M ... }}` (spec/10 rule 18): the
+    /// wildcard operand has no single concept to look `member_refsets` up
+    /// by, so this is what lets the evaluator enumerate every candidate
+    /// instead.
+    pub fn all_member_concepts(&self) -> impl Iterator<Item = SctId> + '_ {
+        self.member_refsets.keys().copied()
     }
 
     /// Active Association refset members for `component_id` in `refset_id`
@@ -2176,5 +2228,64 @@ mod tests {
         let store = SnapshotStore::builder().build();
         assert!(store.member_rows(ICD10_MAP, MI).is_empty());
         assert!(store.member_components(ICD10_MAP).next().is_none());
+    }
+
+    #[test]
+    fn member_refsets_reaches_an_inactive_only_membership() {
+        // The `^R` analogue of `member_rows_include_inactive_rows...`:
+        // refsets_containing (active-only) must not see this membership,
+        // but member_refsets (the index built for {{ M }} after ^R) must.
+        let mut b = SnapshotStore::builder();
+        b.add_simple_member(SimpleRefsetMember {
+            core: core(
+                MemberId::parse("80000000-0000-4000-8000-000000000050").unwrap(),
+                20200131,
+                false,
+                ICD10_MAP,
+                MI,
+            ),
+        });
+        let store = b.build();
+
+        assert!(store.refsets_containing(MI).next().is_none());
+        assert_eq!(
+            store.member_refsets(MI).collect::<Vec<_>>(),
+            vec![ICD10_MAP]
+        );
+        assert_eq!(store.all_member_concepts().collect::<Vec<_>>(), vec![MI]);
+    }
+
+    #[test]
+    fn member_refsets_is_scoped_to_concepts_only() {
+        // Mirrors refsets_containing's own scope (spec/10 rule 17): a
+        // description referenced component must not appear, even though
+        // member_rows/member_components (the type-erased, non-concept-
+        // scoped indexes) do see it.
+        let fsn_id = SctId::compose(1006, ComponentType::Description, None).unwrap();
+        let mut b = SnapshotStore::builder();
+        b.add_language_member(LanguageRefsetMember {
+            core: core(
+                MemberId::parse("80000000-0000-4000-8000-000000000051").unwrap(),
+                20190731,
+                true,
+                constants::US_ENGLISH_LANGUAGE_REFSET,
+                fsn_id,
+            ),
+            acceptability_id: constants::PREFERRED,
+        });
+        let store = b.build();
+
+        assert!(store.member_refsets(fsn_id).next().is_none());
+        assert!(store.all_member_concepts().next().is_none());
+        // The type-erased indexes still see it, for contrast.
+        assert!(!store
+            .member_rows(constants::US_ENGLISH_LANGUAGE_REFSET, fsn_id)
+            .is_empty());
+    }
+
+    #[test]
+    fn member_refsets_is_empty_for_a_concept_with_no_membership() {
+        let store = SnapshotStore::builder().build();
+        assert!(store.member_refsets(MI).next().is_none());
     }
 }

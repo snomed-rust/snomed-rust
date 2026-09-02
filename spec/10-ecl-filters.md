@@ -96,10 +96,15 @@ chain, each seeing only what the previous one let through.
 
 `^ refsets {{ M memberFilter (, memberFilter)* }}` restricts `refsets`'s
 referenced components to those with at least one member row — active or
-inactive — satisfying every filter in the block. Unlike `{{ C }}`/
-`{{ D }}`, it attaches only directly to `^`'s operand (see 10-ecl.md's
-grammar excerpt and rule 18), and a `constraintOperator` before `^`
-applies *after* the member filter, not before it.
+inactive — satisfying every filter in the block; `^R concepts {{ M
+memberFilter (, memberFilter)* }}` restricts `^R concepts`'s result
+refsets the same way, against the row that connects each candidate
+refset to `concepts`. Unlike `{{ C }}`/`{{ D }}`, it attaches only
+directly to `^`'s or `^R`'s operand (see 10-ecl.md's grammar excerpt and
+rule 18), and a `constraintOperator` before `^`/`^R` applies *after* the
+member filter, not before it. 10-ecl.md's "`{{ M ... }}` after `^R`"
+section has the mechanics specific to that direction — a different row
+per candidate, not one shared lookup.
 
 `moduleFilter`, `effectiveTimeFilter`, and `activeFilter` are
 implemented — the three `memberFilter` kinds that ask about a column
@@ -123,11 +128,13 @@ the exact `ModuleFilter`/`EffectiveTimeFilter`/`ActiveFilter` AST shapes
   needed a store change before it could be implemented at all (see
   `spec/10-ecl-unimplemented.md`): a snapshot's other refset-member
   indexes are active-only by construction (spec/09 rule 4), so nothing
-  before `SnapshotStore::member_rows` could ever have answered
+  before `SnapshotStore::member_rows` (for `^`) and
+  `SnapshotStore::member_refsets` (for `^R`) could ever have answered
   `active = false`.
 
 Two rules this section fixes, mirroring `{{ D }}`'s own (spec/10 rule
-14, read one level down — a member row instead of a description):
+14, read one level down — a member row instead of a description), stated
+for `^`'s form and identical for `^R`'s:
 
 1. **All filters in one block apply to the same member row.** A
    component with two member rows in the refset, each satisfying only
@@ -146,8 +153,7 @@ Two rules this section fixes, mirroring `{{ D }}`'s own (spec/10 rule
 **Not implemented:** the fourth grammar alternative, `memberFieldFilter`
 (a refset-type-specific column such as `mapTarget`/`correlationId` —
 blocked on a store-retention decision of its own, not just an increment;
-see `plan.md`'s "Open decisions"), and `{{ M ... }}` after `^R`
-(`refsetContainingAny`) — see `spec/10-ecl-unimplemented.md` for both.
+see `plan.md`'s "Open decisions") — see `spec/10-ecl-unimplemented.md`.
 
 ## Description filter constraint (`{{ D ... }}`)
 

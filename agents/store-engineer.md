@@ -150,3 +150,17 @@ refset type, it needs a `collect_member_rows(&self.new_type, |m| &m.core,
 silently miss it — nothing else here would catch that omission at compile
 time, since `RefsetMemberCore` doesn't know which type it came from once
 it's inside `member_rows`.
+
+`member_refsets`/`all_member_concepts` are `member_rows`'s reverse,
+added 2026-09-02 for `^R X {{ M ... }}` (spec/10 rule 18): the inverse
+lookup `^R`'s own row-per-candidate shape needs — for a given concept,
+which refsets have a row (active or inactive) referencing it — that
+`refsets_containing` can't provide because it's active-only, the exact
+gap `member_rows` closed for `^`'s own `{{ M }}`. Unlike `member_rows`,
+this one *is* scoped to Concept referenced components, matching
+`refsets_containing`'s own restriction (spec/10 rule 17) rather than
+`member_rows`'s type-erased breadth — `^R` is defined only over concept
+refsets, so there's no reason to pay for Language's millions of
+description memberships here. Built as a second pass over `member_rows`'s
+own keys (not the raw member maps again), so it costs one more
+`HashMap` and a filter, not another eighteen-way fan-out.

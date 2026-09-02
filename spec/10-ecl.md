@@ -42,14 +42,14 @@ true|false|*`, `definitionStatus = primitive|defined`, `moduleId =
 subExpressionConstraint`, and `effectiveTime (=|!=|<=|<|>=|>) "YYYYMMDD"`),
 evaluated against a [`SnapshotStore`]. Description filter
 constraints (`{{ D ... }}`, `term`/`type`/`active`) are implemented too,
-and so is a **member filter constraint** (`{{ M ... }}`, restricting `^`'s
-referenced components to those with a member row matching —
-`moduleId`/`effectiveTime`/`active`, the columns every refset member type
-shares).
+and so is a **member filter constraint** (`{{ M ... }}`, restricting
+`^`'s referenced components — or `^R`'s result refsets — to those with a
+member row matching — `moduleId`/`effectiveTime`/`active`, the columns
+every refset member type shares).
 Boolean concrete value comparisons (not
 representable in RF2 — see below), `moduleId`'s
 `eclConceptReferenceSet` spelling, a member filter's refset-type-specific
-`memberFieldFilter` kind (e.g. `mapTarget`) and its use after `^R`, the
+`memberFieldFilter` kind (e.g. `mapTarget`), the
 remaining description filter kinds (the `dialect` alias form), the
 history supplement, and alternate identifiers are **out of scope for this
 version** — see
@@ -91,11 +91,10 @@ subExpressionConstraint
                         -- here, after any focus shape.
                         -- memberFilterConstraint (`M`) is NOT here — the
                         -- official grammar attaches it only inside the
-                        -- refsetOperator branch, directly after `^`'s
-                        -- operand and before constraintOperator wraps the
-                        -- result (see "## memberOf" below and rule 18);
-                        -- `^R X {{ M ... }}` is the one combination still
-                        -- rejected, as NotYetImplemented
+                        -- refsetOperator branch, directly after `^`'s or
+                        -- `^R`'s operand and before constraintOperator
+                        -- wraps the result (see "## memberOf" below and
+                        -- rule 18)
                         -- NOTE: the parser applies this same trailing
                         -- structure (filters, then an optional ":"
                         -- refinement) after EVERY subExpressionConstraint
@@ -349,28 +348,37 @@ the Concept partition only (spec/09's derived index list), and `^R *` —
 "every refset containing at least one of every concept" — is every refset
 with a concept member, which excludes the Language refsets.
 
-`^R X {{ M ... }}` is not implemented, even though `refsetOperator`
-covers both `^` and `^R`: unlike `^`, where one member filter tests one
-fixed refset's rows, `^R`'s result concepts are themselves *different*
-refsets, so testing a member filter against each would mean resolving,
-per candidate refset, which of its rows reference something in `X` — a
-different (and more expensive) shape of query this crate does not build.
-Rejected by name (`EclError::NotYetImplemented`), not silently folded
-into `^`'s behavior.
+`^R X {{ M ... }}` is implemented (rule 18), for a different, more
+expensive query shape than `^`'s own `{{ M }}`: `^`'s member filter tests
+one fixed refset's rows, but `^R`'s *result* concepts are themselves
+different refsets, so testing a member filter against each means
+resolving, per candidate refset, which of its rows reference something
+in `X`. `SnapshotStore::member_refsets` (spec/09 rule 4) is what makes
+that resolution possible without an active-only blind spot: it is the
+inactive-inclusive reverse of `refsets_containing`, the same relationship
+`member_rows` has to the active-only per-type refset accessors. For each
+concept in `X` (all of them for `Expression`/`Wildcard` operands, one for
+`Id`), the candidate refsets are read off `refsets_containing`
+(active-only, the default) or `member_refsets` (once the block states its
+own `active` filter, spec/10 rule 18), then each candidate's own member
+row referencing that concept is tested against the filters the same way
+`^`'s `{{ M }}` tests a component's own row.
 
 ### `{{ M ... }}` — member filter constraints
 
 `^ refsets {{ M filter (AND filter)* }}` restricts `refsets`'s referenced
 components to those with at least one member row satisfying every filter
-in the block (spec/10-ecl-filters.md has the filter-by-filter prose; rule
-18 below is the normative summary). `moduleId`, `effectiveTime`, and
-`active` are implemented — the three `memberFilter` grammar alternatives
-that ask about columns every refset member type shares
-(`RefsetMemberCore`, spec/08) — and reuse the exact same
-`ModuleFilter`/`EffectiveTimeFilter`/`ActiveFilter` shapes `{{ C }}`
-already has. The fourth alternative, `memberFieldFilter` (a
-refset-type-specific column such as `mapTarget`), is not — see
-`spec/10-ecl-unimplemented.md`.
+in the block; `^R concepts {{ M filter (AND filter)* }}` is its `^R`
+counterpart, restricting `^R concepts`'s result refsets to those whose
+row referencing `concepts` satisfies every filter (spec/10-ecl-filters.md
+has the filter-by-filter prose; rule 18 below is the normative summary).
+`moduleId`, `effectiveTime`, and `active` are implemented — the three
+`memberFilter` grammar alternatives that ask about columns every refset
+member type shares (`RefsetMemberCore`, spec/08) — and reuse the exact
+same `ModuleFilter`/`EffectiveTimeFilter`/`ActiveFilter` shapes `{{ C }}`
+already has, for both `^` and `^R`. The fourth alternative,
+`memberFieldFilter` (a refset-type-specific column such as `mapTarget`),
+is not — see `spec/10-ecl-unimplemented.md`.
 
 Grammatically, `memberFilterConstraint` sits *inside* the
 `refsetOperator` branch, not in the trailing `*(conceptFilterConstraint |
@@ -391,35 +399,56 @@ memberFilter = moduleFilter / effectiveTimeFilter / activeFilter
 Two consequences follow directly from that position, both load-bearing
 (rule 18):
 
-- **A `constraintOperator` before `^` applies *after* `{{ M }}`.**
+- **A `constraintOperator` before `^`/`^R` applies *after* `{{ M }}`.**
   `< ^ X {{ M f }}` parses as `constraintOperator` wrapping
   `(refsetOperator X) *(memberFilterConstraint f)` as a whole — filter the
   raw members first, *then* union the hierarchy operator over the
   filtered result — the same order rule 16 already establishes for `<`
-  and plain `^`, one layer further in. This crate's parser reflects that
-  order structurally: `parse_operated_focus` builds `Operated { op, inner:
-  MemberOf { X } }` for `< ^ X`, and attaching `{{ M f }}` afterward
-  reaches through the `Operated` wrapper to filter `inner` and rebuilds
-  the same wrapper around the result, rather than wrapping outside it.
-- **`{{ M }}` can only follow `^` itself, or a previous `{{ M }}` block**
-  (the grammar's `*(ws memberFilterConstraint)` lets several chain,
-  conjoined). Anywhere else `{{ M ... }}` might appear — after a plain
-  focus, after `{{ C }}`/`{{ D }}`, after a parenthesized expression — is
-  not a `memberFilterConstraint` position at all, so it is a parse error
-  (`EclError::UnexpectedToken`) rather than `NotYetImplemented`: the
-  grammar itself doesn't allow it there, independent of what this crate
-  has built.
+  and plain `^`, one layer further in; `^R` follows the same order. This
+  crate's parser reflects that order structurally: `parse_operated_focus`
+  builds `Operated { op, inner: MemberOf { X } }` (or `RefsetContaining`)
+  for `< ^ X` (or `< ^R X`), and attaching `{{ M f }}` afterward reaches
+  through the `Operated` wrapper to filter `inner` and rebuilds the same
+  wrapper around the result, rather than wrapping outside it.
+- **`{{ M }}` can only follow `^`/`^R` itself, or a previous `{{ M }}`
+  block** (the grammar's `*(ws memberFilterConstraint)` lets several
+  chain, conjoined). Anywhere else `{{ M ... }}` might appear — after a
+  plain focus, after `{{ C }}`/`{{ D }}`, after a parenthesized
+  expression — is not a `memberFilterConstraint` position at all, so it
+  is a parse error (`EclError::UnexpectedToken`): the grammar itself
+  doesn't allow it there, independent of what this crate has built.
 
-A component matches when **one** of its member rows in the resolved
-refset(s) satisfies every filter in the block together — mirroring
-`{{ D }}`'s "same description" rule (rule 14) one level down, since a
-component can have more than one member row in a refset (a map with
-several targets, say). Absent an explicit `active` filter of its own, the
-candidate rows are **active only** — the same implicit default `{{ D }}`
-already has, applied here so a query that never mentions `active` cannot
-be surprised by a retired membership; writing `active = false` (or
-`= *`) is what makes the wider, inactive-inclusive candidate set the
-right one to scan.
+A candidate matches when **one** of the member rows the filter tests
+satisfies every filter in the block together — mirroring `{{ D }}`'s
+"same description" rule (rule 14) one level down, since a component (or,
+for `^R`, a refset) can have more than one qualifying member row (a map
+with several targets, say). Absent an explicit `active` filter of its
+own, the candidate rows are **active only** — the same implicit default
+`{{ D }}` already has, applied here so a query that never mentions
+`active` cannot be surprised by a retired membership; writing
+`active = false` (or `= *`) is what makes the wider, inactive-inclusive
+candidate set the right one to scan.
+
+#### `{{ M ... }}` after `^R`: a different row per candidate
+
+After `^`, the row a filter tests is unambiguous: the one that makes a
+component a member of the (fixed) resolved refset. After `^R`, each
+*result* is itself a different refset, so the row a filter tests is "the
+row, in this candidate refset, that references the operand concept" —
+different per candidate, not one shared lookup. `^R X {{ M ... }}` is
+therefore evaluated concept-by-concept: for every concept in `X` (the
+literal id for `RefsetOperand::Id`, the evaluated set for `Expression`,
+every concept with any refset membership at all for `Wildcard`), the
+candidate refsets come from `refsets_containing` (active-only, the
+default) or `member_refsets` (once the block states its own `active`
+filter — the inactive-inclusive reverse `refsets_containing` doesn't
+provide, spec/09 rule 4), and each candidate's own row referencing that
+concept is tested against the filters exactly as `^`'s `{{ M }}` tests a
+component's own row. `^R * {{ M active = false }}` — no single operand
+concept, and asking for inactive rows — is the combination that actually
+needs the new index end to end: `SnapshotStore::all_member_concepts`
+enumerates the candidates `refset_ids()`/`refset_members()`'s
+active-only wildcard path could never reach.
 
 ### A literal refset id is a key, not a concept
 
@@ -603,18 +632,22 @@ still governs it: nothing on that list may be silently accepted.
     concept `c` that is a member of refset `r`, `^R c` MUST contain `r`
     and `^ r` MUST contain `c`.
 18. `{{ M ... }}` (a `memberFilterConstraint`) MUST be recognized only
-    directly after `^`'s operand, before any `constraintOperator` wraps
-    the result and before any `{{ C }}`/`{{ D }}` filter runs — a
-    `constraintOperator` before `^` MUST still apply *after* the member
-    filter, mirroring rule 16 one level further in
+    directly after `^`'s or `^R`'s operand, before any `constraintOperator`
+    wraps the result and before any `{{ C }}`/`{{ D }}` filter runs — a
+    `constraintOperator` before `^`/`^R` MUST still apply *after* the
+    member filter, mirroring rule 16 one level further in
     (`<< ^ X {{ M f }}` filters the raw members, then unions `<<` over
-    the filtered result — never the reverse). A component MUST match when
-    **one** of its member rows in the resolved refset(s) satisfies every
-    filter in the block — the same "one row, all filters" rule 14 already
-    requires for `{{ D }}`'s descriptions — and, absent an `active` filter
-    of its own, only **active** member rows MUST be candidates (rule 14's
-    default, again read one level down). `{{ M ... }}` written anywhere
-    else that isn't `^R` (`refsetContainingAny`, itself a named
-    `NotYetImplemented` combination — see `spec/10-ecl-unimplemented.md`)
-    MUST be a parse error, never silently ignored or evaluated as a
-    `{{ C }}`/`{{ D }}` block.
+    the filtered result — never the reverse; the same order applies to
+    `^R`). A candidate MUST match when **one** of the member rows the
+    filter tests satisfies every filter in the block — the same "one row,
+    all filters" rule 14 already requires for `{{ D }}`'s descriptions —
+    and, absent an `active` filter of its own, only **active** member
+    rows MUST be candidates (rule 14's default, again read one level
+    down). After `^`, the row tested is the one that makes a component a
+    member of the resolved refset(s); after `^R`, it is the one that
+    makes a *refset* qualify — a member row in that refset referencing
+    the operand's concept(s), which is why `^R`'s member filter needs its
+    own inactive-inclusive reverse index (`SnapshotStore::member_refsets`,
+    spec/09 rule 4) rather than reusing `^`'s. `{{ M ... }}` written
+    anywhere else MUST be a parse error, never silently ignored or
+    evaluated as a `{{ C }}`/`{{ D }}` block.
