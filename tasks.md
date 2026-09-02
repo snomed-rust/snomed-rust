@@ -14,6 +14,61 @@ most recently on 2026-09-02, to keep this file inside the repository's
 40 KB per-document budget. Search both when asking "has this come up
 before".
 
+## Done (2026-09-02, repository-hygiene gaps closed out — all three resolved)
+
+- [x] **All three gaps `MAINTAINERS.md`/`AI_STATEMENT.md` named are now
+      resolved, not just partially**, closing an item that had sat in
+      "Next up" since before 2026-08-27:
+      - **Sign commits and tags** — done, 2026-08-28 (all three forges
+        verify).
+      - **Create a Zenodo deposit** — deferred, 2026-09-02, the
+        maintainer's own call. Recorded as deferred rather than left
+        reading as an open gap: see `MAINTAINERS.md`'s "No archival DOI"
+        bullet.
+      - **Decide whether publishing moves to a CI lane** with crates.io
+        Trusted Publishing — decided, 2026-08-28 (wait for coverage
+        across every remote; `spec/trusted-publishing/index.md`).
+- [x] Nothing left to check on this item; removed from "Next up" rather
+      than left as a checked box with three struck-through children, per
+      this file's own convention of moving a fully-resolved multi-part
+      item to Done rather than leaving it visible but inert.
+
+## Done (2026-09-02, governance: AI-executed `cargo publish` authorized, two prior contradictions found and fixed)
+
+- [x] **The maintainer's decision**: an agentic AI session may execute
+      `cargo publish` for a release the maintainer has already decided to
+      cut, from the maintainer's own machine and crates.io credential —
+      the release decision itself (what version, when, whether) stays the
+      maintainer's, per `AI_STATEMENT.md` §5's now-split table row and
+      `GOVERNANCE.md`'s "Who decides" table.
+- [x] **Found and fixed, not left standing**: `AI_STATEMENT.md` v1.0.0
+      already contradicted actual practice — §4 said no tool shall be
+      named co-author, §11 said AI shall not commit or merge, both false
+      against `CLAUDE.md`'s own `Co-Authored-By` trailer requirement and
+      this session's own commit/merge history. Chose full reconciliation
+      over a narrow publish-only patch, since a document written for
+      "regulated adopters performing supplier due diligence" is worse
+      self-contradictory than incomplete.
+- [x] **A second pass caught what the first missed**: §10 (contributor
+      disclosure) and `CONTRIBUTING.md`'s mirroring section still said
+      disclosure lives in the PR description "rather than in commit
+      trailers", unqualified — read against §4's fix, still implied
+      trailers are avoided project-wide. Restated both as two explicit
+      items (a contributor's PR-description disclosure vs. this
+      project's own trailer convention) rather than one paragraph a
+      reader could re-collapse into one rule, and made §4's trailer
+      practice normative ("**shall** carry... kept deliberately") rather
+      than merely descriptive.
+- [x] `MAINTAINERS.md`, `SECURITY.md`, `GOVERNANCE.md` cross-referenced to
+      clarify "manual"/"the maintainer" describes decision and credential
+      custody, not literal keystrokes — the security property (publishing
+      authority terminates at one account) is unchanged.
+- [x] `AI_STATEMENT.md` v1.0.0 → v1.3.0 across three commits, each with
+      its own Annex A entry. `bin/check-docs`, `bin/check-trademarks`,
+      and `spec_citations` verified after every commit; full CI (fmt,
+      clippy, test, MSRV, fuzz, benchmarks, docs, trademarks) confirmed
+      green on all three pushes before moving to the next.
+
 ## Done (2026-09-01, ECL `{{ M ... }}` member filter constraint: `moduleId`/`effectiveTime`/`active`)
 
 - [x] Closed the `{{ M ... }}` decision `plan.md`'s "Open decisions"
@@ -451,20 +506,25 @@ corrected, rather than left to keep looking unfinished:
 
 ## Next up
 
-- [ ] Nothing currently scoped beyond the `{{ M ... }}` remainder above.
-      State as of 2026-09-01 (still unreleased past 0.12.0, which
+- [ ] Nothing currently scoped beyond the `{{ M ... }}` remainder below.
+      State as of 2026-09-02 (still unreleased past 0.12.0, which
       released 2026-08-29 for the MSRV tightening — see `CHANGELOG.md`'s
-      `[Unreleased]` section for what's landed since): 9 crates, 367
-      tests, clippy/fmt clean on stable, MSRV 1.96 (current stable minus
+      `[Unreleased]` section for what's landed since, including the
+      `{{ M ... }}` member filter constraint): 9 crates, 367 tests,
+      clippy/fmt clean on stable, MSRV 1.96 (current stable minus
       two, `spec/rust-msrv-n-minus-2/index.md`), `fuzz/`, and
       `benches/`; 13 fuzz targets; 6 criterion benchmark files; 32
       `spec/` documents (17 specification distillations, the README
       index, and 14 project policies — `llms-json-and-llms-txt/` added
       2026-08-30), every one registered in the
       README index. Commit/tag signing verified on all three forges —
-      see the Done section above for how Codeberg's part closed. Every
-      gap `spec/` documents as missing is closed, reclassified, or
-      blocked on a decision below.
+      see the Done sections above for how Codeberg's part closed.
+      Governance now authorizes AI-executed `cargo publish` for a
+      release the maintainer has decided to cut (`AI_STATEMENT.md`
+      v1.3.0) — no such decision has been made yet, so the `[Unreleased]`
+      content above stays unreleased until it is. Every gap `spec/`
+      documents as missing is closed, reclassified, or blocked on a
+      decision below.
       Checked on 2026-08-27 for anything actually pickable without a
       decision: the two "spelling gap" ECL items below —
       `moduleId`'s `eclConceptReferenceSet` form and `dialectIdSet` — are
@@ -478,32 +538,6 @@ corrected, rather than left to keep looking unfinished:
       lookup the store doesn't have, which is a `plan.md`-level design
       question, not a lexer/parser gap. Nothing here was actually
       unblocked.
-- [ ] **Repository-hygiene gaps named in `MAINTAINERS.md` and
-      `AI_STATEMENT.md`**, each independently pickable:
-      - ~~**Sign commits and tags**~~ — **done, 2026-08-28**: local git
-        signing configured 2026-08-27; GitHub, GitLab, and Codeberg all
-        confirmed "Verified" against their own APIs by end of day
-        2026-08-28. Codeberg needed one extra step past registering the
-        key — its account email had to be verified too, past a
-        misleadingly-worded error. See the Done sections above for both
-        halves of the evidence.
-      - ~~**Create a Zenodo deposit**~~ — **deferred, 2026-09-02** (the
-        maintainer's call, no further reason recorded): wiring GitHub
-        releases to a Zenodo deposit so a version has a DOI is not
-        happening now. Not the same as done or abandoned — revisit if
-        DOI-citability becomes something outreach or a specific citation
-        actually needs.
-      - ~~**Decide whether publishing moves to a CI lane** with crates.io
-        Trusted Publishing~~ — **decided, 2026-08-28**:
-        `spec/trusted-publishing/index.md` records the policy — wait for
-        production-ready coverage across every remote this project
-        publishes from, then adopt. Verified before writing it down, not
-        assumed: crates.io's Trusted Publishing currently reaches GitHub
-        Actions and GitLab.com only (not self-hosted GitLab, not
-        Codeberg/Forgejo — confirmed against the crates.io team's own
-        2026-01-21 development update), so the criterion isn't met yet.
-        `MAINTAINERS.md`, `SECURITY.md`, `plan.md`, and `README.md`
-        updated to state the policy rather than read as an open gap.
 - [ ] **`{{ M ... }}` member filters, remaining scope** (`snomed-ecl`) —
       the `moduleId`/`effectiveTime`/`active` kinds are done (2026-09-01,
       see Done below); two pieces of the original decision's scope are
