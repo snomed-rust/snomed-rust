@@ -35,8 +35,12 @@ answer, not a deflection.
 | Releases and publishing | the maintainer | [`CHANGELOG.md`](CHANGELOG.md) |
 | Security response | the maintainer | [`SECURITY.md`](SECURITY.md) |
 
-One name is in every row. [MAINTAINERS.md](MAINTAINERS.md) is the roster and
-the continuity position.
+One name is in every row: this table is about *decisions*, not who types the
+command that carries them out. Execution of a decision already made — a
+commit, a merge, a `cargo publish` — may run inside an agentic AI session
+under the maintainer's direction; [AI_STATEMENT.md](AI_STATEMENT.md) §5-6
+states which mechanics that covers and what stays the maintainer's alone.
+[MAINTAINERS.md](MAINTAINERS.md) is the roster and the continuity position.
 
 ## What constrains the maintainer
 

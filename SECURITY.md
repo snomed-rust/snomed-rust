@@ -116,7 +116,12 @@ Each is recorded in [MAINTAINERS.md](MAINTAINERS.md) and none is a secret:
   Codeberg/Forgejo, and this project's stated policy is to wait for full
   coverage across all three remotes it publishes from rather than adopt it
   per-host. See [`spec/trusted-publishing/`](spec/trusted-publishing/index.md).
-  Until then, the publishing authority terminates at one account.
+  Until then, the publishing authority terminates at one account — "manual"
+  is about the absence of CI automation, not about whose hands are on the
+  keyboard: since 2026-09-02 the `cargo publish` run itself may execute
+  inside an agentic AI session under the maintainer's explicit direction for
+  that release, still from the maintainer's machine, using the maintainer's
+  own credential ([AI_STATEMENT.md](AI_STATEMENT.md) §5, §6).
 - **No archival deposit exists.** There is no DOI, so a release's permanence
   depends on crates.io and GitHub.
 - **No third-party audit has occurred**, and none is claimed anywhere in this

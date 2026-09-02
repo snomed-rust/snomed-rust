@@ -2,8 +2,8 @@
 
 | | |
 |---|---|
-| Version | 1.0.0 |
-| Effective date | 2026-08-26 |
+| Version | 1.1.0 |
+| Effective date | 2026-09-02 |
 | Status | Active |
 | Author and owner | Joel Parker Henderson, maintainer |
 | Canonical location | `AI_STATEMENT.md` at the repository root |
@@ -70,43 +70,59 @@ builds and tests — under a human's direction, as opposed to inline completion.
 
 One named human — the maintainer, listed in
 [MAINTAINERS.md](MAINTAINERS.md) — is the author of and accountable for every
-change in this repository, whatever tool produced the bytes. A tool **shall
-not** be named as an author, co-author, or signer of anything here, because a
-tool cannot be responsible for accuracy, integrity, or originality, and
-responsibility that cannot be borne cannot be assigned. There is no AI-issued
-sign-off of any kind.
+change in this repository, whatever tool produced the bytes and whatever a
+commit trailer says. Where an agentic session produces a commit or a pull
+request, it carries a `Co-Authored-By` trailer naming the tool — a provenance
+disclosure, stating which tool executed the change and, per §6, under what
+direction — never a claim that the tool bears responsibility, and never a
+transfer of accountability away from the maintainer: a tool cannot be
+responsible for accuracy, integrity, or originality, and responsibility that
+cannot be borne cannot be assigned. There is no *independent* AI-issued
+sign-off: every commit, merge, or publish executes under the maintainer's
+direction (§6), never on the tool's own initiative, and the maintainer's own
+signing configuration ([MAINTAINERS.md](MAINTAINERS.md)) signs it regardless
+of which of them typed the command.
 
 ## 5. Where AI is used, and at what level
 
 The tooling is agentic AI coding assistance, currently Claude Code by
-Anthropic, operated in sessions the maintainer directs, reviews, and commits.
-This is not inferred from the code; it is declared in the tree, in
-[CLAUDE.md](CLAUDE.md), [AGENTS.md](AGENTS.md), and the per-crate role
-playbooks in [`agents/`](agents). Levels below use the §3 vocabulary.
+Anthropic, operated in sessions the maintainer directs and reviews — §6
+states what may execute inside the session itself versus what stays the
+maintainer's own act. This is not inferred from the code; it is declared
+in the tree, in [CLAUDE.md](CLAUDE.md), [AGENTS.md](AGENTS.md), and the
+per-crate role playbooks in [`agents/`](agents). Levels below use the §3
+vocabulary.
 Deliberately, no percentage appears anywhere in this document: no defensible
 method exists for measuring one.
 
 | Activity | Level | Notes |
 |---|---|---|
-| Crate code | ai-generated | written against `spec/`, reviewed and committed by the maintainer |
+| Crate code | ai-generated | written against `spec/`, under the maintainer's review and direction (§6) |
 | Tests | ai-generated | held to the same authority as the code they test: each encodes a normative rule from `spec/`, and §11's rule against weakening them applies |
 | The `spec/` distillations | ai-generated | distilled from the official SNOMED International, HL7, W3C, and academic sources named in [`spec/README.md`](spec/README.md); the distillation is a reading of a source document, and a misreading is a defect like any other |
 | Fuzz targets and benchmarks | ai-generated | `fuzz/`, `benches/` |
 | Documentation, including this statement | ai-generated | held to the repository's prose conventions |
 | Which specification to implement next, and what the project is for | none | the maintainer's, recorded in [`plan.md`](plan.md) and [`tasks.md`](tasks.md) |
-| Release decisions and publishing | none | manual; see [MAINTAINERS.md](MAINTAINERS.md) |
+| Release decisions — what version, when, whether to cut one | none | the maintainer's, recorded in [`CHANGELOG.md`](CHANGELOG.md); see [GOVERNANCE.md](GOVERNANCE.md) |
+| Publishing execution — running `cargo publish`, tagging, committing, merging | ai-assisted | may execute inside an agentic session, from the maintainer's own machine and crates.io credential, once the maintainer has made the release decision above; see [MAINTAINERS.md](MAINTAINERS.md) |
 | Contribution and review verdicts on others' work | none | prohibited use; see §11 |
 
 **autonomous** appears in no row, and that is the point of the next section.
 
 ## 6. Human oversight
 
-The maintainer directs the work, reads the result, and commits every change;
-nothing lands on its own authority, and no merge is automated. Where the tools
-run multi-step sessions, the decisions with consequences — what a
+The maintainer directs the work and reviews the result. Routine mechanics —
+committing a change that already passes every gate in §7, merging a pull
+request whose checks are green, running `cargo publish` for a release the
+maintainer has already decided to cut — may execute inside an agentic session
+under the maintainer's standing direction ([CLAUDE.md](CLAUDE.md),
+[AGENTS.md](AGENTS.md)) or an explicit in-session go-ahead; nothing
+outward-facing or hard to reverse executes without one, and nothing lands on
+the tool's own authority. The decisions with consequences — what a
 specification means where its prose is silent, what belongs in the roadmap,
-what ships — are the maintainer's. A decision that exists only inside a tool
-session is not a decision this project made.
+what ships and when — are the maintainer's, never the tool's, however the
+mechanics of carrying them out were executed. A decision that exists only
+inside a tool session is not a decision this project made.
 
 ## 7. Quality controls, and what each one proves
 
@@ -207,12 +223,23 @@ regardless of what wrote it.
 
 ## 11. Prohibited uses
 
-In this project, AI **shall not**: commit or merge anything; adjudicate,
-score, or answer reviews of contributions; sign anything; decide what a
+In this project, AI **shall not**: adjudicate, score, or answer reviews of
+contributions from anyone other than the maintainer; decide what a
 specification means where its prose is silent (the maintainer decides, and
 records the reading in `spec/`); or weaken a test, a specification rule, or a
 CI gate to make something pass. The last is a standing hard rule for humans
 and tools alike.
+
+AI **may** commit, merge, and publish — §6 states the direction that has to be
+in place first, and §5's table states which of those is which activity level.
+Signing is not something AI does as a separate act: this repository's git
+configuration signs every commit and tag with the maintainer's own key
+regardless of who or what typed the command
+([MAINTAINERS.md](MAINTAINERS.md)); no key material is exposed to or handled
+by the tool. None of this extends past infrastructure the maintainer already
+controls — this repository's own branches, this project's own crates.io
+ownership — never a contributor's fork or another party's decision, and never
+as an independent judgment about what should ship.
 
 Nor **shall** AI be used to add a dependency, relax the zero-dependency rule,
 or introduce SNOMED CT release content into the tree, each of which is a
@@ -239,6 +266,16 @@ This section exists because a disclosure without one is marketing.
   machine opinion (§7). "The maintainer understands and can explain every
   committed change" is the honest claim; "every line was independently
   re-derived" would not be.
+- **Execution authority is real, not merely disclosed.** §5 and §11 mean an
+  agentic session can commit, merge, and publish, gated on the maintainer's
+  direction rather than on a second party's approval — there is no one else
+  in this project to catch a bad go-ahead before it executes. The mitigation
+  is procedural, not technical: a standing distinction (§6) between routine
+  mechanics and anything outward-facing or hard to reverse, the latter
+  requiring an explicit, specific go-ahead rather than a standing one. That
+  distinction is honored by practice, not enforced by a machine gate, which
+  is precisely the kind of claim this section exists to flag rather than
+  assert quietly.
 - **Retroactivity.** Commits predating this statement carry no disclosure
   markers; this document describes the practice, not a per-commit audit trail,
   and no such trail is claimed.
@@ -299,6 +336,7 @@ project's facts.
 
 | Version | Date | Change |
 |---|---|---|
+| 1.1.0 | 2026-09-02 | Reconciled §4/§6/§11 with actual practice: agentic sessions already committed, merged, and produced signed, `Co-Authored-By`-trailed changes under the maintainer's direction, which §4/§11 had stated shall not happen. Restated the accountability and signing claims to match (the trailer discloses provenance, not authorship or a transfer of responsibility; signing is the maintainer's git configuration, not a tool action). Split §5's "Release decisions and publishing" row into a decision row (still `none`) and a new execution row (`ai-assisted`): per the maintainer's direction, an agentic session **may** run `cargo publish` for a release already decided, from the maintainer's own machine and credential. Added a §12 residual-risk bullet naming that this authority is procedurally, not mechanically, gated. |
 | 1.0.0 | 2026-08-26 | First issue. |
 
 ## Annex B. Machine-readable summary
@@ -308,8 +346,8 @@ authoritative where the two could ever disagree.
 
 ```yaml
 ai-statement:
-  version: 1.0.0
-  last-updated: 2026-08-26
+  version: 1.1.0
+  last-updated: 2026-09-02
   vocabulary: w3c-ai-content-disclosure
   disclosure-default: ai-generated
   tools:
@@ -324,6 +362,8 @@ ai-statement:
     review: none
     roadmap: none
     release-decisions: none
+    publishing-execution: ai-assisted
+    commits-and-merges: ai-assisted
   ships-ai-system: false
   autonomous-use: none
 ```
