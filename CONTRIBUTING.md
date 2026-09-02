@@ -167,10 +167,15 @@ breaks one will be sent back regardless of how good the code is.
 ## If you use AI tools
 
 You may. If a contribution contains AI-generated content, **say so in the
-pull-request description** — which tool, and what it did. Not in commit
-trailers; [AI_STATEMENT.md](AI_STATEMENT.md) §10 explains why, and §5 discloses
-how this project itself is built, which is with agentic AI assistance under a
-named accountable human.
+pull-request description** — which tool, and what it did. That is the one
+disclosure asked of every contributor, since the wider ecosystem has no
+agreed commit-trailer convention to hold you to
+([AI_STATEMENT.md](AI_STATEMENT.md) §10); nothing here requires a trailer on
+your own commits, and nothing forbids one either. This project's own
+agentic-session commits carry a `Co-Authored-By` trailer naming the tool as a
+matter of its own settled convention (`CLAUDE.md`) — §5 discloses how this
+project itself is built, which is with agentic AI assistance under a named
+accountable human.
 
 You remain responsible for your submission in full: understood, explainable on
 request, tested, and honest. The bar is the same as for anything else.

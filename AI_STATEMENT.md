@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| Version | 1.1.0 |
+| Version | 1.2.0 |
 | Effective date | 2026-09-02 |
 | Status | Active |
 | Author and owner | Joel Parker Henderson, maintainer |
@@ -209,10 +209,17 @@ because such claims go stale silently.
 
 Contributors **may** use AI tools. A contribution with **ai-generated**
 content per §3 **shall** say so in the pull-request description: which tool,
-and what it did. Disclosure lives in the pull-request description rather than
-in commit trailers — one maintained disclosure beats ten thousand trailer
-lines, and the wider ecosystem has no agreed trailer anyway, with the same
-trailers some communities recommend being ones others forbid.
+and what it did. That is the one disclosure asked of every contributor,
+regardless of whether any individual commit also carries a trailer of the
+contributor's own choosing — the wider ecosystem has no agreed commit-trailer
+convention to hold a contributor to, with the same trailer some communities
+recommend and others forbid, so this project asks for one maintained
+disclosure rather than mandating a trailer format. This project's own
+agentic-session commits are a different case, not a general rule: they carry
+a `Co-Authored-By` trailer naming the tool, because `CLAUDE.md` fixes one
+specific format for this project's own use (§4). A contributor's commits are
+not required to match it, and nothing here forbids them from carrying one of
+their own.
 
 The contributor remains responsible for their submission in full, under the
 same bar as any other work: understood, explainable on request, tested, and
@@ -336,6 +343,7 @@ project's facts.
 
 | Version | Date | Change |
 |---|---|---|
+| 1.2.0 | 2026-09-02 | 1.1.0 missed one spot: §10 still said contributor disclosure lives in the pull-request description "rather than in commit trailers", unqualified — read together with §4's now-corrected text, that left the document implying trailers are avoided project-wide, when this project's own agentic commits carry one intentionally (`CLAUDE.md`). Restated §10 to keep the contributor-facing ask (PR-description disclosure, no trailer format mandated, since the ecosystem has none agreed) while naming the project's own practice as the deliberate exception it is, not evidence the earlier text was right. `CONTRIBUTING.md`'s "If you use AI tools" section had the same claim, more bluntly ("Not in commit trailers"), and is corrected in the same commit. |
 | 1.1.0 | 2026-09-02 | Reconciled §4/§6/§11 with actual practice: agentic sessions already committed, merged, and produced signed, `Co-Authored-By`-trailed changes under the maintainer's direction, which §4/§11 had stated shall not happen. Restated the accountability and signing claims to match (the trailer discloses provenance, not authorship or a transfer of responsibility; signing is the maintainer's git configuration, not a tool action). Split §5's "Release decisions and publishing" row into a decision row (still `none`) and a new execution row (`ai-assisted`): per the maintainer's direction, an agentic session **may** run `cargo publish` for a release already decided, from the maintainer's own machine and credential. Added a §12 residual-risk bullet naming that this authority is procedurally, not mechanically, gated. |
 | 1.0.0 | 2026-08-26 | First issue. |
 
@@ -346,7 +354,7 @@ authoritative where the two could ever disagree.
 
 ```yaml
 ai-statement:
-  version: 1.1.0
+  version: 1.2.0
   last-updated: 2026-09-02
   vocabulary: w3c-ai-content-disclosure
   disclosure-default: ai-generated
