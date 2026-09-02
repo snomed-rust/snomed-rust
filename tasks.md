@@ -14,6 +14,25 @@ most recently on 2026-09-02, to keep this file inside the repository's
 40 KB per-document budget. Search both when asking "has this come up
 before".
 
+## Done (2026-09-02, governance: AI-decided release readiness authorized)
+
+- [x] Extended the same-day `cargo publish` execution grant to the
+      *readiness decision* itself: an agentic session may now decide the
+      current `[Unreleased]` content is ready to become a numbered
+      release, not only execute the publish once told to.
+- [x] New policy `spec/ai-release-authority/index.md` (project policy
+      #17): §1-4 are objective, checkable readiness criteria (CI green
+      on the pushed commit, `CHANGELOG.md` accurate with a version bump
+      computed from stated policy, no rule oversteps, standard
+      nine-crate scoping); §5 is execution once §1-4 hold.
+      `AI_STATEMENT.md` v1.3.0 → v1.4.0, `GOVERNANCE.md`'s "Who decides"
+      table split into content-vs-readiness, `README.md`'s "publishing
+      is manual" claim corrected to match (missed in the earlier
+      `MAINTAINERS.md`/`SECURITY.md` pass).
+- [x] `bin/check-docs`, `bin/check-trademarks`, `spec_citations`, and a
+      full workspace build verified; CI green on the pushed commit
+      (confirmed independently, not assumed from the local run).
+
 ## Done (2026-09-02, repository-hygiene gaps closed out — all three resolved)
 
 - [x] **All three gaps `MAINTAINERS.md`/`AI_STATEMENT.md` named are now
@@ -507,24 +526,20 @@ corrected, rather than left to keep looking unfinished:
 ## Next up
 
 - [ ] Nothing currently scoped beyond the `{{ M ... }}` remainder below.
-      State as of 2026-09-02 (still unreleased past 0.12.0, which
-      released 2026-08-29 for the MSRV tightening — see `CHANGELOG.md`'s
-      `[Unreleased]` section for what's landed since, including the
-      `{{ M ... }}` member filter constraint): 9 crates, 367 tests,
-      clippy/fmt clean on stable, MSRV 1.96 (current stable minus
-      two, `spec/rust-msrv-n-minus-2/index.md`), `fuzz/`, and
-      `benches/`; 13 fuzz targets; 6 criterion benchmark files; 32
+      State as of 2026-09-02: **0.13.0 released** (the ECL `{{ M ... }}`
+      member filter constraint — see `CHANGELOG.md`), the first release
+      decided and executed under `spec/ai-release-authority/`'s
+      criteria rather than a fresh per-release maintainer go-ahead. 9
+      crates, 367 tests, clippy/fmt clean on stable, MSRV 1.96 (current
+      stable minus two, `spec/rust-msrv-n-minus-2/index.md`), `fuzz/`,
+      and `benches/`; 13 fuzz targets; 6 criterion benchmark files; 35
       `spec/` documents (17 specification distillations, the README
-      index, and 14 project policies — `llms-json-and-llms-txt/` added
-      2026-08-30), every one registered in the
+      index, and 17 project policies — `ai-release-authority/` added
+      2026-09-02), every one registered in the
       README index. Commit/tag signing verified on all three forges —
-      see the Done sections above for how Codeberg's part closed.
-      Governance now authorizes AI-executed `cargo publish` for a
-      release the maintainer has decided to cut (`AI_STATEMENT.md`
-      v1.3.0) — no such decision has been made yet, so the `[Unreleased]`
-      content above stays unreleased until it is. Every gap `spec/`
-      documents as missing is closed, reclassified, or blocked on a
-      decision below.
+      see the Done sections above for how Codeberg's part closed. Every
+      gap `spec/` documents as missing is closed, reclassified, or
+      blocked on a decision below.
       Checked on 2026-08-27 for anything actually pickable without a
       decision: the two "spelling gap" ECL items below —
       `moduleId`'s `eclConceptReferenceSet` form and `dialectIdSet` — are

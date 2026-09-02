@@ -74,7 +74,7 @@ Verhoeff check digit — so it is the fastest way to confirm the install worked.
 To install a specific version, or to reinstall over an existing copy:
 
 ```sh
-cargo install snomed-cli --version 0.12.0 --force
+cargo install snomed-cli --version 0.13.0 --force
 ```
 
 ## Build from source
@@ -168,7 +168,7 @@ cargo install snomed-cli --force   # for the binary
 ```
 
 All nine crates share one version number and are released together, so keep
-them in step: mixing, say, `snomed-store 0.12.0` with `snomed-ecl 0.11.3` is
+them in step: mixing, say, `snomed-store 0.13.0` with `snomed-ecl 0.12.0` is
 not a supported combination. Read [CHANGELOG.md](CHANGELOG.md) before a minor
 bump — before 1.0, a minor bump may include breaking API changes.
 
