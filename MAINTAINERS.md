@@ -62,9 +62,12 @@ rather than leaving for a reader to discover:
   redoing: Codeberg computes verification at read time against the
   account's current state, not at push time, so fixing the account
   retroactively verified commits already pushed, with no re-push needed.
-- **No archival DOI exists yet.** [`CITATION.cff`](CITATION.cff) makes the
-  work citable by name and version; a Zenodo deposit, which would make a
-  release citable after this repository stops existing, has not been created.
+- **No archival DOI.** [`CITATION.cff`](CITATION.cff) makes the work
+  citable by name and version; a Zenodo deposit, which would make a
+  release citable after this repository stops existing, has not been
+  created. **Deferred, 2026-09-02** — a maintainer decision, not an
+  oversight; revisit if DOI-citability becomes something outreach or a
+  specific citation actually needs.
 
 ## If the maintainer is unavailable
 

@@ -487,8 +487,12 @@ corrected, rather than left to keep looking unfinished:
         key — its account email had to be verified too, past a
         misleadingly-worded error. See the Done sections above for both
         halves of the evidence.
-      - **Create a Zenodo deposit** wired to GitHub releases so a version
-        has a DOI. Not started.
+      - ~~**Create a Zenodo deposit**~~ — **deferred, 2026-09-02** (the
+        maintainer's call, no further reason recorded): wiring GitHub
+        releases to a Zenodo deposit so a version has a DOI is not
+        happening now. Not the same as done or abandoned — revisit if
+        DOI-citability becomes something outreach or a specific citation
+        actually needs.
       - ~~**Decide whether publishing moves to a CI lane** with crates.io
         Trusted Publishing~~ — **decided, 2026-08-28**:
         `spec/trusted-publishing/index.md` records the policy — wait for
