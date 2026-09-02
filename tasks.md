@@ -7,12 +7,51 @@ Entries from before 2026-08-27 (the standing spec-citation guard through
 0.10.0's documentation audit, and the whole 2026-08-26 sitting — releases
 0.11.0-0.11.3, the trademark notice work, the professionalization spec, the
 outreach research and root document set), plus the 2026-08-27 commit/tag
-signing setup and the 2026-08-28 CI runner-headroom, forge-verification, and
-funding work, live in
+signing setup and the whole 2026-08-28 sitting (CI runner-headroom,
+forge-verification, funding, Trusted Publishing, and Phase 10's
+retirement), live in
 [`docs/tasks-archive.md`](docs/tasks-archive.md) — moved there verbatim,
 most recently on 2026-09-02, to keep this file inside the repository's
 40 KB per-document budget. Search both when asking "has this come up
 before".
+
+## Done (2026-09-02, Release 0.13.0 — the first release executed under `spec/ai-release-authority/`)
+
+- [x] **Decided and executed the release itself**, per §1-5 of the same-day
+      policy: §1 CI independently green on the pushed merge commit
+      (`4bbc8e0`, all six jobs, confirmed via `gh run view` before tagging
+      — not assumed from the local run); §2 `CHANGELOG.md`'s
+      `[Unreleased]` content verified against the actual diff and moved
+      under `## [0.13.0]`, minor bump per this project's own pre-1.0
+      policy and precedent (0.11.0/0.12.0 both minor-bumped for
+      non-breaking-but-substantive changes); §3 no dependency/SNOMED-
+      content/unrecorded-decision oversteps (the `{{ M ... }}` work
+      resolves a `plan.md` decision recorded 2026-08-30, before
+      implementation); §4 all nine crates, one version, standard
+      dependency order; §5 tagged `v0.13.0` (signed, verified against
+      the merge commit) and ran `cargo publish` for each crate in order
+      — `snomed-core` → `snomed-rf2` → `snomed-owl` → `snomed-store` →
+      `snomed-classify` → `snomed-ecl` → `snomed-fhir` → `snomed-cli` →
+      `snomed`, all nine succeeding.
+- [x] **Verified against crates.io's own API afterward, not trusted from
+      `cargo publish`'s local success message**: `GET
+      /api/v1/crates/<name>` for all nine names returns
+      `default_version: "0.13.0"`.
+- [x] Version bumped everywhere the 0.12.0 precedent bumped it:
+      `Cargo.toml` (workspace + seven path-dependency pins),
+      `CITATION.cff`, `NEWS.md` (current-release table, milestones,
+      maturity bullet), `INSTALL.md` (install command and
+      version-mixing example), `SECURITY.md` (supported-versions
+      table). `plan.md`'s "Current status" and this file's
+      state-of-the-workspace bullet updated to match.
+- [x] Followed the same branch/merge shape as the 0.12.0 release
+      (`release/0.13.0` branched from `main`, merged with `--no-ff`,
+      pushed, CI re-confirmed on the merge commit specifically before
+      tagging) rather than committing straight to `main`.
+- [x] No GitHub Release object created — checked first rather than
+      assumed: `v0.12.0` and every earlier tag have none either, only
+      signed git tags plus the crates.io publish, so this release
+      matches existing practice rather than introducing a new one.
 
 ## Done (2026-09-02, governance: AI-decided release readiness authorized)
 
@@ -436,92 +475,6 @@ before".
 - [x] Verified before publishing: `cargo test --all` (353 pass), clippy
       `-D warnings`, `fmt --check`, `bin/check-docs`, `bin/check-trademarks`,
       `spec_citations`.
-
-## Done (2026-08-28, `spec/trusted-publishing/`: manual publishing is policy, not a gap)
-
-- [x] Read `spec/trusted-publishing/index.md` (new): the stated policy is
-      to switch `cargo publish` to OIDC-based CI publishing once Trusted
-      Publishing is production-ready across every code forge this project
-      uses (GitHub.com, GitLab.com, Codeberg.org) and every destination it
-      publishes to (crates.io today; npmjs.com if that ever applies).
-- [x] **Verified the criterion is actually unmet, not assumed**: checked
-      crates.io's own 2026-01-21 development update and RFC 3691.
-      Currently supported: GitHub Actions and GitLab.com only — not
-      self-hosted GitLab, not Codeberg/Forgejo (explicitly "should be
-      straightforward" future work per that post, not shipped). This
-      project pushes to all three, so the criterion isn't met.
-- [x] Registered the new spec in `spec/README.md`'s policy table (twelve
-      policies now, eleven before) and `index.md`'s table; bumped the
-      count in `spec/README.md`'s intro and `README.md`.
-- [x] **Rewrote every place that had described manual publishing as an
-      unstated gap** to instead say it is policy, with the criterion:
-      `README.md` (new paragraph in Development), `MAINTAINERS.md`'s
-      publishing-identity table row, `SECURITY.md`'s Known Posture bullet,
-      `plan.md`'s Security-and-supply-chain note, and
-      `spec/professionalization/index.md`'s Rule 3 status. Same discipline
-      applied to `.github/FUNDING.yml` two days ago: a declared absence is
-      either a gap to close or a decision to record, and this one turned
-      out to already be the latter, just unwritten.
-- [x] Struck through the Next-up hygiene sub-item accordingly — decided,
-      not merely "not started."
-- [x] Verified: `bin/check-docs`, `bin/check-trademarks`, `spec_citations`,
-      `cargo test --all` (353 pass), clippy `-D warnings`, `fmt --check` —
-      all pass, unaffected by a documentation-only change.
-
-## Done (2026-08-28, Professionalization (Phase 10), retired from Next up)
-
-Checked "Next up" for anything genuinely unblocked and found nothing new to
-do, but found this: every sub-item below was already struck through as done,
-across sessions from 2026-08-26 through today, yet the parent checkbox was
-still `[ ]` and the whole block still sat under "Next up" — a bookkeeping
-gap against this file's own rule ("check items off in the same change that
-completes them"), not a real gap in the work. Moved here verbatim, checkbox
-corrected, rather than left to keep looking unfinished:
-
-- [x] ~~**Commit the 13 untracked root documents**~~ — done: they landed
-      in `2bd203a` (Release 0.11.0) and `7298d4a` (the trademark
-      notices), verified via `git log` per file; the working tree was
-      clean of them when this box was ticked on 2026-08-26.
-- [x] ~~**`CODE_OF_CONDUCT.md`**~~ — done 2026-08-26; see the archived
-      Done section (`docs/tasks-archive-8.md`).
-- [x] ~~**`PHI.md`**~~ — done 2026-08-26; see the archived Done section.
-- [x] ~~**Trademark discipline**~~ — done 2026-08-26, spec and checker
-      both; see the archived Done section.
-- [x] ~~**`LICENSES/` directory**~~ — done 2026-08-26: `Apache-2.0.txt`
-      and `MIT.txt` under their SPDX identifiers, byte-identical copies
-      of the root `LICENSE-APACHE`/`LICENSE-MIT` (verified with `diff`;
-      the root Apache file was checked to be the full 11 KB license, not
-      header boilerplate). Two files only, because the SPDX expression
-      `Apache-2.0 OR MIT` names exactly two licenses. `LICENSE.md`'s
-      table and "What OR means" section now point at both locations.
-- [x] ~~**Docs CI lane**~~ — done 2026-08-26:
-      `spec/docs-budget-and-links/` (the tenth project policy, registered
-      in `spec/README.md` and `index.md`, README.md symlink per the
-      directory convention) defines the 40 KB budget and the
-      link-integrity rule; `bin/check-docs` (Python 3, stdlib only,
-      masks code the way `bin/check-trademarks` does) enforces both and
-      runs in CI as the new `docs` job. First real run: 80 tracked
-      markdown documents, all within budget (max: `CHANGELOG.md`,
-      38,090 bytes), zero broken relative links — after it caught nine
-      real dangling links in the stray `AI_STATEMENT.md` duplicate the
-      re-sync item resolved. Verified it catches violations by planting
-      an oversize file and a bad link (both reported, both reverted).
-- [x] ~~**Re-sync `spec/special-files-for-public-repos/`**~~ — done
-      2026-08-26: the list now carries the canonical version's five
-      additions (CODE_OF_CONDUCT.md, PHI.md, RFC.md wording,
-      LICENSES/, FUNDING.yml) and a Status section adapted honestly —
-      everything exists except FUNDING.yml, which stays a decision, not
-      a gap (true as of 2026-08-26; reversed 2026-08-28, next bullet).
-      The stray duplicate `AI_STATEMENT.md` is now a pointer at
-      the root file (same fifteen-section skeleton verified before
-      claiming the root is the fuller source; draft text remains in git
-      history), which also cleared the nine dangling links
-      `bin/check-docs` found in it on its first run.
-- [x] ~~**`.github/FUNDING.yml` is a decision, not a gap**~~ — the
-      decision changed: `spec/free-open-source-funding/index.md`
-      recorded it, and it was implemented 2026-08-28; see the Done
-      section "`.github/FUNDING.yml`: the decision reversed itself"
-      elsewhere in this file.
 
 ## Next up
 

@@ -160,3 +160,89 @@ Index: [`docs/tasks-archive.md`](tasks-archive.md). Current tasks:
       hygiene item below.
 - [x] Verified: `bin/check-docs`, `bin/check-trademarks`, `spec_citations`
       all pass, unaffected by a documentation-only change.
+
+## Done (2026-08-28, `spec/trusted-publishing/`: manual publishing is policy, not a gap)
+
+- [x] Read `spec/trusted-publishing/index.md` (new): the stated policy is
+      to switch `cargo publish` to OIDC-based CI publishing once Trusted
+      Publishing is production-ready across every code forge this project
+      uses (GitHub.com, GitLab.com, Codeberg.org) and every destination it
+      publishes to (crates.io today; npmjs.com if that ever applies).
+- [x] **Verified the criterion is actually unmet, not assumed**: checked
+      crates.io's own 2026-01-21 development update and RFC 3691.
+      Currently supported: GitHub Actions and GitLab.com only — not
+      self-hosted GitLab, not Codeberg/Forgejo (explicitly "should be
+      straightforward" future work per that post, not shipped). This
+      project pushes to all three, so the criterion isn't met.
+- [x] Registered the new spec in `spec/README.md`'s policy table (twelve
+      policies now, eleven before) and `index.md`'s table; bumped the
+      count in `spec/README.md`'s intro and `README.md`.
+- [x] **Rewrote every place that had described manual publishing as an
+      unstated gap** to instead say it is policy, with the criterion:
+      `README.md` (new paragraph in Development), `MAINTAINERS.md`'s
+      publishing-identity table row, `SECURITY.md`'s Known Posture bullet,
+      `plan.md`'s Security-and-supply-chain note, and
+      `spec/professionalization/index.md`'s Rule 3 status. Same discipline
+      applied to `.github/FUNDING.yml` two days ago: a declared absence is
+      either a gap to close or a decision to record, and this one turned
+      out to already be the latter, just unwritten.
+- [x] Struck through the Next-up hygiene sub-item accordingly — decided,
+      not merely "not started."
+- [x] Verified: `bin/check-docs`, `bin/check-trademarks`, `spec_citations`,
+      `cargo test --all` (353 pass), clippy `-D warnings`, `fmt --check` —
+      all pass, unaffected by a documentation-only change.
+
+## Done (2026-08-28, Professionalization (Phase 10), retired from Next up)
+
+Checked "Next up" for anything genuinely unblocked and found nothing new to
+do, but found this: every sub-item below was already struck through as done,
+across sessions from 2026-08-26 through today, yet the parent checkbox was
+still `[ ]` and the whole block still sat under "Next up" — a bookkeeping
+gap against this file's own rule ("check items off in the same change that
+completes them"), not a real gap in the work. Moved here verbatim, checkbox
+corrected, rather than left to keep looking unfinished:
+
+- [x] ~~**Commit the 13 untracked root documents**~~ — done: they landed
+      in `2bd203a` (Release 0.11.0) and `7298d4a` (the trademark
+      notices), verified via `git log` per file; the working tree was
+      clean of them when this box was ticked on 2026-08-26.
+- [x] ~~**`CODE_OF_CONDUCT.md`**~~ — done 2026-08-26; see the archived
+      Done section (`docs/tasks-archive-8.md`).
+- [x] ~~**`PHI.md`**~~ — done 2026-08-26; see the archived Done section.
+- [x] ~~**Trademark discipline**~~ — done 2026-08-26, spec and checker
+      both; see the archived Done section.
+- [x] ~~**`LICENSES/` directory**~~ — done 2026-08-26: `Apache-2.0.txt`
+      and `MIT.txt` under their SPDX identifiers, byte-identical copies
+      of the root `LICENSE-APACHE`/`LICENSE-MIT` (verified with `diff`;
+      the root Apache file was checked to be the full 11 KB license, not
+      header boilerplate). Two files only, because the SPDX expression
+      `Apache-2.0 OR MIT` names exactly two licenses. `LICENSE.md`'s
+      table and "What OR means" section now point at both locations.
+- [x] ~~**Docs CI lane**~~ — done 2026-08-26:
+      `spec/docs-budget-and-links/` (the tenth project policy, registered
+      in `spec/README.md` and `index.md`, README.md symlink per the
+      directory convention) defines the 40 KB budget and the
+      link-integrity rule; `bin/check-docs` (Python 3, stdlib only,
+      masks code the way `bin/check-trademarks` does) enforces both and
+      runs in CI as the new `docs` job. First real run: 80 tracked
+      markdown documents, all within budget (max: `CHANGELOG.md`,
+      38,090 bytes), zero broken relative links — after it caught nine
+      real dangling links in the stray `AI_STATEMENT.md` duplicate the
+      re-sync item resolved. Verified it catches violations by planting
+      an oversize file and a bad link (both reported, both reverted).
+- [x] ~~**Re-sync `spec/special-files-for-public-repos/`**~~ — done
+      2026-08-26: the list now carries the canonical version's five
+      additions (CODE_OF_CONDUCT.md, PHI.md, RFC.md wording,
+      LICENSES/, FUNDING.yml) and a Status section adapted honestly —
+      everything exists except FUNDING.yml, which stays a decision, not
+      a gap (true as of 2026-08-26; reversed 2026-08-28, next bullet).
+      The stray duplicate `AI_STATEMENT.md` is now a pointer at
+      the root file (same fifteen-section skeleton verified before
+      claiming the root is the fuller source; draft text remains in git
+      history), which also cleared the nine dangling links
+      `bin/check-docs` found in it on its first run.
+- [x] ~~**`.github/FUNDING.yml` is a decision, not a gap**~~ — the
+      decision changed: `spec/free-open-source-funding/index.md`
+      recorded it, and it was implemented 2026-08-28; see the Done
+      section "`.github/FUNDING.yml`: the decision reversed itself"
+      elsewhere in this file.
