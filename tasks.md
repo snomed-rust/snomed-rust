@@ -541,12 +541,11 @@ before".
 ## Next up
 
 - [ ] Nothing currently scoped beyond the `{{ M ... }}` remainder below.
-      State as of 2026-09-02: **0.13.0 released** (the ECL `{{ M ... }}`
-      member filter constraint after `^` — see `CHANGELOG.md`), the first
-      release decided and executed under `spec/ai-release-authority/`'s
-      criteria rather than a fresh per-release maintainer go-ahead;
-      `{{ M ... }}` after `^R` landed the same day, unreleased so far
-      (see `CHANGELOG.md`'s `[Unreleased]`). 9 crates, 379 tests,
+      State as of 2026-09-02: **0.14.0 released** — `{{ M ... }}` after
+      `^` (0.13.0) and after `^R` (0.14.0), both decided and executed
+      under `spec/ai-release-authority/`'s criteria rather than a fresh
+      per-release maintainer go-ahead (see `CHANGELOG.md`). 9 crates, 379
+      tests,
       clippy/fmt clean on stable, MSRV 1.96 (current
       stable minus two, `spec/rust-msrv-n-minus-2/index.md`), `fuzz/`,
       and `benches/`; 13 fuzz targets; 6 criterion benchmark files; 35

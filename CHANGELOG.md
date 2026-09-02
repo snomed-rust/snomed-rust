@@ -13,6 +13,13 @@ together, in dependency order (`snomed-core` → `snomed-rf2` → `snomed-owl`
 
 ## [Unreleased]
 
+## [0.14.0] — 2026-09-02
+
+**New ECL capability, additive.** `{{ M ... }}` after `^R` closes the
+second half of the `{{ M ... }}` decision's scope (`plan.md`,
+2026-08-30). A minor bump: new public API, no removals or signature
+changes to anything existing.
+
 ### Added
 
 - `snomed-ecl`: the ECL `{{ M ... }}` member filter constraint now also
@@ -26,6 +33,11 @@ together, in dependency order (`snomed-core` → `snomed-rf2` → `snomed-owl`
   the inactive-inclusive reverse of `refsets_containing` (Concept
   referenced components only, matching its scope) — the store-side
   support `^R`'s `{{ M ... }}` needed. Purely additive.
+
+### Notes for consumers
+
+- No public API removed or changed signature; existing code compiles
+  unmodified against `0.14.0`.
 
 ## [0.13.0] — 2026-09-02
 
