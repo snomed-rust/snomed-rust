@@ -24,7 +24,7 @@ jobs:
           sudo docker image prune --all --force || true
           df -h /
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
@@ -67,7 +67,7 @@ jobs:
     name: Trademark notices (rule 5 of the professionalization spec)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       # Notice presence per spec/professionalization/index.md: every root
       # document, help/ document, and crate-root rustdoc whose prose uses
@@ -80,7 +80,7 @@ jobs:
     name: Docs budget and link integrity
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       # Per spec/docs-budget-and-links/index.md: every tracked markdown
       # document stays within 40 KB, and every relative link resolves.
@@ -99,7 +99,7 @@ jobs:
           sudo docker image prune --all --force || true
           df -h /
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       # Per spec/rust-msrv-n-minus-2/index.md: MSRV is the current stable
       # release minus two. Keep this pin and `rust-version` in Cargo.toml in
@@ -145,7 +145,7 @@ jobs:
           sudo docker image prune --all --force || true
           df -h /
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       # libfuzzer-sys needs nightly; see spec/rust-fuzz.md for why `fuzz/`
       # is its own package outside the workspace. rustfmt and clippy are
@@ -225,7 +225,7 @@ jobs:
           sudo docker image prune --all --force || true
           df -h /
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
