@@ -32,15 +32,22 @@ answer, not a deflection.
 | Whether a contribution is accepted | the maintainer | the pull request |
 | Roadmap and priorities | the maintainer | [`plan.md`](plan.md), [`tasks.md`](tasks.md) |
 | API breaks and scope changes | the maintainer, after an open question | [`plan.md`](plan.md) "Open decisions", [`RFC.md`](RFC.md) |
-| Releases and publishing | the maintainer | [`CHANGELOG.md`](CHANGELOG.md) |
+| What a release contains | the maintainer | [`CHANGELOG.md`](CHANGELOG.md), via roadmap and priorities above |
+| Whether that content is *ready* to publish, and its version | the maintainer, or an agentic AI session bound to stated criteria | [`spec/ai-release-authority/`](spec/ai-release-authority/index.md) |
 | Security response | the maintainer | [`SECURITY.md`](SECURITY.md) |
 
-One name is in every row: this table is about *decisions*, not who types the
-command that carries them out. Execution of a decision already made — a
-commit, a merge, a `cargo publish` — may run inside an agentic AI session
-under the maintainer's direction; [AI_STATEMENT.md](AI_STATEMENT.md) §5-6
-states which mechanics that covers and what stays the maintainer's alone.
-[MAINTAINERS.md](MAINTAINERS.md) is the roster and the continuity position.
+Every row but one names the maintainer, because this table is about
+*decisions*, not who types the command that carries them out — most
+execution (a commit, a merge, a `cargo publish`) may run inside an agentic
+AI session under the maintainer's direction regardless of which row the
+underlying decision came from; [AI_STATEMENT.md](AI_STATEMENT.md) §5-6
+states which mechanics that covers. Release readiness is the one row where
+the *decision itself*, not just its execution, may be an agentic session's
+call — and only because [`spec/ai-release-authority/`](spec/ai-release-authority/index.md)
+bounds it to objective, checkable criteria rather than leaving it to
+discretion; a release outside those criteria falls back to the maintainer,
+same as every other row. [MAINTAINERS.md](MAINTAINERS.md) is the roster and
+the continuity position.
 
 ## What constrains the maintainer
 

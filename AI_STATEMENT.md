@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| Version | 1.3.0 |
+| Version | 1.4.0 |
 | Effective date | 2026-09-02 |
 | Status | Active |
 | Author and owner | Joel Parker Henderson, maintainer |
@@ -107,8 +107,8 @@ method exists for measuring one.
 | Fuzz targets and benchmarks | ai-generated | `fuzz/`, `benches/` |
 | Documentation, including this statement | ai-generated | held to the repository's prose conventions |
 | Which specification to implement next, and what the project is for | none | the maintainer's, recorded in [`plan.md`](plan.md) and [`tasks.md`](tasks.md) |
-| Release decisions — what version, when, whether to cut one | none | the maintainer's, recorded in [`CHANGELOG.md`](CHANGELOG.md); see [GOVERNANCE.md](GOVERNANCE.md) |
-| Publishing execution — running `cargo publish`, tagging, committing, merging | ai-assisted | may execute inside an agentic session, from the maintainer's own machine and crates.io credential, once the maintainer has made the release decision above; see [MAINTAINERS.md](MAINTAINERS.md) |
+| Release readiness — whether the current `[Unreleased]` content is ready to become a numbered release, and its version number | ai-assisted | may be decided inside an agentic session against the objective criteria [`spec/ai-release-authority/`](spec/ai-release-authority/index.md) states — never a model's unstated judgment call; a release outside those criteria stays the maintainer's decision |
+| Publishing execution — running `cargo publish`, tagging, committing, merging | ai-assisted | may execute inside an agentic session, from the maintainer's own machine and crates.io credential, once readiness is established above; see [MAINTAINERS.md](MAINTAINERS.md) |
 | Contribution and review verdicts on others' work | none | prohibited use; see §11 |
 
 **autonomous** appears in no row, and that is the point of the next section.
@@ -117,16 +117,24 @@ method exists for measuring one.
 
 The maintainer directs the work and reviews the result. Routine mechanics —
 committing a change that already passes every gate in §7, merging a pull
-request whose checks are green, running `cargo publish` for a release the
-maintainer has already decided to cut — may execute inside an agentic session
-under the maintainer's standing direction ([CLAUDE.md](CLAUDE.md),
+request whose checks are green, deciding a release is ready and running
+`cargo publish` for it — may execute inside an agentic session under the
+maintainer's standing direction ([CLAUDE.md](CLAUDE.md),
 [AGENTS.md](AGENTS.md)) or an explicit in-session go-ahead; nothing
 outward-facing or hard to reverse executes without one, and nothing lands on
-the tool's own authority. The decisions with consequences — what a
+the tool's own authority. Release readiness is the one outward-facing,
+hard-to-reverse call this document treats as routine rather than requiring a
+fresh go-ahead each time — and it earns that treatment only because it is
+bounded by objective, written criteria
+([`spec/ai-release-authority/`](spec/ai-release-authority/index.md)), not
+left to a model's discretion; a release outside those criteria is not
+routine and needs the maintainer's own call, same as anything else here does.
+The decisions with consequences that stay the maintainer's, always — what a
 specification means where its prose is silent, what belongs in the roadmap,
-what ships and when — are the maintainer's, never the tool's, however the
-mechanics of carrying them out were executed. A decision that exists only
-inside a tool session is not a decision this project made.
+what a release *contains* before it is ever assessed for readiness — are
+never the tool's, however the mechanics of carrying them out were executed.
+A decision that exists only inside a tool session is not a decision this
+project made.
 
 ## 7. Quality controls, and what each one proves
 
@@ -245,16 +253,19 @@ records the reading in `spec/`); or weaken a test, a specification rule, or a
 CI gate to make something pass. The last is a standing hard rule for humans
 and tools alike.
 
-AI **may** commit, merge, and publish — §6 states the direction that has to be
-in place first, and §5's table states which of those is which activity level.
-Signing is not something AI does as a separate act: this repository's git
-configuration signs every commit and tag with the maintainer's own key
-regardless of who or what typed the command
-([MAINTAINERS.md](MAINTAINERS.md)); no key material is exposed to or handled
-by the tool. None of this extends past infrastructure the maintainer already
-controls — this repository's own branches, this project's own crates.io
-ownership — never a contributor's fork or another party's decision, and never
-as an independent judgment about what should ship.
+AI **may** commit, merge, decide a release is ready, and publish — §6 states
+the direction that has to be in place first, §5's table states which of
+those is which activity level, and
+[`spec/ai-release-authority/`](spec/ai-release-authority/index.md) states
+the objective criteria a readiness call is bound to. Signing is not
+something AI does as a separate act: this repository's git configuration
+signs every commit and tag with the maintainer's own key regardless of who
+or what typed the command ([MAINTAINERS.md](MAINTAINERS.md)); no key
+material is exposed to or handled by the tool. None of this extends past
+infrastructure the maintainer already controls — this repository's own
+branches, this project's own crates.io ownership — never a contributor's
+fork or another party's decision, and never a judgment about what a release
+*contains*, which is decided well before readiness is ever assessed (§6).
 
 Nor **shall** AI be used to add a dependency, relax the zero-dependency rule,
 or introduce SNOMED CT release content into the tree, each of which is a
@@ -282,15 +293,26 @@ This section exists because a disclosure without one is marketing.
   committed change" is the honest claim; "every line was independently
   re-derived" would not be.
 - **Execution authority is real, not merely disclosed.** §5 and §11 mean an
-  agentic session can commit, merge, and publish, gated on the maintainer's
-  direction rather than on a second party's approval — there is no one else
-  in this project to catch a bad go-ahead before it executes. The mitigation
-  is procedural, not technical: a standing distinction (§6) between routine
-  mechanics and anything outward-facing or hard to reverse, the latter
-  requiring an explicit, specific go-ahead rather than a standing one. That
-  distinction is honored by practice, not enforced by a machine gate, which
-  is precisely the kind of claim this section exists to flag rather than
+  agentic session can commit, merge, decide a release is ready, and publish
+  — there is no one else in this project to catch a bad call before it
+  executes. The mitigation is procedural, not technical: a standing
+  distinction (§6) between routine mechanics (which now includes a bounded
+  release-readiness call) and anything outside `spec/ai-release-authority`'s
+  stated criteria, the latter still requiring an explicit, specific
+  go-ahead. That distinction is honored by practice, not enforced by a
+  machine gate — the criteria themselves are machine-checkable (CI, the
+  `[Unreleased]` diff), but whether a given session correctly applied them
+  is not independently verified by anything but the same session, which is
+  precisely the kind of claim this section exists to flag rather than
   assert quietly.
+- **A bad readiness call is not reversible the way a bad commit is.** A
+  crates.io version cannot be unpublished, only yanked, and yanking still
+  needs the maintainer's own account (`MAINTAINERS.md`). Requiring the
+  release commit to be independently green on CI before publishing
+  (`spec/ai-release-authority` §1) catches a broken build, not a
+  release that is technically green but premature, wrongly scoped, or
+  published at the wrong version — those remain possible, and the
+  maintainer's after-the-fact review is the only backstop for them.
 - **Retroactivity.** Commits predating this statement carry no disclosure
   markers; this document describes the practice, not a per-commit audit trail,
   and no such trail is claimed.
@@ -329,8 +351,9 @@ as a bug.
 here): [LICENSE.md](LICENSE.md); [`spec/`](spec/README.md), including
 [`spec/rust-fuzz.md`](spec/rust-fuzz.md),
 [`spec/rust-bench.md`](spec/rust-bench.md),
-[`spec/rust-api-stability.md`](spec/rust-api-stability.md), and
-[`spec/rust-msrv-n-minus-2/`](spec/rust-msrv-n-minus-2/index.md);
+[`spec/rust-api-stability.md`](spec/rust-api-stability.md),
+[`spec/rust-msrv-n-minus-2/`](spec/rust-msrv-n-minus-2/index.md), and
+[`spec/ai-release-authority/`](spec/ai-release-authority/index.md);
 [CLAUDE.md](CLAUDE.md), [AGENTS.md](AGENTS.md), and [`agents/`](agents);
 [MAINTAINERS.md](MAINTAINERS.md), [GOVERNANCE.md](GOVERNANCE.md),
 [CONTRIBUTING.md](CONTRIBUTING.md), and [SECURITY.md](SECURITY.md).
@@ -351,6 +374,7 @@ project's facts.
 
 | Version | Date | Change |
 |---|---|---|
+| 1.4.0 | 2026-09-02 | Extended the 1.1.0-1.3.0 publishing-execution authority to release-*readiness*: an agentic session may now decide the current `[Unreleased]` content is ready to become a numbered release, not only execute `cargo publish` once told it is. New policy [`spec/ai-release-authority/`](spec/ai-release-authority/index.md) states the objective, checkable criteria that decision is bound to (every CI gate green on the pushed commit, an accurate `CHANGELOG.md` entry, a version bump computed from it rather than chosen freehand, nothing resolving an unrecorded `plan.md` decision). §5's table row retitled from "Release decisions" to "Release readiness" and moved `none` → `ai-assisted`; §6, §11, and §12 restated to match — §6 previously said "what ships and when" stays the maintainer's, never the tool's, which this version deliberately narrows: readiness is now the one outward-facing, hard-to-reverse call treated as routine, precisely because it is criteria-bound rather than discretionary. New §12 bullet on the asymmetry with a bad commit: a crates.io version cannot be unpublished. |
 | 1.3.0 | 2026-09-02 | Strengthened §4 from descriptive ("it carries a trailer") to normative ("**shall** carry a trailer... kept deliberately"): the practice is a standing rule, not incidental fact. Restructured §10, and the mirroring section of `CONTRIBUTING.md`, from one paragraph mixing two different asks into two explicit items — a contributor's PR-description disclosure, and this project's own trailer convention — so the distinction can't be read as one rule stretched to cover both, which is exactly how 1.1.0's wording still read after 1.2.0's fix. |
 | 1.2.0 | 2026-09-02 | 1.1.0 missed one spot: §10 still said contributor disclosure lives in the pull-request description "rather than in commit trailers", unqualified — read together with §4's now-corrected text, that left the document implying trailers are avoided project-wide, when this project's own agentic commits carry one intentionally (`CLAUDE.md`). Restated §10 to keep the contributor-facing ask (PR-description disclosure, no trailer format mandated, since the ecosystem has none agreed) while naming the project's own practice as the deliberate exception it is, not evidence the earlier text was right. `CONTRIBUTING.md`'s "If you use AI tools" section had the same claim, more bluntly ("Not in commit trailers"), and is corrected in the same commit. |
 | 1.1.0 | 2026-09-02 | Reconciled §4/§6/§11 with actual practice: agentic sessions already committed, merged, and produced signed, `Co-Authored-By`-trailed changes under the maintainer's direction, which §4/§11 had stated shall not happen. Restated the accountability and signing claims to match (the trailer discloses provenance, not authorship or a transfer of responsibility; signing is the maintainer's git configuration, not a tool action). Split §5's "Release decisions and publishing" row into a decision row (still `none`) and a new execution row (`ai-assisted`): per the maintainer's direction, an agentic session **may** run `cargo publish` for a release already decided, from the maintainer's own machine and credential. Added a §12 residual-risk bullet naming that this authority is procedurally, not mechanically, gated. |
@@ -363,7 +387,7 @@ authoritative where the two could ever disagree.
 
 ```yaml
 ai-statement:
-  version: 1.3.0
+  version: 1.4.0
   last-updated: 2026-09-02
   vocabulary: w3c-ai-content-disclosure
   disclosure-default: ai-generated
@@ -378,7 +402,8 @@ ai-statement:
     documentation: ai-generated
     review: none
     roadmap: none
-    release-decisions: none
+    release-scope: none
+    release-readiness: ai-assisted
     publishing-execution: ai-assisted
     commits-and-merges: ai-assisted
   ships-ai-system: false

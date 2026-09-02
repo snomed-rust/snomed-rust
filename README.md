@@ -193,7 +193,12 @@ production-ready everywhere the project publishes: currently that reaches
 GitHub Actions and GitLab.com, but not self-hosted GitLab and not
 Codeberg/Forgejo, which this project's own three git remotes span. The
 criterion, and why it waits rather than adopting per-host, is
-[`spec/trusted-publishing/`](spec/trusted-publishing/index.md).
+[`spec/trusted-publishing/`](spec/trusted-publishing/index.md). "Manual"
+is about the absence of CI automation, not who or what is in the driver's
+seat on that machine: an agentic AI session may decide a release is ready
+and run `cargo publish` itself, bound to objective criteria stated in
+[`spec/ai-release-authority/`](spec/ai-release-authority/index.md) —
+[`AI_STATEMENT.md`](AI_STATEMENT.md) discloses the fuller policy.
 
 Development is **specification-driven**: behavior is written in `spec/*.md`
 first, code cites the spec it implements (`// per spec/04 rule 5`), and

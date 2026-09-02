@@ -3,7 +3,7 @@
 These documents distill the parts of the official **SNOMED CT Release File
 Specification** (and the other normative sources listed below) that this
 workspace implements, plus a short set of project policies this workspace
-sets for itself — the sixteen policy files listed after the index, which have
+sets for itself — the seventeen policy files listed after the index, which have
 no external specification behind them but bind the code here exactly the
 same way. They are the authoritative
 source for this codebase: code follows spec, not the other way around. When a
@@ -77,6 +77,7 @@ binding on this workspace in the same way):
 | [docs-budget-and-links/](docs-budget-and-links/index.md) | 40 KB per-document budget; every relative link resolves | every tracked markdown document, `bin/check-docs`, CI |
 | [free-open-source-funding/](free-open-source-funding/index.md) | Funding channels this project accepts, and how to tell a real one from a speculative one | `.github/FUNDING.yml`, `CONTRIBUTING.md`, `NEWS.md` |
 | [trusted-publishing/](trusted-publishing/index.md) | Why `cargo publish` stays manual: criteria for switching to OIDC-based CI publishing, and why they aren't met yet | `MAINTAINERS.md`, `SECURITY.md`, `plan.md` |
+| [ai-release-authority/](ai-release-authority/index.md) | The objective, checkable criteria an agentic AI session uses to decide a release is ready and publish it, without asking per release | `AI_STATEMENT.md`, `GOVERNANCE.md`, `MAINTAINERS.md` |
 | [dependabot/](dependabot/index.md) | Dependabot security updates enabled at the repo level, plus `.github/dependabot.yml` for scheduled update PRs | repo settings, `.github/dependabot.yml` |
 | [llms-json-and-llms-txt/](llms-json-and-llms-txt/index.md) | AI guidance helper files at the repo root — `llms.json` and `llms.txt`, a curated map of the project's most important content, each under 40 KB | `llms.json`, `llms.txt`, `snomed-rust.github.io/static/` |
 | [node-current-version/](node-current-version/index.md) | The GitHub Pages site's Node.js version: current major (26), enforced at both CI and install time | `snomed-rust.github.io/.github/workflows/deploy.yml`, `package.json`, `pnpm-workspace.yaml`, `.npmrc` |

@@ -10,7 +10,7 @@ Start here rather than guessing which file to open:
 | **Role playbooks** | "I'm about to change this crate — what conventions/gotchas apply?" | [`agents/*.md`](agents) |
 | **Tutorial** | "I'm new — walk me through it step by step." | [`docs/tutorial.md`](docs/tutorial.md) |
 | **Troubleshooting** | "I hit an error / something looks wrong — is this expected?" | [`docs/troubleshooting.md`](docs/troubleshooting.md) |
-| **Project policies** | "What Rust version, how is this verified beyond unit tests, what breaks downstream?" | full table (all sixteen) in [`spec/README.md`](spec/README.md); most worth knowing up front: [`spec/rust-msrv-n-minus-2/index.md`](spec/rust-msrv-n-minus-2/index.md), [`spec/rust-fuzz.md`](spec/rust-fuzz.md), [`spec/rust-bench.md`](spec/rust-bench.md), [`spec/rust-api-stability.md`](spec/rust-api-stability.md), [`spec/rust-no-unsafe/index.md`](spec/rust-no-unsafe/index.md), [`spec/professionalization/index.md`](spec/professionalization/index.md) |
+| **Project policies** | "What Rust version, how is this verified beyond unit tests, what breaks downstream?" | full table (all seventeen) in [`spec/README.md`](spec/README.md); most worth knowing up front: [`spec/rust-msrv-n-minus-2/index.md`](spec/rust-msrv-n-minus-2/index.md), [`spec/rust-fuzz.md`](spec/rust-fuzz.md), [`spec/rust-bench.md`](spec/rust-bench.md), [`spec/rust-api-stability.md`](spec/rust-api-stability.md), [`spec/rust-no-unsafe/index.md`](spec/rust-no-unsafe/index.md), [`spec/professionalization/index.md`](spec/professionalization/index.md) |
 
 Plus two process documents that aren't reference material:
 [`plan.md`](plan.md) (the roadmap by phase, with the *why* behind
@@ -73,7 +73,7 @@ stale pointers behind in silence.
 | [13-classification.md](spec/13-classification.md) — EL subsumption | `snomed-classify` |
 | [14-necessary-normal-form.md](spec/14-necessary-normal-form.md) — RF2 relationship generation | `snomed-classify` |
 
-Sixteen further `spec/` files are project policy rather than a distillation
+Seventeen further `spec/` files are project policy rather than a distillation
 of an external specification, and bind the same way:
 
 | Policy | Covers | Lives in |
@@ -90,6 +90,7 @@ of an external specification, and bind the same way:
 | [docs-budget-and-links/](spec/docs-budget-and-links/index.md) | 40 KB per-document budget; every relative link resolves | `bin/check-docs`, CI `docs` job |
 | [free-open-source-funding/](spec/free-open-source-funding/index.md) | funding channels this project accepts, and how to tell a real one from a speculative one | `.github/FUNDING.yml`, `CONTRIBUTING.md`, `NEWS.md` |
 | [trusted-publishing/](spec/trusted-publishing/index.md) | why `cargo publish` stays manual, and the criteria for switching to OIDC-based CI publishing | `MAINTAINERS.md`, `SECURITY.md`, `plan.md` |
+| [ai-release-authority/](spec/ai-release-authority/index.md) | the objective, checkable criteria an agentic AI session uses to decide a release is ready and publish it, without asking per release | `AI_STATEMENT.md`, `GOVERNANCE.md`, `MAINTAINERS.md` |
 | [dependabot/](spec/dependabot/index.md) | Dependabot security updates enabled at the repo level, plus scheduled update PRs | repo settings, `.github/dependabot.yml` |
 | [llms-json-and-llms-txt/](spec/llms-json-and-llms-txt/index.md) | AI guidance helper files — `llms.json`/`llms.txt`, a curated map of the project's most important content | `llms.json`, `llms.txt`, `snomed-rust.github.io/static/` |
 | [node-current-version/](spec/node-current-version/index.md) | the GitHub Pages site's Node.js version: current major (26), enforced at CI and install time | `snomed-rust.github.io/.github/workflows/deploy.yml`, `package.json`, `pnpm-workspace.yaml`, `.npmrc` |
