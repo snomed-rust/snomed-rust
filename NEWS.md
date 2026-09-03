@@ -11,7 +11,7 @@ human-readable layer above it.
 
 | | |
 |---|---|
-| Version | **0.15.0**, released 2026-09-03 |
+| Version | **0.16.0**, released 2026-09-03 |
 | Crates | nine, released together and sharing one version number |
 | Rust MSRV | 1.96 (current stable minus two) |
 | License | `Apache-2.0 OR MIT` |
@@ -19,11 +19,11 @@ human-readable layer above it.
 | Packages | <https://crates.io/crates/snomed> |
 | Documentation | <https://docs.rs/snomed> · <https://snomed-rust.github.io/> |
 
-0.15.0 gives the ECL `{{ M ... }}` member filter constraint its fourth
-grammar alternative, `memberFieldFilter`, starting with `mapTarget` — a
-refset-type-specific column, tested after both `^` and `^R`. Purely
-additive: no public API removed or changed, existing code compiles
-unmodified. Full detail is in the [changelog](CHANGELOG.md).
+0.16.0 gives the ECL `{{ M ... }}` member filter constraint's
+`memberFieldFilter` alternative a second column, `correlationId` — a
+concept-reference field on `ExtendedMap` rows, tested after both `^` and
+`^R`. Purely additive: no public API removed or changed, existing code
+compiles unmodified. Full detail is in the [changelog](CHANGELOG.md).
 
 **Pre-1.0 caveat, stated up front because it affects anyone writing about
 adoption:** a minor version bump may include breaking API changes. The
@@ -43,6 +43,7 @@ project is young and says so.
 | 2026-09-02 | 0.13.0 — the ECL `{{ M ... }}` member filter constraint |
 | 2026-09-02 | 0.14.0 — `{{ M ... }}` extended to `^R` |
 | 2026-09-03 | 0.15.0 — `{{ M ... }}`'s `memberFieldFilter`: `mapTarget` |
+| 2026-09-03 | 0.16.0 — `{{ M ... }}`'s `memberFieldFilter`: `correlationId` |
 
 ## Following updates
 
@@ -128,7 +129,7 @@ remains licensed material obtained separately from SNOMED International.
 - **What it is not.** Not a terminology server, not an authoring platform, not
   a browser, and not a replacement for Snowstorm. [COMPARISONS.md](COMPARISONS.md)
   states the limitations at length and names the tools that do those jobs.
-- **Maturity.** Version 0.15.0, first published in September 2026, one
+- **Maturity.** Version 0.16.0, first published in September 2026, one
   maintainer, pre-1.0. [MAINTAINERS.md](MAINTAINERS.md) states the bus factor
   and the continuity position without softening, and is the right source for
   any risk framing.
