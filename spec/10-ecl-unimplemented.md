@@ -78,7 +78,7 @@ token shape:
   not a capability one: `moduleId = (id1 OR id2)` already works and means
   the same thing (see "Concept filter constraint" above).
 - A member filter's `memberFieldFilter` kind other than `mapTarget`/
-  `correlationId` — a refset-type-specific column (`order`,
+  `correlationId`/`mapGroup` — a refset-type-specific column (`order`,
   `domainConstraint`, …), as opposed to the three shared-column kinds
   (`moduleId`/`effectiveTime`/`active`) implemented 2026-09-01 after both
   `^` and `^R`. `refsetFieldName` is `1*alpha` in the official grammar
@@ -98,7 +98,15 @@ token shape:
   concept-reference shape, on `ExtendedMapRefsetMember` only, since
   `SimpleMapRefsetMember` has no such column — followed the same day, the
   first proof that the shape genuinely varies by column rather than
-  every `memberFieldFilter` reusing `mapTarget`'s string grammar. See
+  every `memberFieldFilter` reusing `mapTarget`'s string grammar;
+  `mapGroup` — the numeric shape, also `ExtendedMapRefsetMember` only —
+  followed immediately after, and caught a real bug before it shipped:
+  `numeric_matches` (the existing numeric comparator, built for
+  `eclAttribute`'s cardinality-negated `!=`) silently inverts `!=` into
+  `=`, which is wrong for a direct field comparison with no cardinality
+  step — a dedicated `field_numeric_matches` fixes it, caught by
+  `member_filter_map_group_comparison_operators` before merge. Boolean
+  and time remain unimplemented, with no example yet. See
   `SnapshotStore::simple_map_member_rows`/`extended_map_member_rows` and
   spec/09 rule 4. Decided 2026-09-03 in `plan.md`'s "Open decisions":
   retain active-and-inactive typed rows for all sixteen non-Simple/
@@ -106,7 +114,8 @@ token shape:
   retention now backs every future `memberFieldFilter` column on those
   types too — each remaining column is a parser/eval increment only
   (plus, per column, confirming which of the five grammar shapes it
-  actually uses), not a further store decision.
+  actually uses, and — if numeric — using `field_numeric_matches`, not
+  `numeric_matches`), not a further store decision.
 - The `dialectIdSet` spelling (`{{ D dialectId = (X Y) }}`), for the same
   reason and with the same workaround shape: one `dialectId` per block,
   or an `OR` of two blocks.

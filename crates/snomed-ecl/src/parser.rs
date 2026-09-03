@@ -8,8 +8,8 @@ use crate::ast::{
     AttributeGroup, Cardinality, ConceptFilterKind, DefinitionStatusFilter, DefinitionStatusValue,
     DescriptionFilterKind, DescriptionTypeValue, DialectFilter, EffectiveTimeFilter,
     ExpressionConstraint, FocusConcept, HierarchyOp, LanguageFilter, MemberFilterKind,
-    ModuleFilter, NumericComparisonOp, RefinementConstraint, RefsetOperand, SearchTerm, SearchType,
-    SimpleExpressionConstraint, TermFilter, TimeComparisonOp, TypeFilter,
+    ModuleFilter, NumericComparisonOp, NumericFieldFilter, RefinementConstraint, RefsetOperand,
+    SearchTerm, SearchType, SimpleExpressionConstraint, TermFilter, TimeComparisonOp, TypeFilter,
 };
 use crate::error::EclError;
 use crate::lexer::{describe, Lexer, Token, TokenKind};
@@ -417,17 +417,22 @@ impl Parser {
     /// tokenized for `{{ C }}`, so no new lexer keywords were needed for
     /// them. The fourth, `memberFieldFilter`, is `refsetFieldName` —
     /// `1*alpha` in the official grammar, not a fixed keyword list, so it
-    /// lexes as a plain `TokenKind::Word` — and only the two spellings
-    /// this crate implements, `mapTarget` and `correlationId` (spec/10
-    /// rule 18), are recognized here; any other word falls through to
-    /// the generic "unexpected keyword" bucket rule 9 describes rather
-    /// than being named. `correlationId (=|!=) subExpressionConstraint`
-    /// reuses `moduleId`'s own parse shape verbatim (both are
-    /// `booleanComparisonOperator`-spelled `=`/`!=`, confirmed against
-    /// the official ABNF, even though `moduleFilter` and
-    /// `memberFieldFilter` name that operator differently —
+    /// lexes as a plain `TokenKind::Word` — and only the three spellings
+    /// this crate implements, `mapTarget`, `correlationId`, and
+    /// `mapGroup` (spec/10 rule 18), are recognized here; any other word
+    /// falls through to the generic "unexpected keyword" bucket rule 9
+    /// describes rather than being named. `correlationId (=|!=)
+    /// subExpressionConstraint` reuses `moduleId`'s own parse shape
+    /// verbatim (both are `booleanComparisonOperator`-spelled `=`/`!=`,
+    /// confirmed against the official ABNF, even though `moduleFilter`
+    /// and `memberFieldFilter` name that operator differently —
     /// `booleanComparisonOperator` vs. `expressionComparisonOperator` —
-    /// the two productions are the same two symbols).
+    /// the two productions are the same two symbols). `mapGroup (=|!=|
+    /// <=|<|>=|>) "#" numericValue` reuses `eclAttribute`'s own
+    /// `numericComparisonOperator "#" numericValue` value form
+    /// (`parse_numeric_field_filter`) — `memberFieldFilter`'s numeric
+    /// shape has no set alternative (no `numericValueSet` production
+    /// exists for it), unlike `effectiveTimeFilter`'s.
     fn parse_member_filter_kind(&mut self) -> Result<MemberFilterKind, EclError> {
         match &self.peek().kind {
             TokenKind::ModuleIdKeyword => {
@@ -469,14 +474,46 @@ impl Parser {
                     value: Box::new(value),
                 }))
             }
+            TokenKind::Word(word) if word == "mapGroup" => {
+                self.advance()?;
+                let filter = self.parse_numeric_field_filter()?;
+                Ok(MemberFilterKind::MapGroup(filter))
+            }
             _ => {
                 let tok = self.peek().clone();
                 Err(Self::unexpected(
                     &tok,
-                    "`moduleId`, `effectiveTime`, `active`, `mapTarget`, or `correlationId`",
+                    "`moduleId`, `effectiveTime`, `active`, `mapTarget`, `correlationId`, or `mapGroup`",
                 ))
             }
         }
+    }
+
+    /// `numericComparisonOperator ws "#" numericValue` — a
+    /// `memberFieldFilter` value form (spec/10 rule 18). Parses the full
+    /// six-symbol `numericComparisonOperator` set directly, unlike
+    /// `parse_attribute_comparison`'s split across two match arms — that
+    /// split exists only because `=`/`!=` there must also disambiguate a
+    /// string or expression comparison, an ambiguity `memberFieldFilter`
+    /// never has once a specific numeric field name (`mapGroup`) has
+    /// already selected this branch.
+    fn parse_numeric_field_filter(&mut self) -> Result<NumericFieldFilter, EclError> {
+        let operator = match &self.peek().kind {
+            TokenKind::Eq => NumericComparisonOp::Eq,
+            TokenKind::NotEq => NumericComparisonOp::NotEq,
+            TokenKind::LtEq => NumericComparisonOp::Le,
+            TokenKind::Lt => NumericComparisonOp::Lt,
+            TokenKind::GtEq => NumericComparisonOp::Ge,
+            TokenKind::Gt => NumericComparisonOp::Gt,
+            _ => {
+                let tok = self.peek().clone();
+                return Err(Self::unexpected(&tok, "`=`, `!=`, `<=`, `<`, `>=`, or `>`"));
+            }
+        };
+        self.advance()?;
+        self.expect(TokenKind::Hash, "`#`")?;
+        let value = self.parse_numeric_value()?;
+        Ok(NumericFieldFilter { operator, value })
     }
 
     /// `activeValue = activeTrueValue / activeFalseValue / wildCard` —
@@ -1630,6 +1667,33 @@ mod tests {
             panic!("expected a CorrelationId filter, got {:?}", filters[0]);
         };
         assert!(!negated);
+    }
+
+    /// `mapGroup` (spec/10 rule 18) — the third `memberFieldFilter`
+    /// column implemented, and the first to use the numeric grammar
+    /// shape (`numericComparisonOperator ws "#" numericValue`, the same
+    /// value form `eclAttribute`'s own numeric concrete value comparison
+    /// uses) rather than `mapTarget`'s string search or `correlationId`'s
+    /// concept reference. Also exercises every comparison operator, not
+    /// just `=`, since `parse_numeric_field_filter` parses the full
+    /// six-symbol set directly rather than splitting `=`/`!=` out the way
+    /// `parse_attribute_comparison` has to.
+    #[test]
+    fn parses_member_filter_map_group() {
+        let EC::MemberFilter { filters, .. } = parse("^ 447562003 {{ M mapGroup >= #1 }}").unwrap()
+        else {
+            panic!("expected a member filter");
+        };
+        assert_eq!(filters.len(), 1);
+        let crate::ast::MemberFilterKind::MapGroup(crate::ast::NumericFieldFilter {
+            operator,
+            value,
+        }) = &filters[0]
+        else {
+            panic!("expected a MapGroup filter, got {:?}", filters[0]);
+        };
+        assert_eq!(*operator, crate::ast::NumericComparisonOp::Ge);
+        assert_eq!(value, "1");
     }
 
     /// A field name this crate doesn't recognize (`order`, say) falls to

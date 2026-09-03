@@ -157,9 +157,9 @@ named column's own semantic type (confirmed against the official ABNF,
 subExpressionConstraint` (a concept reference), `numericComparisonOperator
 ws "#" numericValue`, `stringComparisonOperator ws (typedSearchTerm |
 typedSearchTermSet)`, `booleanComparisonOperator ws booleanValue`, or
-`timeComparisonOperator ws (timeValue | timeValueSet)`. Two kinds are
-implemented, one of the string shape and one of the concept-reference
-shape:
+`timeComparisonOperator ws (timeValue | timeValueSet)`. Three kinds are
+implemented, one each of the string, concept-reference, and numeric
+shapes:
 
 - `mapTarget (=|!=) (typedSearchTerm | typedSearchTermSet)` — the same
   `match:`/`wild:`/`exact:` search-term grammar `{{ D term }}` uses,
@@ -177,24 +177,37 @@ shape:
   all, so a `correlationId` filter never matches a `SimpleMap` row, even
   though `mapTarget` does — tested against
   `SnapshotStore::extended_map_member_rows` directly.
+- `mapGroup (=|!=|<=|<|>=|>) "#" numericValue` — the same
+  `numericComparisonOperator "#" numericValue` value form
+  `eclAttribute`'s own numeric concrete value comparison uses, matched
+  against the member row's own `mapGroup` column (a `u32`). Only
+  `ExtendedMapRefsetMember` rows carry a `mapGroup` — same "column
+  absent" case as `correlationId`. **`!=` means genuine inequality
+  here** (`a != b`), unlike `numeric_matches`'s attribute-comparison
+  cousin, whose `!=` deliberately behaves like `=` because that
+  comparison negates at the cardinality level instead (an existence
+  question, not this one) — reusing it directly for `mapGroup` would
+  have silently inverted `mapGroup != #1` into `mapGroup = #1`; a
+  dedicated `field_numeric_matches` avoids the mistake.
 
-Both reuse the shared dispatch `mapTarget` introduced: a block naming
-*either* kind is tested against `SimpleMap`/`ExtendedMap` rows together
-rather than `member_rows`, and the "one row, all filters" and "active
-unless stated otherwise" rules above still hold across a block naming
-both at once, not just a field filter and a shared-column one — a
-`SimpleMap` row can never satisfy a block naming `correlationId` (the
-column is simply absent on that row source, the same "not this row's
-type" answer a shared-column filter gets from a row of the wrong refset
-type), so it can never be a spurious match.
+All three reuse the shared dispatch `mapTarget` introduced: a block
+naming *any* of the three kinds is tested against
+`SimpleMap`/`ExtendedMap` rows together rather than `member_rows`, and
+the "one row, all filters" and "active unless stated otherwise" rules
+above still hold across a block naming several field filters at once,
+not just a field filter and a shared-column one — a `SimpleMap` row can
+never satisfy a block naming `correlationId`/`mapGroup` (the column is
+simply absent on that row source, the same "not this row's type" answer
+a shared-column filter gets from a row of the wrong refset type), so it
+can never be a spurious match.
 
-**Not implemented:** every other `memberFieldFilter` column and shape
-(`order`, `domainConstraint`, and the rest — see
-`spec/10-ecl-unimplemented.md`); the store retention that made
-`mapTarget`/`correlationId` possible already covers every non-Simple/
-Language refset type (decided 2026-09-03, `plan.md`'s "Open decisions"),
-so each remaining column is a parser/eval increment only, not a further
-store decision.
+**Not implemented:** every other `memberFieldFilter` column, and both
+remaining shapes — boolean, time (`order`, `domainConstraint`, and the
+rest — see `spec/10-ecl-unimplemented.md`); the store retention that
+made `mapTarget`/`correlationId`/`mapGroup` possible already covers
+every non-Simple/Language refset type (decided 2026-09-03, `plan.md`'s
+"Open decisions"), so each remaining column is a parser/eval increment
+only, not a further store decision.
 
 ## Description filter constraint (`{{ D ... }}`)
 

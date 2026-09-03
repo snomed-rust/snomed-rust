@@ -13,6 +13,27 @@ together, in dependency order (`snomed-core` → `snomed-rf2` → `snomed-owl`
 
 ## [Unreleased]
 
+**New ECL capability, additive.** `{{ M ... }}`'s `memberFieldFilter`
+gains its third column, `mapGroup` — after both `^` and `^R`. A minor
+bump: new public API, no removals or signature changes to anything
+existing.
+
+### Added
+
+- `snomed-ecl`: `{{ M mapGroup >= #1 }}` restricts to `ExtendedMap`
+  member rows whose own `mapGroup` column satisfies the comparison —
+  `=`, `!=`, `<=`, `<`, `>=`, or `>`. Works after both `^` and `^R`, and
+  conjoins with `mapTarget`/`correlationId` and the shared-column kinds
+  on the same member row. Only `ExtendedMapRefsetMember` rows carry a
+  `mapGroup` column; `SimpleMapRefsetMember` and every other refset type
+  never match this filter. New public API: `MemberFilterKind::MapGroup`,
+  `NumericFieldFilter`.
+
+### Notes for consumers
+
+- No public API removed or changed signature; existing code compiles
+  unmodified against this release.
+
 ## [0.16.0] — 2026-09-03
 
 **New ECL capability, additive.** `{{ M ... }}`'s `memberFieldFilter`

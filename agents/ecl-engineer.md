@@ -294,23 +294,27 @@ shape of call `member_rows`/`member_refsets` both needed. `mapTarget`
 landed the same day as that decision's first concrete field, tested
 against `SnapshotStore::simple_map_member_rows`/
 `extended_map_member_rows` rather than `member_rows`'s type-erased view;
-`correlationId` followed immediately after, the second field and the
-first to use a *different* `memberFieldFilter` grammar shape —
-`memberFieldFilter` isn't one production but five in the official
-grammar, chosen by the named column's own semantic type
+`correlationId` and `mapGroup` followed immediately after, one field each
+of two more `memberFieldFilter` grammar shapes — `memberFieldFilter`
+isn't one production but five in the official grammar, chosen by the
+named column's own semantic type
 (`expressionComparisonOperator ws subExpressionConstraint` for a concept
 reference — `correlationId`'s shape, reusing `ModuleFilter` verbatim —
 vs. `mapTarget`'s `stringComparisonOperator ws (typedSearchTerm |
-typedSearchTermSet)`; also `numericComparisonOperator ws "#"
-numericValue`, `booleanComparisonOperator ws booleanValue`, and
+typedSearchTermSet)` vs. `mapGroup`'s `numericComparisonOperator ws "#"
+numericValue`; also `booleanComparisonOperator ws booleanValue` and
 `timeComparisonOperator ws (timeValue | timeValueSet)`, confirmed against
-the ABNF, none implemented yet). Confirm which shape a column actually
-uses before implementing it — do not assume every remaining column
-reuses `mapTarget`'s string grammar just because it was first. With the
-store side now done for all sixteen types, every *remaining*
-`memberFieldFilter` column (`order`, `domainConstraint`, …) IS a free
-next increment — the cadence below applies to them cleanly, the same as
-any other filter kind. See `spec/10-ecl-unimplemented.md`.
+the ABNF, neither implemented yet). Confirm which shape a column
+actually uses before implementing it — do not assume every remaining
+column reuses `mapTarget`'s string grammar just because it was first.
+`mapGroup` also caught a real bug this way: the existing `numeric_matches`
+(built for `eclAttribute`'s cardinality-negated `!=`) silently inverts
+`mapGroup != #1` into `mapGroup = #1` if reused directly — a dedicated
+`field_numeric_matches` fixes it, caught by a test before merge, not by
+inspection. With the store side now done for all sixteen types, every
+*remaining* `memberFieldFilter` column (`order`, `domainConstraint`, …)
+IS a free next increment — the cadence below applies to them cleanly,
+the same as any other filter kind. See `spec/10-ecl-unimplemented.md`.
 
 That cadence is the recommendation for a filter kind that IS free, not
 the history alone: add one filter

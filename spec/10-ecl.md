@@ -45,11 +45,12 @@ constraints (`{{ D ... }}`, `term`/`type`/`active`) are implemented too,
 and so is a **member filter constraint** (`{{ M ... }}`, restricting
 `^`'s referenced components — or `^R`'s result refsets — to those with a
 member row matching — `moduleId`/`effectiveTime`/`active`, the columns
-every refset member type shares, plus two `memberFieldFilter` kinds,
+every refset member type shares, plus three `memberFieldFilter` kinds,
 `mapTarget` (a string search against
-`SimpleMapRefsetMember`/`ExtendedMapRefsetMember`'s own typed rows) and
+`SimpleMapRefsetMember`/`ExtendedMapRefsetMember`'s own typed rows),
 `correlationId` (a concept reference against
-`ExtendedMapRefsetMember`'s own typed rows only)).
+`ExtendedMapRefsetMember`'s own typed rows only), and `mapGroup` (a
+numeric comparison, `ExtendedMapRefsetMember`'s own typed rows only)).
 Boolean concrete value comparisons (not
 representable in RF2 — see below), `moduleId`'s
 `eclConceptReferenceSet` spelling, every other `memberFieldFilter`
@@ -387,11 +388,12 @@ column's own semantic type (confirmed against the official ABNF):
 reference, `numericComparisonOperator ws "#" numericValue`,
 `stringComparisonOperator ws (typedSearchTerm | typedSearchTermSet)`,
 `booleanComparisonOperator ws booleanValue`, or `timeComparisonOperator
-ws (timeValue | timeValueSet)`. Two columns are implemented, each a
+ws (timeValue | timeValueSet)`. Three columns are implemented, each a
 different shape: `mapTarget` (the string-search shape,
-`SimpleMap`/`ExtendedMap` rows) and `correlationId` (the
-concept-reference shape, `ExtendedMap` rows only) — both for both `^`
-and `^R`. Every other column, and every other shape, is not; see
+`SimpleMap`/`ExtendedMap` rows), `correlationId` (the concept-reference
+shape, `ExtendedMap` rows only), and `mapGroup` (the numeric shape,
+`ExtendedMap` rows only) — all for both `^` and `^R`. Every other
+column, and both remaining shapes (boolean, time), are not; see
 `spec/10-ecl-unimplemented.md`.
 
 Grammatically, `memberFilterConstraint` sits *inside* the
@@ -665,15 +667,16 @@ still governs it: nothing on that list may be silently accepted.
     spec/09 rule 4) rather than reusing `^`'s. `{{ M ... }}` written
     anywhere else MUST be a parse error, never silently ignored or
     evaluated as a `{{ C }}`/`{{ D }}` block. A `memberFieldFilter`
-    (a refset-type-specific column — `mapTarget` and `correlationId` are
-    the two implemented) MUST be tested against the typed row(s) that
-    column actually exists on (`SnapshotStore::simple_map_member_rows`
-    and `extended_map_member_rows` for `mapTarget`; `extended_map_member_rows`
-    only for `correlationId`, since `SimpleMapRefsetMember` has no such
-    column), never against `member_rows`'s type-erased `RefsetMemberCore`
-    view, which has no such column — and every other filter in the same
-    block MUST be tested against that *same* typed row's shared columns,
-    per the "one row, all filters" rule above; a block MUST NOT be
-    satisfied by a shared-column filter matching one row while a field
-    filter matches a different one, nor by two field filters each
-    matching a different row.
+    (a refset-type-specific column — `mapTarget`, `correlationId`, and
+    `mapGroup` are the three implemented) MUST be tested against the
+    typed row(s) that column actually exists on
+    (`SnapshotStore::simple_map_member_rows` and
+    `extended_map_member_rows` for `mapTarget`; `extended_map_member_rows`
+    only for `correlationId`/`mapGroup`, since `SimpleMapRefsetMember` has
+    no such columns), never against `member_rows`'s type-erased
+    `RefsetMemberCore` view, which has no such column — and every other
+    filter in the same block MUST be tested against that *same* typed
+    row's shared columns, per the "one row, all filters" rule above; a
+    block MUST NOT be satisfied by a shared-column filter matching one
+    row while a field filter matches a different one, nor by two field
+    filters each matching a different row.

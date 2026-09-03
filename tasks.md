@@ -19,6 +19,46 @@ most recently on 2026-09-03, to keep this file inside the repository's
 40 KB per-document budget. Search both when asking "has this come up
 before".
 
+## Done (2026-09-03, ECL `{{ M ... }}` `memberFieldFilter`: `mapGroup`, third column, first numeric shape, refactor + caught bug)
+
+- [x] **`snomed-ecl`**: `MemberFilterKind::MapGroup(NumericFieldFilter)` —
+      `mapGroup (=|!=|<=|<|>=|>) "#" numericValue`, the same
+      `numericComparisonOperator "#" numericValue` value form
+      `eclAttribute`'s own numeric concrete value comparison uses
+      (`parse_numeric_field_filter`, parsing the full six-symbol operator
+      set directly rather than splitting `=`/`!=` out — no
+      string/expression ambiguity to resolve here, unlike
+      `parse_attribute_comparison`). Only `ExtendedMapRefsetMember`
+      carries a `mapGroup` column.
+- [x] **Caught a real bug via the test suite, before merge**: reusing
+      the existing `numeric_matches` (built for `eclAttribute`'s own
+      comparison, which negates `!=` at the cardinality level instead of
+      per-value — see its doc) would have silently inverted `mapGroup !=
+      #1` into `mapGroup = #1`, since that function's `Eq`/`NotEq` arms
+      are deliberately identical. `member_filter_map_group_comparison_operators`
+      caught it immediately. Fixed with a dedicated
+      `field_numeric_matches` sibling, genuine `a != b` semantics, used
+      for every direct field comparison instead.
+- [x] **Refactored `member_filter_matches`'s per-row extra-column
+      parameters into one `TypedFields` struct** (`map_target`,
+      `correlation_id`, `map_group`, each `Option`), replacing the
+      positional `Option<&str>`/`Option<SctId>` pair that would otherwise
+      have grown by one parameter per future `memberFieldFilter` column.
+      `member_row_matches`'s dispatch condition extended to trigger on
+      any of the three field-filter kinds.
+- [x] Six new tests (one parser, five eval: matches after `^`/`^R`, every
+      comparison operator, never matches a `SimpleMap`-only row, conjoins
+      with `mapTarget`/`correlationId` on the same row). 397/397 tests
+      passing (up from 392).
+- [x] Docs updated to match: `spec/10-ecl.md` (summary paragraph, rule
+      18-intro paragraph, rule 18 itself), `spec/10-ecl-filters.md`,
+      `spec/10-ecl-unimplemented.md` (including the caught-bug note),
+      `crates/snomed-ecl/src/lib.rs`, `agents/ecl-engineer.md`,
+      `agents/store-engineer.md`, `plan.md` (Open decisions, Current
+      status test count).
+- [x] `cargo clippy --all-targets`, `cargo fmt --check`, `fuzz/`/`benches/`
+      all build clean.
+
 ## Done (2026-09-03, Release 0.16.0 — `memberFieldFilter`'s `correlationId`, fourth self-decided release)
 
 - [x] **Decided and executed the release itself**, per §1-5 of
@@ -429,13 +469,15 @@ before".
 
 - [ ] Nothing currently scoped beyond the `{{ M ... }}` remainder below.
       State as of 2026-09-03: **0.16.0 released** — `mapTarget` (0.15.0)
-      and `correlationId` (0.16.0, the first of a genuinely different
-      `memberFieldFilter` grammar shape), both after `^` and `^R`. `{{ M
-      ... }}` after `^` (0.13.0), after `^R` (0.14.0), and its
-      `memberFieldFilter` alternative (0.15.0, 0.16.0), all decided and
-      executed under `spec/ai-release-authority/`'s criteria rather than
-      a fresh per-release maintainer go-ahead (see `CHANGELOG.md`). 9
-      crates, 392 tests,
+      and `correlationId` (0.16.0), both after `^` and `^R`. `mapGroup`
+      (the third `memberFieldFilter` column, the first numeric shape)
+      landed the same day, **not yet released** (see the Done entry
+      above; release decision pending). `{{ M ... }}` after `^` (0.13.0),
+      after `^R` (0.14.0), and its `memberFieldFilter` alternative
+      (0.15.0, 0.16.0), all decided and executed under
+      `spec/ai-release-authority/`'s criteria rather than a fresh
+      per-release maintainer go-ahead (see `CHANGELOG.md`). 9 crates, 397
+      tests,
       clippy/fmt clean on stable, MSRV 1.96 (current
       stable minus two, `spec/rust-msrv-n-minus-2/index.md`), `fuzz/`,
       and `benches/`; 13 fuzz targets; 6 criterion benchmark files; 35
@@ -463,9 +505,9 @@ before".
       the `moduleId`/`effectiveTime`/`active` kinds are done after both
       `^` (2026-09-01) and `^R` (2026-09-02); the fourth grammar
       alternative, `memberFieldFilter`, now has its store-retention
-      decided and two columns done after both `^` and `^R`: `mapTarget`
-      and `correlationId` (2026-09-03, see Done above). What is still
-      open:
+      decided and three columns done after both `^` and `^R`: `mapTarget`,
+      `correlationId`, and `mapGroup` (2026-09-03, see Done above). What
+      is still open:
       - Every other `memberFieldFilter` column — no longer blocked on a
         store decision (all sixteen non-Simple/Language types already
         retain typed active-and-inactive rows via `*_member_rows`), so
@@ -476,26 +518,37 @@ before".
         semantic type: `expressionComparisonOperator ws
         subExpressionConstraint` (a concept reference — reuse
         `ModuleFilter`, `correlationId`'s shape), `numericComparisonOperator
-        ws "#" numericValue`, `stringComparisonOperator ws
-        (typedSearchTerm | typedSearchTermSet)` (`mapTarget`'s shape,
-        reuse `TermFilter`), `booleanComparisonOperator ws booleanValue`,
-        or `timeComparisonOperator ws (timeValue | timeValueSet)` — the
-        last three still have no implemented example. Confirm which
-        shape a column actually uses before implementing it; do not
-        assume string search just because `mapTarget` was first. The
-        full remaining list, one bullet per refset type, RF2 column
-        names from `crates/snomed-rf2/src/refset.rs`'s `HEADER` consts
+        ws "#" numericValue` (`mapGroup`'s shape, reuse
+        `NumericFieldFilter`/`parse_numeric_field_filter` — but
+        **evaluate with `field_numeric_matches`, never `numeric_matches`**:
+        the latter deliberately makes `!=` behave like `=` for
+        `eclAttribute`'s cardinality-negated comparisons, which silently
+        inverts a direct field comparison's `!=` if reused as-is —
+        exactly the bug `mapGroup`'s own test caught before merge),
+        `stringComparisonOperator ws (typedSearchTerm | typedSearchTermSet)`
+        (`mapTarget`'s shape, reuse `TermFilter`),
+        `booleanComparisonOperator ws booleanValue`, or
+        `timeComparisonOperator ws (timeValue | timeValueSet)` — the last
+        two still have no implemented example. Confirm which shape a
+        column actually uses before implementing it; do not assume
+        string search just because `mapTarget` was first. Extend
+        `TypedFields` (`crates/snomed-ecl/src/eval.rs`) with one more
+        `Option` field per new column, the same way `mapGroup` added
+        `map_group` alongside `map_target`/`correlation_id` — not a new
+        function parameter, and not a new dispatch function. The full
+        remaining list, one bullet per refset type, RF2 column names
+        from `crates/snomed-rf2/src/refset.rs`'s `HEADER` consts
         (Simple/Language excluded — spec/09 rule 4, they keep no typed
         rows at all), each annotated with its Rust field type and the
         grammar shape that type implies:
         - Association: `targetComponentId` (`SctId` — concept-reference
           shape).
         - AttributeValue: `valueId` (`SctId` — concept-reference shape).
-        - ExtendedMap, besides `mapTarget`/`correlationId`: `mapGroup`,
+        - ExtendedMap, besides `mapTarget`/`correlationId`/`mapGroup`:
           `mapPriority` (`u32` — numeric shape); `mapRule`, `mapAdvice`
           (`String` — string shape); `mapCategoryId` (`SctId` —
           concept-reference shape) — the most likely next pick, being
-          the type both implemented columns already proved out.
+          the type every implemented column so far already proved out.
         - OwlExpression: `owlExpression` (`String` — string shape).
         - ModuleDependency: `sourceEffectiveTime`, `targetEffectiveTime`
           (`EffectiveTime` — time shape, no implemented example yet).

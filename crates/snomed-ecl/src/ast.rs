@@ -371,24 +371,26 @@ pub enum ConceptFilterKind {
 /// (`RefsetMemberCore`, spec/08), asked about the *member row* rather
 /// than a concept's own row.
 ///
-/// `MapTarget`/`CorrelationId` are the official grammar's fourth kind,
-/// `memberFieldFilter` — a refset-type-specific column rather than a
-/// shared one. Its own grammar (confirmed against the official ABNF,
-/// `syntax/abnf-brief.txt`) is not one shape but five, chosen by the
-/// column's own semantic type: `expressionComparisonOperator ws
-/// subExpressionConstraint` (a concept reference, `CorrelationId`'s
-/// shape), `numericComparisonOperator ws "#" numericValue`,
-/// `stringComparisonOperator ws (typedSearchTerm | typedSearchTermSet)`
-/// (`MapTarget`'s shape), `booleanComparisonOperator ws booleanValue`, or
-/// `timeComparisonOperator ws (timeValue | timeValueSet)`. `mapTarget`
+/// `MapTarget`/`CorrelationId`/`MapGroup` are the official grammar's
+/// fourth kind, `memberFieldFilter` — a refset-type-specific column
+/// rather than a shared one. Its own grammar (confirmed against the
+/// official ABNF, `syntax/abnf-brief.txt`) is not one shape but five,
+/// chosen by the column's own semantic type: `expressionComparisonOperator
+/// ws subExpressionConstraint` (a concept reference, `CorrelationId`'s
+/// shape), `numericComparisonOperator ws "#" numericValue` (`MapGroup`'s
+/// shape), `stringComparisonOperator ws (typedSearchTerm |
+/// typedSearchTermSet)` (`MapTarget`'s shape), `booleanComparisonOperator
+/// ws booleanValue`, or `timeComparisonOperator ws (timeValue |
+/// timeValueSet)`. `mapTarget`
 /// (`SimpleMapRefsetMember`/`ExtendedMapRefsetMember`) was the first
-/// implemented, `correlationId` (`ExtendedMapRefsetMember` only) the
-/// second — both decided 2026-09-03 (`plan.md`'s "Open decisions") to
-/// retain full rows — active and inactive — for all sixteen
-/// non-Simple/Language refset types, the same store change
+/// implemented, `correlationId` and `mapGroup` (`ExtendedMapRefsetMember`
+/// only) the second and third — all decided 2026-09-03 (`plan.md`'s
+/// "Open decisions") to retain full rows — active and inactive — for all
+/// sixteen non-Simple/Language refset types, the same store change
 /// `moduleId`/`effectiveTime`/`active` needed for the six shared
-/// columns. Every other `memberFieldFilter` column is still rejected —
-/// see [`ExpressionConstraint::MemberFilter`] and
+/// columns. Every other `memberFieldFilter` column, and the boolean and
+/// time shapes, are still rejected — see
+/// [`ExpressionConstraint::MemberFilter`] and
 /// `spec/10-ecl-unimplemented.md`.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum MemberFilterKind {
@@ -424,6 +426,29 @@ pub enum MemberFilterKind {
     /// unimplemented list). `SimpleMapRefsetMember` has no `correlationId`
     /// column, so a block naming it never matches a `SimpleMap` row.
     CorrelationId(ModuleFilter),
+    /// `mapGroup (=|!=|<=|<|>=|>) "#" numericValue` — a `memberFieldFilter`
+    /// (spec/10 rule 18): `ExtendedMapRefsetMember`'s own `mapGroup`
+    /// column (a `u32`, not a concept or free text — the third
+    /// `memberFieldFilter` grammar shape implemented, after the
+    /// string-search and concept-reference ones). `SimpleMapRefsetMember`
+    /// has no `mapGroup` column, so a block naming it never matches a
+    /// `SimpleMap` row, the same "column absent on this row source" case
+    /// `correlationId` has.
+    MapGroup(NumericFieldFilter),
+}
+
+/// `numericComparisonOperator ws "#" numericValue` — a `memberFieldFilter`
+/// value form (spec/10 rule 18), reusing [`NumericComparisonOp`] (already
+/// used for `eclAttribute`'s own `numericComparisonOperator` branch) but
+/// a single [`String`] value rather than a set, matching the grammar's
+/// own singular `numericValue` (not `numericValueSet` — no such
+/// production exists for `memberFieldFilter`). The literal is kept
+/// exactly as written, preserving precision, the same convention
+/// `AttributeComparison::Numeric`'s own `value` uses.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct NumericFieldFilter {
+    pub operator: NumericComparisonOp,
+    pub value: String,
 }
 
 /// `activeKeyword ws booleanComparisonOperator ws activeValue`.

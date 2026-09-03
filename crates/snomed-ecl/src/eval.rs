@@ -17,8 +17,8 @@ use crate::ast::{
     Cardinality, ConceptFilterKind, DefinitionStatusFilter, DefinitionStatusValue,
     DescriptionFilterKind, DescriptionTypeValue, DialectFilter, EffectiveTimeFilter,
     ExpressionConstraint, FocusConcept, HierarchyOp, LanguageFilter, MemberFilterKind,
-    ModuleFilter, NumericComparisonOp, RefinementConstraint, RefsetOperand, SearchTerm, SearchType,
-    SimpleExpressionConstraint, TermFilter, TimeComparisonOp, TypeFilter,
+    ModuleFilter, NumericComparisonOp, NumericFieldFilter, RefinementConstraint, RefsetOperand,
+    SearchTerm, SearchType, SimpleExpressionConstraint, TermFilter, TimeComparisonOp, TypeFilter,
 };
 
 /// Evaluates `expr` against `store`, returning the matching concept ids.
@@ -268,8 +268,8 @@ fn evaluate_member_filter(
 /// states, shared by `{{ M }}` after both `^` and `^R`
 /// (`evaluate_member_filter`/`evaluate_refset_containing_filter`).
 ///
-/// A block naming a `memberFieldFilter` (`mapTarget`, `correlationId`)
-/// reads from that field's own typed accessor(s) instead of
+/// A block naming a `memberFieldFilter` (`mapTarget`, `correlationId`,
+/// `mapGroup`) reads from that field's own typed accessor(s) instead of
 /// `member_rows`'s type-erased `RefsetMemberCore` view, which has no
 /// column to test — `member_rows` still supplies every *other* filter in
 /// the same block, via each typed row's own `core`, so "one row, all
@@ -286,7 +286,9 @@ fn member_row_matches(
     if filters.iter().any(|f| {
         matches!(
             f,
-            MemberFilterKind::MapTarget(_) | MemberFilterKind::CorrelationId(_)
+            MemberFilterKind::MapTarget(_)
+                | MemberFilterKind::CorrelationId(_)
+                | MemberFilterKind::MapGroup(_)
         )
     }) {
         return typed_map_row_matches(
@@ -306,23 +308,40 @@ fn member_row_matches(
                 && filters
                     .iter()
                     .zip(prepared)
-                    .all(|(f, p)| member_filter_matches(f, p, row, None, None))
+                    .all(|(f, p)| member_filter_matches(f, p, row, &TypedFields::default()))
         })
 }
 
-/// The `mapTarget`/`correlationId` branch of [`member_row_matches`]: both
-/// exist only on `SimpleMapRefsetMember`/`ExtendedMapRefsetMember` (and
-/// `correlationId` only on the latter — `SimpleMapRefsetMember` has no
-/// such column), so a block naming either is tested against those two
-/// typed row sets rather than `member_rows`. Testing both sets whenever
-/// *either* field-filter kind appears (rather than computing the exact
-/// type each filter needs) is deliberately simple, not merely
+/// Refset-type-specific column values on the typed row currently being
+/// tested by [`member_filter_matches`] — `None` for whichever this row's
+/// source doesn't carry. Bundled into one struct, rather than growing
+/// `member_filter_matches`'s parameter list by one more `Option` for
+/// every `memberFieldFilter` column this crate implements: `mapTarget`
+/// is the only one so far shared by `SimpleMap` and `ExtendedMap`, so
+/// every field added after it (`correlationId`, `mapGroup`, …) is
+/// `ExtendedMap`-only and adds one more field here instead of one more
+/// function parameter everywhere.
+#[derive(Default)]
+struct TypedFields<'a> {
+    map_target: Option<&'a str>,
+    correlation_id: Option<SctId>,
+    map_group: Option<u32>,
+}
+
+/// The `mapTarget`/`correlationId`/`mapGroup` branch of
+/// [`member_row_matches`]: all three exist only on
+/// `SimpleMapRefsetMember`/`ExtendedMapRefsetMember` (and
+/// `correlationId`/`mapGroup` only on the latter — `SimpleMapRefsetMember`
+/// has no such columns), so a block naming any of them is tested against
+/// those two typed row sets rather than `member_rows`. Testing both sets
+/// whenever *any* field-filter kind appears (rather than computing the
+/// exact type each filter needs) is deliberately simple, not merely
 /// convenient: a `SimpleMap` row tested against a block that also names
-/// `correlationId` fails that filter on its own — `member_filter_matches`
-/// returns `false` for a column the row's source doesn't carry — so it
-/// can never wrongly match. The only cost of the wider test is a handful
-/// of wasted lookups against a row set that turns out empty for this
-/// `(refset_id, component_id)`.
+/// `correlationId`/`mapGroup` fails that filter on its own —
+/// `member_filter_matches` returns `false` for a column the row's source
+/// doesn't carry — so it can never wrongly match. The only cost of the
+/// wider test is a handful of wasted lookups against a row set that turns
+/// out empty for this `(refset_id, component_id)`.
 fn typed_map_row_matches(
     store: &SnapshotStore,
     refset_id: SctId,
@@ -337,7 +356,15 @@ fn typed_map_row_matches(
         .any(|row| {
             (states_active || row.core.active)
                 && filters.iter().zip(prepared).all(|(f, p)| {
-                    member_filter_matches(f, p, &row.core, Some(&row.map_target), None)
+                    member_filter_matches(
+                        f,
+                        p,
+                        &row.core,
+                        &TypedFields {
+                            map_target: Some(&row.map_target),
+                            ..TypedFields::default()
+                        },
+                    )
                 })
         });
     if matches_simple {
@@ -353,8 +380,11 @@ fn typed_map_row_matches(
                         f,
                         p,
                         &row.core,
-                        Some(&row.map_target),
-                        Some(row.correlation_id),
+                        &TypedFields {
+                            map_target: Some(&row.map_target),
+                            correlation_id: Some(row.correlation_id),
+                            map_group: Some(row.map_group),
+                        },
                     )
                 })
         })
@@ -513,16 +543,16 @@ fn prepare_member_filter(filter: &MemberFilterKind, store: &SnapshotStore) -> Pr
 
 /// A single `{{ M ... }}` filter against one member row's shared columns
 /// (`core`) and, for the refset-type-specific kinds, that row's own value
-/// of the column — `None` when the row source doesn't carry it (every
-/// source but `SimpleMap`/`ExtendedMap`'s own rows for `mapTarget`, every
-/// source but `ExtendedMap`'s for `correlationId`) — see
-/// [`MemberFilterKind`] for which kinds are implemented.
+/// of the column in `fields` — `None` when the row source doesn't carry
+/// it (every source but `SimpleMap`/`ExtendedMap`'s own rows for
+/// `mapTarget`, every source but `ExtendedMap`'s for
+/// `correlationId`/`mapGroup`) — see [`MemberFilterKind`] for which kinds
+/// are implemented.
 fn member_filter_matches(
     filter: &MemberFilterKind,
     prepared: &PreparedMemberFilter,
     core: &RefsetMemberCore,
-    map_target: Option<&str>,
-    correlation_id: Option<SctId>,
+    fields: &TypedFields,
 ) -> bool {
     match filter {
         MemberFilterKind::Module(ModuleFilter { negated, .. }) => {
@@ -553,7 +583,7 @@ fn member_filter_matches(
             // caller that ever passes `Some`, so this arm is reachable
             // only when a `MapTarget` filter is evaluated against a row
             // that isn't `SimpleMap`/`ExtendedMap`'s own.
-            let Some(map_target) = map_target else {
+            let Some(map_target) = fields.map_target else {
                 return false;
             };
             let matches = values
@@ -569,10 +599,19 @@ fn member_filter_matches(
             // No `correlation_id` on this row source (every source but
             // `ExtendedMap`'s own, `SimpleMap` included): never matches,
             // same reasoning as `MapTarget`'s `None` case above.
-            let Some(correlation_id) = correlation_id else {
+            let Some(correlation_id) = fields.correlation_id else {
                 return false;
             };
             values.contains(&correlation_id) != *negated
+        }
+        MemberFilterKind::MapGroup(NumericFieldFilter { operator, value }) => {
+            // No `map_group` on this row source (every source but
+            // `ExtendedMap`'s own, `SimpleMap` included): never matches,
+            // same reasoning as `CorrelationId`'s `None` case above.
+            let Some(map_group) = fields.map_group else {
+                return false;
+            };
+            field_numeric_matches(*operator, &map_group.to_string(), value)
         }
     }
 }
@@ -1154,6 +1193,32 @@ fn numeric_matches(operator: NumericComparisonOp, actual: &str, target: &str) ->
     };
     match operator {
         NumericComparisonOp::Eq | NumericComparisonOp::NotEq => a == b,
+        NumericComparisonOp::Le => a <= b,
+        NumericComparisonOp::Lt => a < b,
+        NumericComparisonOp::Ge => a >= b,
+        NumericComparisonOp::Gt => a > b,
+    }
+}
+
+/// The direct-comparison sibling of [`numeric_matches`]: `NotEq` means
+/// genuine inequality here (`a != b`), not `numeric_matches`'s
+/// deliberately-`Eq`-shaped `NotEq` — that special case exists only
+/// because `AttributeComparison::Numeric` negates at the cardinality
+/// level instead (`evaluate_attribute_constraint`'s doc), a mechanism a
+/// `memberFieldFilter` numeric column (`mapGroup`) has no equivalent
+/// of: it compares one row's own field against one literal, the same
+/// shape `EffectiveTimeFilter`'s own comparison already has (which also
+/// treats `!=` as `!(==)`, not a special "same as `=`" case). Reusing
+/// `numeric_matches` here would have silently inverted `mapGroup != #1`
+/// into `mapGroup = #1` — caught by
+/// `member_filter_map_group_comparison_operators` before it shipped.
+fn field_numeric_matches(operator: NumericComparisonOp, actual: &str, target: &str) -> bool {
+    let (Ok(a), Ok(b)) = (actual.parse::<f64>(), target.parse::<f64>()) else {
+        return false;
+    };
+    match operator {
+        NumericComparisonOp::Eq => a == b,
+        NumericComparisonOp::NotEq => a != b,
         NumericComparisonOp::Le => a <= b,
         NumericComparisonOp::Lt => a < b,
         NumericComparisonOp::Ge => a >= b,
@@ -2423,6 +2488,162 @@ mod tests {
         assert_eq!(eval(&mismatched, &store), HashSet::new());
         let matched =
             format!("^ {ICD10_MAP} {{{{ M mapTarget = \"R99\", correlationId = {exact_match} }}}}");
+        assert_eq!(eval(&matched, &store), HashSet::from([MI]));
+    }
+
+    /// `mapGroup` — the third `memberFieldFilter` column, and the first
+    /// to use the numeric grammar shape. `ExtendedMapRefsetMember`-only,
+    /// so this also proves `numeric_matches` (already exercised by
+    /// `eclAttribute`'s own numeric concrete value comparisons) works
+    /// unchanged when reused for a refset-type-specific column. Also
+    /// proves `{{ M }}` after `^R` reaches it, via the same shared
+    /// `member_row_matches` the `^` path uses.
+    #[test]
+    fn member_filter_map_group_matches_extended_map_rows() {
+        let mut b = SnapshotStore::builder();
+        b.add_concept(concept(MI));
+        b.add_extended_map_member(ExtendedMapRefsetMember {
+            core: RefsetMemberCore {
+                id: MemberId::parse("80000000-0000-4000-8000-00000000008a").unwrap(),
+                effective_time: EffectiveTime::new_unchecked(20190731),
+                active: true,
+                module_id: constants::CORE_MODULE,
+                refset_id: ICD10_MAP,
+                referenced_component_id: MI,
+            },
+            map_group: 2,
+            map_priority: 1,
+            map_rule: String::new(),
+            map_advice: String::new(),
+            map_target: "I21.9".to_string(),
+            correlation_id: constants::CORE_MODULE,
+            map_category_id: constants::CORE_MODULE,
+        });
+        let store = b.build();
+
+        assert_eq!(
+            eval("^ 447562003 {{ M mapGroup = #1 }}", &store),
+            HashSet::new(),
+            "the row's own mapGroup doesn't match"
+        );
+        assert_eq!(
+            eval("^ 447562003 {{ M mapGroup = #2 }}", &store),
+            HashSet::from([MI])
+        );
+        // `^R` reaches the same row, through the shared row-matching path.
+        assert_eq!(
+            eval(&format!("^R {MI} {{{{ M mapGroup = #2 }}}}"), &store),
+            HashSet::from([ICD10_MAP])
+        );
+    }
+
+    /// Every `numericComparisonOperator` symbol, not just `=` — proving
+    /// `parse_numeric_field_filter` accepts the full six-symbol set
+    /// `memberFieldFilter`'s numeric shape grants, unlike
+    /// `eclAttribute`'s split parse.
+    #[test]
+    fn member_filter_map_group_comparison_operators() {
+        let mut b = SnapshotStore::builder();
+        b.add_concept(concept(MI));
+        b.add_extended_map_member(ExtendedMapRefsetMember {
+            core: RefsetMemberCore {
+                id: MemberId::parse("80000000-0000-4000-8000-00000000008b").unwrap(),
+                effective_time: EffectiveTime::new_unchecked(20190731),
+                active: true,
+                module_id: constants::CORE_MODULE,
+                refset_id: ICD10_MAP,
+                referenced_component_id: MI,
+            },
+            map_group: 2,
+            map_priority: 1,
+            map_rule: String::new(),
+            map_advice: String::new(),
+            map_target: "I21.9".to_string(),
+            correlation_id: constants::CORE_MODULE,
+            map_category_id: constants::CORE_MODULE,
+        });
+        let store = b.build();
+
+        assert_eq!(
+            eval("^ 447562003 {{ M mapGroup != #1 }}", &store),
+            HashSet::from([MI])
+        );
+        assert_eq!(
+            eval("^ 447562003 {{ M mapGroup > #1 }}", &store),
+            HashSet::from([MI])
+        );
+        assert_eq!(
+            eval("^ 447562003 {{ M mapGroup <= #2 }}", &store),
+            HashSet::from([MI])
+        );
+        assert_eq!(
+            eval("^ 447562003 {{ M mapGroup < #2 }}", &store),
+            HashSet::new()
+        );
+    }
+
+    /// `SimpleMapRefsetMember` has no `mapGroup` column at all — a
+    /// membership that exists only there must never match, the same
+    /// "column absent on this row source" case `correlationId` has.
+    #[test]
+    fn member_filter_map_group_never_matches_simple_map_rows() {
+        let mut b = SnapshotStore::builder();
+        b.add_concept(concept(MI));
+        b.add_simple_map_member(SimpleMapRefsetMember {
+            core: RefsetMemberCore {
+                id: MemberId::parse("80000000-0000-4000-8000-00000000008c").unwrap(),
+                effective_time: EffectiveTime::new_unchecked(20190731),
+                active: true,
+                module_id: constants::CORE_MODULE,
+                refset_id: ICD10_MAP,
+                referenced_component_id: MI,
+            },
+            map_target: "I21.9".to_string(),
+        });
+        let store = b.build();
+
+        assert_eq!(
+            eval("^ 447562003 {{ M mapGroup = #1 }}", &store),
+            HashSet::new()
+        );
+    }
+
+    /// "One row, all filters" (spec/10 rule 18) across three
+    /// `memberFieldFilter` kinds together: a row satisfying `mapTarget`
+    /// and `correlationId` but not `mapGroup` must not satisfy a block
+    /// naming all three.
+    #[test]
+    fn member_filter_map_group_conjoins_with_other_field_filters_on_the_same_row() {
+        let exact_match = SctId::compose(1005, ComponentType::Concept, None).unwrap();
+        let mut b = SnapshotStore::builder();
+        b.add_concept(concept(MI));
+        b.add_concept(concept(exact_match));
+        b.add_extended_map_member(ExtendedMapRefsetMember {
+            core: RefsetMemberCore {
+                id: MemberId::parse("80000000-0000-4000-8000-00000000008d").unwrap(),
+                effective_time: EffectiveTime::new_unchecked(20190731),
+                active: true,
+                module_id: constants::CORE_MODULE,
+                refset_id: ICD10_MAP,
+                referenced_component_id: MI,
+            },
+            map_group: 1,
+            map_priority: 1,
+            map_rule: String::new(),
+            map_advice: String::new(),
+            map_target: "I21.9".to_string(),
+            correlation_id: exact_match,
+            map_category_id: constants::CORE_MODULE,
+        });
+        let store = b.build();
+
+        let mismatched = format!(
+            "^ {ICD10_MAP} {{{{ M mapTarget = \"I21.9\", correlationId = {exact_match}, mapGroup = #2 }}}}"
+        );
+        assert_eq!(eval(&mismatched, &store), HashSet::new());
+        let matched = format!(
+            "^ {ICD10_MAP} {{{{ M mapTarget = \"I21.9\", correlationId = {exact_match}, mapGroup = #1 }}}}"
+        );
         assert_eq!(eval(&matched, &store), HashSet::from([MI]));
     }
 
