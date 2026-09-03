@@ -209,6 +209,13 @@ doesn't exist, so renumbering a spec can't silently leave stale pointers
 behind. See [`plan.md`](plan.md) for the roadmap by phase and
 [`tasks.md`](tasks.md) for what's currently scoped next.
 
+**Using Claude Code against this repository?** Two project-scoped skills
+codify the two workflows above: `.claude/skills/snomed-skill/` for
+everyday SNOMED CT tasks (the CLI, the crates as a library, ECL), and
+`.claude/skills/snomed-rust-maintainer-skill/` for changing this
+repository's own code — the spec-first cadence, the grammar-confirmation
+step, the verification checklist, and cutting a release.
+
 ## License
 
 Code: dual-licensed under [Apache-2.0](LICENSE-APACHE) or [MIT](LICENSE-MIT),

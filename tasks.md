@@ -21,6 +21,46 @@ most recently on 2026-09-03, to keep this file inside the repository's
 40 KB per-document budget. Search both when asking "has this come up
 before".
 
+## Done (2026-09-03, two Claude Code skills: `snomed-skill`, `snomed-rust-maintainer-skill`)
+
+- [x] **`.claude/skills/snomed-skill/SKILL.md`** — for end users of SNOMED
+      CT and this crate: the `snomed-cli` subcommand table (pulled from
+      the binary's own `usage()` text, not retyped from memory), using the
+      crates as a library (the facade crate's own doctest example), an
+      ECL quick reference pointing at `spec/10-ecl*.md` for the full
+      grammar, and the licensing/trademark notice verbatim from
+      `README.md`.
+- [x] **`.claude/skills/snomed-rust-maintainer-skill/SKILL.md`** — for
+      maintainers changing this repository's own code: the spec-first
+      cadence, the "confirm grammar against the official source before
+      implementing" step (citing the `mapTarget`/`correlationId`/
+      `mapGroup` history as the concrete reason this rule exists), the
+      one-construct-at-a-time increment shape, the verification command
+      block, the `tasks.md` archiving pattern, the commit/push/CI-confirm
+      steps, and the release process under
+      `spec/ai-release-authority/index.md`. Deliberately a *procedure*
+      that points into `CLAUDE.md`/`agents/*.md`/`spec/`/`GOVERNANCE.md`
+      rather than restating their content, so it can't drift from them.
+- [x] **Caught by `spec_citations` before commit**: a first draft named
+      the trademark-notice policy directory right next to the word the
+      citation checker's `spec/<token>` + nearby `" rule "` detector
+      watches for, in the verification checklist — read as a citation to
+      a numbered rule in a spec file named for that policy, which doesn't
+      exist under that name (it's an `index.md` inside a directory, a
+      directory-style policy the checker's `specs` map doesn't index at
+      all, by design — only flat `spec/*.md` files carry numbered rules).
+      The exact same false-positive class the AI-release-authority spec's
+      own draft hit earlier this session. Reworded to avoid the adjacency
+      rather than change the checker.
+- [x] **Registered both skills** where the project's other AI-facing
+      process docs are: `README.md`'s Development section, and
+      `llms.txt`/`llms.json`'s Process section (both root files; the
+      `snomed-rust.github.io/` static copies are a separate, later sync,
+      not done here).
+- [x] Verified: `bin/check-docs` (99 documents), `bin/check-trademarks`,
+      `spec_citations`, `cargo test --all` (397, unaffected — docs-only
+      change), clippy `-D warnings`, `fmt --check`.
+
 ## Done (2026-09-03, Release 0.17.0 — `memberFieldFilter`'s `mapGroup`, fifth self-decided release)
 
 - [x] **Decided and executed the release itself**, per §1-5 of

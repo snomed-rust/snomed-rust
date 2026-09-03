@@ -66,6 +66,8 @@ The project homepage serves website-appropriate versions of this file at
 - [plan.md](plan.md): roadmap by phase, with the *why* behind non-obvious decisions
 - [tasks.md](tasks.md): execution checklist, more granular than `plan.md`
 - [CHANGELOG.md](CHANGELOG.md): what changed per published release
+- [.claude/skills/snomed-skill/SKILL.md](.claude/skills/snomed-skill/SKILL.md): Claude Code skill for everyday SNOMED CT tasks (CLI, library, ECL)
+- [.claude/skills/snomed-rust-maintainer-skill/SKILL.md](.claude/skills/snomed-rust-maintainer-skill/SKILL.md): Claude Code skill for changing this repository's own code
 
 ## Optional
 
