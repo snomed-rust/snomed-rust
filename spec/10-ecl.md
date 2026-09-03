@@ -379,8 +379,10 @@ has the filter-by-filter prose; rule 18 below is the normative summary).
 member type shares (`RefsetMemberCore`, spec/08) — and reuse the exact
 same `ModuleFilter`/`EffectiveTimeFilter`/`ActiveFilter` shapes `{{ C }}`
 already has, for both `^` and `^R`. The fourth alternative,
-`memberFieldFilter` (a refset-type-specific column such as `mapTarget`),
-is not — see `spec/10-ecl-unimplemented.md`.
+`memberFieldFilter`, has one kind implemented — `mapTarget`, a
+refset-type-specific column on `SimpleMap`/`ExtendedMap` rows, also for
+both `^` and `^R` — every other column is not; see
+`spec/10-ecl-unimplemented.md`.
 
 Grammatically, `memberFilterConstraint` sits *inside* the
 `refsetOperator` branch, not in the trailing `*(conceptFilterConstraint |
