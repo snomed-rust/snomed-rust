@@ -201,10 +201,15 @@ the existing sixteen have both — one without the other leaves a type
 with an active-only accessor but no way for `snomed-ecl` to ever reach
 its inactive rows.
 
-`snomed-ecl`'s `mapTarget` filter (`spec/10-ecl.md` rule 18) is the
-first consumer: it dispatches directly to `simple_map_member_rows`/
-`extended_map_member_rows` rather than going through `member_rows`, and
-every future `memberFieldFilter` column on another type reads its own
+`snomed-ecl`'s `mapTarget` and `correlationId` filters (`spec/10-ecl.md`
+rule 18) are the first two consumers: both dispatch directly to
+`simple_map_member_rows`/`extended_map_member_rows` rather than going
+through `member_rows` (`correlationId` only ever matches an
+`extended_map_member_rows` row — `simple_map_member_rows`' own type has
+no such column — but both are still tested whenever either filter kind
+appears in a block, since a row missing the column simply fails that
+filter rather than needing its own excluded code path). Every future
+`memberFieldFilter` column on another type reads its own
 `*_member_rows` accessor the same way — the store side is done for all
 sixteen types; each remaining column is a `snomed-ecl` parser/eval
 increment only.

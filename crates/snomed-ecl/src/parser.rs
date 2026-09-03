@@ -417,11 +417,17 @@ impl Parser {
     /// tokenized for `{{ C }}`, so no new lexer keywords were needed for
     /// them. The fourth, `memberFieldFilter`, is `refsetFieldName` —
     /// `1*alpha` in the official grammar, not a fixed keyword list, so it
-    /// lexes as a plain `TokenKind::Word` — and only the one spelling
-    /// this crate implements, `mapTarget` (spec/10 rule 18), is
-    /// recognized here; any other word falls through to the generic
-    /// "unexpected keyword" bucket rule 9 describes rather than being
-    /// named.
+    /// lexes as a plain `TokenKind::Word` — and only the two spellings
+    /// this crate implements, `mapTarget` and `correlationId` (spec/10
+    /// rule 18), are recognized here; any other word falls through to
+    /// the generic "unexpected keyword" bucket rule 9 describes rather
+    /// than being named. `correlationId (=|!=) subExpressionConstraint`
+    /// reuses `moduleId`'s own parse shape verbatim (both are
+    /// `booleanComparisonOperator`-spelled `=`/`!=`, confirmed against
+    /// the official ABNF, even though `moduleFilter` and
+    /// `memberFieldFilter` name that operator differently —
+    /// `booleanComparisonOperator` vs. `expressionComparisonOperator` —
+    /// the two productions are the same two symbols).
     fn parse_member_filter_kind(&mut self) -> Result<MemberFilterKind, EclError> {
         match &self.peek().kind {
             TokenKind::ModuleIdKeyword => {
@@ -454,11 +460,20 @@ impl Parser {
                 let values = self.parse_typed_search_term_set()?;
                 Ok(MemberFilterKind::MapTarget(TermFilter { negated, values }))
             }
+            TokenKind::Word(word) if word == "correlationId" => {
+                self.advance()?;
+                let negated = self.parse_boolean_comparison_operator()?;
+                let value = self.parse_sub_expression_constraint()?;
+                Ok(MemberFilterKind::CorrelationId(ModuleFilter {
+                    negated,
+                    value: Box::new(value),
+                }))
+            }
             _ => {
                 let tok = self.peek().clone();
                 Err(Self::unexpected(
                     &tok,
-                    "`moduleId`, `effectiveTime`, `active`, or `mapTarget`",
+                    "`moduleId`, `effectiveTime`, `active`, `mapTarget`, or `correlationId`",
                 ))
             }
         }
@@ -1594,13 +1609,36 @@ mod tests {
         assert_eq!(values[0].search_type, crate::ast::SearchType::Match);
     }
 
-    /// A field name this crate doesn't recognize (`correlationId`, say)
-    /// falls to the generic bucket, not `NotYetImplemented` — the same
+    /// `correlationId` (spec/10 rule 18) — the second `memberFieldFilter`
+    /// column implemented, and the first to use the "concept reference"
+    /// grammar shape (`expressionComparisonOperator ws
+    /// subExpressionConstraint`, the same two symbols and the same
+    /// production `moduleId`'s own filter uses) rather than `mapTarget`'s
+    /// string-search shape.
+    #[test]
+    fn parses_member_filter_correlation_id() {
+        let EC::MemberFilter { filters, .. } =
+            parse("^ 447562003 {{ M correlationId = 900000000000207008 }}").unwrap()
+        else {
+            panic!("expected a member filter");
+        };
+        assert_eq!(filters.len(), 1);
+        let crate::ast::MemberFilterKind::CorrelationId(crate::ast::ModuleFilter {
+            negated, ..
+        }) = &filters[0]
+        else {
+            panic!("expected a CorrelationId filter, got {:?}", filters[0]);
+        };
+        assert!(!negated);
+    }
+
+    /// A field name this crate doesn't recognize (`order`, say) falls to
+    /// the generic bucket, not `NotYetImplemented` — the same
     /// "genuinely unimplemented" distinction rule 9 draws elsewhere.
     #[test]
     fn rejects_an_unrecognized_member_field_filter_generically() {
         assert!(matches!(
-            parse("^ 447562003 {{ M correlationId = 900000000000207008 }}"),
+            parse("^ 447562003 {{ M order = #1 }}"),
             Err(EclError::UnexpectedKeyword { .. })
         ));
     }

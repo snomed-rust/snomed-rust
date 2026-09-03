@@ -77,25 +77,36 @@ token shape:
   reaches a second bare concept reference. Note it is a *spelling* gap,
   not a capability one: `moduleId = (id1 OR id2)` already works and means
   the same thing (see "Concept filter constraint" above).
-- A member filter's `memberFieldFilter` kind other than `mapTarget` — a
-  refset-type-specific column (`correlationId`, `order`, …), as opposed
-  to the three shared-column kinds (`moduleId`/`effectiveTime`/`active`)
-  implemented 2026-09-01 after both `^` and `^R`. `refsetFieldName` is
-  `1*alpha` in the official
-  grammar (confirmed against the ABNF, not a fixed keyword list), so any
-  bare word lexes as `TokenKind::Word` and falls to the parser's generic
+- A member filter's `memberFieldFilter` kind other than `mapTarget`/
+  `correlationId` — a refset-type-specific column (`order`,
+  `domainConstraint`, …), as opposed to the three shared-column kinds
+  (`moduleId`/`effectiveTime`/`active`) implemented 2026-09-01 after both
+  `^` and `^R`. `refsetFieldName` is `1*alpha` in the official grammar
+  (confirmed against the ABNF, not a fixed keyword list), so any bare
+  word lexes as `TokenKind::Word` and falls to the parser's generic
   `UnexpectedKeyword`/`UnexpectedToken` — the same bucket a `{{ D }}`
   language code lexes into when it isn't one this crate recognizes.
-  `mapTarget` itself — the field on `SimpleMapRefsetMember`/
-  `ExtendedMapRefsetMember` — is implemented (2026-09-03), after both
-  `^` and `^R`, as the first `memberFieldFilter` kind: see
+  `memberFieldFilter` is itself not one grammar shape but five, chosen by
+  the named column's own semantic type (confirmed against the ABNF, not
+  assumed): `expressionComparisonOperator ws subExpressionConstraint` (a
+  concept reference), `numericComparisonOperator ws "#" numericValue`,
+  `stringComparisonOperator ws (typedSearchTerm | typedSearchTermSet)`,
+  `booleanComparisonOperator ws booleanValue`, or `timeComparisonOperator
+  ws (timeValue | timeValueSet)`. `mapTarget` — the string-search shape,
+  on `SimpleMapRefsetMember`/`ExtendedMapRefsetMember` — was implemented
+  first (2026-09-03), after both `^` and `^R`; `correlationId` — the
+  concept-reference shape, on `ExtendedMapRefsetMember` only, since
+  `SimpleMapRefsetMember` has no such column — followed the same day, the
+  first proof that the shape genuinely varies by column rather than
+  every `memberFieldFilter` reusing `mapTarget`'s string grammar. See
   `SnapshotStore::simple_map_member_rows`/`extended_map_member_rows` and
   spec/09 rule 4. Decided 2026-09-03 in `plan.md`'s "Open decisions":
   retain active-and-inactive typed rows for all sixteen non-Simple/
   Language refset types (not just SimpleMap/ExtendedMap), so the same
   retention now backs every future `memberFieldFilter` column on those
-  types too — each remaining column is a parser/eval increment only, not
-  a further store decision.
+  types too — each remaining column is a parser/eval increment only
+  (plus, per column, confirming which of the five grammar shapes it
+  actually uses), not a further store decision.
 - The `dialectIdSet` spelling (`{{ D dialectId = (X Y) }}`), for the same
   reason and with the same workaround shape: one `dialectId` per block,
   or an `OR` of two blocks.

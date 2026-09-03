@@ -45,13 +45,15 @@ constraints (`{{ D ... }}`, `term`/`type`/`active`) are implemented too,
 and so is a **member filter constraint** (`{{ M ... }}`, restricting
 `^`'s referenced components — or `^R`'s result refsets — to those with a
 member row matching — `moduleId`/`effectiveTime`/`active`, the columns
-every refset member type shares, plus one `memberFieldFilter` kind,
-`mapTarget`, a refset-type-specific column tested against
-`SimpleMapRefsetMember`/`ExtendedMapRefsetMember`'s own typed rows).
+every refset member type shares, plus two `memberFieldFilter` kinds,
+`mapTarget` (a string search against
+`SimpleMapRefsetMember`/`ExtendedMapRefsetMember`'s own typed rows) and
+`correlationId` (a concept reference against
+`ExtendedMapRefsetMember`'s own typed rows only)).
 Boolean concrete value comparisons (not
 representable in RF2 — see below), `moduleId`'s
 `eclConceptReferenceSet` spelling, every other `memberFieldFilter`
-column (`correlationId`, `order`, …), the
+column (`order`, `domainConstraint`, …), the
 remaining description filter kinds (the `dialect` alias form), the
 history supplement, and alternate identifiers are **out of scope for this
 version** — see
@@ -379,9 +381,17 @@ has the filter-by-filter prose; rule 18 below is the normative summary).
 member type shares (`RefsetMemberCore`, spec/08) — and reuse the exact
 same `ModuleFilter`/`EffectiveTimeFilter`/`ActiveFilter` shapes `{{ C }}`
 already has, for both `^` and `^R`. The fourth alternative,
-`memberFieldFilter`, has one kind implemented — `mapTarget`, a
-refset-type-specific column on `SimpleMap`/`ExtendedMap` rows, also for
-both `^` and `^R` — every other column is not; see
+`memberFieldFilter`, is not one shape but five, chosen by the named
+column's own semantic type (confirmed against the official ABNF):
+`expressionComparisonOperator ws subExpressionConstraint` for a concept
+reference, `numericComparisonOperator ws "#" numericValue`,
+`stringComparisonOperator ws (typedSearchTerm | typedSearchTermSet)`,
+`booleanComparisonOperator ws booleanValue`, or `timeComparisonOperator
+ws (timeValue | timeValueSet)`. Two columns are implemented, each a
+different shape: `mapTarget` (the string-search shape,
+`SimpleMap`/`ExtendedMap` rows) and `correlationId` (the
+concept-reference shape, `ExtendedMap` rows only) — both for both `^`
+and `^R`. Every other column, and every other shape, is not; see
 `spec/10-ecl-unimplemented.md`.
 
 Grammatically, `memberFilterConstraint` sits *inside* the
@@ -655,13 +665,15 @@ still governs it: nothing on that list may be silently accepted.
     spec/09 rule 4) rather than reusing `^`'s. `{{ M ... }}` written
     anywhere else MUST be a parse error, never silently ignored or
     evaluated as a `{{ C }}`/`{{ D }}` block. A `memberFieldFilter`
-    (a refset-type-specific column — `mapTarget` is the only one
-    implemented) MUST be tested against the typed row(s) that column
-    actually exists on (`SnapshotStore::simple_map_member_rows`/
-    `extended_map_member_rows` for `mapTarget`), never against
-    `member_rows`'s type-erased `RefsetMemberCore` view, which has no
-    such column — and every other filter in the same block MUST be
-    tested against that *same* typed row's shared columns, per the "one
-    row, all filters" rule above; a block MUST NOT be satisfied by a
-    shared-column filter matching one row while a field filter matches a
-    different one.
+    (a refset-type-specific column — `mapTarget` and `correlationId` are
+    the two implemented) MUST be tested against the typed row(s) that
+    column actually exists on (`SnapshotStore::simple_map_member_rows`
+    and `extended_map_member_rows` for `mapTarget`; `extended_map_member_rows`
+    only for `correlationId`, since `SimpleMapRefsetMember` has no such
+    column), never against `member_rows`'s type-erased `RefsetMemberCore`
+    view, which has no such column — and every other filter in the same
+    block MUST be tested against that *same* typed row's shared columns,
+    per the "one row, all filters" rule above; a block MUST NOT be
+    satisfied by a shared-column filter matching one row while a field
+    filter matches a different one, nor by two field filters each
+    matching a different row.

@@ -9,13 +9,65 @@ Entries from before 2026-08-27 (the standing spec-citation guard through
 outreach research and root document set), plus the 2026-08-27 commit/tag
 signing setup, the whole 2026-08-28 sitting (CI runner-headroom,
 forge-verification, funding, Trusted Publishing, and Phase 10's
-retirement), Dependabot plus release 0.12.0 (2026-08-29/30), and the
+retirement), Dependabot plus release 0.12.0 (2026-08-29/30), the
 2026-08-30 documentation-harmonization audit plus
-`spec/llms-json-and-llms-txt/`, live in
+`spec/llms-json-and-llms-txt/`, and the 2026-08-31 sitting
+(`spec/node-current-version/`, `spec/monorepo-github-pages/`, `make
+github-pages`), live in
 [`docs/tasks-archive.md`](docs/tasks-archive.md) — moved there verbatim,
 most recently on 2026-09-03, to keep this file inside the repository's
 40 KB per-document budget. Search both when asking "has this come up
 before".
+
+## Done (2026-09-03, ECL `{{ M ... }}` `memberFieldFilter`: `correlationId`, second column, first concept-reference shape)
+
+- [x] **Confirmed `memberFieldFilter`'s own grammar against the official
+      ABNF before implementing** (`syntax/abnf-brief.txt`, GitHub
+      `IHTSDO/snomed-expression-constraint-language`) rather than assuming
+      every remaining column reuses `mapTarget`'s string-search shape —
+      it doesn't: `memberFieldFilter` is one of five productions, chosen
+      by the named column's own semantic type
+      (`expressionComparisonOperator ws subExpressionConstraint` for a
+      concept reference, `numericComparisonOperator ws "#" numericValue`,
+      `stringComparisonOperator ws (typedSearchTerm | typedSearchTermSet)`
+      — `mapTarget`'s shape, `booleanComparisonOperator ws booleanValue`,
+      or `timeComparisonOperator ws (timeValue | timeValueSet)`). Fixed a
+      stale `spec/10-ecl.md` paragraph in the same pass that had been
+      missed in the `mapTarget` change and still said `memberFieldFilter`
+      "is not" implemented, unqualified.
+- [x] **`snomed-ecl`**: `MemberFilterKind::CorrelationId(ModuleFilter)` —
+      `correlationId (=|!=) subExpressionConstraint`, reusing
+      `ModuleFilter`'s exact shape since it's the identical production
+      `moduleId`'s own filter uses (`booleanComparisonOperator` and
+      `expressionComparisonOperator` are the same two symbols, `=`/`!=`,
+      confirmed against the ABNF). Only `ExtendedMapRefsetMember` carries
+      a `correlationId` column — `SimpleMapRefsetMember` does not — so a
+      block naming it never matches a `SimpleMap` row.
+- [x] **Generalized `member_row_matches`'s dispatch** (renamed
+      `map_target_row_matches` → `typed_map_row_matches`) to trigger on
+      *either* `MapTarget` or `CorrelationId` appearing in a block, and
+      `member_filter_matches` to take both a `map_target: Option<&str>`
+      and a `correlation_id: Option<SctId>` alongside `core` — tests both
+      `SimpleMap` and `ExtendedMap` rows whenever either field-filter kind
+      appears, rather than computing the exact type each filter needs: a
+      `SimpleMap` row tested against a block naming `correlationId` fails
+      that filter on its own (the column is absent → `None` → `false`),
+      so it can never wrongly match, and a block naming *both* `mapTarget`
+      and `correlationId` still enforces "one row, all filters" (spec/10
+      rule 18) correctly without new type-intersection logic. Works after
+      both `^` and `^R` in one increment, same as `mapTarget`.
+- [x] Four new tests (one parser, three eval: matches after `^`/`^R`,
+      never matches a `SimpleMap`-only row, conjoins with `mapTarget` on
+      the same row per "one row, all filters"). 392/392 tests passing (up
+      from 388).
+- [x] Docs updated to match: `spec/10-ecl.md` (rule 18, the summary
+      paragraph, and the stale "is not" paragraph above rule 18),
+      `spec/10-ecl-filters.md`, `spec/10-ecl-unimplemented.md`,
+      `crates/snomed-ecl/src/lib.rs`, `agents/ecl-engineer.md`,
+      `agents/store-engineer.md`, `plan.md` (Open decisions, Current
+      status test count).
+- [x] `cargo clippy --all-targets`, `cargo fmt --check`, `fuzz/`/`benches/`
+      all build clean.
 
 ## Done (2026-09-03, Release 0.15.0 — `memberFieldFilter`'s `mapTarget`, third self-decided release)
 
@@ -347,125 +399,19 @@ before".
       step; `plan.md`'s decision bullet moved out of "Open decisions" and
       folded into "Current status"'s ECL-growth paragraph.
 
-## Done (2026-08-31, `Makefile`: `make github-pages` target)
-
-- [x] Added `make github-pages` -> `git subtree push
-      --prefix=snomed-rust.github.io github-pages main`, the plain
-      `git subtree push` porcelain called for verbatim in
-      `spec/monorepo-github-pages/index.md`, alongside the existing
-      `publish` target (manual split + `--force-with-lease`, which stays
-      the day-to-day one — a bare `git subtree push` refuses on a
-      non-fast-forward rather than safely forcing past it).
-- [x] Adapted the two placeholder names in the spec's example command to
-      this repo's real ones: `snomed-rust.github.io` for the prefix
-      (not the sibling project's `fhir-rust.github.io` the spec's
-      example used), and a **new** `github-pages` remote — added
-      locally with `git remote add github-pages
-      git@github.com:snomed-rust/snomed-rust.github.io.git` — rather
-      than reusing the existing `pages` remote `publish` already uses,
-      per the maintainer's explicit correction mid-task.
-- [x] Verified without actually publishing: `git subtree split -q
-      --prefix=snomed-rust.github.io` succeeds standalone (the read-only
-      half of what the target does), and `make -n github-pages`/
-      `make -n publish` both print the expected commands. Did not run a
-      real push — that deploys the live site, an outward-facing action
-      left for the maintainer to trigger.
-- [x] Documented the new target in `CLAUDE.md`'s Commands section.
-- [x] **Revised same day, per the maintainer**: moved the command into a
-      standalone POSIX script, `bin/make-github-pages` (`#!/bin/sh`,
-      `set -eu`); `github-pages:` just runs it now. Fixed an obvious typo
-      in the requested script name (`make-githhub-pages` ->
-      `make-github-pages`), flagged rather than silently carried through.
-      Dropped the now-unused `GITHUB_PAGES_REMOTE` Makefile var — the
-      script hardcodes prefix and remote itself. `shellcheck -s sh` clean;
-      confirmed `ci.yml` never globs `bin/*` (only calls `check-docs`/
-      `check-trademarks` by name), so this can't run unintended in CI.
-- [x] Verified: `bin/check-docs`, `bin/check-trademarks`.
-
-## Done (2026-08-31, `spec/monorepo-github-pages/`: read-only sibling export)
-
-- [x] Read `spec/monorepo-github-pages/index.md` (new, 16th project
-      policy): the GitHub Pages site publishes by using `git subtree` to
-      derive a sibling read-only export repo at
-      `~/git/<organization>/<repo>.github.io`; that sibling is never
-      edited directly.
-- [x] `Makefile`'s `publish` target already implements the export
-      mechanism itself (`git subtree split --prefix=snomed-rust.github.io`
-      piped straight to the `pages` remote) — no change needed there.
-- [x] What was missing: the literal local sibling directory the spec
-      describes. Cloned `git@github.com:snomed-rust/snomed-rust.github.io.git`
-      to `~/git/snomed-rust/snomed-rust.github.io`, a sibling of this
-      monorepo checkout — a plain read-only clone, kept in sync with an
-      ordinary `git pull` after each `make publish`, never a place to
-      commit from directly.
-- [x] Added a note to `snomed-rust.github.io/README.md` itself (which
-      becomes that exported repo's own root README via the same subtree)
-      so anyone who lands on the standalone `snomed-rust.github.io` repo,
-      not just contributors reading the monorepo, sees the "read-only,
-      edit the source instead" rule.
-- [x] **Registered the new policy**: `spec/README.md`'s table and prose
-      count (fifteen → sixteen). Also caught that the *previous* policy
-      addition (`node-current-version`, same day) missed `index.md`'s
-      **second** policy table — the "Spec → crate map" section further
-      down has its own independent count and table that duplicates
-      `spec/README.md`'s, and it had drifted to "Fourteen further" with
-      `node-current-version` entirely absent. Fixed both rows and the
-      count there in the same change, rather than let it drift further.
-- [x] Verified: `bin/check-docs`, `bin/check-trademarks` — both pass.
-
-## Done (2026-08-31, `spec/node-current-version/`: pin the site's Node.js version)
-
-- [x] Read `spec/node-current-version/index.md` (new, 15th project policy):
-      current Node major is 26; enforce it in `snomed-rust.github.io/`'s CI
-      and local install, and pin local dev tooling files if they exist.
-- [x] **`deploy.yml`**: `actions/setup-node`'s `node-version: 22` → `26`.
-- [x] **`package.json`**: added `engines.node: "=26"` (the spec's exact
-      syntax).
-- [x] **`.npmrc`**: already had `engine-strict=true` from an earlier
-      change — no edit needed, but it turned out to be inert under pnpm
-      11 (see next item).
-- [x] **Caught, mid-verification, that `.npmrc`'s `engine-strict` doesn't
-      do anything on pnpm 11**: `pnpm config get engine-strict` came back
-      `undefined`, and an install under Node 25 only warned
-      (`Unsupported engine: ...`) instead of failing. pnpm 11 moved this
-      setting out of `.npmrc` into `pnpm-workspace.yaml` as `engineStrict`
-      (this project already has camelCase settings there —
-      `allowBuilds`/`onlyBuiltDependencies`/`overrides` — so it's already
-      on the current pnpm 11 config model). Added `engineStrict: true`
-      there, with a comment explaining why both files carry a
-      same-sounding setting.
-- [x] **`.nvmrc`, `.tool-versions`**: neither exists in this project (nor
-      anywhere else in the repo), and the spec's wording for both is
-      conditional on the file already existing — no file created.
-- [x] Verified the spec's own acceptance criteria, not just that the
-      files changed: temporarily installed Node 25.9.0 via `mise`,
-      confirmed `pnpm install --frozen-lockfile` now hard-fails there
-      (`ERR_PNPM_UNSUPPORTED_ENGINE`, exit 1) — before the
-      `pnpm-workspace.yaml` fix it exited 0 with only a warning — then
-      confirmed success back under Node 26.8.1, plus `pnpm run check` and
-      `pnpm run build` green. Uninstalled the Node 25 test install
-      afterward; it was never a project dependency.
-- [x] **Registered the new policy everywhere the other fourteen are**:
-      `spec/README.md`'s policy table (new row) and prose count (fourteen
-      → fifteen), `index.md`'s prose count, `README.md`'s "fourteen
-      project policies" mention. `llms.txt`/`llms.json` weren't touched —
-      their "Project policies" section is an explicitly curated subset
-      (8 of the total), not an exhaustive list with a count to keep in
-      sync.
-- [x] Verified: `bin/check-docs`, `bin/check-trademarks` — both pass
-      unaffected (this change touches no Rust code, so `cargo test`/
-      clippy/fmt weren't rerun).
-
 ## Next up
 
 - [ ] Nothing currently scoped beyond the `{{ M ... }}` remainder below.
       State as of 2026-09-03: **0.15.0 released** — `mapTarget` (the
-      first `memberFieldFilter` column), after both `^` and `^R`. `{{ M
-      ... }}` after `^` (0.13.0), after `^R` (0.14.0), and its
-      `memberFieldFilter` alternative (0.15.0), all decided and executed
-      under `spec/ai-release-authority/`'s criteria rather than a fresh
-      per-release maintainer go-ahead (see `CHANGELOG.md`). 9 crates, 388
-      tests,
+      first `memberFieldFilter` column), after both `^` and `^R`.
+      `correlationId` (the second column, and the first of a genuinely
+      different `memberFieldFilter` grammar shape) landed the same day,
+      **not yet released** (see the Done entry above; release decision
+      pending). `{{ M ... }}` after `^` (0.13.0), after `^R` (0.14.0),
+      and its `memberFieldFilter` alternative (0.15.0), all decided and
+      executed under `spec/ai-release-authority/`'s criteria rather than
+      a fresh per-release maintainer go-ahead (see `CHANGELOG.md`). 9
+      crates, 392 tests,
       clippy/fmt clean on stable, MSRV 1.96 (current
       stable minus two, `spec/rust-msrv-n-minus-2/index.md`), `fuzz/`,
       and `benches/`; 13 fuzz targets; 6 criterion benchmark files; 35
@@ -493,46 +439,74 @@ before".
       the `moduleId`/`effectiveTime`/`active` kinds are done after both
       `^` (2026-09-01) and `^R` (2026-09-02); the fourth grammar
       alternative, `memberFieldFilter`, now has its store-retention
-      decided and its first column, `mapTarget`, done after both `^` and
-      `^R` too (2026-09-03, see Done above). What is still open:
+      decided and two columns done after both `^` and `^R`: `mapTarget`
+      and `correlationId` (2026-09-03, see Done above). What is still
+      open:
       - Every other `memberFieldFilter` column — no longer blocked on a
         store decision (all sixteen non-Simple/Language types already
         retain typed active-and-inactive rows via `*_member_rows`), so
         each is now a free `snomed-ecl` parser/eval increment, same
-        cadence as any other filter kind (`mapTarget`'s own grammar
-        confirmed against the official ABNF before implementation — do
-        the same for whichever is picked up here, not just assume it
-        matches `typedSearchTerm`/`typedSearchTermSet` the way
-        `mapTarget` did). The full remaining list, one bullet per refset
-        type, RF2 column names from `crates/snomed-rf2/src/refset.rs`'s
-        `HEADER` consts (Simple/Language excluded — spec/09 rule 4, they
-        keep no typed rows at all):
-        - Association: `targetComponentId`.
-        - AttributeValue: `valueId`.
-        - ExtendedMap, besides `mapTarget`: `mapGroup`, `mapPriority`,
-          `mapRule`, `mapAdvice`, `correlationId`, `mapCategoryId` — the
-          most likely next pick, being the type `mapTarget` already
-          proved out.
-        - OwlExpression: `owlExpression`.
-        - ModuleDependency: `sourceEffectiveTime`, `targetEffectiveTime`.
-        - RefsetDescriptor: `attributeDescription`, `attributeType`,
-          `attributeOrder`.
-        - DescriptionType: `descriptionFormat`, `descriptionLength`.
+        cadence as any other filter kind. **`memberFieldFilter` is not
+        one grammar shape but five, confirmed against the official ABNF**
+        (`syntax/abnf-brief.txt`) — chosen by the named column's own
+        semantic type: `expressionComparisonOperator ws
+        subExpressionConstraint` (a concept reference — reuse
+        `ModuleFilter`, `correlationId`'s shape), `numericComparisonOperator
+        ws "#" numericValue`, `stringComparisonOperator ws
+        (typedSearchTerm | typedSearchTermSet)` (`mapTarget`'s shape,
+        reuse `TermFilter`), `booleanComparisonOperator ws booleanValue`,
+        or `timeComparisonOperator ws (timeValue | timeValueSet)` — the
+        last three still have no implemented example. Confirm which
+        shape a column actually uses before implementing it; do not
+        assume string search just because `mapTarget` was first. The
+        full remaining list, one bullet per refset type, RF2 column
+        names from `crates/snomed-rf2/src/refset.rs`'s `HEADER` consts
+        (Simple/Language excluded — spec/09 rule 4, they keep no typed
+        rows at all), each annotated with its Rust field type and the
+        grammar shape that type implies:
+        - Association: `targetComponentId` (`SctId` — concept-reference
+          shape).
+        - AttributeValue: `valueId` (`SctId` — concept-reference shape).
+        - ExtendedMap, besides `mapTarget`/`correlationId`: `mapGroup`,
+          `mapPriority` (`u32` — numeric shape); `mapRule`, `mapAdvice`
+          (`String` — string shape); `mapCategoryId` (`SctId` —
+          concept-reference shape) — the most likely next pick, being
+          the type both implemented columns already proved out.
+        - OwlExpression: `owlExpression` (`String` — string shape).
+        - ModuleDependency: `sourceEffectiveTime`, `targetEffectiveTime`
+          (`EffectiveTime` — time shape, no implemented example yet).
+        - RefsetDescriptor: `attributeDescription`, `attributeType`
+          (`SctId` — concept-reference shape); `attributeOrder` (`u32` —
+          numeric shape).
+        - DescriptionType: `descriptionFormat` (`SctId` —
+          concept-reference shape); `descriptionLength` (`u32` — numeric
+          shape).
         - MrcmDomain: `domainConstraint`, `parentDomain`,
           `proximalPrimitiveConstraint`, `proximalPrimitiveRefinement`,
           `domainTemplateForPrecoordination`,
-          `domainTemplateForPostcoordination`, `guideURL`.
-        - MrcmAttributeDomain: `domainId`, `grouped`,
-          `attributeCardinality`, `attributeInGroupCardinality`,
-          `ruleStrengthId`, `contentTypeId`.
-        - MrcmAttributeRange: `rangeConstraint`, `attributeRule`,
-          `ruleStrengthId`, `contentTypeId`.
-        - MrcmModuleScope: `mrcmRuleRefsetId`.
-        - OrderedComponent: `order`.
-        - OrderedAssociation: `targetComponentId`, `order`.
-        - ComponentAnnotation: `languageDialectCode`, `typeId`, `value`.
-        - MemberAnnotation: `referencedMemberId`, `languageDialectCode`,
-          `typeId`, `value`.
+          `domainTemplateForPostcoordination`, `guideURL` (all `String`
+          — string shape).
+        - MrcmAttributeDomain: `domainId`, `ruleStrengthId`,
+          `contentTypeId` (`SctId` — concept-reference shape); `grouped`
+          (`bool` — boolean shape, no implemented example yet);
+          `attributeCardinality`, `attributeInGroupCardinality`
+          (`String` — string shape).
+        - MrcmAttributeRange: `rangeConstraint`, `attributeRule`
+          (`String` — string shape); `ruleStrengthId`, `contentTypeId`
+          (`SctId` — concept-reference shape).
+        - MrcmModuleScope: `mrcmRuleRefsetId` (`SctId` —
+          concept-reference shape).
+        - OrderedComponent: `order` (`u32` — numeric shape).
+        - OrderedAssociation: `targetComponentId` (`SctId` —
+          concept-reference shape); `order` (`u32` — numeric shape).
+        - ComponentAnnotation: `languageDialectCode`, `value` (`String`
+          — string shape); `typeId` (`SctId` — concept-reference shape).
+        - MemberAnnotation: `languageDialectCode`, `value` (`String` —
+          string shape); `typeId` (`SctId` — concept-reference shape);
+          `referencedMemberId` (`MemberId`, a member UUID rather than a
+          concept or a string — which of the five shapes, if any, this
+          maps to hasn't been checked; don't assume `SctId`'s shape works
+          for a non-concept id without confirming).
         Pick up whichever field is actually requested next; this list
         exists so "which fields remain" is answerable without re-reading
         `crates/snomed-rf2/src/refset.rs`, not as a commitment to build

@@ -1,7 +1,7 @@
 # Tasks archive — index
 
 [`tasks.md`](../tasks.md) keeps the current checklist and the recent
-entries; everything older lives here, split into twelve files that each
+entries; everything older lives here, split into thirteen files that each
 stay inside the repository's 40 KB per-document budget. Entries were moved
 verbatim — this is a historical record, not a summary, and it is worth
 searching before assuming a problem is new. The one edit applied since is
@@ -23,6 +23,7 @@ so the paths quoted here still resolve.
 | [`tasks-archive-10.md`](tasks-archive-10.md) | 2026-08-28 | Leaner CI runners (freeing preinstalled toolchain bloat and a `cargo clean --workspace` step, verified locally at 2.0 GiB -> 1.3 GiB); GitHub/GitLab commit-signature verification; `.github/FUNDING.yml` once GitHub Sponsors turned out to already exist; Codeberg closing the last forge-verification gap once its misleadingly-worded error was correctly diagnosed; the Trusted Publishing policy decision; Phase 10 (professionalization)'s bookkeeping retirement from "Next up" |
 | [`tasks-archive-11.md`](tasks-archive-11.md) | 2026-08-29 - 2026-08-30 | Dependabot enabled and verified (repo-level security updates already on, `.github/dependabot.yml` added, the other five sibling repos cross-checked); release 0.12.0, tightening the MSRV policy to current-stable-minus-two (1.96) |
 | [`tasks-archive-12.md`](tasks-archive-12.md) | 2026-08-30 | The five-parallel-audit documentation-harmonization pass (two genuine drift fixes: a stale `spec/01-overview.md` claim, an `agents/rf2-engineer.md` citation, plus three smaller corrections); `spec/llms-json-and-llms-txt/`, publishing `llms.txt`/`llms.json` at the repo root and a distinct link-rewritten pair for the pages site |
+| [`tasks-archive-13.md`](tasks-archive-13.md) | 2026-08-31 | `spec/node-current-version/` (pinning the pages site's Node.js version to 26, and catching that `.npmrc`'s `engine-strict` is inert under pnpm 11); `spec/monorepo-github-pages/` (the read-only sibling export policy); `Makefile`'s `make github-pages` target |
 
 Older entries are shorter and more granular than recent ones: they were
 written a change at a time while the workspace was being built from
