@@ -19,6 +19,32 @@ most recently on 2026-09-03, to keep this file inside the repository's
 40 KB per-document budget. Search both when asking "has this come up
 before".
 
+## Done (2026-09-03, Release 0.16.0 — `memberFieldFilter`'s `correlationId`, fourth self-decided release)
+
+- [x] **Decided and executed the release itself**, per §1-5 of
+      `spec/ai-release-authority/`: §1 CI independently green on the
+      pushed merge commit (`aa6d553`, all six jobs, confirmed via `gh run
+      view` before tagging); §2 `CHANGELOG.md`'s `[Unreleased]` verified
+      against the actual diff and moved under `## [0.16.0]`, minor bump
+      (purely additive: `MemberFilterKind::CorrelationId`, nothing
+      removed or changed signature); §3 no rule oversteps — this ships
+      the `memberFieldFilter` store-retention decision already recorded
+      in `plan.md` as Decided 2026-09-03, `correlationId` being a second
+      concrete field on that same retention, not a new undecided change;
+      §4 all nine crates, one version, standard dependency order; §5
+      tagged `v0.16.0` (signed, verified against the merge commit) and
+      ran `cargo publish` for each crate in order, all nine succeeding
+      cleanly this time (no transient errors, unlike 0.15.0's
+      `snomed-store` 503).
+- [x] **Verified against crates.io's own API afterward**: `GET
+      /api/v1/crates/<name>` for all nine names returns
+      `default_version: "0.16.0"`.
+- [x] Version bumped everywhere the 0.13.0-0.15.0 precedent bumped it:
+      `Cargo.toml` (workspace + seven pins), `CITATION.cff`, `NEWS.md`,
+      `INSTALL.md`, `SECURITY.md`.
+- [x] Same `release/0.16.0` branch/merge shape as 0.12.0-0.15.0, not a
+      direct commit to `main`.
+
 ## Done (2026-09-03, ECL `{{ M ... }}` `memberFieldFilter`: `correlationId`, second column, first concept-reference shape)
 
 - [x] **Confirmed `memberFieldFilter`'s own grammar against the official
@@ -402,13 +428,11 @@ before".
 ## Next up
 
 - [ ] Nothing currently scoped beyond the `{{ M ... }}` remainder below.
-      State as of 2026-09-03: **0.15.0 released** — `mapTarget` (the
-      first `memberFieldFilter` column), after both `^` and `^R`.
-      `correlationId` (the second column, and the first of a genuinely
-      different `memberFieldFilter` grammar shape) landed the same day,
-      **not yet released** (see the Done entry above; release decision
-      pending). `{{ M ... }}` after `^` (0.13.0), after `^R` (0.14.0),
-      and its `memberFieldFilter` alternative (0.15.0), all decided and
+      State as of 2026-09-03: **0.16.0 released** — `mapTarget` (0.15.0)
+      and `correlationId` (0.16.0, the first of a genuinely different
+      `memberFieldFilter` grammar shape), both after `^` and `^R`. `{{ M
+      ... }}` after `^` (0.13.0), after `^R` (0.14.0), and its
+      `memberFieldFilter` alternative (0.15.0, 0.16.0), all decided and
       executed under `spec/ai-release-authority/`'s criteria rather than
       a fresh per-release maintainer go-ahead (see `CHANGELOG.md`). 9
       crates, 392 tests,
