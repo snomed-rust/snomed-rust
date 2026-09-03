@@ -195,27 +195,59 @@ and harmonizes it with the sibling repositories (`hl7-rust`, `er7-rust`,
 - **ECL `{{ M ... }}`'s `memberFieldFilter` kind** (a refset-type-specific
   column: `mapTarget`, `correlationId`, `order`, …) — surfaced 2026-09-01
   while closing the `{{ M ... }}` decision above for its three
-  shared-column kinds. `SnapshotStore::member_rows` (the index that
-  decision added) returns `RefsetMemberCore` only — the six columns every
-  refset type shares — never a type-specific one, and every *typed*
-  per-type accessor this workspace already had (`extended_map_members`,
-  `simple_map_members`, `mrcm_domain_members`, …) is active-only by
-  construction, the same gap `{{ M active = false }}` had before
-  `member_rows` existed. So a query combining `active = false` with a
-  field filter (`{{ M active = false, mapTarget = "22.9" }}`) needs
-  inactive rows retained for whichever types carry that field — the same
-  shape of decision the original `{{ M }}` bullet needed, not yet priced:
-  how much memory, for which of the sixteen non-Simple/Language types
-  (all of them, or only the ones a first field like `mapTarget` touches —
-  `SimpleMap`/`ExtendedMap`), and whether as a second type-erased index
-  (impossible here, since the value being asked about — `map_target` — is
-  a `String`, not one of `RefsetMemberCore`'s six columns, so "type-erased"
-  isn't available the way it was for `moduleId`/`effectiveTime`/`active`)
-  or as an "also keep inactive" sibling per typed accessor. Until this is
-  priced and decided, `memberFieldFilter` stays rejected — not by a fixed
-  keyword list (`refsetFieldName` is `1*alpha`, confirmed against the
-  official ABNF, so any bare word could in principle be one), but because
-  no field name is wired up to evaluate yet.
+  shared-column kinds. `SnapshotStore::member_rows`/`member_refsets` (the
+  indexes that decision added) return `RefsetMemberCore` only — the six
+  columns every refset type shares — never a type-specific one, and every
+  *typed* per-type accessor this workspace already had
+  (`extended_map_members`, `simple_map_members`, `mrcm_domain_members`,
+  …) is active-only by construction, the same gap `{{ M active = false }}`
+  had before `member_rows` existed. So a query combining `active = false`
+  with a field filter (`{{ M active = false, mapTarget = "22.9" }}`)
+  needs inactive rows retained for whichever types carry that field.
+
+  **Priced 2026-09-03** (measured with `std::mem::size_of`, not guessed —
+  no SNOMED CT release content exists in this repo to measure row
+  *counts* against, per CLAUDE.md rule 3, so counts below are stated as
+  estimates from general knowledge of International Edition release
+  sizes, not verified figures):
+  - `SimpleMapRefsetMember` is 80 bytes (`RefsetMemberCore`'s 48 plus one
+    `map_target: String`'s 24-byte header); `ExtendedMapRefsetMember` is
+    144 bytes (48 plus two `u32`s, three `String` headers, two `SctId`s).
+    Both exclude each `String`'s own heap buffer — `mapAdvice` in
+    particular routinely runs 40-100+ bytes of text in a real release
+    (`"ALWAYS <concept> | <term> |"`-style advice), so per-row cost is
+    meaningfully more than `size_of` alone suggests, unlike
+    `RefsetMemberCore`'s all-`Copy` 48 bytes.
+  - Three shapes, none free:
+    1. *Full typed rows, inactive included, for just `SimpleMap`/
+       `ExtendedMap`* (what a first field like `mapTarget` actually
+       touches). The ICD-10 Extended Map alone is commonly cited at
+       roughly 400-450K active rows for a recent International Edition
+       (not independently verifiable here); at ~144 bytes plus heap
+       strings, call it 60-100+ MB for that one refset's active rows,
+       before the inactive minority `{{ M active = false }}` needs.
+       Smallest blast radius, but reaches only the two types anyone has
+       actually named a use case for.
+    2. *Full typed rows, inactive included, for all sixteen non-
+       Simple/Language types* — symmetric with the `member_rows` choice,
+       but the per-row cost is no longer a uniform 48 bytes: MRCM/
+       RefsetDescriptor rows carry several `String`s each
+       (`domainConstraint`, `proximalPrimitiveConstraint`, …), so the
+       ~300 MB precedent figure does not transfer without re-measuring
+       each type. Answers every field, at a cost nobody has priced type
+       by type yet.
+    3. *A field-by-field index* (e.g. `HashMap<(SctId, SctId),
+       Vec<String>>` for `mapTarget` alone, active and inactive, sized
+       for exactly what's asked): cheapest per field, but multiplies the
+       "second index" pattern once per `memberFieldFilter` field a query
+       actually names, rather than reusing one shared structure the way
+       `member_rows`/`member_refsets` do.
+  - Not yet decided which shape, or whether `mapTarget` alone (option 1
+    or 3) is the right first increment versus waiting for a second
+    concrete field request. `memberFieldFilter` stays rejected — not by a
+    fixed keyword list (`refsetFieldName` is `1*alpha`, confirmed against
+    the official ABNF, so any bare word could in principle be one), but
+    because no field name is wired up to evaluate yet.
 
 ## Non-goals (for now)
 

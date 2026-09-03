@@ -523,13 +523,16 @@ before".
         every *typed* per-type accessor (`extended_map_members`,
         `simple_map_members`, …) is active-only by construction, the same
         problem `{{ M active = false }}` had before 2026-09-01's store
-        change. Reaching a field like `mapTarget` with `{{ M active =
-        false, mapTarget = "22.9" }}` needs the same kind of "retain rows,
-        active and inactive" decision the original `{{ M }}` bullet
-        needed — priced how much memory that costs, for which types, and
-        whether per-type or unified — before code, not during it. Priced
-        in `plan.md`'s "Open decisions" (added 2026-09-02); pick this up
-        once that call is made, not before.
+        change. **Priced 2026-09-03** in `plan.md`'s "Open decisions":
+        `SimpleMapRefsetMember`/`ExtendedMapRefsetMember` are measured at
+        80/144 bytes plus each `String` field's own heap buffer (not
+        included in that figure — `mapAdvice` alone routinely runs
+        40-100+ bytes in a real release); three shapes costed there
+        (typed rows for just the two map types, typed rows for all
+        sixteen non-Simple/Language types, or a per-field index). Which
+        shape, and whether `mapTarget` alone is worth building before a
+        second field is actually requested, is still the maintainer's
+        call — pick this up once that's made, not before.
 - [ ] Decisions, not tasks — each needs a call before code:
       - **`$expand` inline `valueSet`** (`snomed-fhir`): shape already
         determined — a typed compose model the caller maps its JSON onto
