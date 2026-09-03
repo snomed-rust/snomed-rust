@@ -13,6 +13,8 @@ together, in dependency order (`snomed-core` → `snomed-rf2` → `snomed-owl`
 
 ## [Unreleased]
 
+## [0.15.0] — 2026-09-03
+
 **New ECL capability, additive.** `{{ M ... }}` gains its fourth grammar
 alternative, `memberFieldFilter`, starting with `mapTarget` — after both
 `^` and `^R`. A minor bump: new public API, no removals or signature
