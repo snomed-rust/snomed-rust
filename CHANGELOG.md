@@ -13,6 +13,34 @@ together, in dependency order (`snomed-core` → `snomed-rf2` → `snomed-owl`
 
 ## [Unreleased]
 
+**New ECL capability, additive.** `{{ M ... }}` gains its fourth grammar
+alternative, `memberFieldFilter`, starting with `mapTarget` — after both
+`^` and `^R`. A minor bump: new public API, no removals or signature
+changes to anything existing.
+
+### Added
+
+- `snomed-ecl`: `{{ M mapTarget = "22.9" }}` restricts to member rows
+  whose own `mapTarget` column matches — the same `match:`/`wild:`/
+  `exact:` search-term grammar `{{ D term }}` uses. Works after both `^`
+  and `^R`, and conjoins with the existing shared-column kinds
+  (`moduleId`/`effectiveTime`/`active`) on the same member row, per the
+  existing "one row, all filters" rule. Only `SimpleMap`/`ExtendedMap`
+  rows carry a `mapTarget`; other refset types never match this filter.
+  New public API: `MemberFilterKind::MapTarget`.
+- `snomed-store`: sixteen new typed, active-and-inactive accessors — one
+  per non-Simple/Language refset type (`association_member_rows`,
+  `simple_map_member_rows`, `extended_map_member_rows`, …) — alongside
+  the existing active-only accessors of the same names minus `_rows`.
+  Decided 2026-08-30's `member_rows` precedent, generalized: pay once for
+  every type up front rather than adding a per-field index later. Purely
+  additive; every existing accessor unchanged.
+
+### Notes for consumers
+
+- No public API removed or changed signature; existing code compiles
+  unmodified against this release.
+
 ## [0.14.0] — 2026-09-02
 
 **New ECL capability, additive.** `{{ M ... }}` after `^R` closes the

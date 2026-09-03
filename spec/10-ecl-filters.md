@@ -150,10 +150,28 @@ for `^`'s form and identical for `^R`'s:
    what makes a retired membership reachable when a query actually wants
    one.
 
-**Not implemented:** the fourth grammar alternative, `memberFieldFilter`
-(a refset-type-specific column such as `mapTarget`/`correlationId` —
-blocked on a store-retention decision of its own, not just an increment;
-see `plan.md`'s "Open decisions") — see `spec/10-ecl-unimplemented.md`.
+The fourth grammar alternative, `memberFieldFilter` (a refset-type-specific
+column), has one kind implemented:
+
+- `mapTarget (=|!=) (typedSearchTerm | typedSearchTermSet)` — the same
+  `match:`/`wild:`/`exact:` search-term grammar `{{ D term }}` uses,
+  matched against the member row's own `mapTarget` column. Only
+  `SimpleMapRefsetMember` and `ExtendedMapRefsetMember` rows carry a
+  `mapTarget`, so this filter is tested against
+  `SnapshotStore::simple_map_member_rows`/`extended_map_member_rows`
+  directly, never against `member_rows`'s type-erased
+  `RefsetMemberCore` view, which has no such column — and the two rules
+  above still hold: a `mapTarget` filter and a shared-column filter in
+  the same block must match the *same* row, and (per rule 2 above) only
+  active rows unless the block says otherwise.
+
+**Not implemented:** every other `memberFieldFilter` column
+(`correlationId`, `order`, and the rest — see
+`spec/10-ecl-unimplemented.md`); the store retention that made
+`mapTarget` possible already covers every non-Simple/Language refset
+type (decided 2026-09-03, `plan.md`'s "Open decisions"), so each
+remaining column is a parser/eval increment only, not a further store
+decision.
 
 ## Description filter constraint (`{{ D ... }}`)
 

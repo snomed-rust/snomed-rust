@@ -6,11 +6,10 @@
 //! `{{ C ... }}`/`{{ D ... }}`/`{{ M ... }}` filter constraints, per
 //! `spec/10-ecl.md`.
 //!
-//! What remains unimplemented (boolean concrete comparisons, a member
-//! filter's refset-type-specific `memberFieldFilter` kind, the history
-//! supplement, alternate identifiers, …) is listed in
-//! `spec/10-ecl-unimplemented.md`. Encountering one is a parse error,
-//! never a silently incomplete result.
+//! What remains unimplemented (boolean concrete comparisons, every
+//! `memberFieldFilter` column but `mapTarget`, the history supplement,
+//! alternate identifiers, …) is listed in `spec/10-ecl-unimplemented.md`.
+//! Encountering one is a parse error, never a silently incomplete result.
 //!
 //! ```
 //! use snomed_ecl::{evaluate, parse};

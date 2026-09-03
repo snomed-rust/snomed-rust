@@ -242,12 +242,25 @@ and harmonizes it with the sibling repositories (`hl7-rust`, `er7-rust`,
        "second index" pattern once per `memberFieldFilter` field a query
        actually names, rather than reusing one shared structure the way
        `member_rows`/`member_refsets` do.
-  - Not yet decided which shape, or whether `mapTarget` alone (option 1
-    or 3) is the right first increment versus waiting for a second
-    concrete field request. `memberFieldFilter` stays rejected — not by a
-    fixed keyword list (`refsetFieldName` is `1*alpha`, confirmed against
-    the official ABNF, so any bare word could in principle be one), but
-    because no field name is wired up to evaluate yet.
+  **Decided 2026-09-03: option 2** (full typed rows, inactive included,
+  for all sixteen non-Simple/Language types) — the same `member_rows`
+  precedent of paying once for the general case rather than
+  reintroducing a "second index per field" pattern. Implemented as
+  sixteen `*_member_rows` accessors alongside the existing active-only
+  ones (`SnapshotStore`, spec/09 rule 4; mechanics in
+  `agents/store-engineer.md`'s "sixteen `*_member_rows` indexes"
+  section), storing the active subset twice rather than changing any
+  existing accessor's signature. `mapTarget` is the first concrete field
+  built on this retention (`crates/snomed-ecl`, spec/10 rule 18): the
+  `MemberFieldFilter` grammar alternative, tested against
+  `simple_map_member_rows`/`extended_map_member_rows`, after both `^`
+  and `^R` in one increment since both reuse the same
+  `member_row_matches` helper. Every other `memberFieldFilter` column
+  (`correlationId`, `order`, …) remains rejected generically — not by a
+  fixed keyword list (`refsetFieldName` is `1*alpha`, confirmed against
+  the official ABNF) — but each is now a free `snomed-ecl`
+  parser/eval-only increment, the store side already covering all
+  sixteen types.
 
 ## Non-goals (for now)
 
@@ -257,10 +270,11 @@ and harmonizes it with the sibling repositories (`hl7-rust`, `er7-rust`,
 
 ## Current status
 
-All eight phases above are closed. As of 0.14.0 the workspace is 9
-published crates with zero dependencies, 379 tests, a clean
-`cargo clippy --all-targets`, 13 fuzz targets, and six criterion
-benchmark files. What is *not* done is tracked in two places and nowhere
+All eight phases above are closed. As of the `mapTarget` member field
+filter (2026-09-03) the workspace is 9 published crates with zero
+dependencies, 388 tests, a clean `cargo clippy --all-targets`, 13 fuzz
+targets, and six criterion benchmark files. What is *not* done is tracked
+in two places and nowhere
 else: `tasks.md`'s "Next up" (scoped work and known gaps, each with the
 spec section that documents it) and the deliberately-rejected lists —
 `spec/10-ecl-unimplemented.md` for ECL, and the "Not yet implemented"
@@ -281,12 +295,14 @@ something to match) and then after `^R` (2026-09-02, needing its own
 index — `member_refsets`/`all_member_concepts`, the inactive-inclusive
 reverse of `refsets_containing` — since `^R`'s row-per-candidate shape
 can't reuse `^`'s). `{{ M ... }}`'s refset-type-specific
-`memberFieldFilter` kind remains open, priced in "Open decisions" below
-rather than tracked as a free `tasks.md` increment, since it needs its
-own store-retention call. Each construct above was confirmed against the
-official ABNF or a verbatim guide quote before implementation, because
-every one of them has a plausible wrong reading that returns a set
-rather than an error.
+`memberFieldFilter` kind's store-retention call was decided 2026-09-03
+("Open decisions" below): sixteen new `*_member_rows` accessors, one per
+non-Simple/Language refset type, and `mapTarget` — the first concrete
+field — landed the same day, after both `^` and `^R` in one increment
+since both reuse the same `member_row_matches` helper. Each construct
+above was confirmed against the official ABNF or a verbatim guide quote
+before implementation, because every one of them has a plausible wrong
+reading that returns a set rather than an error.
 
 ## Risks & watch items
 

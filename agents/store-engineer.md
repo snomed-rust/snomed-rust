@@ -164,3 +164,47 @@ refsets, so there's no reason to pay for Language's millions of
 description memberships here. Built as a second pass over `member_rows`'s
 own keys (not the raw member maps again), so it costs one more
 `HashMap` and a filter, not another eighteen-way fan-out.
+
+## The sixteen `*_member_rows` indexes: typed, active-and-inactive, per non-Simple/Language type
+
+Decided 2026-09-03 (`plan.md`'s "Open decisions"): every non-Simple/
+Language refset type gets a second, typed accessor alongside its
+existing active-only one — `association_member_rows` next to
+`association_members`, `simple_map_member_rows` next to
+`simple_map_members`, and so on through all sixteen. These exist for
+exactly the gap `member_rows` doesn't close: `member_rows` erases every
+row to `RefsetMemberCore`'s six shared columns, so a `{{ M ... }}`
+`memberFieldFilter` asking about a refset-type-specific column (e.g.
+`mapTarget`, only on `SimpleMapRefsetMember`/`ExtendedMapRefsetMember`)
+has nothing to read from it. Simple/Language are excluded because they
+were never kept as typed rows in the first place (reduced to a
+membership set and an acceptability map respectively — see the
+`build()` section above) — there is no typed row to retain an inactive
+sibling of.
+
+Built with two small module-scope macros next to `build()` (not inside
+`impl SnapshotStore` — `macro_rules!` cannot be defined inside an `impl`
+or `trait` block, only invoked there): `grouped_with_inactive!(field)`
+(a statement macro local to `build()`, one call per type) derives both
+the existing active-only grouping and the new all-inclusive one from a
+single `group_by_refset_and_component` pass (now borrowing rather than
+consuming its input, so both derivations can read the same map), and
+`member_rows_accessor!(name, Type)` generates the accessor method body.
+Every existing accessor's name, signature, and active-only content is
+unchanged — this is purely additive, at the cost of storing the active
+subset twice (it does, once per grouping) rather than changing any
+accessor's return type into something that would filter, and therefore
+allocate, on every call. If you add a seventeenth non-Simple/Language
+type, give it both a `grouped_with_inactive!` call in `build()` and a
+`member_rows_accessor!` invocation in `impl SnapshotStore`, the same way
+the existing sixteen have both — one without the other leaves a type
+with an active-only accessor but no way for `snomed-ecl` to ever reach
+its inactive rows.
+
+`snomed-ecl`'s `mapTarget` filter (`spec/10-ecl.md` rule 18) is the
+first consumer: it dispatches directly to `simple_map_member_rows`/
+`extended_map_member_rows` rather than going through `member_rows`, and
+every future `memberFieldFilter` column on another type reads its own
+`*_member_rows` accessor the same way — the store side is done for all
+sixteen types; each remaining column is a `snomed-ecl` parser/eval
+increment only.

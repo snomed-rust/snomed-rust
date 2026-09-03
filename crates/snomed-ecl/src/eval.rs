@@ -267,6 +267,14 @@ fn evaluate_member_filter(
 /// `filters` together: the "one row, all filters" rule spec/10 rule 18
 /// states, shared by `{{ M }}` after both `^` and `^R`
 /// (`evaluate_member_filter`/`evaluate_refset_containing_filter`).
+///
+/// A block naming a `memberFieldFilter` (currently only `mapTarget`)
+/// reads from that field's own typed accessor(s) instead of
+/// `member_rows`'s type-erased `RefsetMemberCore` view, which has no
+/// column to test — `member_rows` still supplies every *other* filter in
+/// the same block, via each typed row's own `core`, so "one row, all
+/// filters" still means one `SimpleMap`/`ExtendedMap` row, not a
+/// `RefsetMemberCore` row and a typed row compared independently.
 fn member_row_matches(
     store: &SnapshotStore,
     refset_id: SctId,
@@ -275,6 +283,19 @@ fn member_row_matches(
     prepared: &[PreparedMemberFilter],
     states_active: bool,
 ) -> bool {
+    if filters
+        .iter()
+        .any(|f| matches!(f, MemberFilterKind::MapTarget(_)))
+    {
+        return map_target_row_matches(
+            store,
+            refset_id,
+            component_id,
+            filters,
+            prepared,
+            states_active,
+        );
+    }
     store
         .member_rows(refset_id, component_id)
         .iter()
@@ -283,7 +304,44 @@ fn member_row_matches(
                 && filters
                     .iter()
                     .zip(prepared)
-                    .all(|(f, p)| member_filter_matches(f, p, row))
+                    .all(|(f, p)| member_filter_matches(f, p, row, None))
+        })
+}
+
+/// The `mapTarget` branch of [`member_row_matches`]: `mapTarget` exists
+/// only on `SimpleMapRefsetMember`/`ExtendedMapRefsetMember`, so a block
+/// naming it is tested against those two typed row sets — the only ones
+/// carrying the column — rather than `member_rows`.
+fn map_target_row_matches(
+    store: &SnapshotStore,
+    refset_id: SctId,
+    component_id: SctId,
+    filters: &[MemberFilterKind],
+    prepared: &[PreparedMemberFilter],
+    states_active: bool,
+) -> bool {
+    let matches_simple = store
+        .simple_map_member_rows(refset_id, component_id)
+        .iter()
+        .any(|row| {
+            (states_active || row.core.active)
+                && filters
+                    .iter()
+                    .zip(prepared)
+                    .all(|(f, p)| member_filter_matches(f, p, &row.core, Some(&row.map_target)))
+        });
+    if matches_simple {
+        return true;
+    }
+    store
+        .extended_map_member_rows(refset_id, component_id)
+        .iter()
+        .any(|row| {
+            (states_active || row.core.active)
+                && filters
+                    .iter()
+                    .zip(prepared)
+                    .all(|(f, p)| member_filter_matches(f, p, &row.core, Some(&row.map_target)))
         })
 }
 
@@ -408,10 +466,13 @@ fn refset_containing_filter_for_concept(
 }
 
 /// One `{{ M ... }}` filter's query-fixed part: the evaluated set for
-/// `moduleId` (an expression), nothing for the kinds that compare
-/// literals.
+/// `moduleId` (an expression), tokenized search terms for `mapTarget`
+/// (the same `PreparedSearch` shape `{{ D term }}` prepares — spec/10
+/// rule 0, computed once per query rather than once per candidate row),
+/// nothing for the kinds that compare literals.
 enum PreparedMemberFilter {
     Concepts(HashSet<SctId>),
+    Term(Vec<PreparedSearch>),
     Literal,
 }
 
@@ -420,33 +481,67 @@ fn prepare_member_filter(filter: &MemberFilterKind, store: &SnapshotStore) -> Pr
         MemberFilterKind::Module(ModuleFilter { value, .. }) => {
             PreparedMemberFilter::Concepts(evaluate(value, store))
         }
+        MemberFilterKind::MapTarget(TermFilter { values, .. }) => PreparedMemberFilter::Term(
+            values
+                .iter()
+                .map(|search| match search.search_type {
+                    SearchType::Match => PreparedSearch::Match(words(&search.text)),
+                    SearchType::Wild => PreparedSearch::Wild(search.text.to_lowercase()),
+                    SearchType::Exact => PreparedSearch::Exact,
+                })
+                .collect(),
+        ),
         _ => PreparedMemberFilter::Literal,
     }
 }
 
-/// A single `{{ M ... }}` filter against one member row — see
+/// A single `{{ M ... }}` filter against one member row's shared columns
+/// (`core`) and, for `mapTarget`, the value of that column on the row
+/// being tested — `None` when the row source doesn't carry it (every
+/// source but `SimpleMap`/`ExtendedMap`'s own rows) — see
 /// [`MemberFilterKind`] for which kinds are implemented.
 fn member_filter_matches(
     filter: &MemberFilterKind,
     prepared: &PreparedMemberFilter,
-    row: &RefsetMemberCore,
+    core: &RefsetMemberCore,
+    map_target: Option<&str>,
 ) -> bool {
     match filter {
         MemberFilterKind::Module(ModuleFilter { negated, .. }) => {
             let PreparedMemberFilter::Concepts(values) = prepared else {
                 unreachable!("a moduleId filter prepares to `Concepts`")
             };
-            values.contains(&row.module_id) != *negated
+            values.contains(&core.module_id) != *negated
         }
         MemberFilterKind::EffectiveTime(EffectiveTimeFilter { operator, values }) => values
             .iter()
-            .any(|v| time_comparison_matches(*operator, row.effective_time, *v)),
+            .any(|v| time_comparison_matches(*operator, core.effective_time, *v)),
         MemberFilterKind::Active(ActiveFilter { negated, value }) => {
             let matches = match value {
-                ActiveValue::True => row.active,
-                ActiveValue::False => !row.active,
+                ActiveValue::True => core.active,
+                ActiveValue::False => !core.active,
                 ActiveValue::Wildcard => true,
             };
+            matches != *negated
+        }
+        MemberFilterKind::MapTarget(TermFilter { negated, values }) => {
+            let PreparedMemberFilter::Term(searches) = prepared else {
+                unreachable!("a mapTarget filter prepares to `Term`")
+            };
+            // No `map_target` on this row source: never matches, positive
+            // or negated — the filter still names a real column, just not
+            // one this row has, so "not equal" is as wrong an answer as
+            // "equal" would be. `map_target_row_matches` is the only
+            // caller that ever passes `Some`, so this arm is reachable
+            // only when a `MapTarget` filter is evaluated against a row
+            // that isn't `SimpleMap`/`ExtendedMap`'s own.
+            let Some(map_target) = map_target else {
+                return false;
+            };
+            let matches = values
+                .iter()
+                .zip(searches)
+                .any(|(search, prepared)| term_matches(map_target, search, prepared));
             matches != *negated
         }
     }
@@ -1155,7 +1250,10 @@ mod tests {
     use snomed_core::member_id::MemberId;
     use snomed_core::sctid::ComponentType;
     use snomed_core::time::EffectiveTime;
-    use snomed_rf2::refset::{LanguageRefsetMember, RefsetMemberCore, SimpleRefsetMember};
+    use snomed_rf2::refset::{
+        ExtendedMapRefsetMember, LanguageRefsetMember, RefsetMemberCore, SimpleMapRefsetMember,
+        SimpleRefsetMember,
+    };
 
     const ROOT: SctId = constants::ROOT_CONCEPT;
     const FINDING: SctId = SctId::new_unchecked(404684003);
@@ -1934,6 +2032,217 @@ mod tests {
         // single-id path already covered above.
         let expr = "^R * {{ M active = false }}";
         assert_eq!(eval(expr, &store), HashSet::from([ICD10_MAP]));
+    }
+
+    fn extended_map_member(
+        uuid: &str,
+        time: u32,
+        active: bool,
+        refset_id: SctId,
+        component_id: SctId,
+        map_target: &str,
+    ) -> ExtendedMapRefsetMember {
+        ExtendedMapRefsetMember {
+            core: RefsetMemberCore {
+                id: MemberId::parse(uuid).unwrap(),
+                effective_time: EffectiveTime::new_unchecked(time),
+                active,
+                module_id: constants::CORE_MODULE,
+                refset_id,
+                referenced_component_id: component_id,
+            },
+            map_group: 1,
+            map_priority: 1,
+            map_rule: String::new(),
+            map_advice: String::new(),
+            map_target: map_target.to_string(),
+            correlation_id: constants::CORE_MODULE,
+            map_category_id: constants::CORE_MODULE,
+        }
+    }
+
+    /// The canonical `memberFieldFilter` example (spec/10-ecl-filters.md,
+    /// the docs.snomed.org guide's own): `mapTarget` on an ExtendedMap
+    /// row. Also proves `{{ M }}` after `^R` reaches it, via the same
+    /// shared `member_row_matches` the `^` path uses.
+    #[test]
+    fn member_filter_map_target_matches_extended_map_rows() {
+        let mut b = SnapshotStore::builder();
+        b.add_concept(concept(MI));
+        b.add_extended_map_member(extended_map_member(
+            "80000000-0000-4000-8000-000000000080",
+            20190731,
+            true,
+            ICD10_MAP,
+            MI,
+            "I21.9",
+        ));
+        let store = b.build();
+
+        assert_eq!(
+            eval("^ 447562003 {{ M mapTarget = \"22.9\" }}", &store),
+            HashSet::new(),
+            "the search term doesn't match this row's mapTarget"
+        );
+        assert_eq!(
+            eval("^ 447562003 {{ M mapTarget = \"I21.9\" }}", &store),
+            HashSet::from([MI])
+        );
+        // `^R` reaches the same row, through the shared row-matching path.
+        assert_eq!(
+            eval(
+                &format!("^R {MI} {{{{ M mapTarget = \"I21.9\" }}}}"),
+                &store
+            ),
+            HashSet::from([ICD10_MAP])
+        );
+    }
+
+    /// `mapTarget` uses `match:` semantics by default — word-prefix, not
+    /// substring — the same search-term infrastructure `{{ D term }}`
+    /// already has, reused rather than reimplemented.
+    #[test]
+    fn member_filter_map_target_search_types() {
+        let mut b = SnapshotStore::builder();
+        b.add_concept(concept(MI));
+        b.add_extended_map_member(extended_map_member(
+            "80000000-0000-4000-8000-000000000081",
+            20190731,
+            true,
+            ICD10_MAP,
+            MI,
+            "Heart attack",
+        ));
+        let store = b.build();
+
+        assert_eq!(
+            eval("^ 447562003 {{ M mapTarget = \"att heart\" }}", &store),
+            HashSet::from([MI]),
+            "match: is word-prefix, order-independent"
+        );
+        assert_eq!(
+            eval("^ 447562003 {{ M mapTarget = \"eart\" }}", &store),
+            HashSet::new(),
+            "match: is not a substring search"
+        );
+        assert_eq!(
+            eval("^ 447562003 {{ M mapTarget = wild:\"Heart*\" }}", &store),
+            HashSet::from([MI])
+        );
+        assert_eq!(
+            eval(
+                "^ 447562003 {{ M mapTarget = exact:\"heart attack\" }}",
+                &store
+            ),
+            HashSet::new(),
+            "exact: is case-sensitive"
+        );
+    }
+
+    /// `mapTarget` exists on both `SimpleMap` and `ExtendedMap` — a row
+    /// on either type must be reachable.
+    #[test]
+    fn member_filter_map_target_matches_simple_map_rows_too() {
+        let mut b = SnapshotStore::builder();
+        b.add_concept(concept(MI));
+        b.add_simple_map_member(SimpleMapRefsetMember {
+            core: RefsetMemberCore {
+                id: MemberId::parse("80000000-0000-4000-8000-000000000082").unwrap(),
+                effective_time: EffectiveTime::new_unchecked(20190731),
+                active: true,
+                module_id: constants::CORE_MODULE,
+                refset_id: ICD10_MAP,
+                referenced_component_id: MI,
+            },
+            map_target: "I21.9".to_string(),
+        });
+        let store = b.build();
+
+        assert_eq!(
+            eval("^ 447562003 {{ M mapTarget = \"I21.9\" }}", &store),
+            HashSet::from([MI])
+        );
+    }
+
+    /// The whole reason `mapTarget` needed a store change: a row whose
+    /// only membership is inactive is invisible to plain `^`, but
+    /// reachable once the block states `active = false` — the same
+    /// motivating case the shared-column `{{ M }}` work established,
+    /// now for a typed field.
+    #[test]
+    fn member_filter_map_target_active_false_reaches_an_inactive_only_row() {
+        let mut b = SnapshotStore::builder();
+        b.add_concept(concept(MI));
+        b.add_extended_map_member(extended_map_member(
+            "80000000-0000-4000-8000-000000000083",
+            20200131,
+            false,
+            ICD10_MAP,
+            MI,
+            "I21.9",
+        ));
+        let store = b.build();
+
+        assert_eq!(
+            eval("^ 447562003 {{ M mapTarget = \"I21.9\" }}", &store),
+            HashSet::new(),
+            "active-only by default"
+        );
+        assert_eq!(
+            eval(
+                "^ 447562003 {{ M active = false, mapTarget = \"I21.9\" }}",
+                &store
+            ),
+            HashSet::from([MI])
+        );
+    }
+
+    /// "One row, all filters" (spec/10 rule 18) for a block mixing a
+    /// shared-column filter with `mapTarget`: two separate rows, each
+    /// satisfying only one filter, must not satisfy the block together.
+    #[test]
+    fn member_filter_map_target_conjoins_with_shared_columns_on_the_same_row() {
+        let module_a = SctId::new_unchecked(900000000000012004);
+        let module_b = constants::CORE_MODULE;
+        let mut b = SnapshotStore::builder();
+        b.add_concept(concept(MI));
+        b.add_concept(concept(module_a));
+        b.add_concept(concept(module_b));
+        // Row 1: right module, wrong mapTarget.
+        b.add_extended_map_member(ExtendedMapRefsetMember {
+            core: RefsetMemberCore {
+                id: MemberId::parse("80000000-0000-4000-8000-000000000084").unwrap(),
+                effective_time: EffectiveTime::new_unchecked(20190731),
+                active: true,
+                module_id: module_a,
+                refset_id: ICD10_MAP,
+                referenced_component_id: MI,
+            },
+            map_group: 1,
+            map_priority: 1,
+            map_rule: String::new(),
+            map_advice: String::new(),
+            map_target: "R99".to_string(),
+            correlation_id: constants::CORE_MODULE,
+            map_category_id: constants::CORE_MODULE,
+        });
+        // Row 2: right mapTarget, wrong module.
+        b.add_extended_map_member(extended_map_member(
+            "80000000-0000-4000-8000-000000000085",
+            20190731,
+            true,
+            ICD10_MAP,
+            MI,
+            "I21.9",
+        ));
+        let store = b.build();
+
+        let mismatched =
+            format!("^ {ICD10_MAP} {{{{ M moduleId = {module_a}, mapTarget = \"I21.9\" }}}}");
+        assert_eq!(eval(&mismatched, &store), HashSet::new());
+        let matched =
+            format!("^ {ICD10_MAP} {{{{ M moduleId = {module_b}, mapTarget = \"I21.9\" }}}}");
+        assert_eq!(eval(&matched, &store), HashSet::from([MI]));
     }
 
     /// `constraintOperator "(" expressionConstraint ")"` — the operator

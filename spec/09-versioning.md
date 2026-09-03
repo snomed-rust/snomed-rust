@@ -83,6 +83,26 @@ Given any mix of Full, Snapshot, and Delta rows:
    `member_rows` closed for `^`'s own `{{ M }}`. Cost is bounded the same
    way `refsets_containing` already is: concept-scoped, not spanning the
    Language refsets' millions of description memberships.
+
+   A fourth change, decided 2026-09-03 (`plan.md`'s "Open decisions"):
+   each of the sixteen typed per-type indexes above (`association_members`,
+   `simple_map_members`, …) gains an active-and-inactive sibling —
+   `association_member_rows`, `simple_map_member_rows`, and so on —
+   retaining the type's own typed columns (not `RefsetMemberCore`'s
+   shared six), including inactive rows. This is what backs `{{ M ... }}`
+   field filters (`memberFieldFilter`, spec/10 rule 18) that ask about a
+   refset-type-specific column — `mapTarget`, the first implemented, is
+   only on `SimpleMapRefsetMember`/`ExtendedMapRefsetMember`, so it
+   cannot be answered from `member_rows`'s type-erased view, which has no
+   such column. Each existing active-only accessor is unchanged — same
+   name, same `&[T]` return type, same active-only content — the new
+   accessor is purely additive, at the cost of storing the active subset
+   twice (once in each) rather than changing an existing accessor's
+   signature into something that would have to filter, and therefore
+   allocate, on every call. Priced 2026-09-03 in `plan.md`: measured
+   (`std::mem::size_of`) at 80 bytes per `SimpleMapRefsetMember` and 144
+   per `ExtendedMapRefsetMember`, both excluding each row's own `String`
+   heap buffers.
 5. Where two rows contend for one slot and their `effectiveTime`s are
    equal, the tie MUST be broken deterministically by the rows' own
    content — never by which row arrived first and never by hash order.

@@ -364,15 +364,23 @@ pub enum ConceptFilterKind {
 }
 
 /// One filter inside a `{{ M ... }}` member filter constraint (spec/10
-/// rule 18). All three reuse [`ModuleFilter`]/[`EffectiveTimeFilter`]/
-/// [`ActiveFilter`] — the same shapes `{{ C }}` already has, since
-/// `moduleId`/`effectiveTime`/`active` are three of the six columns every
-/// refset member shares (`RefsetMemberCore`, spec/08), asked about the
-/// *member row* rather than a concept's own row.
+/// rule 18). `Module`/`EffectiveTime`/`Active` reuse
+/// [`ModuleFilter`]/[`EffectiveTimeFilter`]/[`ActiveFilter`] — the same
+/// shapes `{{ C }}` already has, since `moduleId`/`effectiveTime`/`active`
+/// are three of the six columns every refset member shares
+/// (`RefsetMemberCore`, spec/08), asked about the *member row* rather
+/// than a concept's own row.
 ///
-/// The official grammar's fourth `memberFilter` kind, `memberFieldFilter`
-/// (a refset-type-specific column, e.g. `mapTarget`), is not implemented
-/// — see [`ExpressionConstraint::MemberFilter`] and
+/// `MapTarget` is the official grammar's fourth kind, `memberFieldFilter`
+/// — a refset-type-specific column rather than a shared one — and the
+/// first (and, as of spec/10 rule 18, only) one implemented: `mapTarget`
+/// exists on `SimpleMapRefsetMember`/`ExtendedMapRefsetMember`, decided
+/// 2026-09-03 (`plan.md`'s "Open decisions") to retain full rows —
+/// active and inactive — for all sixteen non-Simple/Language refset
+/// types, the same store change `moduleId`/`effectiveTime`/`active`
+/// needed for the six shared columns. Every other `memberFieldFilter`
+/// column (`correlationId`, `domainConstraint`, …) is still rejected —
+/// see [`ExpressionConstraint::MemberFilter`] and
 /// `spec/10-ecl-unimplemented.md`.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum MemberFilterKind {
@@ -387,6 +395,16 @@ pub enum MemberFilterKind {
     /// the same override rule `{{ D }}`'s `active` filter has (spec/10
     /// rule 14) — without it, `active = false` could never match.
     Active(ActiveFilter),
+    /// `mapTarget (=|!=) (typedSearchTerm | typedSearchTermSet)` — a
+    /// `memberFieldFilter` (spec/10 rule 18):
+    /// `SimpleMapRefsetMember`/`ExtendedMapRefsetMember`'s own
+    /// `mapTarget` column. Reuses [`TermFilter`]'s exact shape, since the
+    /// official grammar's `stringComparisonOperator ws (typedSearchTerm /
+    /// typedSearchTermSet)` is identical to `termFilter`'s value form —
+    /// same `match:`/`wild:`/`exact:` search types (spec/10's
+    /// "Description filter constraint" section), same OR-across-the-set
+    /// semantics.
+    MapTarget(TermFilter),
 }
 
 /// `activeKeyword ws booleanComparisonOperator ws activeValue`.

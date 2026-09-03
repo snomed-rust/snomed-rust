@@ -286,13 +286,18 @@ index required first. `{{ M ... }}` after `^R` followed on 2026-09-02,
 needing its own store index (`member_refsets`/`all_member_concepts` —
 the inactive-inclusive reverse of `refsets_containing`, spec/09 rule 4)
 since `^R`'s row-per-candidate shape can't reuse `^`'s. Its
-refset-type-specific `memberFieldFilter` kind (`mapTarget`, …) is
-rejected only generically — reaching a type-specific column needs its
-*own* store-retention decision first (`plan.md`'s "Open decisions"), the
-same shape of call `member_rows`/`member_refsets` both needed, so this is
-the one place the cadence below doesn't apply cleanly: not every
-remaining filter kind is a free next increment. See
-`spec/10-ecl-unimplemented.md`.
+refset-type-specific `memberFieldFilter` kind was rejected only
+generically until 2026-09-03: reaching a type-specific column needed its
+*own* store-retention decision first (`plan.md`'s "Open decisions",
+decided 2026-09-03 — all sixteen non-Simple/Language types), the same
+shape of call `member_rows`/`member_refsets` both needed. `mapTarget`
+landed the same day as that decision's first concrete field, tested
+against `SnapshotStore::simple_map_member_rows`/
+`extended_map_member_rows` rather than `member_rows`'s type-erased view.
+With the store side now done for all sixteen types, every *remaining*
+`memberFieldFilter` column (`correlationId`, `order`, …) IS a free next
+increment — the cadence below applies to them cleanly, the same as any
+other filter kind. See `spec/10-ecl-unimplemented.md`.
 
 That cadence is the recommendation for a filter kind that IS free, not
 the history alone: add one filter

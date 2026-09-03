@@ -15,6 +15,48 @@ most recently on 2026-09-02, to keep this file inside the repository's
 40 KB per-document budget. Search both when asking "has this come up
 before".
 
+## Done (2026-09-03, ECL `{{ M ... }}` `memberFieldFilter`: `mapTarget`, plus store retention for all sixteen types)
+
+- [x] **Decided the store-retention shape** (`plan.md`'s "Open decisions",
+      priced 2026-09-03): option 2, full typed rows with inactive rows
+      included, for all sixteen non-Simple/Language refset types — not
+      just the two map types `mapTarget` itself needs, and not a
+      per-field index. Presented as a priced choice; the maintainer chose
+      the broadest option so every future `memberFieldFilter` column is a
+      free `snomed-ecl`-only increment from here.
+- [x] **`snomed-store`**: sixteen new `*_member_rows` accessors
+      (`association_member_rows`, `simple_map_member_rows`,
+      `extended_map_member_rows`, …), one per non-Simple/Language refset
+      type, alongside the existing active-only accessors — unchanged in
+      name, signature, and content. `group_by_refset_and_component` now
+      borrows its input and keeps all rows; the existing active-only
+      grouping is derived from that via a new `active_only_group`, so
+      nothing downstream changed behavior. Two tests added
+      (`extended_map_member_rows_include_inactive_rows_unlike_
+      extended_map_members`, `mrcm_domain_member_rows_include_inactive_
+      rows_too`); store crate 48 → 50 tests.
+- [x] **`snomed-ecl`**: `MemberFilterKind::MapTarget(TermFilter)` (AST),
+      a `mapTarget` arm in `parse_member_filter_kind` reusing
+      `parse_typed_search_term_set` (the same `match:`/`wild:`/`exact:`
+      grammar `{{ D term }}` uses), and eval support dispatching to
+      `simple_map_member_rows`/`extended_map_member_rows` rather than the
+      type-erased `member_rows` — through the same `member_row_matches`
+      helper both `^` and `^R` already share, so `mapTarget` works after
+      both operators in one increment with no `^R`-specific code. Six new
+      tests (parser: valid + generic-rejection; eval: `^` and `^R`,
+      search types, active/inactive, same-row conjunction with a
+      shared-column filter).
+- [x] Docs updated to match: `spec/09-versioning.md` rule 4 (the fourth
+      snapshot-index paragraph), `spec/10-ecl.md` rule 18 and the top
+      summary paragraph, `spec/10-ecl-filters.md`'s member filter
+      constraint section, `spec/10-ecl-unimplemented.md`,
+      `crates/snomed-ecl/src/lib.rs`'s doc comment,
+      `agents/ecl-engineer.md`'s cadence note, `agents/store-engineer.md`
+      (new "sixteen `*_member_rows` indexes" section), and `plan.md`
+      (Open decisions marked decided; Current status test count 388).
+- [x] 388/388 tests passing (up from 379); `cargo clippy --all-targets`,
+      `cargo fmt --check`, `fuzz/`/`benches/` all build clean.
+
 ## Done (2026-09-02, Release 0.14.0 — `{{ M ... }}` after `^R`, second self-decided release)
 
 - [x] **Decided and executed the release itself**, per §1-5 of
@@ -482,10 +524,13 @@ before".
 ## Next up
 
 - [ ] Nothing currently scoped beyond the `{{ M ... }}` remainder below.
-      State as of 2026-09-02: **0.14.0 released** — `{{ M ... }}` after
-      `^` (0.13.0) and after `^R` (0.14.0), both decided and executed
-      under `spec/ai-release-authority/`'s criteria rather than a fresh
-      per-release maintainer go-ahead (see `CHANGELOG.md`). 9 crates, 379
+      State as of 2026-09-03: **0.14.0 released**, and `mapTarget` (the
+      first `memberFieldFilter` column) implemented on top of it after
+      both `^` and `^R` — not yet released (see the "Done" entry above;
+      release decision pending). `{{ M ... }}` after `^` (0.13.0) and
+      after `^R` (0.14.0), both decided and executed under
+      `spec/ai-release-authority/`'s criteria rather than a fresh
+      per-release maintainer go-ahead (see `CHANGELOG.md`). 9 crates, 388
       tests,
       clippy/fmt clean on stable, MSRV 1.96 (current
       stable minus two, `spec/rust-msrv-n-minus-2/index.md`), `fuzz/`,
@@ -512,27 +557,16 @@ before".
       unblocked.
 - [ ] **`{{ M ... }}` member filters, remaining scope** (`snomed-ecl`) —
       the `moduleId`/`effectiveTime`/`active` kinds are done after both
-      `^` (2026-09-01) and `^R` (2026-09-02, see Done below); one piece
-      of the original decision's scope is still open:
-      - The fourth `memberFilter` grammar alternative, `memberFieldFilter`
-        (a refset-type-specific column: `mapTarget`, `correlationId`,
-        `order`, …). **Checked 2026-09-01, not a free pickup despite the
-        cadence precedent**: `SnapshotStore::member_rows`/`member_refsets`
-        return `RefsetMemberCore` only — the columns every refset type
-        shares — never the type-specific ones (`map_target`, …), and
-        every *typed* per-type accessor (`extended_map_members`,
-        `simple_map_members`, …) is active-only by construction, the same
-        problem `{{ M active = false }}` had before 2026-09-01's store
-        change. **Priced 2026-09-03** in `plan.md`'s "Open decisions":
-        `SimpleMapRefsetMember`/`ExtendedMapRefsetMember` are measured at
-        80/144 bytes plus each `String` field's own heap buffer (not
-        included in that figure — `mapAdvice` alone routinely runs
-        40-100+ bytes in a real release); three shapes costed there
-        (typed rows for just the two map types, typed rows for all
-        sixteen non-Simple/Language types, or a per-field index). Which
-        shape, and whether `mapTarget` alone is worth building before a
-        second field is actually requested, is still the maintainer's
-        call — pick this up once that's made, not before.
+      `^` (2026-09-01) and `^R` (2026-09-02); the fourth grammar
+      alternative, `memberFieldFilter`, now has its store-retention
+      decided and its first column, `mapTarget`, done after both `^` and
+      `^R` too (2026-09-03, see Done above). What is still open:
+      - Every other `memberFieldFilter` column (`correlationId`, `order`,
+        …) — no longer blocked on a store decision (all sixteen
+        non-Simple/Language types already retain typed active-and-
+        inactive rows via `*_member_rows`), so each is now a free
+        `snomed-ecl` parser/eval increment, same cadence as any other
+        filter kind. Pick up whichever field is actually requested next.
 - [ ] Decisions, not tasks — each needs a call before code:
       - **`$expand` inline `valueSet`** (`snomed-fhir`): shape already
         determined — a typed compose model the caller maps its JSON onto

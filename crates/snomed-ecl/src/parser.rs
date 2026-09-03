@@ -413,12 +413,15 @@ impl Parser {
     }
 
     /// A single `memberFilter`: `moduleFilter`, `effectiveTimeFilter`, or
-    /// `activeFilter` — spec/10 rule 18's three implemented kinds, all
-    /// already tokenized for `{{ C }}`, so no new lexer keywords are
-    /// needed. The fourth grammar alternative, `memberFieldFilter`
-    /// (refset-type-specific columns), isn't tokenized, so it falls
-    /// through to the generic "unexpected keyword" bucket rule 9
-    /// describes rather than being named here.
+    /// `activeFilter` — three of the four grammar alternatives, already
+    /// tokenized for `{{ C }}`, so no new lexer keywords were needed for
+    /// them. The fourth, `memberFieldFilter`, is `refsetFieldName` —
+    /// `1*alpha` in the official grammar, not a fixed keyword list, so it
+    /// lexes as a plain `TokenKind::Word` — and only the one spelling
+    /// this crate implements, `mapTarget` (spec/10 rule 18), is
+    /// recognized here; any other word falls through to the generic
+    /// "unexpected keyword" bucket rule 9 describes rather than being
+    /// named.
     fn parse_member_filter_kind(&mut self) -> Result<MemberFilterKind, EclError> {
         match &self.peek().kind {
             TokenKind::ModuleIdKeyword => {
@@ -445,11 +448,17 @@ impl Parser {
                 let value = self.parse_active_value()?;
                 Ok(MemberFilterKind::Active(ActiveFilter { negated, value }))
             }
+            TokenKind::Word(word) if word == "mapTarget" => {
+                self.advance()?;
+                let negated = self.parse_boolean_comparison_operator()?;
+                let values = self.parse_typed_search_term_set()?;
+                Ok(MemberFilterKind::MapTarget(TermFilter { negated, values }))
+            }
             _ => {
                 let tok = self.peek().clone();
                 Err(Self::unexpected(
                     &tok,
-                    "`moduleId`, `effectiveTime`, or `active`",
+                    "`moduleId`, `effectiveTime`, `active`, or `mapTarget`",
                 ))
             }
         }
@@ -1559,6 +1568,40 @@ mod tests {
         assert!(matches!(
             filters[1],
             crate::ast::MemberFilterKind::EffectiveTime(_)
+        ));
+    }
+
+    /// `mapTarget` (spec/10 rule 18) — the first `memberFieldFilter`
+    /// column implemented, `refsetFieldName` lexing as a plain `Word`
+    /// (`1*alpha` in the official grammar, not a fixed keyword) rather
+    /// than needing a new lexer token.
+    #[test]
+    fn parses_member_filter_map_target() {
+        let EC::MemberFilter { filters, .. } =
+            parse("^ 447562003 {{ M mapTarget = \"22.9\" }}").unwrap()
+        else {
+            panic!("expected a member filter");
+        };
+        assert_eq!(filters.len(), 1);
+        let crate::ast::MemberFilterKind::MapTarget(crate::ast::TermFilter { negated, values }) =
+            &filters[0]
+        else {
+            panic!("expected a MapTarget filter, got {:?}", filters[0]);
+        };
+        assert!(!negated);
+        assert_eq!(values.len(), 1);
+        assert_eq!(values[0].text, "22.9");
+        assert_eq!(values[0].search_type, crate::ast::SearchType::Match);
+    }
+
+    /// A field name this crate doesn't recognize (`correlationId`, say)
+    /// falls to the generic bucket, not `NotYetImplemented` — the same
+    /// "genuinely unimplemented" distinction rule 9 draws elsewhere.
+    #[test]
+    fn rejects_an_unrecognized_member_field_filter_generically() {
+        assert!(matches!(
+            parse("^ 447562003 {{ M correlationId = 900000000000207008 }}"),
+            Err(EclError::UnexpectedKeyword { .. })
         ));
     }
 

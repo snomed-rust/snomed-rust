@@ -45,11 +45,13 @@ constraints (`{{ D ... }}`, `term`/`type`/`active`) are implemented too,
 and so is a **member filter constraint** (`{{ M ... }}`, restricting
 `^`'s referenced components — or `^R`'s result refsets — to those with a
 member row matching — `moduleId`/`effectiveTime`/`active`, the columns
-every refset member type shares).
+every refset member type shares, plus one `memberFieldFilter` kind,
+`mapTarget`, a refset-type-specific column tested against
+`SimpleMapRefsetMember`/`ExtendedMapRefsetMember`'s own typed rows).
 Boolean concrete value comparisons (not
 representable in RF2 — see below), `moduleId`'s
-`eclConceptReferenceSet` spelling, a member filter's refset-type-specific
-`memberFieldFilter` kind (e.g. `mapTarget`), the
+`eclConceptReferenceSet` spelling, every other `memberFieldFilter`
+column (`correlationId`, `order`, …), the
 remaining description filter kinds (the `dialect` alias form), the
 history supplement, and alternate identifiers are **out of scope for this
 version** — see
@@ -650,4 +652,14 @@ still governs it: nothing on that list may be silently accepted.
     own inactive-inclusive reverse index (`SnapshotStore::member_refsets`,
     spec/09 rule 4) rather than reusing `^`'s. `{{ M ... }}` written
     anywhere else MUST be a parse error, never silently ignored or
-    evaluated as a `{{ C }}`/`{{ D }}` block.
+    evaluated as a `{{ C }}`/`{{ D }}` block. A `memberFieldFilter`
+    (a refset-type-specific column — `mapTarget` is the only one
+    implemented) MUST be tested against the typed row(s) that column
+    actually exists on (`SnapshotStore::simple_map_member_rows`/
+    `extended_map_member_rows` for `mapTarget`), never against
+    `member_rows`'s type-erased `RefsetMemberCore` view, which has no
+    such column — and every other filter in the same block MUST be
+    tested against that *same* typed row's shared columns, per the "one
+    row, all filters" rule above; a block MUST NOT be satisfied by a
+    shared-column filter matching one row while a field filter matches a
+    different one.

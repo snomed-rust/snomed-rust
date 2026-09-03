@@ -105,25 +105,22 @@ macro_rules! refset_member_methods {
     };
 }
 
-/// Groups active refset members by `(refsetId, referencedComponentId)`,
-/// consuming the builder's member map. Each group is ordered by member UUID,
-/// so it does not depend on `HashMap` iteration order.
-fn group_by_refset_and_component<T>(
-    members: HashMap<MemberId, T>,
+/// Groups every refset member — active and inactive alike — by
+/// `(refsetId, referencedComponentId)`, ordered by member UUID (spec/09
+/// rule 6). Borrows rather than consumes `members`, so the caller can
+/// derive the active-only grouping from the result afterward
+/// (`active_only_group`) without a second pass over the raw map.
+fn group_by_refset_and_component<T: Clone>(
+    members: &HashMap<MemberId, T>,
     core_of: impl Fn(&T) -> &RefsetMemberCore,
 ) -> HashMap<(SctId, SctId), Vec<T>> {
     let mut grouped: HashMap<(SctId, SctId), Vec<T>> = HashMap::new();
-    for (_, member) in members {
-        let (refset_id, referenced_component_id, active) = {
-            let core = core_of(&member);
-            (core.refset_id, core.referenced_component_id, core.active)
-        };
-        if active {
-            grouped
-                .entry((refset_id, referenced_component_id))
-                .or_default()
-                .push(member);
-        }
+    for member in members.values() {
+        let core = core_of(member);
+        grouped
+            .entry((core.refset_id, core.referenced_component_id))
+            .or_default()
+            .push(member.clone());
     }
     // Members arrive in `HashMap` order, which differs between processes;
     // sorting by member UUID makes each group's order reproducible.
@@ -131,6 +128,49 @@ fn group_by_refset_and_component<T>(
         group.sort_by_key(|m| core_of(m).id);
     }
     grouped
+}
+
+/// Derives an active-only grouping from an already-built all-inclusive one
+/// (`group_by_refset_and_component`), so the sixteen existing per-type
+/// accessors stay active-only and byte-for-byte unchanged (spec/09 rule 4)
+/// while each type also gets full active-and-inactive retention for
+/// `snomed-ecl`'s `{{ M ... }}` field filters (spec/10 rule 18) — decided
+/// 2026-09-03, `plan.md`'s "Open decisions". This costs the active
+/// subset's storage twice rather than changing the existing accessors'
+/// `&[T]` return type into something that would have to filter (and
+/// therefore allocate) on every call.
+fn active_only_group<T: Clone>(
+    all: &HashMap<(SctId, SctId), Vec<T>>,
+    core_of: impl Fn(&T) -> &RefsetMemberCore,
+) -> HashMap<(SctId, SctId), Vec<T>> {
+    let mut active: HashMap<(SctId, SctId), Vec<T>> = HashMap::new();
+    for (&key, rows) in all {
+        let active_rows: Vec<T> = rows.iter().filter(|r| core_of(r).active).cloned().collect();
+        if !active_rows.is_empty() {
+            active.insert(key, active_rows);
+        }
+    }
+    active
+}
+
+/// Generates the active-and-inactive counterpart of one of the sixteen
+/// typed accessors on `SnapshotStore` (e.g. `association_members` ->
+/// `association_member_rows`) — added 2026-09-03 (`plan.md`'s "Open
+/// decisions") for `snomed-ecl`'s `{{ M ... }}` field filters (spec/10
+/// rule 18), which need a member row's own type-specific columns
+/// (`mapTarget`, `domainConstraint`, …), including inactive rows, unlike
+/// every existing accessor. The type-specific counterpart to
+/// `SnapshotStore::member_rows`, which reaches only the six columns every
+/// refset type shares.
+macro_rules! member_rows_accessor {
+    ($name:ident, $ty:ty) => {
+        pub fn $name(&self, refset_id: SctId, component_id: SctId) -> &[$ty] {
+            self.$name
+                .get(&(refset_id, component_id))
+                .map(Vec::as_slice)
+                .unwrap_or(&[])
+        }
+    };
 }
 
 /// Sorts and dedups every vector of a derived id index, so queries return
@@ -531,8 +571,21 @@ impl SnapshotStoreBuilder {
             .map(|m| (m.core.refset_id, m.core.referenced_component_id))
             .collect();
 
-        let association_members =
-            group_by_refset_and_component(self.association_members, |m| &m.core);
+        // Each of the sixteen typed refset kinds below gets both an
+        // active-and-inactive grouping (`..._member_rows`, new 2026-09-03 —
+        // `plan.md`'s "Open decisions") and the existing active-only one
+        // (unchanged name and behavior) derived from it, rather than a
+        // second scan of the raw builder map.
+        macro_rules! grouped_with_inactive {
+            ($field:ident) => {{
+                let all = group_by_refset_and_component(&self.$field, |m| &m.core);
+                let active = active_only_group(&all, |m| &m.core);
+                (all, active)
+            }};
+        }
+
+        let (association_member_rows, association_members) =
+            grouped_with_inactive!(association_members);
         // The reverse of the association index: `(refsetId, targetId) ->
         // the components whose association points there`. Historical
         // associations are written on the *inactive* component ("this was
@@ -553,36 +606,36 @@ impl SnapshotStoreBuilder {
             sources.sort_unstable();
             sources.dedup();
         }
-        let attribute_value_members =
-            group_by_refset_and_component(self.attribute_value_members, |m| &m.core);
-        let simple_map_members =
-            group_by_refset_and_component(self.simple_map_members, |m| &m.core);
-        let extended_map_members =
-            group_by_refset_and_component(self.extended_map_members, |m| &m.core);
-        let owl_expression_members =
-            group_by_refset_and_component(self.owl_expression_members, |m| &m.core);
-        let module_dependency_members =
-            group_by_refset_and_component(self.module_dependency_members, |m| &m.core);
-        let refset_descriptor_members =
-            group_by_refset_and_component(self.refset_descriptor_members, |m| &m.core);
-        let description_type_members =
-            group_by_refset_and_component(self.description_type_members, |m| &m.core);
-        let mrcm_domain_members =
-            group_by_refset_and_component(self.mrcm_domain_members, |m| &m.core);
-        let mrcm_attribute_domain_members =
-            group_by_refset_and_component(self.mrcm_attribute_domain_members, |m| &m.core);
-        let mrcm_attribute_range_members =
-            group_by_refset_and_component(self.mrcm_attribute_range_members, |m| &m.core);
-        let mrcm_module_scope_members =
-            group_by_refset_and_component(self.mrcm_module_scope_members, |m| &m.core);
-        let ordered_component_members =
-            group_by_refset_and_component(self.ordered_component_members, |m| &m.core);
-        let ordered_association_members =
-            group_by_refset_and_component(self.ordered_association_members, |m| &m.core);
-        let component_annotation_members =
-            group_by_refset_and_component(self.component_annotation_members, |m| &m.core);
-        let member_annotation_members =
-            group_by_refset_and_component(self.member_annotation_members, |m| &m.core);
+        let (attribute_value_member_rows, attribute_value_members) =
+            grouped_with_inactive!(attribute_value_members);
+        let (simple_map_member_rows, simple_map_members) =
+            grouped_with_inactive!(simple_map_members);
+        let (extended_map_member_rows, extended_map_members) =
+            grouped_with_inactive!(extended_map_members);
+        let (owl_expression_member_rows, owl_expression_members) =
+            grouped_with_inactive!(owl_expression_members);
+        let (module_dependency_member_rows, module_dependency_members) =
+            grouped_with_inactive!(module_dependency_members);
+        let (refset_descriptor_member_rows, refset_descriptor_members) =
+            grouped_with_inactive!(refset_descriptor_members);
+        let (description_type_member_rows, description_type_members) =
+            grouped_with_inactive!(description_type_members);
+        let (mrcm_domain_member_rows, mrcm_domain_members) =
+            grouped_with_inactive!(mrcm_domain_members);
+        let (mrcm_attribute_domain_member_rows, mrcm_attribute_domain_members) =
+            grouped_with_inactive!(mrcm_attribute_domain_members);
+        let (mrcm_attribute_range_member_rows, mrcm_attribute_range_members) =
+            grouped_with_inactive!(mrcm_attribute_range_members);
+        let (mrcm_module_scope_member_rows, mrcm_module_scope_members) =
+            grouped_with_inactive!(mrcm_module_scope_members);
+        let (ordered_component_member_rows, ordered_component_members) =
+            grouped_with_inactive!(ordered_component_members);
+        let (ordered_association_member_rows, ordered_association_members) =
+            grouped_with_inactive!(ordered_association_members);
+        let (component_annotation_member_rows, component_annotation_members) =
+            grouped_with_inactive!(component_annotation_members);
+        let (member_annotation_member_rows, member_annotation_members) =
+            grouped_with_inactive!(member_annotation_members);
 
         // Unified (refsetId -> referencedComponentIds) membership, spanning
         // every refset type: RF2 "membership" is refsetId +
@@ -653,22 +706,38 @@ impl SnapshotStoreBuilder {
             refset_memberships,
             refsets_by_concept,
             association_members,
+            association_member_rows,
             association_sources,
             attribute_value_members,
+            attribute_value_member_rows,
             simple_map_members,
+            simple_map_member_rows,
             extended_map_members,
+            extended_map_member_rows,
             owl_expression_members,
+            owl_expression_member_rows,
             module_dependency_members,
+            module_dependency_member_rows,
             refset_descriptor_members,
+            refset_descriptor_member_rows,
             description_type_members,
+            description_type_member_rows,
             mrcm_domain_members,
+            mrcm_domain_member_rows,
             mrcm_attribute_domain_members,
+            mrcm_attribute_domain_member_rows,
             mrcm_attribute_range_members,
+            mrcm_attribute_range_member_rows,
             mrcm_module_scope_members,
+            mrcm_module_scope_member_rows,
             ordered_component_members,
+            ordered_component_member_rows,
             ordered_association_members,
+            ordered_association_member_rows,
             component_annotation_members,
+            component_annotation_member_rows,
             member_annotation_members,
+            member_annotation_member_rows,
         }
     }
 }
@@ -739,6 +808,30 @@ pub struct SnapshotStore {
     ordered_association_members: HashMap<(SctId, SctId), Vec<OrderedAssociationRefsetMember>>,
     component_annotation_members: HashMap<(SctId, SctId), Vec<ComponentAnnotationRefsetMember>>,
     member_annotation_members: HashMap<(SctId, SctId), Vec<MemberAnnotationRefsetMember>>,
+    // The active-and-inactive counterpart of each of the sixteen typed
+    // maps above, added 2026-09-03 (`plan.md`'s "Open decisions") for
+    // `snomed-ecl`'s `{{ M ... }}` field filters (spec/10 rule 18), which
+    // need a member row's own type-specific columns (e.g. `mapTarget`),
+    // including inactive rows, the same reason `member_rows` exists for
+    // the shared `RefsetMemberCore` columns. Each accessor built on one of
+    // these is documented at the accessor, not here.
+    association_member_rows: HashMap<(SctId, SctId), Vec<AssociationRefsetMember>>,
+    attribute_value_member_rows: HashMap<(SctId, SctId), Vec<AttributeValueRefsetMember>>,
+    simple_map_member_rows: HashMap<(SctId, SctId), Vec<SimpleMapRefsetMember>>,
+    extended_map_member_rows: HashMap<(SctId, SctId), Vec<ExtendedMapRefsetMember>>,
+    owl_expression_member_rows: HashMap<(SctId, SctId), Vec<OwlExpressionRefsetMember>>,
+    module_dependency_member_rows: HashMap<(SctId, SctId), Vec<ModuleDependencyRefsetMember>>,
+    refset_descriptor_member_rows: HashMap<(SctId, SctId), Vec<RefsetDescriptorRefsetMember>>,
+    description_type_member_rows: HashMap<(SctId, SctId), Vec<DescriptionTypeRefsetMember>>,
+    mrcm_domain_member_rows: HashMap<(SctId, SctId), Vec<MrcmDomainRefsetMember>>,
+    mrcm_attribute_domain_member_rows:
+        HashMap<(SctId, SctId), Vec<MrcmAttributeDomainRefsetMember>>,
+    mrcm_attribute_range_member_rows: HashMap<(SctId, SctId), Vec<MrcmAttributeRangeRefsetMember>>,
+    mrcm_module_scope_member_rows: HashMap<(SctId, SctId), Vec<MrcmModuleScopeRefsetMember>>,
+    ordered_component_member_rows: HashMap<(SctId, SctId), Vec<OrderedComponentRefsetMember>>,
+    ordered_association_member_rows: HashMap<(SctId, SctId), Vec<OrderedAssociationRefsetMember>>,
+    component_annotation_member_rows: HashMap<(SctId, SctId), Vec<ComponentAnnotationRefsetMember>>,
+    member_annotation_member_rows: HashMap<(SctId, SctId), Vec<MemberAnnotationRefsetMember>>,
 }
 
 impl SnapshotStore {
@@ -1277,6 +1370,35 @@ impl SnapshotStore {
             .map(Vec::as_slice)
             .unwrap_or(&[])
     }
+
+    member_rows_accessor!(association_member_rows, AssociationRefsetMember);
+    member_rows_accessor!(attribute_value_member_rows, AttributeValueRefsetMember);
+    member_rows_accessor!(simple_map_member_rows, SimpleMapRefsetMember);
+    member_rows_accessor!(extended_map_member_rows, ExtendedMapRefsetMember);
+    member_rows_accessor!(owl_expression_member_rows, OwlExpressionRefsetMember);
+    member_rows_accessor!(module_dependency_member_rows, ModuleDependencyRefsetMember);
+    member_rows_accessor!(refset_descriptor_member_rows, RefsetDescriptorRefsetMember);
+    member_rows_accessor!(description_type_member_rows, DescriptionTypeRefsetMember);
+    member_rows_accessor!(mrcm_domain_member_rows, MrcmDomainRefsetMember);
+    member_rows_accessor!(
+        mrcm_attribute_domain_member_rows,
+        MrcmAttributeDomainRefsetMember
+    );
+    member_rows_accessor!(
+        mrcm_attribute_range_member_rows,
+        MrcmAttributeRangeRefsetMember
+    );
+    member_rows_accessor!(mrcm_module_scope_member_rows, MrcmModuleScopeRefsetMember);
+    member_rows_accessor!(ordered_component_member_rows, OrderedComponentRefsetMember);
+    member_rows_accessor!(
+        ordered_association_member_rows,
+        OrderedAssociationRefsetMember
+    );
+    member_rows_accessor!(
+        component_annotation_member_rows,
+        ComponentAnnotationRefsetMember
+    );
+    member_rows_accessor!(member_annotation_member_rows, MemberAnnotationRefsetMember);
 }
 
 #[cfg(test)]
@@ -1554,6 +1676,72 @@ mod tests {
         assert_eq!(members.len(), 1);
         assert_eq!(members[0].map_target, "I21.9");
         assert!(store.extended_map_members(ICD10_MAP, ROOT).is_empty());
+    }
+
+    #[test]
+    fn extended_map_member_rows_include_inactive_rows_unlike_extended_map_members() {
+        // The typed counterpart of `member_rows_include_inactive_rows...`:
+        // `extended_map_members` (active-only, unchanged) must not see an
+        // inactive row, but `extended_map_member_rows` (added 2026-09-03
+        // for {{ M }} field filters) must.
+        let mut b = SnapshotStore::builder();
+        b.add_extended_map_member(ExtendedMapRefsetMember {
+            core: core(
+                MemberId::parse("80000000-0000-4000-8000-000000000070").unwrap(),
+                20200131,
+                false,
+                ICD10_MAP,
+                MI,
+            ),
+            map_group: 1,
+            map_priority: 1,
+            map_rule: String::new(),
+            map_advice: String::new(),
+            map_target: "I21.9".to_string(),
+            correlation_id: constants::CORE_MODULE,
+            map_category_id: constants::CORE_MODULE,
+        });
+        let store = b.build();
+
+        assert!(store.extended_map_members(ICD10_MAP, MI).is_empty());
+        let rows = store.extended_map_member_rows(ICD10_MAP, MI);
+        assert_eq!(rows.len(), 1);
+        assert!(!rows[0].core.active);
+        assert_eq!(rows[0].map_target, "I21.9");
+        assert!(store.extended_map_member_rows(ICD10_MAP, ROOT).is_empty());
+    }
+
+    #[test]
+    fn mrcm_domain_member_rows_include_inactive_rows_too() {
+        // A second typed kind, to prove the pattern generalizes across
+        // the macro rather than being special-cased for one type.
+        let procedure = SctId::new_unchecked(71388002);
+        let mut b = SnapshotStore::builder();
+        b.add_mrcm_domain_member(MrcmDomainRefsetMember {
+            core: core(
+                MemberId::parse("80000000-0000-4000-8000-000000000071").unwrap(),
+                20200131,
+                false,
+                constants::MRCM_DOMAIN_REFERENCE_SET,
+                procedure,
+            ),
+            domain_constraint: "<< 71388002".to_string(),
+            parent_domain: String::new(),
+            proximal_primitive_constraint: "<< 71388002".to_string(),
+            proximal_primitive_refinement: String::new(),
+            domain_template_for_precoordination: String::new(),
+            domain_template_for_postcoordination: String::new(),
+            guide_url: String::new(),
+        });
+        let store = b.build();
+
+        assert!(store
+            .mrcm_domain_members(constants::MRCM_DOMAIN_REFERENCE_SET, procedure)
+            .is_empty());
+        let rows = store.mrcm_domain_member_rows(constants::MRCM_DOMAIN_REFERENCE_SET, procedure);
+        assert_eq!(rows.len(), 1);
+        assert!(!rows[0].core.active);
+        assert_eq!(rows[0].domain_constraint, "<< 71388002");
     }
 
     #[test]
