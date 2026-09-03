@@ -109,22 +109,25 @@ let matches = evaluate(&expr, store);
 | Concrete values | `attr > #500`, `attr <= #-2.5`, `attr = "E10.9"`, `attr = ("E10.9" "E11.9")` — numeric (`=`/`!=`/`<=`/`<`/`>=`/`>`) and string (`=`/`!=`, incl. an OR'd `concreteStringSet`) comparisons against a `RelationshipConcreteValue` |
 | Concept filter | `{{ C active = true }}`, `{{ C active != false }}`, `{{ C active = * }}`, `{{ C definitionStatus = primitive }}`, `{{ C definitionStatus = (primitive defined) }}`, `{{ C definitionStatusId = 900000000000073002 }}`, `{{ C moduleId = 900000000000207008 }}`, `{{ C moduleId = << 900000000000012004 }}`, `{{ C effectiveTime >= "20200101" }}`, `{{ C effectiveTime = ("20200101" "20210101") }}` — restricts a set to concepts whose own row matches; multiple filters/blocks AND together; works after a parenthesized expression or `^ memberOf` too, not just a plain focus concept |
 | Description filter | `{{ D term = "heart att" }}`, `{{ term = "heart" }}` (the `D` is optional), `{{ D term = ("heart" "cardiac") }}`, `{{ D type = fsn }}`, `{{ D type = (fsn syn) }}`, `{{ D typeId = 900000000000003001 }}`, `{{ D language = en }}`, `{{ D language = (en sv) }}`, `{{ D dialectId = 900000000000509007 (preferred) }}`, `{{ D moduleId = 900000000000207008 }}`, `{{ D effectiveTime >= "20200101" }}`, `{{ D active = * }}` — the `moduleId`/`effectiveTime`/`active` filters read the **description's own** columns (spec/06), not its concept's; keeps concepts having **one description** that satisfies every filter in the block; active-only unless the block writes an `active` filter; `term` takes a search type — `match:` (the default, word-prefix, splitting words at punctuation as well as whitespace), `wild:` (`*` in a whole-term pattern), or `exact:` (case-sensitive equality) |
+| Member filter | `^ 447562003 {{ M active = true }}`, `^R 73211009 {{ M moduleId = 900000000000207008 }}`, `{{ M effectiveTime >= "20200101" }}`, `{{ M mapTarget = "I21.9" }}` (string search, `SimpleMap`/`ExtendedMap` rows), `{{ M correlationId = 116680003 }}` (concept reference, `ExtendedMap` rows only), `{{ M mapGroup >= #1 }}` (numeric, `ExtendedMap` rows only) — restricts `^`'s referenced components, or `^R`'s result refsets, to those with a member row matching every filter in the block; `moduleId`/`effectiveTime`/`active` read the **member row's own** columns (spec/08), not its component's; active-only unless the block writes an `active` filter; works after both `^` and `^R` |
 | Syntax details | pipe-delimited terms (`73211009 \|Diabetes mellitus\|`, non-semantic), case-insensitive keywords, `,` as an alternate spelling for `AND`, `/* comments */` |
 
-Not yet implemented, never silently mishandled: `{{ M ... }}` member
-filters, `!!>`/`!!<`, `^ [A, B]` (member of with field selection), the
-`dialect` alias form, `regex:` search terms, and alternate identifiers
-(`A#B`) are all rejected with a specific
-`EclError::NotYetImplemented { feature, .. }` naming what's missing.
+Not yet implemented, never silently mishandled: `!!>`/`!!<`, `^ [A, B]`
+(member of with field selection), the `dialect` alias form, `regex:`
+search terms, and alternate identifiers (`A#B`) are all rejected with a
+specific `EclError::NotYetImplemented { feature, .. }` naming what's
+missing.
 
 Boolean concrete value comparisons (not representable in RF2's `value`
 column at all — spec/10), the history supplement (`{{+HISTORY}}`), the
-`dialectIdSet` spelling (`dialectId = (X Y)`), and `moduleId`'s
+`dialectIdSet` spelling (`dialectId = (X Y)`), `moduleId`'s
 `eclConceptReferenceSet` *spelling*
 (`moduleId = (id1 id2)`; write `moduleId = (id1 OR id2)`, which is
-supported and means the same thing) are rejected too, but currently with
-a generic parse error rather than a named one (spec/10 rule 9) —
-genuinely unimplemented constructs, not just missing a label.
+supported and means the same thing), and every `memberFieldFilter`
+column but `mapTarget`/`correlationId`/`mapGroup` (e.g. `order`,
+`domainConstraint`) are rejected too, but currently with a generic parse
+error rather than a named one (spec/10 rule 9) — genuinely unimplemented
+constructs, not just missing a label.
 
 The full list, with why each one is still open, is
 `spec/10-ecl-unimplemented.md`.

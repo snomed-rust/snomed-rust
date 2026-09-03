@@ -64,7 +64,9 @@
       "items": [
         { "title": "plan.md", "url": "https://github.com/snomed-rust/snomed-rust/blob/main/plan.md", "description": "roadmap by phase, with the why behind non-obvious decisions" },
         { "title": "tasks.md", "url": "https://github.com/snomed-rust/snomed-rust/blob/main/tasks.md", "description": "execution checklist, more granular than plan.md" },
-        { "title": "CHANGELOG.md", "url": "https://github.com/snomed-rust/snomed-rust/blob/main/CHANGELOG.md", "description": "what changed per published release" }
+        { "title": "CHANGELOG.md", "url": "https://github.com/snomed-rust/snomed-rust/blob/main/CHANGELOG.md", "description": "what changed per published release" },
+        { "title": ".claude/skills/snomed-skill/SKILL.md", "url": "https://github.com/snomed-rust/snomed-rust/blob/main/.claude/skills/snomed-skill/SKILL.md", "description": "Claude Code skill for everyday SNOMED CT tasks (CLI, library, ECL)" },
+        { "title": ".claude/skills/snomed-rust-maintainer-skill/SKILL.md", "url": "https://github.com/snomed-rust/snomed-rust/blob/main/.claude/skills/snomed-rust-maintainer-skill/SKILL.md", "description": "Claude Code skill for changing this repository's own code" }
       ]
     },
     {

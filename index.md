@@ -8,6 +8,7 @@ Start here rather than guessing which file to open:
 | **Specs** | "What is this format/language/algorithm supposed to do, normatively?" | [`spec/*.md`](spec/README.md) |
 | **Crate READMEs** | "How do I use this crate's API?" (with runnable examples) | `crates/*/README.md` |
 | **Role playbooks** | "I'm about to change this crate — what conventions/gotchas apply?" | [`agents/*.md`](agents) |
+| **Claude Code skills** | "I'm using Claude Code against this repo — what should it know?" | [`snomed-skill`](.claude/skills/snomed-skill/SKILL.md) (using the toolkit), [`snomed-rust-maintainer-skill`](.claude/skills/snomed-rust-maintainer-skill/SKILL.md) (changing this repo's own code) |
 | **Tutorial** | "I'm new — walk me through it step by step." | [`docs/tutorial.md`](docs/tutorial.md) |
 | **Troubleshooting** | "I hit an error / something looks wrong — is this expected?" | [`docs/troubleshooting.md`](docs/troubleshooting.md) |
 | **Project policies** | "What Rust version, how is this verified beyond unit tests, what breaks downstream?" | full table (all seventeen) in [`spec/README.md`](spec/README.md); most worth knowing up front: [`spec/rust-msrv-n-minus-2/index.md`](spec/rust-msrv-n-minus-2/index.md), [`spec/rust-fuzz.md`](spec/rust-fuzz.md), [`spec/rust-bench.md`](spec/rust-bench.md), [`spec/rust-api-stability.md`](spec/rust-api-stability.md), [`spec/rust-no-unsafe/index.md`](spec/rust-no-unsafe/index.md), [`spec/professionalization/index.md`](spec/professionalization/index.md) |

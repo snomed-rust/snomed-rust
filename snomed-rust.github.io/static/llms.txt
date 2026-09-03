@@ -68,6 +68,8 @@ links, lives at the project repository's own
 - [plan.md](https://github.com/snomed-rust/snomed-rust/blob/main/plan.md): roadmap by phase, with the *why* behind non-obvious decisions
 - [tasks.md](https://github.com/snomed-rust/snomed-rust/blob/main/tasks.md): execution checklist, more granular than `plan.md`
 - [CHANGELOG.md](https://github.com/snomed-rust/snomed-rust/blob/main/CHANGELOG.md): what changed per published release
+- [.claude/skills/snomed-skill/SKILL.md](https://github.com/snomed-rust/snomed-rust/blob/main/.claude/skills/snomed-skill/SKILL.md): Claude Code skill for everyday SNOMED CT tasks (CLI, library, ECL)
+- [.claude/skills/snomed-rust-maintainer-skill/SKILL.md](https://github.com/snomed-rust/snomed-rust/blob/main/.claude/skills/snomed-rust-maintainer-skill/SKILL.md): Claude Code skill for changing this repository's own code
 
 ## Optional
 

@@ -21,6 +21,59 @@ most recently on 2026-09-03, to keep this file inside the repository's
 40 KB per-document budget. Search both when asking "has this come up
 before".
 
+## Done (2026-09-03, documentation-harmonization audit — five parallel sweeps)
+
+- [x] **Five read-only audits** dispatched over `spec/`; `CLAUDE.md`/
+      `AGENTS.md`/`agents/*.md`; top-level docs (`README.md`, `index.md`,
+      `INSTALL.md`, `COMPARISONS.md`, `BENCHMARKS.md`,
+      `docs/troubleshooting.md`, `docs/tutorial.md`, `NEWS.md`,
+      `CHANGELOG.md`'s header, `RFC.md`, `CITATION.cff`, all 9
+      `crates/*/README.md`); `llms.txt`/`llms.json` (root); and
+      `snomed-rust.github.io/` (the SvelteKit site) — each checked against
+      live ground truth (version 0.17.0, 9 crates, 397 tests, MSRV 1.96,
+      13 fuzz targets, 6 benchmark files, 35 `spec/` documents), not
+      against each other's prose. Three of the five came back clean
+      (`CLAUDE.md`/`AGENTS.md`/`agents/*.md`; `llms.txt`/`llms.json`
+      root); two turned up genuine drift, fixed here:
+- [x] **`README.md`**: "sixteen project policies" → seventeen (matches
+      `spec/README.md` and `index.md`, both already correct — this file
+      alone hadn't caught up to the 17th policy).
+- [x] **`crates/snomed-ecl/README.md`**: the "What's supported" table had
+      no row for `{{ M ... }}` member filters at all, and the "Not yet
+      implemented" paragraph still listed `{{ M ... }}` itself as
+      unimplemented — stale since 0.13.0. Added a Member filter table row
+      (covering `moduleId`/`effectiveTime`/`active` plus
+      `mapTarget`/`correlationId`/`mapGroup`, after both `^` and `^R`),
+      and moved "every `memberFieldFilter` column but the three
+      implemented ones" into the *generic-parse-error* paragraph where it
+      belongs — not the `NotYetImplemented` one, a distinction the first
+      draft of this fix got wrong before checking
+      `spec/10-ecl-unimplemented.md`'s own two-bucket categorization.
+- [x] **`index.md`**: added a "Claude Code skills" row to the
+      question-answering table, pointing at both `.claude/skills/*/SKILL.md`
+      files added earlier today — the index otherwise claimed to answer
+      "where do I find X" without mentioning them.
+- [x] **`snomed-rust.github.io/static/llms.txt`/`static/llms.json`**: the
+      site's own copies were a stale snapshot from before the two skills
+      existed. Added both, GitHub-blob-URL-rewritten per this project's
+      own convention (`spec/llms-json-and-llms-txt/index.md`) — not a
+      byte-for-byte copy of the root files.
+- [x] **Not fixed, deliberately, and recorded instead**: `spec/10-ecl.md`
+      is at 39,702 of 40,960 bytes (97% of budget) — the third
+      `memberFieldFilter` column enumerated in lockstep across
+      `spec/10-ecl.md`/`spec/10-ecl-filters.md`/`spec/10-ecl-unimplemented.md`
+      is a duplicated-normative-content risk with no mechanical guard
+      (unlike rule numbers, which `spec_citations` checks). Both are real
+      but not correctness bugs today; a rule-text change deserves its own
+      spec-first increment, not a fix folded into an audit sweep. Left as
+      a note for whoever picks up the next `memberFieldFilter` column.
+- [x] **Caught by `spec_citations` mid-audit**: see the "two Claude Code
+      skills" entry below — the same false-positive class, twice, while
+      describing it.
+- [x] Verified: `bin/check-docs` (99 documents), `bin/check-trademarks`,
+      `spec_citations`, `cargo test --all` (397, unaffected), clippy
+      `-D warnings`, `fmt --check`.
+
 ## Done (2026-09-03, two Claude Code skills: `snomed-skill`, `snomed-rust-maintainer-skill`)
 
 - [x] **`.claude/skills/snomed-skill/SKILL.md`** — for end users of SNOMED
