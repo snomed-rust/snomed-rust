@@ -15,6 +15,32 @@ most recently on 2026-09-02, to keep this file inside the repository's
 40 KB per-document budget. Search both when asking "has this come up
 before".
 
+## Done (2026-09-03, Release 0.15.0 — `memberFieldFilter`'s `mapTarget`, third self-decided release)
+
+- [x] **Decided and executed the release itself**, per §1-5 of
+      `spec/ai-release-authority/`: §1 CI independently green on the
+      pushed merge commit (`d8349a3`, all six jobs, confirmed via `gh run
+      view` before tagging); §2 `CHANGELOG.md`'s `[Unreleased]` verified
+      against the actual diff and moved under `## [0.15.0]`, minor bump
+      (purely additive: `MemberFilterKind::MapTarget`, sixteen new
+      `SnapshotStore::*_member_rows` accessors, nothing removed or
+      changed signature); §3 no rule oversteps — this ships the
+      `memberFieldFilter` store-retention decision already recorded in
+      `plan.md` as Decided 2026-09-03, not a new undecided change; §4 all
+      nine crates, one version, standard dependency order; §5 tagged
+      `v0.15.0` (signed, verified against the merge commit) and ran
+      `cargo publish` for each crate in order, all nine succeeding
+      (`snomed-store` hit a transient 503 mid-upload but still reported
+      published; verified below).
+- [x] **Verified against crates.io's own API afterward**: `GET
+      /api/v1/crates/<name>` for all nine names, including `snomed-store`,
+      returns `default_version: "0.15.0"`.
+- [x] Version bumped everywhere the 0.13.0/0.14.0 precedent bumped it:
+      `Cargo.toml` (workspace + seven pins), `CITATION.cff`, `NEWS.md`,
+      `INSTALL.md`, `SECURITY.md`.
+- [x] Same `release/0.15.0` branch/merge shape as 0.12.0-0.14.0, not a
+      direct commit to `main`.
+
 ## Done (2026-09-03, ECL `{{ M ... }}` `memberFieldFilter`: `mapTarget`, plus store retention for all sixteen types)
 
 - [x] **Decided the store-retention shape** (`plan.md`'s "Open decisions",
@@ -524,12 +550,11 @@ before".
 ## Next up
 
 - [ ] Nothing currently scoped beyond the `{{ M ... }}` remainder below.
-      State as of 2026-09-03: **0.14.0 released**, and `mapTarget` (the
-      first `memberFieldFilter` column) implemented on top of it after
-      both `^` and `^R` — not yet released (see the "Done" entry above;
-      release decision pending). `{{ M ... }}` after `^` (0.13.0) and
-      after `^R` (0.14.0), both decided and executed under
-      `spec/ai-release-authority/`'s criteria rather than a fresh
+      State as of 2026-09-03: **0.15.0 released** — `mapTarget` (the
+      first `memberFieldFilter` column), after both `^` and `^R`. `{{ M
+      ... }}` after `^` (0.13.0), after `^R` (0.14.0), and its
+      `memberFieldFilter` alternative (0.15.0), all decided and executed
+      under `spec/ai-release-authority/`'s criteria rather than a fresh
       per-release maintainer go-ahead (see `CHANGELOG.md`). 9 crates, 388
       tests,
       clippy/fmt clean on stable, MSRV 1.96 (current
