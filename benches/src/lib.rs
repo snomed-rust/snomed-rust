@@ -25,7 +25,7 @@ const DATE: &str = "20250801";
 const TIME: EffectiveTime = EffectiveTime::new_unchecked(20250801);
 
 /// A minimal xorshift64* PRNG, matching the one in
-/// `crates/snomed-store/examples/benchmark_synthetic_release.rs`.
+/// `snomed-store/examples/benchmark_synthetic_release.rs`.
 /// Determinism, not cryptographic quality, is what a benchmark needs.
 pub struct Rng(u64);
 

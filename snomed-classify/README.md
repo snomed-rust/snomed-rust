@@ -13,7 +13,7 @@ EL Envelope"](https://www.ijcai.org/Proceedings/05/Papers/0372.pdf)
 (IJCAI 2005), extended with the EL+ role-hierarchy/composition rules
 (Baader/Lutz/Suntisrivaraporn) SNOMED CT actually uses (property chains,
 transitive attributes). See
-[`spec/13-classification.md`](../../spec/13-classification.md) — the
+[`spec/13-classification.md`](../spec/13-classification.md) — the
 normative spec, including the full normal-form/completion-rule tables and
 what's out of scope. Depends on `snomed-core` and `snomed-owl` only.
 
@@ -93,7 +93,7 @@ by itself tell you what RF2 `Relationship` rows a release should ship.
 non-redundant) entailed parents, plus role-grouped attributes with
 redundancy eliminated — the same reduction
 [`snomed-owl-toolkit`'s `RelationshipNormalFormGenerator`](https://github.com/IHTSDO/snomed-owl-toolkit/blob/master/documentation/calculating-necessary-normal-form.md)
-performs. See [`spec/14-necessary-normal-form.md`](../../spec/14-necessary-normal-form.md)
+performs. See [`spec/14-necessary-normal-form.md`](../spec/14-necessary-normal-form.md)
 for the full algorithm (ported from that reference implementation),
 including its second whole-run pass: property-chain and
 transitive-property redundancy, where `findingSite ∘ partOf ⊑ findingSite`
@@ -104,7 +104,7 @@ disjunction.
 Proximal-parent reduction keeps exactly one representative of any set of
 mutually **equivalent** parents (the lowest SCTID): they imply each
 other, so dropping every implied parent would leave the concept with no
-IS-A at all — see [`spec/14`](../../spec/14-necessary-normal-form.md)
+IS-A at all — see [`spec/14`](../spec/14-necessary-normal-form.md)
 rule 5.
 
 ```rust
@@ -134,7 +134,7 @@ assert!(!report.forms[&mi].is_a.contains(&finding));
 
 `examples/benchmark_synthetic_ontology.rs` generates a synthetic random-
 tree ontology (same shape/rationale as
-`crates/snomed-store/examples/benchmark_synthetic_release.rs` — no real
+`snomed-store/examples/benchmark_synthetic_release.rs` — no real
 SNOMED CT axiom content is available in this environment) sized to
 SNOMED CT International Edition's ~370k active concepts. On the dev
 machine used for this run: **~1.7s** to classify, with ~13.5 entailed

@@ -23,7 +23,7 @@ Every gate CI enforces passes, checked against the exact commit being
 released — not assumed from a local run, not a subset chosen for
 convenience: `cargo fmt --check`, `cargo clippy --all-targets` (warnings
 as errors), `cargo test --all`, the MSRV job, `bin/check-docs`,
-`bin/check-trademarks`, `crates/snomed/tests/spec_citations.rs`, the
+`bin/check-trademarks`, `snomed/tests/spec_citations.rs`, the
 fuzz-target build+smoke job, and the benchmark compile+smoke job. The
 release commit must be **pushed and independently observed green on
 CI**, not just green locally — local and CI success have already

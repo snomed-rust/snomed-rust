@@ -38,9 +38,9 @@ licenses, so those are the only two files the directory holds.
 ## Scope: what this license covers
 
 It covers everything in this repository that this project wrote: the Rust
-source in `crates/`, the fuzz targets in `fuzz/`, the benchmarks in
-`benches/`, the specifications and policies in `spec/`, the documentation in
-`docs/` and `help/`, and the build and CI configuration.
+source in the workspace crates, the fuzz targets in `fuzz/`, the benchmarks
+in `benches/`, the specifications and policies in `spec/`, the documentation
+in `docs/` and `help/`, and the build and CI configuration.
 
 ## Scope: what it does not cover
 

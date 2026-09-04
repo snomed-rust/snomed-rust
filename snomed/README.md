@@ -11,7 +11,7 @@ project is an independent work.
 If you're consuming this workspace as a library from outside the repo,
 depend on `snomed` rather than the individual `snomed-*` crates directly —
 that's what it's for. If you're working *in* this repo, the root
-[`README.md`](../../README.md) and [`spec/`](../../spec/README.md) are the
+[`README.md`](../README.md) and [`spec/`](../spec/README.md) are the
 better starting points.
 
 ## What it re-exports
@@ -99,8 +99,8 @@ assert!(report.classification.is_subsumed_by(mi, SctId::parse("404684003")?));
 For a longer, runnable walkthrough that also touches FHIR's `$expand`
 and necessary normal form, run `cargo run --example tutorial -p snomed`
 (source: [`examples/tutorial.rs`](examples/tutorial.rs)) or read its
-prose companion, [`docs/tutorial.md`](../../docs/tutorial.md). See also
-the root [`README.md`](../../README.md) and [`index.md`](../../index.md).
+prose companion, [`docs/tutorial.md`](../docs/tutorial.md). See also
+the root [`README.md`](../README.md) and [`index.md`](../index.md).
 For the `snomed-cli` binary, which wraps this same API for terminal use,
 see [`snomed-cli`](../snomed-cli/README.md).
 

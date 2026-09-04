@@ -6,7 +6,7 @@ Start here rather than guessing which file to open:
 | Layer | Answers | Where |
 |---|---|---|
 | **Specs** | "What is this format/language/algorithm supposed to do, normatively?" | [`spec/*.md`](spec/README.md) |
-| **Crate READMEs** | "How do I use this crate's API?" (with runnable examples) | `crates/*/README.md` |
+| **Crate READMEs** | "How do I use this crate's API?" (with runnable examples) | `snomed*/README.md` |
 | **Role playbooks** | "I'm about to change this crate — what conventions/gotchas apply?" | [`agents/*.md`](agents) |
 | **Claude Code skills** | "I'm using Claude Code against this repo — what should it know?" | [`snomed-skill`](.claude/skills/snomed-skill/SKILL.md) (using the toolkit), [`snomed-rust-maintainer-skill`](.claude/skills/snomed-rust-maintainer-skill/SKILL.md) (changing this repo's own code) |
 | **Tutorial** | "I'm new — walk me through it step by step." | [`docs/tutorial.md`](docs/tutorial.md) |
@@ -47,7 +47,7 @@ already establish.
 
 That relationship is enforced, not merely asserted: code and docs cite
 rules as `spec/NN rule M`, and
-[`crates/snomed/tests/spec_citations.rs`](crates/snomed/tests/spec_citations.rs)
+[`snomed/tests/spec_citations.rs`](snomed/tests/spec_citations.rs)
 walks the repository on every `cargo test`, failing if any citation names
 a rule that no longer exists. Renumbering a spec therefore cannot leave
 stale pointers behind in silence.
@@ -99,8 +99,8 @@ of an external specification, and bind the same way:
 
 `snomed` (the facade) and `snomed-cli` (the terminal binary) both sit on
 top of every crate above rather than implementing a spec of their own —
-see [`crates/snomed/README.md`](crates/snomed/README.md) and
-[`crates/snomed-cli/README.md`](crates/snomed-cli/README.md).
+see [`snomed/README.md`](snomed/README.md) and
+[`snomed-cli/README.md`](snomed-cli/README.md).
 
 ## A worked example spanning five crates
 
@@ -154,7 +154,7 @@ in practice, not just for documentation but for the code itself.
 This is the compressed version. For the same pipeline broken into six
 runnable steps with real captured output and prose explaining *why*
 at each one, see [`docs/tutorial.md`](docs/tutorial.md) — and its
-companion, [`crates/snomed/examples/tutorial.rs`](crates/snomed/examples/tutorial.rs),
+companion, [`snomed/examples/tutorial.rs`](snomed/examples/tutorial.rs),
 which you can actually run: `cargo run --example tutorial -p snomed`.
 
 ## Where to go next
@@ -169,7 +169,7 @@ which you can actually run: `cargo run --example tutorial -p snomed`.
   rejections of unsupported input.
 - About to change behavior? Read that crate's `spec/NN-*.md` first (it's
   normative), then its `agents/*-engineer.md` (conventions/gotchas
-  specific to that crate), then its `crates/*/README.md` (so your change
+  specific to that crate), then its `snomed*/README.md` (so your change
   doesn't silently make the README's examples stop compiling).
 - Changing a parser or an algorithm? There is probably a fuzz target for
   it in `fuzz/fuzz_targets/` asserting the spec properties your change

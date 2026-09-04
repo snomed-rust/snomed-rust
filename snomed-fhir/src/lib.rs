@@ -44,5 +44,5 @@ pub use lookup::{lookup, Designation, DesignationUse, LookupProperty, LookupResu
 pub use subsumes::{subsumes, SubsumeOutcome};
 
 /// The canonical FHIR `system` URI for SNOMED CT
-/// ([spec/11-fhir.md](../../../spec/11-fhir.md)).
+/// ([spec/11-fhir.md](../../spec/11-fhir.md)).
 pub const SNOMED_CT_SYSTEM: &str = "http://snomed.info/sct";

@@ -20,11 +20,11 @@ No dependencies outside the Rust standard library.
 
 | Spec | Module |
 |---|---|
-| [`spec/04-sctid.md`](../../spec/04-sctid.md) — SCTID structure, partitions, Verhoeff check digit | `sctid`, `verhoeff` |
-| [`spec/05-concept-file.md`](../../spec/05-concept-file.md) | `components::Concept` |
-| [`spec/06-description-file.md`](../../spec/06-description-file.md) | `components::Description` |
-| [`spec/07-relationship-file.md`](../../spec/07-relationship-file.md) | `components::Relationship`, `components::RelationshipConcreteValue`, `concrete_value` |
-| [`spec/09-versioning.md`](../../spec/09-versioning.md) — `effectiveTime` | `time` |
+| [`spec/04-sctid.md`](../spec/04-sctid.md) — SCTID structure, partitions, Verhoeff check digit | `sctid`, `verhoeff` |
+| [`spec/05-concept-file.md`](../spec/05-concept-file.md) | `components::Concept` |
+| [`spec/06-description-file.md`](../spec/06-description-file.md) | `components::Description` |
+| [`spec/07-relationship-file.md`](../spec/07-relationship-file.md) | `components::Relationship`, `components::RelationshipConcreteValue`, `concrete_value` |
+| [`spec/09-versioning.md`](../spec/09-versioning.md) — `effectiveTime` | `time` |
 | — | `constants` (well-known concept SCTIDs referenced by spec/05..08) |
 
 ## `SctId`: SNOMED CT Identifier
@@ -67,13 +67,13 @@ even so: an id with too few digits to hold a partition reports partition
 `99` (a value no valid SCTID uses), and therefore `None` for
 `component_type()`/`namespace()`, `false` for `is_long_format()`, and `0`
 for `item_identifier()`, rather than panicking
-([`spec/04-sctid.md`](../../spec/04-sctid.md) rule 5).
+([`spec/04-sctid.md`](../spec/04-sctid.md) rule 5).
 
 ## Component records
 
 `Concept`, `Description`, and `Relationship` mirror the RF2 column layout
 field-for-field (snake_cased). Each struct is **one version** of a
-component — see [`spec/09-versioning.md`](../../spec/09-versioning.md) for
+component — see [`spec/09-versioning.md`](../spec/09-versioning.md) for
 what that means for stores built on top of this crate.
 
 ```rust

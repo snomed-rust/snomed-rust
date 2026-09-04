@@ -63,8 +63,8 @@ Stated because an attribute that is oversold is worse than one that is absent:
 
 | Location | Form |
 |---|---|
-| each `crates/*/src/lib.rs` | `#![forbid(unsafe_code)]` after the module doc block |
-| `crates/snomed-cli/src/main.rs` | the same — a binary root is a crate root |
+| each workspace crate's `src/lib.rs` | `#![forbid(unsafe_code)]` after the module doc block |
+| `snomed-cli/src/main.rs` | the same — a binary root is a crate root |
 | each `fuzz/fuzz_targets/*.rs` and `fuzz/src/lib.rs` | the same |
 | each `benches/benches/*.rs` and `benches/src/lib.rs` | the same |
 

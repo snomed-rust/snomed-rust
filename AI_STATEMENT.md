@@ -26,7 +26,7 @@ Directives Part 2 defines them: requirement, recommendation, permission.
 ## 1. Scope
 
 This document covers the use of AI tools in developing everything in this
-repository: the crates in `crates/`, the specifications and policies in
+repository: the workspace crates, the specifications and policies in
 `spec/`, the tests, the fuzz targets in `fuzz/`, the benchmarks in `benches/`,
 the CI configuration, the documentation, and this document itself.
 
@@ -149,7 +149,7 @@ is a wish.
   because it converts "the model asserted this behaviour" into "this behaviour
   traces to a document you can read".
 - **Citations are checked, not trusted.**
-  `crates/snomed/tests/spec_citations.rs` walks the entire repository and
+  `snomed/tests/spec_citations.rs` walks the entire repository and
   fails the build if any `spec/NN rule M` names a rule that does not exist.
   Renumbering a spec cannot silently leave a stale or invented pointer behind
   — which is precisely the failure mode a plausible-sounding generated comment

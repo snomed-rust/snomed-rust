@@ -1,7 +1,7 @@
 # Tasks archive — index
 
 [`tasks.md`](../tasks.md) keeps the current checklist and the recent
-entries; everything older lives here, split into fifteen files that each
+entries; everything older lives here, split into sixteen files that each
 stay inside the repository's 40 KB per-document budget. Entries were moved
 verbatim — this is a historical record, not a summary, and it is worth
 searching before assuming a problem is new. The one edit applied since is
@@ -26,6 +26,7 @@ so the paths quoted here still resolve.
 | [`tasks-archive-13.md`](tasks-archive-13.md) | 2026-08-31 | `spec/node-current-version/` (pinning the pages site's Node.js version to 26, and catching that `.npmrc`'s `engine-strict` is inert under pnpm 11); `spec/monorepo-github-pages/` (the read-only sibling export policy); `Makefile`'s `make github-pages` target |
 | [`tasks-archive-14.md`](tasks-archive-14.md) | 2026-09-01 - 2026-09-02 | The ECL `{{ M ... }}` member filter constraint's first three shared-column kinds (`moduleId`/`effectiveTime`/`active`); the AI governance work that followed — `cargo publish` execution authorized (two `AI_STATEMENT.md` contradictions found and fixed), the three remaining repository-hygiene gaps closed out, and release-readiness decision authority extended (`spec/ai-release-authority/index.md`) |
 | [`tasks-archive-15.md`](tasks-archive-15.md) | 2026-09-02 | Release 0.13.0 (the first executed under `spec/ai-release-authority/`); the `{{ M ... }}` member filter constraint's shared-column kinds extended to work after `^R`; release 0.14.0 (publishing that extension) |
+| [`tasks-archive-16.md`](tasks-archive-16.md) | 2026-09-03 | The `{{ M ... }}` member filter constraint's fourth grammar alternative, `memberFieldFilter`, implemented for its first column, `mapTarget` (with the all-sixteen-refset-types store-retention decision that made it possible); release 0.15.0 (publishing that work) |
 
 Older entries are shorter and more granular than recent ones: they were
 written a change at a time while the workspace was being built from

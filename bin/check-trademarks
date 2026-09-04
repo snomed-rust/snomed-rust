@@ -19,8 +19,9 @@ notice verbatim (owner directive, 2026-08-26) — descriptions are what
 crates.io shows in listings and search results, ahead of any README.
 
 Scope, per that rule and its Status section: root *.md, help/**/*.md,
-the crate-root rustdoc of crates/*/src/lib.rs, and the `description` of
-every crates/*/Cargo.toml that does not set `publish = false`. spec/**
+the crate-root rustdoc of each workspace crate's src/lib.rs, and the
+`description` of each workspace crate's Cargo.toml that does not set
+`publish = false`. spec/**
 is deliberately out
 of scope — the distillations name SNOMED CT in nearly every file because
 describing RF2 is their job; the reasoning is recorded in the spec's
@@ -113,7 +114,16 @@ in_scope_md = sorted(glob.glob("*.md")) + sorted(
     for p in glob.glob("help/**/*.md", recursive=True)
     if not os.path.islink(p)
 )
-in_scope_rs = sorted(glob.glob("crates/*/src/lib.rs"))
+
+# Workspace crate directories: read from the root Cargo.toml's own
+# `members` list rather than a glob, so this never has to be told apart
+# from a same-prefixed non-crate directory (e.g. `snomed-rust.github.io`)
+# and never drifts from the workspace's own single source of truth.
+_workspace_toml = read("Cargo.toml")
+_members_block = re.search(r"(?ms)^members\s*=\s*\[(.*?)\]", _workspace_toml)
+crate_dirs = sorted(re.findall(r'"([^"]+)"', _members_block.group(1)))
+
+in_scope_rs = sorted(f"{d}/src/lib.rs" for d in crate_dirs)
 
 for path in in_scope_md:
     text = read(path)
@@ -124,7 +134,7 @@ for path in in_scope_rs:
     prose = prose_rust_docs(text)
     check(path, prose, prose)
 
-in_scope_toml = sorted(glob.glob("crates/*/Cargo.toml"))
+in_scope_toml = sorted(f"{d}/Cargo.toml" for d in crate_dirs)
 
 for path in in_scope_toml:
     text = read(path)

@@ -25,26 +25,30 @@ classification with necessary normal form generation.
 
 ## Layout
 
-- `crates/snomed` — facade; re-exports the others; `prelude`; the end-to-end
-  integration test lives in `crates/snomed/tests/`.
-- `crates/snomed-core` — SCTID (Verhoeff), `EffectiveTime`, component
+Every crate is a top-level directory (not nested under a `crates/`
+subdirectory) — `snomed-core/`, `snomed-ecl/`, and so on, siblings of
+`spec/`, `fuzz/`, `benches/`, and the rest.
+
+- `snomed/` — facade; re-exports the others; `prelude`; the end-to-end
+  integration test lives in `snomed/tests/`.
+- `snomed-core/` — SCTID (Verhoeff), `EffectiveTime`, component
   structs, well-known constants. **No dependencies beyond std.**
-- `crates/snomed-rf2` — file names, release types, `Rf2Record` trait,
+- `snomed-rf2/` — file names, release types, `Rf2Record` trait,
   streaming reader, refset member types. Depends only on `snomed-core`.
-- `crates/snomed-store` — snapshot builder (latest `effectiveTime` wins),
+- `snomed-store/` — snapshot builder (latest `effectiveTime` wins),
   IS-A hierarchy, subsumption, `HistoryStore` (full version history).
-- `crates/snomed-ecl` — Expression Constraint Language: lexer, parser,
+- `snomed-ecl/` — Expression Constraint Language: lexer, parser,
   evaluator (hierarchy operators, `memberOf`/`^R`, dot notation,
   refinements incl. cardinality/reverse-flag/attribute groups, and
   `{{ }}` concept/description/member filters).
-- `crates/snomed-fhir` — FHIR terminology service building blocks:
+- `snomed-fhir/` — FHIR terminology service building blocks:
   `$lookup`, `$subsumes`, `$expand`.
-- `crates/snomed-owl` — parser for the OWL 2 functional-syntax subset used
+- `snomed-owl/` — parser for the OWL 2 functional-syntax subset used
   in the OWL Expression reference set.
-- `crates/snomed-classify` — EL-profile subsumption classifier
+- `snomed-classify/` — EL-profile subsumption classifier
   (`classify`) plus necessary normal form generation
   (`necessary_normal_form`) on top of it.
-- `crates/snomed-cli` — the `snomed-cli` binary; see Commands above for
+- `snomed-cli/` — the `snomed-cli` binary; see Commands above for
   its subcommands.
 - `spec/` — project-local distillation of the official RF2 specification
   and the other normative sources this workspace implements (ECL, FHIR,
@@ -80,11 +84,11 @@ classification with necessary normal form generation.
    (`spec/rust-msrv-n-minus-2/index.md`); `rust-version` in the root `Cargo.toml`
    and the CI `msrv` job pin move together.
 8. **No `unsafe`.** Every crate root carries `#![forbid(unsafe_code)]` —
-   `crates/*/src/lib.rs`, `crates/snomed-cli/src/main.rs`, every
+   each crate's `src/lib.rs`, `snomed-cli/src/main.rs`, every
    `fuzz/fuzz_targets/*.rs`, and every `benches/benches/*.rs`. A new crate
    root gets the attribute in the same change that creates it
    (`spec/rust-no-unsafe/index.md`).
-9. Cite rules as `spec/NN rule M`. `crates/snomed/tests/spec_citations.rs`
+9. Cite rules as `spec/NN rule M`. `snomed/tests/spec_citations.rs`
    checks every such citation in the repo resolves, so **inserting or
    renumbering a rule means updating its citations in the same change** —
    the test will say if you missed one. `spec/10` is four files, and all

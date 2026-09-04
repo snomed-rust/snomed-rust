@@ -42,15 +42,15 @@ links, lives at the project repository's own
 
 ## Crates
 
-- [crates/snomed](https://github.com/snomed-rust/snomed-rust/blob/main/crates/snomed/README.md): facade crate — re-exports everything, `prelude`, end-to-end tests
-- [crates/snomed-core](https://github.com/snomed-rust/snomed-rust/blob/main/crates/snomed-core/README.md): SCTID, `EffectiveTime`, component structs, well-known constants (no dependencies beyond std)
-- [crates/snomed-rf2](https://github.com/snomed-rust/snomed-rust/blob/main/crates/snomed-rf2/README.md): file naming, streaming reader, refset member types
-- [crates/snomed-store](https://github.com/snomed-rust/snomed-rust/blob/main/crates/snomed-store/README.md): snapshot builder, IS-A hierarchy, subsumption, full version history
-- [crates/snomed-ecl](https://github.com/snomed-rust/snomed-rust/blob/main/crates/snomed-ecl/README.md): Expression Constraint Language lexer, parser, evaluator
-- [crates/snomed-fhir](https://github.com/snomed-rust/snomed-rust/blob/main/crates/snomed-fhir/README.md): FHIR terminology service building blocks
-- [crates/snomed-owl](https://github.com/snomed-rust/snomed-rust/blob/main/crates/snomed-owl/README.md): OWL 2 functional-syntax parser
-- [crates/snomed-classify](https://github.com/snomed-rust/snomed-rust/blob/main/crates/snomed-classify/README.md): EL subsumption classifier, necessary normal form generation
-- [crates/snomed-cli](https://github.com/snomed-rust/snomed-rust/blob/main/crates/snomed-cli/README.md): `snomed-cli` binary — `sctid`, `load`, `lookup`, `ecl`, `export`, `validate`, `classify`, `nnf`
+- [snomed](https://github.com/snomed-rust/snomed-rust/blob/main/snomed/README.md): facade crate — re-exports everything, `prelude`, end-to-end tests
+- [snomed-core](https://github.com/snomed-rust/snomed-rust/blob/main/snomed-core/README.md): SCTID, `EffectiveTime`, component structs, well-known constants (no dependencies beyond std)
+- [snomed-rf2](https://github.com/snomed-rust/snomed-rust/blob/main/snomed-rf2/README.md): file naming, streaming reader, refset member types
+- [snomed-store](https://github.com/snomed-rust/snomed-rust/blob/main/snomed-store/README.md): snapshot builder, IS-A hierarchy, subsumption, full version history
+- [snomed-ecl](https://github.com/snomed-rust/snomed-rust/blob/main/snomed-ecl/README.md): Expression Constraint Language lexer, parser, evaluator
+- [snomed-fhir](https://github.com/snomed-rust/snomed-rust/blob/main/snomed-fhir/README.md): FHIR terminology service building blocks
+- [snomed-owl](https://github.com/snomed-rust/snomed-rust/blob/main/snomed-owl/README.md): OWL 2 functional-syntax parser
+- [snomed-classify](https://github.com/snomed-rust/snomed-rust/blob/main/snomed-classify/README.md): EL subsumption classifier, necessary normal form generation
+- [snomed-cli](https://github.com/snomed-rust/snomed-rust/blob/main/snomed-cli/README.md): `snomed-cli` binary — `sctid`, `load`, `lookup`, `ecl`, `export`, `validate`, `classify`, `nnf`
 
 ## Project policies
 

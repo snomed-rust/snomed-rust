@@ -175,7 +175,7 @@ values); `spec/10-ecl-filters.md` holds what each
 each one is still rejected. The split is by size, not by authority — all
 four are normative, and rule numbers stay in the first file so citations
 like "spec/10 rule 14" keep resolving
-(`crates/snomed/tests/spec_citations.rs` checks that they do). When you
+(`snomed/tests/spec_citations.rs` checks that they do). When you
 add a filter kind, its prose goes in the filters file and its rule (if it
 needs one) in the rules list; when you implement a rejected construct,
 delete its entry from the unimplemented file in the same change.

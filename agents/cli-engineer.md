@@ -18,7 +18,7 @@ never be the only place a piece of behavior exists.
 
 ## Structure
 
-- `src/lib.rs` — all real logic. [`run(args)`](../crates/snomed-cli/src/lib.rs)
+- `src/lib.rs` — all real logic. [`run(args)`](../snomed-cli/src/lib.rs)
   is the single entry point; it returns the formatted output as a `String`
   rather than printing directly. This is what makes subcommands testable
   without spawning the compiled binary — call `snomed_cli::run(&[...])`

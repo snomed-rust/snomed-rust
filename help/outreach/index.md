@@ -41,7 +41,7 @@ workspace can make, each of which a professional can verify in minutes:
 | Claim | Evidence a skeptic can check |
 |---|---|
 | Zero external dependencies, dev-dependencies included | `Cargo.toml`; `cargo tree` |
-| Spec-cited behavior — every rule traceable to a document | `spec/`, and `crates/snomed/tests/spec_citations.rs` failing the build on a dangling citation |
+| Spec-cited behavior — every rule traceable to a document | `spec/`, and `snomed/tests/spec_citations.rs` failing the build on a dangling citation |
 | No public API panics on input its own type allows | 13 libFuzzer targets in `fuzz/`, asserting spec properties rather than merely the absence of crashes |
 | Deterministic output across processes | spec/09 rules 5–6; byte-identical runs |
 | EL classification and necessary normal form from scratch | `snomed-classify`, ported against `snomed-owl-toolkit` semantics |

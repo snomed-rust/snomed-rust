@@ -54,7 +54,7 @@ the workspace so the published crates keep zero dependencies.
    order-independent in content: anything built by iterating a `HashMap`
    gets sorted before it is exposed (`spec/09` rules 5–6).
 12. Cite rules as `spec/NN rule M`.
-   `crates/snomed/tests/spec_citations.rs` walks the repository and fails
+   `snomed/tests/spec_citations.rs` walks the repository and fails
    if a citation names a rule that doesn't exist, so inserting or
    renumbering a rule means fixing its citations in the same change.
    `spec/10` is split across four files for size; every ECL rule number

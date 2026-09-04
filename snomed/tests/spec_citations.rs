@@ -18,7 +18,7 @@ use std::path::{Path, PathBuf};
 /// crate (where `spec/` isn't shipped) — in which case there is nothing to
 /// check and the test passes.
 fn repo_root() -> Option<PathBuf> {
-    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("..");
     root.join("spec").is_dir().then_some(root)
 }
 

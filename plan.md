@@ -176,7 +176,7 @@ and harmonizes it with the sibling repositories (`hl7-rust`, `er7-rust`,
   exactly the kind this workspace exists to prevent. Arguments against:
   `^ [referencedComponentId]` field selection and `{{ M }}` member
   filters both presume non-concept components are in scope for `^`, and
-  `crates/snomed-ecl/src/eval.rs`'s `member_of_spans_every_refset_type`
+  `snomed-ecl/src/eval.rs`'s `member_of_spans_every_refset_type`
   test asserts the current behavior deliberately.
 
   Cost is trivial either way (a `component_type() == Some(Concept)`
@@ -252,7 +252,7 @@ and harmonizes it with the sibling repositories (`hl7-rust`, `er7-rust`,
   section), storing the active subset twice rather than changing any
   existing accessor's signature. `mapTarget`, `correlationId`, `mapGroup`,
   and `mapPriority` are the first four concrete fields built on this
-  retention (`crates/snomed-ecl`, spec/10 rule 18): the `memberFieldFilter`
+  retention (`snomed-ecl`, spec/10 rule 18): the `memberFieldFilter`
   grammar alternative, tested against
   `simple_map_member_rows`/`extended_map_member_rows`, after both `^` and
   `^R` in one increment each since both reuse the same

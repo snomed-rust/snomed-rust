@@ -35,7 +35,7 @@ SNOMED CT Release File Specification.
 
 Rules are a numbered list starting at 1, in a `## Rules` section (or the
 normative section that serves as one). Code and docs cite them as
-`spec/NN rule M`, and `crates/snomed/tests/spec_citations.rs` checks every
+`spec/NN rule M`, and `snomed/tests/spec_citations.rs` checks every
 such citation resolves — so inserting a rule mid-list means updating the
 citations in the same change, and the test will say if you didn't.
 

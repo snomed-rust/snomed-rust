@@ -61,7 +61,7 @@ way. For each increment:
 5. Update every doc that described the old scope as unimplemented or
    incomplete: the relevant `spec/*.md` files (including
    `spec/10-ecl-unimplemented.md`'s equivalent for whatever crate),
-   `crates/*/src/lib.rs`'s crate-level doc comment, the `agents/*.md`
+   the relevant crate's `src/lib.rs` crate-level doc comment, the `agents/*.md`
    playbook, `plan.md` (Open decisions, Current status test count),
    `tasks.md` (a new Done entry, the Next-up remaining-scope bullet),
    `CHANGELOG.md`'s `[Unreleased]` section. Grep for the feature's old

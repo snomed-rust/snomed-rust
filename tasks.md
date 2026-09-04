@@ -15,12 +15,96 @@ retirement), Dependabot plus release 0.12.0 (2026-08-29/30), the
 (`spec/node-current-version/`, `spec/monorepo-github-pages/`, `make
 github-pages`), the ECL `{{ M ... }}` member filter constraint's first
 three shared-column kinds plus the AI-release-authority governance work
-that followed (2026-09-01/02), and releases 0.13.0/0.14.0 plus the `^R`
-extension between them (2026-09-02), live in
+that followed (2026-09-01/02), releases 0.13.0/0.14.0 plus the `^R`
+extension between them (2026-09-02), and `memberFieldFilter`'s
+`mapTarget` column plus release 0.15.0 (2026-09-03), live in
 [`docs/tasks-archive.md`](docs/tasks-archive.md) — moved there verbatim,
 most recently on 2026-09-04, to keep this file inside the repository's
 40 KB per-document budget. Search both when asking "has this come up
 before".
+
+## Done (2026-09-04, repository restructuring: every crate moved out of `crates/` to the repo root)
+
+- [x] **`git mv crates/<name> <name>`** for all nine crates — `snomed`,
+      `snomed-classify`, `snomed-cli`, `snomed-core`, `snomed-ecl`,
+      `snomed-fhir`, `snomed-owl`, `snomed-rf2`, `snomed-store` — now
+      siblings of `spec/`, `fuzz/`, `benches/`, and
+      `snomed-rust.github.io/` at the repo root, not nested under a
+      `crates/` directory git detected as pure renames (95 files, no
+      content diff in the move itself). The empty `crates/` directory is
+      gone.
+- [x] **`Cargo.toml`**: workspace `members` and every
+      `[workspace.dependencies]` `path` updated (`crates/snomed-core` →
+      `snomed-core`, etc.) — every crate's own `Cargo.toml` needed no
+      change, since inter-crate deps are all `.workspace = true` and
+      resolve through the root manifest. `fuzz/Cargo.toml` and
+      `benches/Cargo.toml` (both outside the workspace, `path =
+      "../crates/snomed-X"`) updated to `"../snomed-X"`.
+- [x] **Caught by `spec_citations` going dark, not by it failing loudly**:
+      `snomed/tests/spec_citations.rs`'s `repo_root()` computed
+      `CARGO_MANIFEST_DIR/../..` to reach the repository root — correct
+      when the crate was two levels deep (`crates/snomed/`), wrong once
+      it moved to one level deep (`snomed/`). The bug wouldn't have
+      failed the test: `repo_root()` returns `None` (skip, no error) when
+      `<computed path>/spec` isn't a directory, so a session that didn't
+      know to check for this could have shipped a citation checker that
+      silently stopped checking anything, forever, with a passing test
+      every time. Fixed to `CARGO_MANIFEST_DIR/..`; re-verified the test
+      actually still exercises real citations (not just "passes") by
+      confirming it still fails against a deliberately-broken citation
+      before restoring it.
+- [x] **`bin/check-trademarks`**: its `crates/*/src/lib.rs` and
+      `crates/*/Cargo.toml` glob patterns replaced with a crate-directory
+      list read from the workspace `Cargo.toml`'s own `members` array —
+      not a `snomed*` glob, which would need re-auditing every time a
+      same-prefixed non-crate directory (e.g. `snomed-rust.github.io/`)
+      might start looking like a match. Single source of truth for
+      "which directories are crates" now lives in exactly one place.
+      `bin/check-docs` needed no change — it already discovers tracked
+      markdown via `git ls-files`, path-agnostic by construction.
+- [x] **Every relative path fixed, found two ways**: `bin/check-docs`'s
+      link checker (definitive for markdown — 19 broken links across 6
+      files caught and fixed this way, including every crate README's
+      now-one-level-shallower `../../spec/...` → `../spec/...` links)
+      and a repo-wide grep for `crates/` in prose, doc comments, and
+      generated files (everything the link checker doesn't parse:
+      `CLAUDE.md`'s Layout section rewritten, `LICENSE.md`/
+      `AI_STATEMENT.md`'s scope paragraphs, every `spec/rust-*` policy
+      that named the old path, `.claude/skills/snomed-rust-maintainer-
+      skill/SKILL.md`, `plan.md`, and the two Claude Code skills' own
+      cross-references). `crates.io/crates/<name>` API/URL mentions in
+      `NEWS.md`/`tasks.md`/the maintainer skill are unrelated — left
+      alone. Historical `tasks.md` Done entries, `CHANGELOG.md` entries,
+      and every `docs/*-archive*.md` file describing past work under the
+      old path were **not** rewritten — they are point-in-time records,
+      same principle as never editing an archive.
+- [x] **`snomed-fhir/src/lib.rs`**'s one rustdoc markdown link
+      (`SNOMED_CT_SYSTEM`'s doc comment, pointing at `spec/11-fhir.md`)
+      had its `../../../` shortened to `../../` — the same one-level
+      shallower correction, caught by grep since rustdoc links aren't
+      covered by `bin/check-docs` (that scans `*.md` files only).
+- [x] **`snomed-rust.github.io/`**: `src/lib/generated/crates.json`
+      regenerated via its own `node scripts/gen-crates.js ..` (reads
+      `path` straight from the workspace `Cargo.toml`, so this is
+      correctness-by-construction, not a hand edit) rather than hand-
+      fixed; `static/llms.txt`/`static/llms.json`'s GitHub-blob-URL
+      entries updated the same way the two Claude Code skills were
+      earlier today. Verified the site itself, not just its inputs:
+      `pnpm run check` (0 errors) and `pnpm run build` both clean,
+      confirming the regenerated crate table and the edited files are
+      actually consumed correctly, not just syntactically fine.
+- [x] No `CHANGELOG.md` entry: its own stated scope is "notable changes
+      to this workspace's published crates," and a directory rename
+      changes no published crate's content — `cargo add snomed-core`
+      resolves identically before and after this change.
+- [x] Verified: `cargo build`/`clippy --all-targets`/`fmt --check`/`test
+      --workspace` (401, unaffected), `fuzz/`/`benches/` both
+      `cargo check` clean, `bin/check-docs` (100 documents, zero broken
+      links), `bin/check-trademarks` (9 crate roots, 9 manifests —
+      confirms the new directory-list logic finds exactly the same set
+      the old glob did), `spec_citations` (confirmed actually re-checking
+      citations, not silently skipping), `snomed-cli sctid` run manually
+      end to end, `cargo doc --workspace --no-deps` clean.
 
 ## Done (2026-09-04, Release 0.18.0 — `memberFieldFilter`'s `mapPriority`, sixth self-decided release)
 
@@ -317,74 +401,6 @@ before".
 - [x] `cargo clippy --all-targets`, `cargo fmt --check`, `fuzz/`/`benches/`
       all build clean.
 
-## Done (2026-09-03, Release 0.15.0 — `memberFieldFilter`'s `mapTarget`, third self-decided release)
-
-- [x] **Decided and executed the release itself**, per §1-5 of
-      `spec/ai-release-authority/`: §1 CI independently green on the
-      pushed merge commit (`d8349a3`, all six jobs, confirmed via `gh run
-      view` before tagging); §2 `CHANGELOG.md`'s `[Unreleased]` verified
-      against the actual diff and moved under `## [0.15.0]`, minor bump
-      (purely additive: `MemberFilterKind::MapTarget`, sixteen new
-      `SnapshotStore::*_member_rows` accessors, nothing removed or
-      changed signature); §3 no rule oversteps — this ships the
-      `memberFieldFilter` store-retention decision already recorded in
-      `plan.md` as Decided 2026-09-03, not a new undecided change; §4 all
-      nine crates, one version, standard dependency order; §5 tagged
-      `v0.15.0` (signed, verified against the merge commit) and ran
-      `cargo publish` for each crate in order, all nine succeeding
-      (`snomed-store` hit a transient 503 mid-upload but still reported
-      published; verified below).
-- [x] **Verified against crates.io's own API afterward**: `GET
-      /api/v1/crates/<name>` for all nine names, including `snomed-store`,
-      returns `default_version: "0.15.0"`.
-- [x] Version bumped everywhere the 0.13.0/0.14.0 precedent bumped it:
-      `Cargo.toml` (workspace + seven pins), `CITATION.cff`, `NEWS.md`,
-      `INSTALL.md`, `SECURITY.md`.
-- [x] Same `release/0.15.0` branch/merge shape as 0.12.0-0.14.0, not a
-      direct commit to `main`.
-
-## Done (2026-09-03, ECL `{{ M ... }}` `memberFieldFilter`: `mapTarget`, plus store retention for all sixteen types)
-
-- [x] **Decided the store-retention shape** (`plan.md`'s "Open decisions",
-      priced 2026-09-03): option 2, full typed rows with inactive rows
-      included, for all sixteen non-Simple/Language refset types — not
-      just the two map types `mapTarget` itself needs, and not a
-      per-field index. Presented as a priced choice; the maintainer chose
-      the broadest option so every future `memberFieldFilter` column is a
-      free `snomed-ecl`-only increment from here.
-- [x] **`snomed-store`**: sixteen new `*_member_rows` accessors
-      (`association_member_rows`, `simple_map_member_rows`,
-      `extended_map_member_rows`, …), one per non-Simple/Language refset
-      type, alongside the existing active-only accessors — unchanged in
-      name, signature, and content. `group_by_refset_and_component` now
-      borrows its input and keeps all rows; the existing active-only
-      grouping is derived from that via a new `active_only_group`, so
-      nothing downstream changed behavior. Two tests added
-      (`extended_map_member_rows_include_inactive_rows_unlike_
-      extended_map_members`, `mrcm_domain_member_rows_include_inactive_
-      rows_too`); store crate 48 → 50 tests.
-- [x] **`snomed-ecl`**: `MemberFilterKind::MapTarget(TermFilter)` (AST),
-      a `mapTarget` arm in `parse_member_filter_kind` reusing
-      `parse_typed_search_term_set` (the same `match:`/`wild:`/`exact:`
-      grammar `{{ D term }}` uses), and eval support dispatching to
-      `simple_map_member_rows`/`extended_map_member_rows` rather than the
-      type-erased `member_rows` — through the same `member_row_matches`
-      helper both `^` and `^R` already share, so `mapTarget` works after
-      both operators in one increment with no `^R`-specific code. Six new
-      tests (parser: valid + generic-rejection; eval: `^` and `^R`,
-      search types, active/inactive, same-row conjunction with a
-      shared-column filter).
-- [x] Docs updated to match: `spec/09-versioning.md` rule 4 (the fourth
-      snapshot-index paragraph), `spec/10-ecl.md` rule 18 and the top
-      summary paragraph, `spec/10-ecl-filters.md`'s member filter
-      constraint section, `spec/10-ecl-unimplemented.md`,
-      `crates/snomed-ecl/src/lib.rs`'s doc comment,
-      `agents/ecl-engineer.md`'s cadence note, `agents/store-engineer.md`
-      (new "sixteen `*_member_rows` indexes" section), and `plan.md`
-      (Open decisions marked decided; Current status test count 388).
-- [x] 388/388 tests passing (up from 379); `cargo clippy --all-targets`,
-      `cargo fmt --check`, `fuzz/`/`benches/` all build clean.
-
 ## Next up
 
 - [ ] Nothing currently scoped beyond the `{{ M ... }}` remainder below.
@@ -451,12 +467,12 @@ before".
         two still have no implemented example. Confirm which shape a
         column actually uses before implementing it; do not assume
         string search just because `mapTarget` was first. Extend
-        `TypedFields` (`crates/snomed-ecl/src/eval.rs`) with one more
+        `TypedFields` (`snomed-ecl/src/eval.rs`) with one more
         `Option` field per new column, the same way `mapGroup` added
         `map_group` alongside `map_target`/`correlation_id` — not a new
         function parameter, and not a new dispatch function. The full
         remaining list, one bullet per refset type, RF2 column names
-        from `crates/snomed-rf2/src/refset.rs`'s `HEADER` consts
+        from `snomed-rf2/src/refset.rs`'s `HEADER` consts
         (Simple/Language excluded — spec/09 rule 4, they keep no typed
         rows at all), each annotated with its Rust field type and the
         grammar shape that type implies:
@@ -505,7 +521,7 @@ before".
           for a non-concept id without confirming).
         Pick up whichever field is actually requested next; this list
         exists so "which fields remain" is answerable without re-reading
-        `crates/snomed-rf2/src/refset.rs`, not as a commitment to build
+        `snomed-rf2/src/refset.rs`, not as a commitment to build
         all of them.
 - [ ] Decisions, not tasks — each needs a call before code:
       - **`$expand` inline `valueSet`** (`snomed-fhir`): shape already

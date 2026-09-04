@@ -13,7 +13,7 @@ constitute an endorsement by HL7.
 
 Semantic building blocks for FHIR terminology service operations over a
 SNOMED CT [`SnapshotStore`](../snomed-store) — `$lookup`, `$subsumes`,
-`$expand`. See [`spec/11-fhir.md`](../../spec/11-fhir.md) — the normative
+`$expand`. See [`spec/11-fhir.md`](../spec/11-fhir.md) — the normative
 spec, distilled from the official
 [`CodeSystem`](https://www.hl7.org/fhir/codesystem-operations.html)/
 [`ValueSet`](https://www.hl7.org/fhir/valueset-operation-expand.html)

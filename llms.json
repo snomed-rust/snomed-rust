@@ -35,15 +35,15 @@
     {
       "title": "Crates",
       "items": [
-        { "title": "crates/snomed", "url": "crates/snomed/README.md", "description": "facade crate — re-exports everything, prelude, end-to-end tests" },
-        { "title": "crates/snomed-core", "url": "crates/snomed-core/README.md", "description": "SCTID, EffectiveTime, component structs, well-known constants (no dependencies beyond std)" },
-        { "title": "crates/snomed-rf2", "url": "crates/snomed-rf2/README.md", "description": "file naming, streaming reader, refset member types" },
-        { "title": "crates/snomed-store", "url": "crates/snomed-store/README.md", "description": "snapshot builder, IS-A hierarchy, subsumption, full version history" },
-        { "title": "crates/snomed-ecl", "url": "crates/snomed-ecl/README.md", "description": "Expression Constraint Language lexer, parser, evaluator" },
-        { "title": "crates/snomed-fhir", "url": "crates/snomed-fhir/README.md", "description": "FHIR terminology service building blocks" },
-        { "title": "crates/snomed-owl", "url": "crates/snomed-owl/README.md", "description": "OWL 2 functional-syntax parser" },
-        { "title": "crates/snomed-classify", "url": "crates/snomed-classify/README.md", "description": "EL subsumption classifier, necessary normal form generation" },
-        { "title": "crates/snomed-cli", "url": "crates/snomed-cli/README.md", "description": "snomed-cli binary — sctid, load, lookup, ecl, export, validate, classify, nnf" }
+        { "title": "snomed", "url": "snomed/README.md", "description": "facade crate — re-exports everything, prelude, end-to-end tests" },
+        { "title": "snomed-core", "url": "snomed-core/README.md", "description": "SCTID, EffectiveTime, component structs, well-known constants (no dependencies beyond std)" },
+        { "title": "snomed-rf2", "url": "snomed-rf2/README.md", "description": "file naming, streaming reader, refset member types" },
+        { "title": "snomed-store", "url": "snomed-store/README.md", "description": "snapshot builder, IS-A hierarchy, subsumption, full version history" },
+        { "title": "snomed-ecl", "url": "snomed-ecl/README.md", "description": "Expression Constraint Language lexer, parser, evaluator" },
+        { "title": "snomed-fhir", "url": "snomed-fhir/README.md", "description": "FHIR terminology service building blocks" },
+        { "title": "snomed-owl", "url": "snomed-owl/README.md", "description": "OWL 2 functional-syntax parser" },
+        { "title": "snomed-classify", "url": "snomed-classify/README.md", "description": "EL subsumption classifier, necessary normal form generation" },
+        { "title": "snomed-cli", "url": "snomed-cli/README.md", "description": "snomed-cli binary — sctid, load, lookup, ecl, export, validate, classify, nnf" }
       ]
     },
     {

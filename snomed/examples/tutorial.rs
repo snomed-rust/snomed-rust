@@ -27,7 +27,7 @@ use snomed::prelude::*;
 
 /// Removes itself (recursively) when dropped, so this example doesn't
 /// litter the temp directory on repeated runs — same pattern
-/// `crates/snomed-cli/tests/cli.rs` uses for its own scratch releases.
+/// `snomed-cli/tests/cli.rs` uses for its own scratch releases.
 struct ScratchDir(PathBuf);
 
 impl Drop for ScratchDir {

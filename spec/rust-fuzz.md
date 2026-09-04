@@ -3,7 +3,7 @@
 Every input this workspace accepts from outside — RF2 rows, SCTIDs, ECL
 queries, OWL axioms — is attacker-shaped in the sense that matters here: it
 arrives as text, often from a file nobody in this project wrote. The unit
-tests in `crates/*` encode the normative MUSTs of `spec/`; the fuzz targets
+tests in each workspace crate encode the normative MUSTs of `spec/`; the fuzz targets
 in `fuzz/` cover the complementary question — *what does this code do with
 input nobody thought of?*
 

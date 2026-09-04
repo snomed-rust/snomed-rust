@@ -19,10 +19,10 @@ Depends only on `snomed-core`.
 
 | Spec | Module |
 |---|---|
-| [`spec/02-release-types.md`](../../spec/02-release-types.md) — Full/Snapshot/Delta | `release_type` |
-| [`spec/03-file-naming.md`](../../spec/03-file-naming.md) — release file name grammar | `filename` |
-| [`spec/05..07`](../../spec/05-concept-file.md) — core component files | `records` (impls on `snomed_core::components` types) |
-| [`spec/08-refset-files.md`](../../spec/08-refset-files.md) — reference sets | `refset` |
+| [`spec/02-release-types.md`](../spec/02-release-types.md) — Full/Snapshot/Delta | `release_type` |
+| [`spec/03-file-naming.md`](../spec/03-file-naming.md) — release file name grammar | `filename` |
+| [`spec/05..07`](../spec/05-concept-file.md) — core component files | `records` (impls on `snomed_core::components` types) |
+| [`spec/08-refset-files.md`](../spec/08-refset-files.md) — reference sets | `refset` |
 | — | `record` (the `Rf2Record` trait and shared field-parsing helpers), `reader` (the streaming reader), `error` |
 
 ## Reading a file name

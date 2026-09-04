@@ -4,7 +4,7 @@ This walks through six things you can do with this workspace, in order,
 explaining *why* each step is shaped the way it is — not just *what* the
 code does (the code is usually self-explanatory; the reasoning behind it
 often isn't). Every code block and every line of output below is real:
-it's [`crates/snomed/examples/tutorial.rs`](../crates/snomed/examples/tutorial.rs),
+it's [`snomed/examples/tutorial.rs`](../snomed/examples/tutorial.rs),
 which you can run yourself right now with no setup:
 
 ```sh
@@ -148,7 +148,7 @@ isn't; it's the point of the operator. (It's defined as sugar for the
 reverse-flag refinement `* : R 363698007 = << 404684003`, and a test
 holds the two spellings to the same answer.)
 
-See [`crates/snomed-ecl/README.md`](../crates/snomed-ecl/README.md) for
+See [`snomed-ecl/README.md`](../snomed-ecl/README.md) for
 the full grammar this subset covers, and
 [`spec/10-ecl-unimplemented.md`](../spec/10-ecl-unimplemented.md) for
 what it deliberately still rejects.
@@ -208,9 +208,9 @@ driven, single source of truth" means in practice, not just in the docs.
 - [`index.md`](../index.md) — the documentation map: which `spec/*.md`
   file backs which crate, and a worked example spanning five crates
   (similar to this tutorial, more compressed).
-- Each crate's own `README.md` (`crates/*/README.md`) — full API
+- Each crate's own `README.md` (`snomed*/README.md`) — full API
   reference and design notes for the crate you're about to extend.
-- [`crates/snomed-cli/README.md`](../crates/snomed-cli/README.md) — every
+- [`snomed-cli/README.md`](../snomed-cli/README.md) — every
   step above, minus writing Rust, from the terminal:
   `snomed-cli sctid`, `load`, `lookup`, `ecl`, `classify`, `nnf`,
   `export`, `validate`.

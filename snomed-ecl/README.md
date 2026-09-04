@@ -21,7 +21,7 @@ operators, `memberOf`, wildcard, boolean set operators) plus **refinements**
 `{{ C definitionStatus = primitive|defined }}`,
 `{{ C moduleId = subExpressionConstraint }}`,
 `{{ C effectiveTime (=|!=|<=|<|>=|>) "YYYYMMDD" }}`). See
-[`spec/10-ecl.md`](../../spec/10-ecl.md) — the normative spec, including
+[`spec/10-ecl.md`](../spec/10-ecl.md) — the normative spec, including
 the full grammar, what's out of scope, and where the official grammar
 lives if you need to extend this crate.
 

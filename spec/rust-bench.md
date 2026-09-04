@@ -36,7 +36,7 @@ crates free of those — including dev-dependencies, which every `cargo test`
 would otherwise have to build. The package tracks the same MSRV as the
 workspace ([rust-msrv-n-minus-2/](rust-msrv-n-minus-2/index.md)).
 
-`crates/snomed-store/examples/benchmark_synthetic_release.rs` predates these
+`snomed-store/examples/benchmark_synthetic_release.rs` predates these
 benchmarks and stays: it writes a real ~370k-concept RF2 release to disk and
 times `load_release_dir` end to end, which is a different question (whole-
 release load, including filesystem) from criterion's per-operation timings,

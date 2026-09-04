@@ -24,7 +24,7 @@ Official sources:
 `snomed_rf2::refset::OwlExpressionRefsetMember`, spec/08) into a structured
 [`Axiom`]. It is **a parser, not a reasoner** — it does not classify,
 infer a hierarchy, or otherwise reason over axioms; that's
-[`snomed-classify`](../crates/snomed-classify)'s job (spec/13), consuming
+[`snomed-classify`](../snomed-classify)'s job (spec/13), consuming
 this crate's `Axiom` output as its input. Keeping parsing and reasoning in
 separate crates (rather than growing this one into both) is deliberate —
 see `agents/owl-engineer.md`.

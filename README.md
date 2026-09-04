@@ -35,15 +35,15 @@ or analytics pipelines.
 
 | Crate | Purpose |
 |---|---|
-| [`crates/snomed`](crates/snomed) | Facade: re-exports everything, `prelude`, end-to-end tests |
-| [`crates/snomed-core`](crates/snomed-core) | SCTID parse/validate/compose (Verhoeff check digit), `EffectiveTime`, `Concept`/`Description`/`Relationship`, well-known constants |
-| [`crates/snomed-rf2`](crates/snomed-rf2) | RF2 file name parsing, Full/Snapshot/Delta types, streaming typed reader, reference set members |
-| [`crates/snomed-store`](crates/snomed-store) | Snapshot builder (latest version wins, order-independent), IS-A hierarchy, ancestors/descendants/subsumption, and a `HistoryStore` for full version history / point-in-time queries |
-| [`crates/snomed-ecl`](crates/snomed-ecl) | Expression Constraint Language: lexer, parser, evaluator — hierarchy operators, `memberOf`/`^R`, dot notation, refinements (cardinality, reverse flag, attribute groups, concrete values), and `{{ }}` concept/description/member filters |
-| [`crates/snomed-fhir`](crates/snomed-fhir) | FHIR terminology service building blocks: `$subsumes`, `$lookup`, `$expand` |
-| [`crates/snomed-owl`](crates/snomed-owl) | Parser for the OWL 2 functional-syntax subset used in the OWL Expression reference set |
-| [`crates/snomed-classify`](crates/snomed-classify) | EL-profile subsumption classifier (completion algorithm) over OWL axioms, plus necessary normal form (RF2 relationship) generation |
-| [`crates/snomed-cli`](crates/snomed-cli) | `snomed-cli` binary: `sctid`, `load`, `lookup`, `ecl`, `export`, `validate`, `classify`, `nnf` subcommands |
+| [`snomed`](snomed) | Facade: re-exports everything, `prelude`, end-to-end tests |
+| [`snomed-core`](snomed-core) | SCTID parse/validate/compose (Verhoeff check digit), `EffectiveTime`, `Concept`/`Description`/`Relationship`, well-known constants |
+| [`snomed-rf2`](snomed-rf2) | RF2 file name parsing, Full/Snapshot/Delta types, streaming typed reader, reference set members |
+| [`snomed-store`](snomed-store) | Snapshot builder (latest version wins, order-independent), IS-A hierarchy, ancestors/descendants/subsumption, and a `HistoryStore` for full version history / point-in-time queries |
+| [`snomed-ecl`](snomed-ecl) | Expression Constraint Language: lexer, parser, evaluator — hierarchy operators, `memberOf`/`^R`, dot notation, refinements (cardinality, reverse flag, attribute groups, concrete values), and `{{ }}` concept/description/member filters |
+| [`snomed-fhir`](snomed-fhir) | FHIR terminology service building blocks: `$subsumes`, `$lookup`, `$expand` |
+| [`snomed-owl`](snomed-owl) | Parser for the OWL 2 functional-syntax subset used in the OWL Expression reference set |
+| [`snomed-classify`](snomed-classify) | EL-profile subsumption classifier (completion algorithm) over OWL axioms, plus necessary normal form (RF2 relationship) generation |
+| [`snomed-cli`](snomed-cli) | `snomed-cli` binary: `sctid`, `load`, `lookup`, `ecl`, `export`, `validate`, `classify`, `nnf` subcommands |
 
 Two development-tool packages sit deliberately **outside** the workspace, so
 the published crates keep zero dependencies — dev-dependencies included — and
@@ -203,7 +203,7 @@ and run `cargo publish` itself, bound to objective criteria stated in
 Development is **specification-driven**: behavior is written in `spec/*.md`
 first, code cites the spec it implements (`// per spec/04 rule 5`), and
 tests enforce the spec's normative rules. Those citations are checked
-rather than trusted — `crates/snomed/tests/spec_citations.rs` walks the
+rather than trusted — `snomed/tests/spec_citations.rs` walks the
 whole repository and fails if any `spec/NN rule M` names a rule that
 doesn't exist, so renumbering a spec can't silently leave stale pointers
 behind. See [`plan.md`](plan.md) for the roadmap by phase and

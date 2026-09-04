@@ -93,7 +93,7 @@ concepts, over axioms that include a property chain.
 - Descriptions are generated strings, so the term-matching filters see
   different length and character distributions than real clinical terms.
 
-`crates/snomed-store/examples/benchmark_synthetic_release.rs` answers the
+`snomed-store/examples/benchmark_synthetic_release.rs` answers the
 different question these do not: it writes a ~370,000-concept release to disk
 and times `load_release_dir` end to end, filesystem included.
 

@@ -72,7 +72,7 @@ concepts: <count> (<active count> active)
 ```
 
 (Illustrative shape — actual counts depend on the release loaded; see
-`crates/snomed-store/examples/benchmark_synthetic_release.rs` and `plan.md`
+`snomed-store/examples/benchmark_synthetic_release.rs` and `plan.md`
 Phase 4 for real timing numbers at International-Edition scale.)
 
 Loads the directory through the same path a real consumer would use, and
@@ -200,7 +200,7 @@ time in the first block are illustrative.) Checks referential integrity
 concept sits on a cycle in the active inferred `116680003 |is a|` graph —
 spec/07 rule 3). Findings are grouped by category, each listing the ids of
 the offending components. Refset `referencedComponentId` dangling checks
-are out of scope for now — see `crates/snomed-store/README.md`.
+are out of scope for now — see `snomed-store/README.md`.
 
 ### `classify`
 
@@ -299,7 +299,7 @@ dependency.
 
 Tracked in the root `tasks.md`: `validate` doesn't check refset
 `referencedComponentId` dangling references (documented gap, see
-`crates/snomed-store/README.md`), and ECL expressions must be passed as one
+`snomed-store/README.md`), and ECL expressions must be passed as one
 pre-quoted argument (no multi-argument reassembly).
 
 ## Trademarks

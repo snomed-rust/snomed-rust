@@ -15,13 +15,13 @@ license = "Apache-2.0 OR MIT"
 [workspace]
 
 [dependencies]
-snomed-classify = { path = "../crates/snomed-classify" }
-snomed-core = { path = "../crates/snomed-core" }
-snomed-ecl = { path = "../crates/snomed-ecl" }
-snomed-fhir = { path = "../crates/snomed-fhir" }
-snomed-owl = { path = "../crates/snomed-owl" }
-snomed-rf2 = { path = "../crates/snomed-rf2" }
-snomed-store = { path = "../crates/snomed-store" }
+snomed-classify = { path = "../snomed-classify" }
+snomed-core = { path = "../snomed-core" }
+snomed-ecl = { path = "../snomed-ecl" }
+snomed-fhir = { path = "../snomed-fhir" }
+snomed-owl = { path = "../snomed-owl" }
+snomed-rf2 = { path = "../snomed-rf2" }
+snomed-store = { path = "../snomed-store" }
 
 [dev-dependencies]
 criterion = "0.8"

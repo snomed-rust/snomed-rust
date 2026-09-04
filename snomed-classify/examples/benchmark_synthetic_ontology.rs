@@ -1,7 +1,7 @@
 //! Benchmarks `classify` against a synthetic random-tree ontology sized
 //! to match SNOMED CT International Edition's active-concept count
 //! (~370k) — same generation shape as
-//! `crates/snomed-store/examples/benchmark_synthetic_release.rs` (a
+//! `snomed-store/examples/benchmark_synthetic_release.rs` (a
 //! hand-rolled xorshift64* PRNG for reproducibility, zero dependencies),
 //! for the same reason: no real, licensed SNOMED CT axiom content is
 //! available in this environment.

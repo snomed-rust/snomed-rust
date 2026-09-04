@@ -40,15 +40,15 @@ The project homepage serves website-appropriate versions of this file at
 
 ## Crates
 
-- [crates/snomed](crates/snomed/README.md): facade crate — re-exports everything, `prelude`, end-to-end tests
-- [crates/snomed-core](crates/snomed-core/README.md): SCTID, `EffectiveTime`, component structs, well-known constants (no dependencies beyond std)
-- [crates/snomed-rf2](crates/snomed-rf2/README.md): file naming, streaming reader, refset member types
-- [crates/snomed-store](crates/snomed-store/README.md): snapshot builder, IS-A hierarchy, subsumption, full version history
-- [crates/snomed-ecl](crates/snomed-ecl/README.md): Expression Constraint Language lexer, parser, evaluator
-- [crates/snomed-fhir](crates/snomed-fhir/README.md): FHIR terminology service building blocks
-- [crates/snomed-owl](crates/snomed-owl/README.md): OWL 2 functional-syntax parser
-- [crates/snomed-classify](crates/snomed-classify/README.md): EL subsumption classifier, necessary normal form generation
-- [crates/snomed-cli](crates/snomed-cli/README.md): `snomed-cli` binary — `sctid`, `load`, `lookup`, `ecl`, `export`, `validate`, `classify`, `nnf`
+- [snomed](snomed/README.md): facade crate — re-exports everything, `prelude`, end-to-end tests
+- [snomed-core](snomed-core/README.md): SCTID, `EffectiveTime`, component structs, well-known constants (no dependencies beyond std)
+- [snomed-rf2](snomed-rf2/README.md): file naming, streaming reader, refset member types
+- [snomed-store](snomed-store/README.md): snapshot builder, IS-A hierarchy, subsumption, full version history
+- [snomed-ecl](snomed-ecl/README.md): Expression Constraint Language lexer, parser, evaluator
+- [snomed-fhir](snomed-fhir/README.md): FHIR terminology service building blocks
+- [snomed-owl](snomed-owl/README.md): OWL 2 functional-syntax parser
+- [snomed-classify](snomed-classify/README.md): EL subsumption classifier, necessary normal form generation
+- [snomed-cli](snomed-cli/README.md): `snomed-cli` binary — `sctid`, `load`, `lookup`, `ecl`, `export`, `validate`, `classify`, `nnf`
 
 ## Project policies
 

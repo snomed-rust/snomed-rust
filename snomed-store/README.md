@@ -27,10 +27,10 @@ sets (spec/09 rules 5-6).
 
 | Spec | Covers |
 |---|---|
-| [`spec/02-release-types.md`](../../spec/02-release-types.md) | Directory-loading rules (`load_release_dir`) |
-| [`spec/07-relationship-file.md`](../../spec/07-relationship-file.md) | IS-A hierarchy = active + inferred + `typeId 116680003` rows, and only those; acyclicity, referential integrity, and rootless-concept detection via `validate()` |
-| [`spec/08-refset-files.md`](../../spec/08-refset-files.md) | Refset membership = `refsetId` + `referencedComponentId` + active, uniform across every refset type |
-| [`spec/09-versioning.md`](../../spec/09-versioning.md) | Snapshot construction (latest wins) and History construction (keep every version) |
+| [`spec/02-release-types.md`](../spec/02-release-types.md) | Directory-loading rules (`load_release_dir`) |
+| [`spec/07-relationship-file.md`](../spec/07-relationship-file.md) | IS-A hierarchy = active + inferred + `typeId 116680003` rows, and only those; acyclicity, referential integrity, and rootless-concept detection via `validate()` |
+| [`spec/08-refset-files.md`](../spec/08-refset-files.md) | Refset membership = `refsetId` + `referencedComponentId` + active, uniform across every refset type |
+| [`spec/09-versioning.md`](../spec/09-versioning.md) | Snapshot construction (latest wins) and History construction (keep every version) |
 
 ## `SnapshotStore`
 
@@ -199,7 +199,7 @@ did this become the preferred term?" is a member-history question.
   rule 17). Passing a description id returns nothing rather than an
   error.
 - **No precomputed transitive closure.** Benchmarked at International
-  Edition scale (`crates/snomed-store/examples/benchmark_synthetic_release.rs`)
+  Edition scale (`snomed-store/examples/benchmark_synthetic_release.rs`)
   — on-demand breadth-first search is µs-scale even at ~370k concepts, with
   enormous headroom versus any plausible query budget. See `plan.md`
   Phase 4 for the numbers and the reasoning; revisit only if a real-release

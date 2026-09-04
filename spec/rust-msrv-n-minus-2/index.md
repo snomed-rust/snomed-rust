@@ -23,11 +23,11 @@ toolchain the code in this workspace may assume.
 
 ## Where the MSRV is recorded
 
-| Location                             | Form                                                   |
-| ------------------------------------ | ------------------------------------------------------ |
-| `Cargo.toml` (`[workspace.package]`) | `rust-version = "1.(N-2)"`                             |
-| each `crates/*/Cargo.toml`           | `rust-version.workspace = true`                        |
-| `.github/workflows/ci.yml`           | an `msrv` job pinning `dtolnay/rust-toolchain@1.(N-2)` |
+| Location                             | Form                                                    |
+| ------------------------------------ | -------------------------------------------------------|
+| `Cargo.toml` (`[workspace.package]`) | `rust-version = "1.(N-2)"`                              |
+| each workspace crate's `Cargo.toml`  | `rust-version.workspace = true`                         |
+| `.github/workflows/ci.yml`           | an `msrv` job pinning `dtolnay/rust-toolchain@1.(N-2)`  |
 
 `rust-version` is the single source of truth inside the workspace: `cargo`
 refuses to build a crate with a toolchain older than it, and downstream

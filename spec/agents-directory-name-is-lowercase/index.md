@@ -28,9 +28,9 @@ rather than a distillation of an external specification.
 ## Why
 
 - **Consistency with every other directory here.** `spec/`, `docs/`,
-  `crates/`, `fuzz/`, `benches/`, `.github/` are all lowercase; `agents/`
-  was the single exception, and an exception that exists only for
-  historical reasons is a papercut every contributor pays once.
+  `snomed-core/`, `fuzz/`, `benches/`, `.github/` are all lowercase;
+  `agents/` was the single exception, and an exception that exists only
+  for historical reasons is a papercut every contributor pays once.
 - **Case-insensitive filesystems.** macOS and Windows treat `agents/` and
   `agents/` as the same directory while git treats them as different
   ones, so a repository that is inconsistent about case produces

@@ -11,7 +11,7 @@ A hand-written lexer and recursive-descent parser for the **OWL 2
 functional-syntax subset SNOMED CT actually uses** in its OWL Expression
 reference set (`sct2_sRefset_OWLExpression*` files — see
 [`snomed-rf2`](../snomed-rf2)'s `OwlExpressionRefsetMember` for the RF2
-row shape). See [`spec/12-owl.md`](../../spec/12-owl.md) — the normative
+row shape). See [`spec/12-owl.md`](../spec/12-owl.md) — the normative
 spec, including the full grammar, real example axioms, and what's out of
 scope. Depends on `snomed-core` only.
 

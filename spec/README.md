@@ -87,7 +87,7 @@ binding on this workspace in the same way):
 not because parts of it are less binding. **All ECL rule numbers live in
 `10-ecl.md`**, so a `spec/10 rule N` citation always resolves there
 regardless of which file the prose sits in;
-`crates/snomed/tests/spec_citations.rs` fails the build if one doesn't.
+`snomed/tests/spec_citations.rs` fails the build if one doesn't.
 
 ## Conventions used in these specs
 

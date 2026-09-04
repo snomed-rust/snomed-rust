@@ -37,7 +37,7 @@ keeping the rest of the real shape intact (root `CLAUDE.md` convention).
 
 **This crate parses; it does not reason.** No classification, no
 inferred-hierarchy computation, no DL reasoner — that's
-[`snomed-classify`](../crates/snomed-classify)'s job now (spec/13,
+[`snomed-classify`](../snomed-classify)'s job now (spec/13,
 `agents/classify-engineer.md`), a separate crate that consumes this
 one's `Axiom` output. That now includes "given these axioms, compute the
 *necessary normal form*" too (spec/14) — `snomed-classify::
