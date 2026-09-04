@@ -22,6 +22,35 @@ most recently on 2026-09-04, to keep this file inside the repository's
 40 KB per-document budget. Search both when asking "has this come up
 before".
 
+## Done (2026-09-04, Release 0.18.0 — `memberFieldFilter`'s `mapPriority`, sixth self-decided release)
+
+- [x] **Decided and executed the release itself**, per §1-5 of
+      `spec/ai-release-authority/`: §1 CI independently green on the
+      pushed merge commit (`313e3b6`, all six jobs, confirmed via `gh run
+      view` before tagging); §2 `CHANGELOG.md`'s `[Unreleased]` verified
+      against the actual diff and moved under `## [0.18.0]`, minor bump
+      (purely additive: `MemberFilterKind::MapPriority`, nothing removed
+      or changed signature); §3 no rule oversteps — this ships the
+      `memberFieldFilter` store-retention decision already recorded in
+      `plan.md` as Decided 2026-09-03, `mapPriority` being a fourth
+      concrete field on that same retention, not a new undecided change;
+      §4 all nine crates, one version, standard dependency order; §5
+      tagged `v0.18.0` (signed, verified against the merge commit) and
+      ran `cargo publish` for each crate in order, all nine succeeding
+      cleanly.
+- [x] **Verified against crates.io's own API afterward**: `GET
+      /api/v1/crates/<name>` for all nine names returns
+      `default_version: "0.18.0"`.
+- [x] Version bumped everywhere the 0.13.0-0.17.0 precedent bumped it:
+      `Cargo.toml` (workspace + seven pins), `CITATION.cff`, `NEWS.md`,
+      `INSTALL.md`, `SECURITY.md`. Caught and fixed a duplicate pair of
+      `NEWS.md` milestone rows the version-bump edit briefly introduced
+      (0.16.0/0.17.0 already had rows from earlier today; the edit
+      re-added them) — a mechanical slip, not a wrong fact, caught by
+      re-reading the file rather than by a check that would have failed.
+- [x] Same `release/0.18.0` branch/merge shape as 0.12.0-0.17.0, not a
+      direct commit to `main`.
+
 ## Done (2026-09-04, ECL `{{ M ... }}` `memberFieldFilter`: `mapPriority`, fourth column, second numeric-shape field)
 
 - [x] **`snomed-ecl`**: `MemberFilterKind::MapPriority(NumericFieldFilter)`
@@ -359,14 +388,12 @@ before".
 ## Next up
 
 - [ ] Nothing currently scoped beyond the `{{ M ... }}` remainder below.
-      State as of 2026-09-04: **0.17.0 released** — `mapTarget` (0.15.0),
-      `correlationId` (0.16.0), and `mapGroup` (0.17.0, the first numeric
-      shape), all after both `^` and `^R`. `mapPriority` (the second
-      numeric-shape field, reusing `mapGroup`'s grammar) landed the same
-      way 2026-09-04, **not yet released** (see the Done entry above;
-      release decision pending). `{{ M ... }}` after `^` (0.13.0), after
-      `^R` (0.14.0), and its `memberFieldFilter` alternative
-      (0.15.0-0.17.0), all decided and executed under
+      State as of 2026-09-04: **0.18.0 released** — `mapTarget` (0.15.0),
+      `correlationId` (0.16.0), `mapGroup` (0.17.0), and `mapPriority`
+      (0.18.0, the second numeric-shape field, reusing `mapGroup`'s
+      grammar), all after both `^` and `^R`. `{{ M ... }}` after `^`
+      (0.13.0), after `^R` (0.14.0), and its `memberFieldFilter`
+      alternative (0.15.0-0.18.0), all decided and executed under
       `spec/ai-release-authority/`'s criteria rather than a fresh
       per-release maintainer go-ahead (see `CHANGELOG.md`). 9 crates, 401
       tests,
