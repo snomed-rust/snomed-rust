@@ -417,10 +417,10 @@ impl Parser {
     /// tokenized for `{{ C }}`, so no new lexer keywords were needed for
     /// them. The fourth, `memberFieldFilter`, is `refsetFieldName` —
     /// `1*alpha` in the official grammar, not a fixed keyword list, so it
-    /// lexes as a plain `TokenKind::Word` — and only the four spellings
+    /// lexes as a plain `TokenKind::Word` — and only the five spellings
     /// this crate implements, `mapTarget`, `correlationId`, `mapGroup`,
-    /// and `mapPriority` (spec/10 rule 18), are recognized here; any
-    /// other word falls through to the generic "unexpected keyword"
+    /// `mapPriority`, and `mapRule` (spec/10 rule 18), are recognized
+    /// here; any other word falls through to the generic "unexpected keyword"
     /// bucket rule 9 describes rather than being named. `correlationId
     /// (=|!=) subExpressionConstraint` reuses `moduleId`'s own parse
     /// shape verbatim (both are `booleanComparisonOperator`-spelled
@@ -486,11 +486,17 @@ impl Parser {
                 let filter = self.parse_numeric_field_filter()?;
                 Ok(MemberFilterKind::MapPriority(filter))
             }
+            TokenKind::Word(word) if word == "mapRule" => {
+                self.advance()?;
+                let negated = self.parse_boolean_comparison_operator()?;
+                let values = self.parse_typed_search_term_set()?;
+                Ok(MemberFilterKind::MapRule(TermFilter { negated, values }))
+            }
             _ => {
                 let tok = self.peek().clone();
                 Err(Self::unexpected(
                     &tok,
-                    "`moduleId`, `effectiveTime`, `active`, `mapTarget`, `correlationId`, `mapGroup`, or `mapPriority`",
+                    "`moduleId`, `effectiveTime`, `active`, `mapTarget`, `correlationId`, `mapGroup`, `mapPriority`, or `mapRule`",
                 ))
             }
         }
@@ -1725,6 +1731,29 @@ mod tests {
         };
         assert_eq!(*operator, crate::ast::NumericComparisonOp::Eq);
         assert_eq!(value, "2");
+    }
+
+    /// `mapRule` (spec/10 rule 18) — the fifth `memberFieldFilter` column
+    /// implemented, and the second to use the string-search grammar
+    /// shape (the same one `mapTarget` uses, reusing
+    /// `parse_typed_search_term_set` verbatim — a different RF2 column,
+    /// not a different production).
+    #[test]
+    fn parses_member_filter_map_rule() {
+        let EC::MemberFilter { filters, .. } =
+            parse("^ 447562003 {{ M mapRule = \"TRUE\" }}").unwrap()
+        else {
+            panic!("expected a member filter");
+        };
+        assert_eq!(filters.len(), 1);
+        let crate::ast::MemberFilterKind::MapRule(crate::ast::TermFilter { negated, values }) =
+            &filters[0]
+        else {
+            panic!("expected a MapRule filter, got {:?}", filters[0]);
+        };
+        assert!(!negated);
+        assert_eq!(values.len(), 1);
+        assert_eq!(values[0].text, "TRUE");
     }
 
     /// A field name this crate doesn't recognize (`order`, say) falls to

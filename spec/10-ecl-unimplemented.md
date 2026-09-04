@@ -78,9 +78,9 @@ token shape:
   not a capability one: `moduleId = (id1 OR id2)` already works and means
   the same thing (see "Concept filter constraint" above).
 - A member filter's `memberFieldFilter` kind other than `mapTarget`/
-  `correlationId`/`mapGroup`/`mapPriority` — a refset-type-specific
-  column (`order`, `domainConstraint`, …), as opposed to the three
-  shared-column kinds
+  `correlationId`/`mapGroup`/`mapPriority`/`mapRule` — a
+  refset-type-specific column (`order`, `domainConstraint`, …), as
+  opposed to the three shared-column kinds
   (`moduleId`/`effectiveTime`/`active`) implemented 2026-09-01 after both
   `^` and `^R`. `refsetFieldName` is `1*alpha` in the official grammar
   (confirmed against the ABNF, not a fixed keyword list), so any bare
@@ -109,7 +109,10 @@ token shape:
   `member_filter_map_group_comparison_operators` before merge.
   `mapPriority` — a second numeric-shape column, also
   `ExtendedMapRefsetMember` only — reuses `mapGroup`'s grammar and
-  `field_numeric_matches` verbatim. Boolean and time remain
+  `field_numeric_matches` verbatim; `mapRule` — a second string-search
+  column, also `ExtendedMapRefsetMember` only (unlike `mapTarget`,
+  `SimpleMapRefsetMember` doesn't carry it) — reuses `mapTarget`'s
+  grammar and `term_matches` verbatim. Boolean and time remain
   unimplemented, with no example yet. See
   `SnapshotStore::simple_map_member_rows`/`extended_map_member_rows` and
   spec/09 rule 4. Decided 2026-09-03 in `plan.md`'s "Open decisions":

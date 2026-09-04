@@ -290,6 +290,7 @@ fn member_row_matches(
                 | MemberFilterKind::CorrelationId(_)
                 | MemberFilterKind::MapGroup(_)
                 | MemberFilterKind::MapPriority(_)
+                | MemberFilterKind::MapRule(_)
         )
     }) {
         return typed_map_row_matches(
@@ -320,22 +321,23 @@ fn member_row_matches(
 /// every `memberFieldFilter` column this crate implements: `mapTarget`
 /// is the only one so far shared by `SimpleMap` and `ExtendedMap`, so
 /// every field added after it (`correlationId`, `mapGroup`,
-/// `mapPriority`, …) is `ExtendedMap`-only and adds one more field here
-/// instead of one more function parameter everywhere.
+/// `mapPriority`, `mapRule`, …) is `ExtendedMap`-only and adds one more
+/// field here instead of one more function parameter everywhere.
 #[derive(Default)]
 struct TypedFields<'a> {
     map_target: Option<&'a str>,
     correlation_id: Option<SctId>,
     map_group: Option<u32>,
     map_priority: Option<u32>,
+    map_rule: Option<&'a str>,
 }
 
-/// The `mapTarget`/`correlationId`/`mapGroup`/`mapPriority` branch of
-/// [`member_row_matches`]: all four exist only on
+/// The `mapTarget`/`correlationId`/`mapGroup`/`mapPriority`/`mapRule`
+/// branch of [`member_row_matches`]: all five exist only on
 /// `SimpleMapRefsetMember`/`ExtendedMapRefsetMember` (and
-/// `correlationId`/`mapGroup`/`mapPriority` only on the latter —
-/// `SimpleMapRefsetMember` has no such columns), so a block naming any of
-/// them is tested against those two typed row sets rather than
+/// `correlationId`/`mapGroup`/`mapPriority`/`mapRule` only on the latter
+/// — `SimpleMapRefsetMember` has no such columns), so a block naming any
+/// of them is tested against those two typed row sets rather than
 /// `member_rows`. Testing both sets whenever *any* field-filter kind
 /// appears (rather than computing the exact type each filter needs) is
 /// deliberately simple, not merely convenient: a `SimpleMap` row tested
@@ -388,6 +390,7 @@ fn typed_map_row_matches(
                             correlation_id: Some(row.correlation_id),
                             map_group: Some(row.map_group),
                             map_priority: Some(row.map_priority),
+                            map_rule: Some(&row.map_rule),
                         },
                     )
                 })
@@ -531,7 +534,8 @@ fn prepare_member_filter(filter: &MemberFilterKind, store: &SnapshotStore) -> Pr
         | MemberFilterKind::CorrelationId(ModuleFilter { value, .. }) => {
             PreparedMemberFilter::Concepts(evaluate(value, store))
         }
-        MemberFilterKind::MapTarget(TermFilter { values, .. }) => PreparedMemberFilter::Term(
+        MemberFilterKind::MapTarget(TermFilter { values, .. })
+        | MemberFilterKind::MapRule(TermFilter { values, .. }) => PreparedMemberFilter::Term(
             values
                 .iter()
                 .map(|search| match search.search_type {
@@ -549,9 +553,8 @@ fn prepare_member_filter(filter: &MemberFilterKind, store: &SnapshotStore) -> Pr
 /// (`core`) and, for the refset-type-specific kinds, that row's own value
 /// of the column in `fields` — `None` when the row source doesn't carry
 /// it (every source but `SimpleMap`/`ExtendedMap`'s own rows for
-/// `mapTarget`, every source but `ExtendedMap`'s for
-/// `correlationId`/`mapGroup`) — see [`MemberFilterKind`] for which kinds
-/// are implemented.
+/// `mapTarget`, every source but `ExtendedMap`'s for the rest) — see
+/// [`MemberFilterKind`] for which kinds are implemented.
 fn member_filter_matches(
     filter: &MemberFilterKind,
     prepared: &PreparedMemberFilter,
@@ -625,6 +628,22 @@ fn member_filter_matches(
                 return false;
             };
             field_numeric_matches(*operator, &map_priority.to_string(), value)
+        }
+        MemberFilterKind::MapRule(TermFilter { negated, values }) => {
+            let PreparedMemberFilter::Term(searches) = prepared else {
+                unreachable!("a mapRule filter prepares to `Term`")
+            };
+            // No `map_rule` on this row source (every source but
+            // `ExtendedMap`'s own, `SimpleMap` included): never matches,
+            // same reasoning as `MapTarget`'s `None` case above.
+            let Some(map_rule) = fields.map_rule else {
+                return false;
+            };
+            let matches = values
+                .iter()
+                .zip(searches)
+                .any(|(search, prepared)| term_matches(map_rule, search, prepared));
+            matches != *negated
         }
     }
 }
@@ -2759,6 +2778,111 @@ mod tests {
         let mismatched = format!("^ {ICD10_MAP} {{{{ M mapGroup = #1, mapPriority = #1 }}}}");
         assert_eq!(eval(&mismatched, &store), HashSet::new());
         let matched = format!("^ {ICD10_MAP} {{{{ M mapGroup = #1, mapPriority = #2 }}}}");
+        assert_eq!(eval(&matched, &store), HashSet::from([MI]));
+    }
+
+    /// `mapRule` — the fifth `memberFieldFilter` column, and the second
+    /// to use the string-search shape (the same one `mapTarget` uses, on
+    /// a different RF2 column). `ExtendedMapRefsetMember`-only. Also
+    /// proves `{{ M }}` after `^R` reaches it, via the same shared
+    /// `member_row_matches` the `^` path uses.
+    #[test]
+    fn member_filter_map_rule_matches_extended_map_rows() {
+        let mut b = SnapshotStore::builder();
+        b.add_concept(concept(MI));
+        b.add_extended_map_member(ExtendedMapRefsetMember {
+            core: RefsetMemberCore {
+                id: MemberId::parse("80000000-0000-4000-8000-000000000091").unwrap(),
+                effective_time: EffectiveTime::new_unchecked(20190731),
+                active: true,
+                module_id: constants::CORE_MODULE,
+                refset_id: ICD10_MAP,
+                referenced_component_id: MI,
+            },
+            map_group: 1,
+            map_priority: 1,
+            map_rule: "TRUE".to_string(),
+            map_advice: String::new(),
+            map_target: "I21.9".to_string(),
+            correlation_id: constants::CORE_MODULE,
+            map_category_id: constants::CORE_MODULE,
+        });
+        let store = b.build();
+
+        assert_eq!(
+            eval("^ 447562003 {{ M mapRule = \"OTHERWISE\" }}", &store),
+            HashSet::new(),
+            "the row's own mapRule doesn't match"
+        );
+        assert_eq!(
+            eval("^ 447562003 {{ M mapRule = \"TRUE\" }}", &store),
+            HashSet::from([MI])
+        );
+        // `^R` reaches the same row, through the shared row-matching path.
+        assert_eq!(
+            eval(&format!("^R {MI} {{{{ M mapRule = \"TRUE\" }}}}"), &store),
+            HashSet::from([ICD10_MAP])
+        );
+    }
+
+    /// `SimpleMapRefsetMember` has no `mapRule` column at all — a
+    /// membership that exists only there must never match, the same
+    /// "column absent on this row source" case `mapTarget`'s
+    /// `ExtendedMap`-only siblings have.
+    #[test]
+    fn member_filter_map_rule_never_matches_simple_map_rows() {
+        let mut b = SnapshotStore::builder();
+        b.add_concept(concept(MI));
+        b.add_simple_map_member(SimpleMapRefsetMember {
+            core: RefsetMemberCore {
+                id: MemberId::parse("80000000-0000-4000-8000-000000000092").unwrap(),
+                effective_time: EffectiveTime::new_unchecked(20190731),
+                active: true,
+                module_id: constants::CORE_MODULE,
+                refset_id: ICD10_MAP,
+                referenced_component_id: MI,
+            },
+            map_target: "I21.9".to_string(),
+        });
+        let store = b.build();
+
+        assert_eq!(
+            eval("^ 447562003 {{ M mapRule = \"TRUE\" }}", &store),
+            HashSet::new()
+        );
+    }
+
+    /// "One row, all filters" (spec/10 rule 18) across two string-shaped
+    /// `memberFieldFilter` kinds together: a row satisfying `mapTarget`
+    /// but not `mapRule` must not satisfy a block naming both.
+    #[test]
+    fn member_filter_map_rule_conjoins_with_map_target_on_the_same_row() {
+        let mut b = SnapshotStore::builder();
+        b.add_concept(concept(MI));
+        b.add_extended_map_member(ExtendedMapRefsetMember {
+            core: RefsetMemberCore {
+                id: MemberId::parse("80000000-0000-4000-8000-000000000093").unwrap(),
+                effective_time: EffectiveTime::new_unchecked(20190731),
+                active: true,
+                module_id: constants::CORE_MODULE,
+                refset_id: ICD10_MAP,
+                referenced_component_id: MI,
+            },
+            map_group: 1,
+            map_priority: 1,
+            map_rule: "TRUE".to_string(),
+            map_advice: String::new(),
+            map_target: "I21.9".to_string(),
+            correlation_id: constants::CORE_MODULE,
+            map_category_id: constants::CORE_MODULE,
+        });
+        let store = b.build();
+
+        let mismatched =
+            format!("^ {ICD10_MAP} {{{{ M mapTarget = \"I21.9\", mapRule = \"OTHERWISE\" }}}}");
+        assert_eq!(eval(&mismatched, &store), HashSet::new());
+        let matched =
+            format!("^ {ICD10_MAP} {{{{ M mapTarget = \"I21.9\", mapRule = \"TRUE\" }}}}");
         assert_eq!(eval(&matched, &store), HashSet::from([MI]));
     }
 

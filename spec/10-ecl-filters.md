@@ -157,8 +157,9 @@ named column's own semantic type (confirmed against the official ABNF,
 subExpressionConstraint` (a concept reference), `numericComparisonOperator
 ws "#" numericValue`, `stringComparisonOperator ws (typedSearchTerm |
 typedSearchTermSet)`, `booleanComparisonOperator ws booleanValue`, or
-`timeComparisonOperator ws (timeValue | timeValueSet)`. Four kinds are
-implemented, spanning three of the five shapes (numeric has two):
+`timeComparisonOperator ws (timeValue | timeValueSet)`. Five kinds are
+implemented, spanning three of the five shapes (string and numeric each
+have two):
 
 - `mapTarget (=|!=) (typedSearchTerm | typedSearchTermSet)` — the same
   `match:`/`wild:`/`exact:` search-term grammar `{{ D term }}` uses,
@@ -192,22 +193,27 @@ implemented, spanning three of the five shapes (numeric has two):
   shape and the same `NumericFieldFilter`/`field_numeric_matches`
   machinery as `mapGroup`, matched against the member row's own
   `mapPriority` column (a `u32`, `ExtendedMapRefsetMember`-only) instead.
+- `mapRule (=|!=) (typedSearchTerm | typedSearchTermSet)` — the same
+  string-search shape and the same `TermFilter`/`term_matches` machinery
+  as `mapTarget`, matched against the member row's own `mapRule` column
+  (`ExtendedMapRefsetMember`-only, unlike `mapTarget` which
+  `SimpleMapRefsetMember` also carries).
 
-All four reuse the shared dispatch `mapTarget` introduced: a block
-naming *any* of the four kinds is tested against
+All five reuse the shared dispatch `mapTarget` introduced: a block
+naming *any* of the five kinds is tested against
 `SimpleMap`/`ExtendedMap` rows together rather than `member_rows`, and
 the "one row, all filters" and "active unless stated otherwise" rules
 above still hold across a block naming several field filters at once,
 not just a field filter and a shared-column one — a `SimpleMap` row can
 never satisfy a block naming any of `correlationId`/`mapGroup`/
-`mapPriority` (the column is simply absent on that row source, the same
-"not this row's type" answer a shared-column filter gets from a row of
-the wrong refset type), so it can never be a spurious match.
+`mapPriority`/`mapRule` (the column is simply absent on that row source,
+the same "not this row's type" answer a shared-column filter gets from a
+row of the wrong refset type), so it can never be a spurious match.
 
 **Not implemented:** every other `memberFieldFilter` column, and both
 remaining shapes — boolean, time (`order`, `domainConstraint`, and the
 rest — see `spec/10-ecl-unimplemented.md`); the store retention that
-made these four columns possible already covers every non-Simple/
+made these five columns possible already covers every non-Simple/
 Language refset type (decided 2026-09-03, `plan.md`'s "Open decisions"),
 so each remaining column is a parser/eval increment only, not a further
 store decision.

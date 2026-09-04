@@ -386,13 +386,15 @@ column's own semantic type (confirmed against the official ABNF):
 reference, `numericComparisonOperator ws "#" numericValue`,
 `stringComparisonOperator ws (typedSearchTerm | typedSearchTermSet)`,
 `booleanComparisonOperator ws booleanValue`, or `timeComparisonOperator
-ws (timeValue | timeValueSet)`. Four columns are implemented, spanning
-three of the five shapes: `mapTarget` (the string-search shape,
-`SimpleMap`/`ExtendedMap` rows), `correlationId` (the concept-reference
-shape, `ExtendedMap` rows only), and `mapGroup`/`mapPriority` (the
-numeric shape, `ExtendedMap` rows only, two columns) — all for both `^`
-and `^R`. Every other column, and both remaining shapes (boolean, time),
-are not; see `spec/10-ecl-unimplemented.md`.
+ws (timeValue | timeValueSet)`. Five columns are implemented, spanning
+three of the five shapes: `mapTarget`/`mapRule` (the string-search
+shape, two columns — `mapTarget` on `SimpleMap`/`ExtendedMap` rows,
+`mapRule` on `ExtendedMap` rows only), `correlationId` (the
+concept-reference shape, `ExtendedMap` rows only), and
+`mapGroup`/`mapPriority` (the numeric shape, `ExtendedMap` rows only,
+two columns) — all for both `^` and `^R`. Every other column, and both
+remaining shapes (boolean, time), are not; see
+`spec/10-ecl-unimplemented.md`.
 
 Grammatically, `memberFilterConstraint` sits *inside* the
 `refsetOperator` branch, not in the trailing `*(conceptFilterConstraint |
@@ -670,7 +672,7 @@ still governs it: nothing on that list may be silently accepted.
     column actually exists on
     (`SnapshotStore::simple_map_member_rows` and
     `extended_map_member_rows` for `mapTarget`; `extended_map_member_rows`
-    only for `correlationId`/`mapGroup`/`mapPriority`, since
+    only for `correlationId`/`mapGroup`/`mapPriority`/`mapRule`, since
     `SimpleMapRefsetMember` has no such columns), never against
     `member_rows`'s type-erased
     `RefsetMemberCore` view, which has no such column — and every other
