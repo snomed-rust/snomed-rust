@@ -62,6 +62,12 @@ pub enum EclError {
         pos: usize,
         feature: &'static str,
     },
+    /// Parenthesized/refinement/attribute-set nesting exceeded the
+    /// parser's recursion limit (spec/10 rule 19) — rejected before the
+    /// call stack would be, on adversarial input like `((((((...`.
+    MaxNestingDepthExceeded {
+        pos: usize,
+    },
 }
 
 impl fmt::Display for EclError {
@@ -124,6 +130,12 @@ impl fmt::Display for EclError {
             }
             EclError::NotYetImplemented { pos, feature } => {
                 write!(f, "{feature} is not yet implemented (position {pos})")
+            }
+            EclError::MaxNestingDepthExceeded { pos } => {
+                write!(
+                    f,
+                    "expression nesting too deep at position {pos} (limit: 100 levels of `(`/refinement/attribute-set nesting)"
+                )
             }
         }
     }

@@ -168,6 +168,14 @@ The full list, with why each one is still open, is
   path. See `spec/10-ecl.md`'s Refinements section for why role group `0`
   is excluded from `{ }` candidacy — a judgment call the official guide
   doesn't make explicitly, grounded in spec/07 instead.
+- **Recursive descent has a shared depth limit** (`Parser::depth`,
+  `MAX_NESTING_DEPTH = 100`), checked in the three productions with a
+  `"(" ... ")"` recursive alternative (`parse_sub_expression_constraint`,
+  `parse_sub_refinement`, `parse_sub_attribute_set` — spec/10 rule 19).
+  The `ecl_parse` fuzz target found a real stack overflow on deeply
+  nested input before this existed; if you add a fourth recursive
+  production, give it the same `enter_nesting`/`depth -= 1` wrapper
+  rather than assuming the existing three cover it.
 
 ## Trademarks
 

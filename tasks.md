@@ -24,6 +24,30 @@ most recently on 2026-09-04, to keep this file inside the repository's
 40 KB per-document budget. Search both when asking "has this come up
 before".
 
+## Done (2026-09-04, `ecl_parse` fuzz-caught stack overflow: recursion depth guard)
+
+- [x] **`snomed-ecl`**: CI's `ecl_parse` fuzz smoke run (post-`mapAdvice`
+      push) found a real stack overflow — deeply nested
+      `(`/refinement/attribute-set input (`((((((...`) recursed until the
+      process aborted. Reproduced locally outside `cargo fuzz` first
+      (`"(".repeat(100_000)` around a bare concept, plain release build)
+      to confirm before touching anything. Fixed with a shared
+      `Parser::depth: u32` counter and `MAX_NESTING_DEPTH = 100`, checked
+      in all three grammar productions with a `"(" ... ")"` recursive
+      alternative — `parse_sub_expression_constraint`,
+      `parse_sub_refinement`, `parse_sub_attribute_set` — each now a thin
+      `enter_nesting()?` wrapper around its real (renamed `_inner`) body,
+      rejecting with the new `EclError::MaxNestingDepthExceeded` instead
+      of recursing further. All three needed the guard independently:
+      refinement nesting (`A: ((((r = 1))))`) and attribute-set nesting
+      don't route through the expression path at all. New spec/10 rule
+      19. 4 new tests: rejects beyond the limit for all three productions,
+      parses fine exactly at the limit. Verified: build/clippy/fmt/test
+      (413/413)/check-docs/check-trademarks/spec_citations/fuzz-check/
+      benches-check all clean, plus a local `cargo +nightly fuzz build
+      ecl_parse` and a 20s smoke run matching CI's own command to confirm
+      the crash is actually gone, not just the specific repro string.
+
 ## Done (2026-09-04, ECL `{{ M ... }}` `memberFieldFilter`: `mapAdvice`, sixth column, third string-search field)
 
 - [x] **`snomed-ecl`**: `MemberFilterKind::MapAdvice(TermFilter)` —
@@ -410,13 +434,14 @@ before".
       `correlationId` (0.16.0), `mapGroup` (0.17.0), `mapPriority`
       (0.18.0), and `mapRule` (0.19.0), all after both `^` and `^R`.
       `mapAdvice` (the third string-search field, reusing `mapTarget`'s
-      grammar, completing `ExtendedMap`'s string-shaped columns) landed
-      the same way 2026-09-04, **not yet released** (see the Done entry
-      above; release decision pending). `{{ M ... }}` after `^` (0.13.0),
-      after `^R` (0.14.0), and its `memberFieldFilter` alternative
-      (0.15.0-0.19.0), all decided and executed under
+      grammar, completing `ExtendedMap`'s string-shaped columns) and the
+      `ecl_parse` fuzz-caught recursion-depth guard (spec/10 rule 19,
+      see the Done entries above) both landed 2026-09-04, **not yet
+      released** (release decision pending). `{{ M ... }}` after `^`
+      (0.13.0), after `^R` (0.14.0), and its `memberFieldFilter`
+      alternative (0.15.0-0.19.0), all decided and executed under
       `spec/ai-release-authority/`'s criteria rather than a fresh
-      per-release maintainer go-ahead (see `CHANGELOG.md`). 9 crates, 409
+      per-release maintainer go-ahead (see `CHANGELOG.md`). 9 crates, 413
       tests,
       clippy/fmt clean on stable, MSRV 1.96 (current
       stable minus two, `spec/rust-msrv-n-minus-2/index.md`), `fuzz/`,

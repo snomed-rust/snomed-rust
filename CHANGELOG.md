@@ -13,10 +13,12 @@ together, in dependency order (`snomed-core` → `snomed-rf2` → `snomed-owl`
 
 ## [Unreleased]
 
-**New ECL capability, additive.** `{{ M ... }}`'s `memberFieldFilter`
-gains its sixth column, `mapAdvice` — after both `^` and `^R`. A minor
-bump: new public API, no removals or signature changes to anything
-existing.
+**New ECL capability, additive, plus a fuzz-caught crash fix.** `{{ M
+... }}`'s `memberFieldFilter` gains its sixth column, `mapAdvice` — after
+both `^` and `^R`. Parsing also now rejects pathologically deep
+`(`/refinement/attribute-set nesting with a typed error instead of
+overflowing the call stack. A minor bump: new public API, no removals or
+signature changes to anything existing.
 
 ### Added
 
@@ -29,10 +31,21 @@ existing.
   `SimpleMapRefsetMember` and every other refset type never match this
   filter. New public API: `MemberFilterKind::MapAdvice`.
 
+### Fixed
+
+- `snomed-ecl`: parsing deeply nested `(`/refinement/attribute-set input
+  (e.g. `((((((...`) recursed until the process's call stack overflowed
+  — a real crash the `ecl_parse` fuzz target's smoke run found in CI.
+  Parsing now rejects nesting past 100 levels with a new error variant,
+  `EclError::MaxNestingDepthExceeded` (spec/10 rule 19), well before any
+  real ECL expression would nest that deep.
+
 ### Notes for consumers
 
 - No public API removed or changed signature; existing code compiles
-  unmodified against this release.
+  unmodified against this release. `EclError` is `#[non_exhaustive]`, so
+  the new `MaxNestingDepthExceeded` variant is not a breaking match
+  change for existing consumers.
 
 ## [0.19.0] — 2026-09-04
 

@@ -283,11 +283,10 @@ and harmonizes it with the sibling repositories (`hl7-rust`, `er7-rust`,
 
 ## Current status
 
-All eight phases above are closed. As of the `mapTarget`/`correlationId`/
-`mapGroup`/`mapPriority`/`mapRule`/`mapAdvice` member field filters
-(2026-09-04) the workspace is 9 published crates with zero dependencies,
-409 tests, a clean `cargo clippy --all-targets`, 13 fuzz targets, and six
-criterion benchmark files. What is *not* done is tracked
+All eight phases above are closed. As of the recursive-descent nesting
+depth guard (2026-09-04, below) the workspace is 9 published crates with
+zero dependencies, 413 tests, a clean `cargo clippy --all-targets`, 13
+fuzz targets, and six criterion benchmark files. What is *not* done is tracked
 in two places and nowhere
 else: `tasks.md`'s "Next up" (scoped work and known gaps, each with the
 spec section that documents it) and the deliberately-rejected lists —
@@ -315,8 +314,13 @@ non-Simple/Language refset type, and `mapTarget`, `correlationId`,
 `mapGroup`, `mapPriority`, `mapRule`, and `mapAdvice` — the first six
 concrete fields, spanning three of `memberFieldFilter`'s five grammar
 shapes — landed 2026-09-03/04, after both `^` and `^R` in one increment
-each since both reuse the same `member_row_matches` helper. Each
-construct above was confirmed against
+each since both reuse the same `member_row_matches` helper. Immediately
+after, the `ecl_parse` fuzz target's CI smoke run caught a real stack
+overflow on pathologically deep `(`/refinement/attribute-set nesting
+(2026-09-04) — fixed with a shared `Parser::depth` counter and a 100-level
+cap (spec/10 rule 19, `EclError::MaxNestingDepthExceeded`); see
+`agents/ecl-engineer.md` for why three separate recursive entry points
+each needed the guard. Each grammar construct above was confirmed against
 the official ABNF or a verbatim guide quote before implementation,
 because every one of them has a plausible wrong reading that returns a
 set rather than an error.

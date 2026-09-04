@@ -13,6 +13,11 @@
 //! listed in `spec/10-ecl-unimplemented.md`. Encountering one is a
 //! parse error, never a silently incomplete result.
 //!
+//! Parenthesized/refinement/attribute-set nesting beyond 100 levels is
+//! also a parse error (`EclError::MaxNestingDepthExceeded`, spec/10 rule
+//! 19) — a robustness bound, not a missing feature: no real ECL
+//! expression nests that deep, and parsing never recurses past it.
+//!
 //! ```
 //! use snomed_ecl::{evaluate, parse};
 //! use snomed_core::components::Concept;

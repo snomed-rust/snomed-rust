@@ -681,3 +681,7 @@ still governs it: nothing on that list may be silently accepted.
     block MUST NOT be satisfied by a shared-column filter matching one
     row while a field filter matches a different one, nor by two field
     filters each matching a different row.
+19. Parsing MUST reject `subExpressionConstraint`/`subRefinement`/
+    `subAttributeSet` nesting beyond 100 levels with
+    `EclError::MaxNestingDepthExceeded`, never recurse until the call
+    stack overflows — a real crash the `ecl_parse` fuzz target found.

@@ -18,7 +18,11 @@ use crate::lexer::{describe, Lexer, Token, TokenKind};
 pub fn parse(input: &str) -> Result<ExpressionConstraint, EclError> {
     let mut lexer = Lexer::new(input);
     let current = lexer.next_token()?;
-    let mut parser = Parser { lexer, current };
+    let mut parser = Parser {
+        lexer,
+        current,
+        depth: 0,
+    };
     let expr = parser.parse_expression_constraint()?;
     parser.expect_eof()?;
     Ok(expr)
@@ -29,11 +33,40 @@ pub fn parse(input: &str) -> Result<ExpressionConstraint, EclError> {
 struct Parser {
     lexer: Lexer,
     current: Token,
+    /// Shared recursive-descent nesting counter — see [`Parser::enter_nesting`].
+    depth: u32,
 }
+
+/// Every grammar production with a `"(" ... ")"` recursive alternative
+/// (`subExpressionConstraint`, `subRefinement`, `subAttributeSet`) funnels
+/// back through [`Parser::parse_sub_expression_constraint`],
+/// [`Parser::parse_sub_refinement`], or [`Parser::parse_sub_attribute_set`]
+/// respectively, so one shared counter bounds recursion across all three —
+/// pathologically deep input (`((((((...`, or the refinement/attribute-set
+/// equivalents) rejects with a typed error instead of exhausting the call
+/// stack (spec/10 rule 19). 100 is far beyond any real ECL expression's
+/// nesting while staying well inside a thread's default stack budget even
+/// under the fuzz targets' AddressSanitizer instrumentation, which is what
+/// first caught the unbounded case (`fuzz/fuzz_targets/ecl_parse.rs`).
+const MAX_NESTING_DEPTH: u32 = 100;
 
 impl Parser {
     fn peek(&self) -> &Token {
         &self.current
+    }
+
+    /// Increments the shared nesting counter, or rejects with
+    /// [`EclError::MaxNestingDepthExceeded`] before it would exceed
+    /// [`MAX_NESTING_DEPTH`]. Paired with a matching `self.depth -= 1`
+    /// once the recursive call returns (see the three callers).
+    fn enter_nesting(&mut self) -> Result<(), EclError> {
+        if self.depth >= MAX_NESTING_DEPTH {
+            return Err(EclError::MaxNestingDepthExceeded {
+                pos: self.peek().pos,
+            });
+        }
+        self.depth += 1;
+        Ok(())
     }
 
     /// Returns the current token and pulls the next one into place.
@@ -186,6 +219,13 @@ impl Parser {
     /// dots, the attribute name in `A . x . y` would swallow `. y` and
     /// the chain would associate right instead of left (spec/10 rule 15).
     fn parse_sub_expression_constraint(&mut self) -> Result<ExpressionConstraint, EclError> {
+        self.enter_nesting()?;
+        let result = self.parse_sub_expression_constraint_inner();
+        self.depth -= 1;
+        result
+    }
+
+    fn parse_sub_expression_constraint_inner(&mut self) -> Result<ExpressionConstraint, EclError> {
         let mut expr = self.parse_operated_focus()?;
         // `*(ws (descriptionFilterConstraint / conceptFilterConstraint))`
         // — filters apply to the focus concept itself, before any `:`
@@ -1088,6 +1128,13 @@ impl Parser {
     /// is already consumed, since it has one token of lookahead), so it's
     /// parsed once here and handed to whichever shape follows.
     fn parse_sub_refinement(&mut self) -> Result<RefinementConstraint, EclError> {
+        self.enter_nesting()?;
+        let result = self.parse_sub_refinement_inner();
+        self.depth -= 1;
+        result
+    }
+
+    fn parse_sub_refinement_inner(&mut self) -> Result<RefinementConstraint, EclError> {
         if matches!(self.peek().kind, TokenKind::LParen) {
             self.advance()?;
             let inner = self.parse_refinement()?;
@@ -1145,6 +1192,13 @@ impl Parser {
 
     /// `subAttributeSet = eclAttribute / "(" eclAttributeSet ")"`.
     fn parse_sub_attribute_set(&mut self) -> Result<RefinementConstraint, EclError> {
+        self.enter_nesting()?;
+        let result = self.parse_sub_attribute_set_inner();
+        self.depth -= 1;
+        result
+    }
+
+    fn parse_sub_attribute_set_inner(&mut self) -> Result<RefinementConstraint, EclError> {
         if matches!(self.peek().kind, TokenKind::LParen) {
             self.advance()?;
             let inner = self.parse_attribute_set()?;
@@ -1922,6 +1976,61 @@ mod tests {
         );
         // Parenthesizing fixes it.
         assert!(parse("(404684003 MINUS 64572001) MINUS 22298006").is_ok());
+    }
+
+    /// Regression test for a stack overflow the `ecl_parse` fuzz target
+    /// found on `main` (deeply nested `((((((...`): parsing MUST reject
+    /// pathologically deep nesting with a typed error rather than
+    /// recursing until the call stack is exhausted (spec/10 rule 19).
+    #[test]
+    fn rejects_expression_nesting_beyond_the_limit() {
+        let n = MAX_NESTING_DEPTH as usize + 1;
+        let expr = format!("{}404684003{}", "(".repeat(n), ")".repeat(n));
+        let err = parse(&expr).unwrap_err();
+        assert!(
+            matches!(err, EclError::MaxNestingDepthExceeded { .. }),
+            "{err}"
+        );
+    }
+
+    /// Nesting exactly at the limit still parses — the guard rejects
+    /// *beyond* [`MAX_NESTING_DEPTH`], not at it.
+    #[test]
+    fn parses_expression_nesting_at_the_limit() {
+        let n = MAX_NESTING_DEPTH as usize - 1;
+        let expr = format!("{}404684003{}", "(".repeat(n), ")".repeat(n));
+        assert!(parse(&expr).is_ok());
+    }
+
+    /// The same guard applies to refinement nesting (`subRefinement`'s
+    /// `"(" eclRefinement ")"` alternative), a second recursive path that
+    /// doesn't go through [`Parser::parse_sub_expression_constraint`].
+    #[test]
+    fn rejects_refinement_nesting_beyond_the_limit() {
+        let n = MAX_NESTING_DEPTH as usize + 1;
+        let expr = format!("404684003: {}116676008 = 1{}", "(".repeat(n), ")".repeat(n));
+        let err = parse(&expr).unwrap_err();
+        assert!(
+            matches!(err, EclError::MaxNestingDepthExceeded { .. }),
+            "{err}"
+        );
+    }
+
+    /// And to attribute-set nesting (`subAttributeSet`'s `"("
+    /// eclAttributeSet ")"` alternative), the third recursive path.
+    #[test]
+    fn rejects_attribute_set_nesting_beyond_the_limit() {
+        let n = MAX_NESTING_DEPTH as usize + 1;
+        let expr = format!(
+            "404684003: {{ {}116676008 = 1{} }}",
+            "(".repeat(n),
+            ")".repeat(n)
+        );
+        let err = parse(&expr).unwrap_err();
+        assert!(
+            matches!(err, EclError::MaxNestingDepthExceeded { .. }),
+            "{err}"
+        );
     }
 
     #[test]

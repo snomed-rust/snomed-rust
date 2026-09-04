@@ -113,6 +113,31 @@ revert to eager whole-string tokenization to make it easier; it will
 degrade error messages for every not-yet-implemented feature after that
 change.
 
+## Recursion depth is bounded — a real fuzz-caught stack overflow
+
+2026-09-04: the `ecl_parse` fuzz target's smoke run found a stack
+overflow on `main` — deeply nested `((((((...` input (also reachable via
+nested refinement/attribute-set parens) recursed until the process
+aborted, which is exactly the class of bug `CLAUDE.md`'s "no public API
+may panic on input its own type allows" gotcha exists to catch, even
+though nothing in `spec/10-ecl.md` had said so explicitly yet (fixed by
+adding spec/10 rule 19). The fix is a single `Parser::depth: u32` counter
+shared across the three grammar productions with a `"(" ... ")"`
+recursive alternative — `parse_sub_expression_constraint`,
+`parse_sub_refinement`, `parse_sub_attribute_set` — each now a thin
+`enter_nesting()?` / call-the-real-`_inner`-body / `depth -= 1` wrapper,
+rejecting past `MAX_NESTING_DEPTH = 100` with
+`EclError::MaxNestingDepthExceeded` instead of recursing further. Three
+functions needed the wrapper, not one, because each is an independent
+entry point back into deeper nesting — an expression can nest via parens,
+a refinement can nest via parens *without* going through the expression
+path at all (`A: ((((r = 1))))`), and so can an attribute set inside a
+group. Missing any one of the three leaves that path unbounded. If a
+fourth recursive alternative is ever added to the grammar, it needs the
+same wrapper — nothing else here catches the omission, and `cargo +nightly
+fuzz run ecl_parse` (or a manual `"(".repeat(100_000)` input) is the only
+thing that will.
+
 ## Extending the grammar
 
 1. Confirm the exact operator/keyword against the ABNF grammar (see above)
