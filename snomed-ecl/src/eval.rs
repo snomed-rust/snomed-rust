@@ -291,6 +291,7 @@ fn member_row_matches(
                 | MemberFilterKind::MapGroup(_)
                 | MemberFilterKind::MapPriority(_)
                 | MemberFilterKind::MapRule(_)
+                | MemberFilterKind::MapAdvice(_)
         )
     }) {
         return typed_map_row_matches(
@@ -321,8 +322,9 @@ fn member_row_matches(
 /// every `memberFieldFilter` column this crate implements: `mapTarget`
 /// is the only one so far shared by `SimpleMap` and `ExtendedMap`, so
 /// every field added after it (`correlationId`, `mapGroup`,
-/// `mapPriority`, `mapRule`, …) is `ExtendedMap`-only and adds one more
-/// field here instead of one more function parameter everywhere.
+/// `mapPriority`, `mapRule`, `mapAdvice`, …) is `ExtendedMap`-only and
+/// adds one more field here instead of one more function parameter
+/// everywhere.
 #[derive(Default)]
 struct TypedFields<'a> {
     map_target: Option<&'a str>,
@@ -330,15 +332,16 @@ struct TypedFields<'a> {
     map_group: Option<u32>,
     map_priority: Option<u32>,
     map_rule: Option<&'a str>,
+    map_advice: Option<&'a str>,
 }
 
-/// The `mapTarget`/`correlationId`/`mapGroup`/`mapPriority`/`mapRule`
-/// branch of [`member_row_matches`]: all five exist only on
+/// The `mapTarget`/`correlationId`/`mapGroup`/`mapPriority`/`mapRule`/
+/// `mapAdvice` branch of [`member_row_matches`]: all six exist only on
 /// `SimpleMapRefsetMember`/`ExtendedMapRefsetMember` (and
-/// `correlationId`/`mapGroup`/`mapPriority`/`mapRule` only on the latter
-/// — `SimpleMapRefsetMember` has no such columns), so a block naming any
-/// of them is tested against those two typed row sets rather than
-/// `member_rows`. Testing both sets whenever *any* field-filter kind
+/// `correlationId`/`mapGroup`/`mapPriority`/`mapRule`/`mapAdvice` only on
+/// the latter — `SimpleMapRefsetMember` has no such columns), so a block
+/// naming any of them is tested against those two typed row sets rather
+/// than `member_rows`. Testing both sets whenever *any* field-filter kind
 /// appears (rather than computing the exact type each filter needs) is
 /// deliberately simple, not merely convenient: a `SimpleMap` row tested
 /// against a block that also names one of the `ExtendedMap`-only columns
@@ -391,6 +394,7 @@ fn typed_map_row_matches(
                             map_group: Some(row.map_group),
                             map_priority: Some(row.map_priority),
                             map_rule: Some(&row.map_rule),
+                            map_advice: Some(&row.map_advice),
                         },
                     )
                 })
@@ -535,7 +539,8 @@ fn prepare_member_filter(filter: &MemberFilterKind, store: &SnapshotStore) -> Pr
             PreparedMemberFilter::Concepts(evaluate(value, store))
         }
         MemberFilterKind::MapTarget(TermFilter { values, .. })
-        | MemberFilterKind::MapRule(TermFilter { values, .. }) => PreparedMemberFilter::Term(
+        | MemberFilterKind::MapRule(TermFilter { values, .. })
+        | MemberFilterKind::MapAdvice(TermFilter { values, .. }) => PreparedMemberFilter::Term(
             values
                 .iter()
                 .map(|search| match search.search_type {
@@ -643,6 +648,22 @@ fn member_filter_matches(
                 .iter()
                 .zip(searches)
                 .any(|(search, prepared)| term_matches(map_rule, search, prepared));
+            matches != *negated
+        }
+        MemberFilterKind::MapAdvice(TermFilter { negated, values }) => {
+            let PreparedMemberFilter::Term(searches) = prepared else {
+                unreachable!("a mapAdvice filter prepares to `Term`")
+            };
+            // No `map_advice` on this row source (every source but
+            // `ExtendedMap`'s own, `SimpleMap` included): never matches,
+            // same reasoning as `MapTarget`'s `None` case above.
+            let Some(map_advice) = fields.map_advice else {
+                return false;
+            };
+            let matches = values
+                .iter()
+                .zip(searches)
+                .any(|(search, prepared)| term_matches(map_advice, search, prepared));
             matches != *negated
         }
     }
@@ -2883,6 +2904,113 @@ mod tests {
         assert_eq!(eval(&mismatched, &store), HashSet::new());
         let matched =
             format!("^ {ICD10_MAP} {{{{ M mapTarget = \"I21.9\", mapRule = \"TRUE\" }}}}");
+        assert_eq!(eval(&matched, &store), HashSet::from([MI]));
+    }
+
+    /// `mapAdvice` — the sixth `memberFieldFilter` column, and the third
+    /// to use the string-search shape (the same one `mapTarget`/`mapRule`
+    /// use, on a different RF2 column). `ExtendedMapRefsetMember`-only.
+    /// Also proves `{{ M }}` after `^R` reaches it, via the same shared
+    /// `member_row_matches` the `^` path uses.
+    #[test]
+    fn member_filter_map_advice_matches_extended_map_rows() {
+        let mut b = SnapshotStore::builder();
+        b.add_concept(concept(MI));
+        b.add_extended_map_member(ExtendedMapRefsetMember {
+            core: RefsetMemberCore {
+                id: MemberId::parse("80000000-0000-4000-8000-000000000094").unwrap(),
+                effective_time: EffectiveTime::new_unchecked(20190731),
+                active: true,
+                module_id: constants::CORE_MODULE,
+                refset_id: ICD10_MAP,
+                referenced_component_id: MI,
+            },
+            map_group: 1,
+            map_priority: 1,
+            map_rule: String::new(),
+            map_advice: "ALWAYS I21.9".to_string(),
+            map_target: "I21.9".to_string(),
+            correlation_id: constants::CORE_MODULE,
+            map_category_id: constants::CORE_MODULE,
+        });
+        let store = b.build();
+
+        assert_eq!(
+            eval("^ 447562003 {{ M mapAdvice = \"NEVER\" }}", &store),
+            HashSet::new(),
+            "the row's own mapAdvice doesn't match"
+        );
+        assert_eq!(
+            eval("^ 447562003 {{ M mapAdvice = \"ALWAYS\" }}", &store),
+            HashSet::from([MI])
+        );
+        // `^R` reaches the same row, through the shared row-matching path.
+        assert_eq!(
+            eval(
+                &format!("^R {MI} {{{{ M mapAdvice = \"ALWAYS\" }}}}"),
+                &store
+            ),
+            HashSet::from([ICD10_MAP])
+        );
+    }
+
+    /// `SimpleMapRefsetMember` has no `mapAdvice` column at all — a
+    /// membership that exists only there must never match, the same
+    /// "column absent on this row source" case `mapRule` has.
+    #[test]
+    fn member_filter_map_advice_never_matches_simple_map_rows() {
+        let mut b = SnapshotStore::builder();
+        b.add_concept(concept(MI));
+        b.add_simple_map_member(SimpleMapRefsetMember {
+            core: RefsetMemberCore {
+                id: MemberId::parse("80000000-0000-4000-8000-000000000095").unwrap(),
+                effective_time: EffectiveTime::new_unchecked(20190731),
+                active: true,
+                module_id: constants::CORE_MODULE,
+                refset_id: ICD10_MAP,
+                referenced_component_id: MI,
+            },
+            map_target: "I21.9".to_string(),
+        });
+        let store = b.build();
+
+        assert_eq!(
+            eval("^ 447562003 {{ M mapAdvice = \"ALWAYS\" }}", &store),
+            HashSet::new()
+        );
+    }
+
+    /// "One row, all filters" (spec/10 rule 18) across two string-shaped
+    /// `memberFieldFilter` kinds together: a row satisfying `mapTarget`
+    /// but not `mapAdvice` must not satisfy a block naming both.
+    #[test]
+    fn member_filter_map_advice_conjoins_with_map_target_on_the_same_row() {
+        let mut b = SnapshotStore::builder();
+        b.add_concept(concept(MI));
+        b.add_extended_map_member(ExtendedMapRefsetMember {
+            core: RefsetMemberCore {
+                id: MemberId::parse("80000000-0000-4000-8000-000000000096").unwrap(),
+                effective_time: EffectiveTime::new_unchecked(20190731),
+                active: true,
+                module_id: constants::CORE_MODULE,
+                refset_id: ICD10_MAP,
+                referenced_component_id: MI,
+            },
+            map_group: 1,
+            map_priority: 1,
+            map_rule: String::new(),
+            map_advice: "ALWAYS I21.9".to_string(),
+            map_target: "I21.9".to_string(),
+            correlation_id: constants::CORE_MODULE,
+            map_category_id: constants::CORE_MODULE,
+        });
+        let store = b.build();
+
+        let mismatched =
+            format!("^ {ICD10_MAP} {{{{ M mapTarget = \"I21.9\", mapAdvice = \"NEVER\" }}}}");
+        assert_eq!(eval(&mismatched, &store), HashSet::new());
+        let matched =
+            format!("^ {ICD10_MAP} {{{{ M mapTarget = \"I21.9\", mapAdvice = \"ALWAYS\" }}}}");
         assert_eq!(eval(&matched, &store), HashSet::from([MI]));
     }
 

@@ -202,12 +202,12 @@ with an active-only accessor but no way for `snomed-ecl` to ever reach
 its inactive rows.
 
 `snomed-ecl`'s `mapTarget`, `correlationId`, `mapGroup`, `mapPriority`,
-and `mapRule` filters (`spec/10-ecl.md` rule 18) are the first five
-consumers: all five dispatch directly to
+`mapRule`, and `mapAdvice` filters (`spec/10-ecl.md` rule 18) are the
+first six consumers: all six dispatch directly to
 `simple_map_member_rows`/`extended_map_member_rows` rather than going
 through `member_rows` (`correlationId`/`mapGroup`/`mapPriority`/
-`mapRule` only ever match an `extended_map_member_rows` row —
-`simple_map_member_rows`' own type has no such columns — but all row
+`mapRule`/`mapAdvice` only ever match an `extended_map_member_rows` row
+— `simple_map_member_rows`' own type has no such columns — but all row
 sets are still tested
 whenever any field-filter kind appears in a block, since a row missing
 the column simply fails that filter rather than needing its own excluded

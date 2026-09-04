@@ -8,10 +8,10 @@
 //!
 //! What remains unimplemented (boolean concrete comparisons, every
 //! `memberFieldFilter` column but
-//! `mapTarget`/`correlationId`/`mapGroup`/`mapPriority`/`mapRule`, the
-//! history supplement, alternate identifiers, …) is listed in
-//! `spec/10-ecl-unimplemented.md`. Encountering one is a parse error,
-//! never a silently incomplete result.
+//! `mapTarget`/`correlationId`/`mapGroup`/`mapPriority`/`mapRule`/
+//! `mapAdvice`, the history supplement, alternate identifiers, …) is
+//! listed in `spec/10-ecl-unimplemented.md`. Encountering one is a
+//! parse error, never a silently incomplete result.
 //!
 //! ```
 //! use snomed_ecl::{evaluate, parse};

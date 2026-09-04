@@ -386,14 +386,14 @@ column's own semantic type (confirmed against the official ABNF):
 reference, `numericComparisonOperator ws "#" numericValue`,
 `stringComparisonOperator ws (typedSearchTerm | typedSearchTermSet)`,
 `booleanComparisonOperator ws booleanValue`, or `timeComparisonOperator
-ws (timeValue | timeValueSet)`. Five columns are implemented, spanning
-three of the five shapes: `mapTarget`/`mapRule` (the string-search
-shape, two columns — `mapTarget` on `SimpleMap`/`ExtendedMap` rows,
-`mapRule` on `ExtendedMap` rows only), `correlationId` (the
-concept-reference shape, `ExtendedMap` rows only), and
-`mapGroup`/`mapPriority` (the numeric shape, `ExtendedMap` rows only,
-two columns) — all for both `^` and `^R`. Every other column, and both
-remaining shapes (boolean, time), are not; see
+ws (timeValue | timeValueSet)`. Six columns are implemented, spanning
+three of the five shapes: `mapTarget`/`mapRule`/`mapAdvice` (the
+string-search shape, three columns — `mapTarget` on
+`SimpleMap`/`ExtendedMap` rows, the other two on `ExtendedMap` rows
+only), `correlationId` (the concept-reference shape, `ExtendedMap` rows
+only), and `mapGroup`/`mapPriority` (the numeric shape, `ExtendedMap`
+rows only, two columns) — all for both `^` and `^R`. Every other
+column, and both remaining shapes (boolean, time), are not; see
 `spec/10-ecl-unimplemented.md`.
 
 Grammatically, `memberFilterConstraint` sits *inside* the
@@ -672,9 +672,9 @@ still governs it: nothing on that list may be silently accepted.
     column actually exists on
     (`SnapshotStore::simple_map_member_rows` and
     `extended_map_member_rows` for `mapTarget`; `extended_map_member_rows`
-    only for `correlationId`/`mapGroup`/`mapPriority`/`mapRule`, since
-    `SimpleMapRefsetMember` has no such columns), never against
-    `member_rows`'s type-erased
+    only for `correlationId`/`mapGroup`/`mapPriority`/`mapRule`/
+    `mapAdvice`, since `SimpleMapRefsetMember` has no such columns),
+    never against `member_rows`'s type-erased
     `RefsetMemberCore` view, which has no such column — and every other
     filter in the same block MUST be tested against that *same* typed
     row's shared columns, per the "one row, all filters" rule above; a

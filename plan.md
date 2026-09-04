@@ -251,15 +251,15 @@ and harmonizes it with the sibling repositories (`hl7-rust`, `er7-rust`,
   `agents/store-engineer.md`'s "sixteen `*_member_rows` indexes"
   section), storing the active subset twice rather than changing any
   existing accessor's signature. `mapTarget`, `correlationId`, `mapGroup`,
-  `mapPriority`, and `mapRule` are the first five concrete fields built
-  on this retention (`snomed-ecl`, spec/10 rule 18): the
+  `mapPriority`, `mapRule`, and `mapAdvice` are the first six concrete
+  fields built on this retention (`snomed-ecl`, spec/10 rule 18): the
   `memberFieldFilter` grammar alternative, tested against
   `simple_map_member_rows`/`extended_map_member_rows`, after both `^` and
   `^R` in one increment each since both reuse the same
   `member_row_matches` helper. `memberFieldFilter` itself turned out not
   to be one grammar shape but five, chosen by the named column's own
   semantic type (confirmed against the official ABNF): `mapTarget`/
-  `mapRule` the string-search shape, `correlationId` the
+  `mapRule`/`mapAdvice` the string-search shape, `correlationId` the
   concept-reference shape (`expressionComparisonOperator ws
   subExpressionConstraint`, reusing `ModuleFilter` verbatim),
   `mapGroup`/`mapPriority` the numeric shape (`numericComparisonOperator
@@ -284,10 +284,10 @@ and harmonizes it with the sibling repositories (`hl7-rust`, `er7-rust`,
 ## Current status
 
 All eight phases above are closed. As of the `mapTarget`/`correlationId`/
-`mapGroup`/`mapPriority`/`mapRule` member field filters (2026-09-04) the
-workspace is 9 published crates with zero dependencies, 405 tests, a
-clean `cargo clippy --all-targets`, 13 fuzz targets, and six criterion
-benchmark files. What is *not* done is tracked
+`mapGroup`/`mapPriority`/`mapRule`/`mapAdvice` member field filters
+(2026-09-04) the workspace is 9 published crates with zero dependencies,
+409 tests, a clean `cargo clippy --all-targets`, 13 fuzz targets, and six
+criterion benchmark files. What is *not* done is tracked
 in two places and nowhere
 else: `tasks.md`'s "Next up" (scoped work and known gaps, each with the
 spec section that documents it) and the deliberately-rejected lists —
@@ -312,11 +312,11 @@ can't reuse `^`'s). `{{ M ... }}`'s refset-type-specific
 `memberFieldFilter` kind's store-retention call was decided 2026-09-03
 ("Open decisions" below): sixteen new `*_member_rows` accessors, one per
 non-Simple/Language refset type, and `mapTarget`, `correlationId`,
-`mapGroup`, `mapPriority`, and `mapRule` — the first five concrete
-fields, spanning three of `memberFieldFilter`'s five grammar shapes —
-landed 2026-09-03/04, after both `^` and `^R` in one increment each
-since both reuse the same `member_row_matches` helper. Each construct
-above was confirmed against
+`mapGroup`, `mapPriority`, `mapRule`, and `mapAdvice` — the first six
+concrete fields, spanning three of `memberFieldFilter`'s five grammar
+shapes — landed 2026-09-03/04, after both `^` and `^R` in one increment
+each since both reuse the same `member_row_matches` helper. Each
+construct above was confirmed against
 the official ABNF or a verbatim guide quote before implementation,
 because every one of them has a plausible wrong reading that returns a
 set rather than an error.

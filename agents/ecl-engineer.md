@@ -294,8 +294,8 @@ shape of call `member_rows`/`member_refsets` both needed. `mapTarget`
 landed the same day as that decision's first concrete field, tested
 against `SnapshotStore::simple_map_member_rows`/
 `extended_map_member_rows` rather than `member_rows`'s type-erased view;
-`correlationId`, `mapGroup`, `mapPriority`, and `mapRule` followed
-immediately after, one or two fields each of two more
+`correlationId`, `mapGroup`, `mapPriority`, `mapRule`, and `mapAdvice`
+followed immediately after, one to three fields each of two more
 `memberFieldFilter` grammar shapes — `memberFieldFilter`
 isn't one production but five in the official grammar, chosen by the
 named column's own semantic type
@@ -314,9 +314,10 @@ column reuses `mapTarget`'s string grammar just because it was first.
 `field_numeric_matches` fixes it, caught by a test before merge, not by
 inspection. `mapPriority` reused that same numeric shape and
 `field_numeric_matches` verbatim — a different RF2 column on the same
-`NumericFieldFilter` grammar, not a new one to design; `mapRule` did the
-same for `mapTarget`'s string shape, reusing `TermFilter`/`term_matches`
-verbatim. With the store side now done for all sixteen types, every
+`NumericFieldFilter` grammar, not a new one to design; `mapRule` and
+`mapAdvice` did the same for `mapTarget`'s string shape, reusing
+`TermFilter`/`term_matches` verbatim. With the store side now done for
+all sixteen types, every
 *remaining* `memberFieldFilter` column (`order`, `domainConstraint`, …)
 IS a free next increment — the cadence below applies to them cleanly,
 the same as any other filter kind. See `spec/10-ecl-unimplemented.md`.

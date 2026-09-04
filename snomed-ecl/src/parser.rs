@@ -417,10 +417,11 @@ impl Parser {
     /// tokenized for `{{ C }}`, so no new lexer keywords were needed for
     /// them. The fourth, `memberFieldFilter`, is `refsetFieldName` —
     /// `1*alpha` in the official grammar, not a fixed keyword list, so it
-    /// lexes as a plain `TokenKind::Word` — and only the five spellings
+    /// lexes as a plain `TokenKind::Word` — and only the six spellings
     /// this crate implements, `mapTarget`, `correlationId`, `mapGroup`,
-    /// `mapPriority`, and `mapRule` (spec/10 rule 18), are recognized
-    /// here; any other word falls through to the generic "unexpected keyword"
+    /// `mapPriority`, `mapRule`, and `mapAdvice` (spec/10 rule 18), are
+    /// recognized here; any other word falls through to the generic
+    /// "unexpected keyword"
     /// bucket rule 9 describes rather than being named. `correlationId
     /// (=|!=) subExpressionConstraint` reuses `moduleId`'s own parse
     /// shape verbatim (both are `booleanComparisonOperator`-spelled
@@ -492,11 +493,17 @@ impl Parser {
                 let values = self.parse_typed_search_term_set()?;
                 Ok(MemberFilterKind::MapRule(TermFilter { negated, values }))
             }
+            TokenKind::Word(word) if word == "mapAdvice" => {
+                self.advance()?;
+                let negated = self.parse_boolean_comparison_operator()?;
+                let values = self.parse_typed_search_term_set()?;
+                Ok(MemberFilterKind::MapAdvice(TermFilter { negated, values }))
+            }
             _ => {
                 let tok = self.peek().clone();
                 Err(Self::unexpected(
                     &tok,
-                    "`moduleId`, `effectiveTime`, `active`, `mapTarget`, `correlationId`, `mapGroup`, `mapPriority`, or `mapRule`",
+                    "`moduleId`, `effectiveTime`, `active`, `mapTarget`, `correlationId`, `mapGroup`, `mapPriority`, `mapRule`, or `mapAdvice`",
                 ))
             }
         }
@@ -1754,6 +1761,30 @@ mod tests {
         assert!(!negated);
         assert_eq!(values.len(), 1);
         assert_eq!(values[0].text, "TRUE");
+    }
+
+    /// `mapAdvice` (spec/10 rule 18) — the sixth `memberFieldFilter`
+    /// column implemented, and the third to use the string-search
+    /// grammar shape (the same one `mapTarget`/`mapRule` use, reusing
+    /// `parse_typed_search_term_set` verbatim — a different RF2 column,
+    /// not a different production).
+    #[test]
+    fn parses_member_filter_map_advice() {
+        let EC::MemberFilter { filters, .. } =
+            parse("^ 447562003 {{ M mapAdvice = wild:\"ALWAYS*\" }}").unwrap()
+        else {
+            panic!("expected a member filter");
+        };
+        assert_eq!(filters.len(), 1);
+        let crate::ast::MemberFilterKind::MapAdvice(crate::ast::TermFilter { negated, values }) =
+            &filters[0]
+        else {
+            panic!("expected a MapAdvice filter, got {:?}", filters[0]);
+        };
+        assert!(!negated);
+        assert_eq!(values.len(), 1);
+        assert_eq!(values[0].text, "ALWAYS*");
+        assert_eq!(values[0].search_type, crate::ast::SearchType::Wild);
     }
 
     /// A field name this crate doesn't recognize (`order`, say) falls to

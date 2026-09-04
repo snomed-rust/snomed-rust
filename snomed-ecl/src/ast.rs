@@ -371,26 +371,26 @@ pub enum ConceptFilterKind {
 /// (`RefsetMemberCore`, spec/08), asked about the *member row* rather
 /// than a concept's own row.
 ///
-/// `MapTarget`/`CorrelationId`/`MapGroup`/`MapPriority`/`MapRule` are the
-/// official grammar's fourth kind, `memberFieldFilter` — a
-/// refset-type-specific column rather than a shared one. Its own grammar
-/// (confirmed against the official ABNF, `syntax/abnf-brief.txt`) is not
-/// one shape but five, chosen by the column's own semantic type:
+/// `MapTarget`/`CorrelationId`/`MapGroup`/`MapPriority`/`MapRule`/
+/// `MapAdvice` are the official grammar's fourth kind, `memberFieldFilter`
+/// — a refset-type-specific column rather than a shared one. Its own
+/// grammar (confirmed against the official ABNF, `syntax/abnf-brief.txt`)
+/// is not one shape but five, chosen by the column's own semantic type:
 /// `expressionComparisonOperator ws subExpressionConstraint` (a concept
 /// reference, `CorrelationId`'s shape), `numericComparisonOperator ws "#"
 /// numericValue` (`MapGroup`'s and `MapPriority`'s shape),
 /// `stringComparisonOperator ws (typedSearchTerm | typedSearchTermSet)`
-/// (`MapTarget`'s and `MapRule`'s shape), `booleanComparisonOperator ws
-/// booleanValue`, or `timeComparisonOperator ws (timeValue |
-/// timeValueSet)`. `mapTarget`
+/// (`MapTarget`'s, `MapRule`'s, and `MapAdvice`'s shape),
+/// `booleanComparisonOperator ws booleanValue`, or `timeComparisonOperator
+/// ws (timeValue | timeValueSet)`. `mapTarget`
 /// (`SimpleMapRefsetMember`/`ExtendedMapRefsetMember`) was the first
-/// implemented, `correlationId`, `mapGroup`, `mapPriority`, and `mapRule`
-/// (`ExtendedMapRefsetMember` only) followed — all decided 2026-09-03
-/// (`plan.md`'s "Open decisions") to retain full rows — active and
-/// inactive — for all sixteen non-Simple/Language refset types, the same
-/// store change `moduleId`/`effectiveTime`/`active` needed for the six
-/// shared columns. Every other `memberFieldFilter` column, and the
-/// boolean and time shapes, are still rejected — see
+/// implemented, `correlationId`, `mapGroup`, `mapPriority`, `mapRule`,
+/// and `mapAdvice` (`ExtendedMapRefsetMember` only) followed — all
+/// decided 2026-09-03 (`plan.md`'s "Open decisions") to retain full rows
+/// — active and inactive — for all sixteen non-Simple/Language refset
+/// types, the same store change `moduleId`/`effectiveTime`/`active`
+/// needed for the six shared columns. Every other `memberFieldFilter`
+/// column, and the boolean and time shapes, are still rejected — see
 /// [`ExpressionConstraint::MemberFilter`] and
 /// `spec/10-ecl-unimplemented.md`.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -453,6 +453,15 @@ pub enum MemberFilterKind {
     /// absent on this row source" case `mapGroup`/`mapPriority`/
     /// `correlationId` have.
     MapRule(TermFilter),
+    /// `mapAdvice (=|!=) (typedSearchTerm | typedSearchTermSet)` — a
+    /// `memberFieldFilter` (spec/10 rule 18): `ExtendedMapRefsetMember`'s
+    /// own `mapAdvice` column (free text, not a concept or a number).
+    /// Reuses [`TermFilter`]'s exact shape and grammar — the same string
+    /// production `mapTarget`/`mapRule` use, just a different RF2
+    /// column. `SimpleMapRefsetMember` has no `mapAdvice` column, the
+    /// same "column absent on this row source" case
+    /// `mapGroup`/`mapPriority`/`correlationId`/`mapRule` have.
+    MapAdvice(TermFilter),
 }
 
 /// `numericComparisonOperator ws "#" numericValue` — a `memberFieldFilter`

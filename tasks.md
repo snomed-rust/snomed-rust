@@ -24,6 +24,32 @@ most recently on 2026-09-04, to keep this file inside the repository's
 40 KB per-document budget. Search both when asking "has this come up
 before".
 
+## Done (2026-09-04, ECL `{{ M ... }}` `memberFieldFilter`: `mapAdvice`, sixth column, third string-search field)
+
+- [x] **`snomed-ecl`**: `MemberFilterKind::MapAdvice(TermFilter)` —
+      `mapAdvice (=|!=) (typedSearchTerm | typedSearchTermSet)`, reusing
+      `mapTarget`/`mapRule`'s exact grammar and
+      `parse_typed_search_term_set` verbatim (a different
+      `ExtendedMapRefsetMember` column, not a new production —
+      `SimpleMapRefsetMember` doesn't carry `mapAdvice`, same as
+      `mapRule`). Extended `TypedFields` with one more `Option<&str>`
+      field and `member_row_matches`'s dispatch condition, matching the
+      pattern established for every field so far; `member_filter_matches`'s
+      new arm reuses `term_matches`/`PreparedSearch`, the same machinery
+      `mapTarget`/`mapRule` already proved out. Completes
+      `ExtendedMapRefsetMember`'s string-shaped columns.
+- [x] Four new tests (one parser, three eval: matches after `^`/`^R`,
+      never matches a `SimpleMap`-only row, conjoins with `mapTarget` on
+      the same row per "one row, all filters"). 409/409 tests passing (up
+      from 405).
+- [x] Docs updated to match: `spec/10-ecl.md`, `spec/10-ecl-filters.md`,
+      `spec/10-ecl-unimplemented.md`, `snomed-ecl/src/lib.rs`,
+      `snomed-ecl/README.md`, `agents/ecl-engineer.md`,
+      `agents/store-engineer.md`, `plan.md` (Open decisions, Current
+      status test count).
+- [x] `cargo clippy --all-targets`, `cargo fmt --check`, `fuzz/`/`benches/`
+      all build clean.
+
 ## Done (2026-09-04, Release 0.19.0 — `memberFieldFilter`'s `mapRule`, seventh self-decided release)
 
 - [x] **Decided and executed the release itself**, per §1-5 of
@@ -382,13 +408,16 @@ before".
 - [ ] Nothing currently scoped beyond the `{{ M ... }}` remainder below.
       State as of 2026-09-04: **0.19.0 released** — `mapTarget` (0.15.0),
       `correlationId` (0.16.0), `mapGroup` (0.17.0), `mapPriority`
-      (0.18.0), and `mapRule` (0.19.0, the second string-search field,
-      reusing `mapTarget`'s grammar), all after both `^` and `^R`.
-      `{{ M ... }}` after `^` (0.13.0), after `^R` (0.14.0), and its
-      `memberFieldFilter` alternative (0.15.0-0.19.0), all decided and
-      executed under `spec/ai-release-authority/`'s criteria rather than
-      a fresh per-release maintainer go-ahead (see `CHANGELOG.md`). 9
-      crates, 405 tests,
+      (0.18.0), and `mapRule` (0.19.0), all after both `^` and `^R`.
+      `mapAdvice` (the third string-search field, reusing `mapTarget`'s
+      grammar, completing `ExtendedMap`'s string-shaped columns) landed
+      the same way 2026-09-04, **not yet released** (see the Done entry
+      above; release decision pending). `{{ M ... }}` after `^` (0.13.0),
+      after `^R` (0.14.0), and its `memberFieldFilter` alternative
+      (0.15.0-0.19.0), all decided and executed under
+      `spec/ai-release-authority/`'s criteria rather than a fresh
+      per-release maintainer go-ahead (see `CHANGELOG.md`). 9 crates, 409
+      tests,
       clippy/fmt clean on stable, MSRV 1.96 (current
       stable minus two, `spec/rust-msrv-n-minus-2/index.md`), `fuzz/`,
       and `benches/`; 13 fuzz targets; 6 criterion benchmark files; 35
@@ -416,9 +445,9 @@ before".
       the `moduleId`/`effectiveTime`/`active` kinds are done after both
       `^` (2026-09-01) and `^R` (2026-09-02); the fourth grammar
       alternative, `memberFieldFilter`, now has its store-retention
-      decided and five columns done after both `^` and `^R`: `mapTarget`,
-      `correlationId`, `mapGroup` (2026-09-03), `mapPriority`, and
-      `mapRule` (2026-09-04, see Done above). What is still open:
+      decided and six columns done after both `^` and `^R`: `mapTarget`,
+      `correlationId`, `mapGroup` (2026-09-03), `mapPriority`, `mapRule`,
+      and `mapAdvice` (2026-09-04, see Done above). What is still open:
       - Every other `memberFieldFilter` column — no longer blocked on a
         store decision (all sixteen non-Simple/Language types already
         retain typed active-and-inactive rows via `*_member_rows`), so
@@ -456,12 +485,11 @@ before".
           shape).
         - AttributeValue: `valueId` (`SctId` — concept-reference shape).
         - ExtendedMap, besides `mapTarget`/`correlationId`/`mapGroup`/
-          `mapPriority`/`mapRule`: `mapAdvice` (`String` — string shape);
-          `mapCategoryId` (`SctId` — concept-reference shape) — the most
-          likely next pick, being the type every implemented column so
-          far already proved out. `mapAdvice` would complete
-          ExtendedMap's string-shaped columns; `mapCategoryId` would
-          complete its concept-reference-shaped ones.
+          `mapPriority`/`mapRule`/`mapAdvice`: `mapCategoryId` (`SctId` —
+          concept-reference shape) — the only `ExtendedMap` column left,
+          and the most likely next pick; it would complete
+          `ExtendedMap`'s coverage entirely, reusing `correlationId`'s
+          exact shape (`ModuleFilter`).
         - OwlExpression: `owlExpression` (`String` — string shape).
         - ModuleDependency: `sourceEffectiveTime`, `targetEffectiveTime`
           (`EffectiveTime` — time shape, no implemented example yet).
