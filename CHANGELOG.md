@@ -13,6 +13,8 @@ together, in dependency order (`snomed-core` → `snomed-rf2` → `snomed-owl`
 
 ## [Unreleased]
 
+## [0.18.0] — 2026-09-04
+
 **New ECL capability, additive.** `{{ M ... }}`'s `memberFieldFilter`
 gains its fourth column, `mapPriority` — after both `^` and `^R`. A
 minor bump: new public API, no removals or signature changes to anything
