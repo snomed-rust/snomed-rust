@@ -16,12 +16,39 @@ retirement), Dependabot plus release 0.12.0 (2026-08-29/30), the
 github-pages`), the ECL `{{ M ... }}` member filter constraint's first
 three shared-column kinds plus the AI-release-authority governance work
 that followed (2026-09-01/02), releases 0.13.0/0.14.0 plus the `^R`
-extension between them (2026-09-02), and `memberFieldFilter`'s
-`mapTarget` column plus release 0.15.0 (2026-09-03), live in
+extension between them (2026-09-02), `memberFieldFilter`'s `mapTarget`
+column plus release 0.15.0, and `memberFieldFilter`'s `correlationId`
+column plus release 0.16.0 (2026-09-03), live in
 [`docs/tasks-archive.md`](docs/tasks-archive.md) — moved there verbatim,
 most recently on 2026-09-04, to keep this file inside the repository's
 40 KB per-document budget. Search both when asking "has this come up
 before".
+
+## Done (2026-09-04, Release 0.19.0 — `memberFieldFilter`'s `mapRule`, seventh self-decided release)
+
+- [x] **Decided and executed the release itself**, per §1-5 of
+      `spec/ai-release-authority/`: §1 CI independently green on the
+      pushed merge commit (`e6e8f4a`, all six jobs, confirmed via `gh run
+      view` before tagging); §2 `CHANGELOG.md`'s `[Unreleased]` verified
+      against the actual diff and moved under `## [0.19.0]`, minor bump
+      (purely additive: `MemberFilterKind::MapRule`, nothing removed or
+      changed signature); §3 no rule oversteps — this ships the
+      `memberFieldFilter` store-retention decision already recorded in
+      `plan.md` as Decided 2026-09-03, `mapRule` being a fifth concrete
+      field on that same retention, not a new undecided change; §4 all
+      nine crates, one version, standard dependency order; §5 tagged
+      `v0.19.0` (signed, verified against the merge commit) and ran
+      `cargo publish` for each crate in order, all nine succeeding
+      (`snomed-classify` hit a transient package-cache file-lock wait
+      mid-run but still reported published; verified below).
+- [x] **Verified against crates.io's own API afterward**: `GET
+      /api/v1/crates/<name>` for all nine names returns
+      `default_version: "0.19.0"`.
+- [x] Version bumped everywhere the 0.13.0-0.18.0 precedent bumped it:
+      `Cargo.toml` (workspace + seven pins), `CITATION.cff`, `NEWS.md`,
+      `INSTALL.md`, `SECURITY.md`.
+- [x] Same `release/0.19.0` branch/merge shape as 0.12.0-0.18.0, not a
+      direct commit to `main`.
 
 ## Done (2026-09-04, ECL `{{ M ... }}` `memberFieldFilter`: `mapRule`, fifth column, second string-search field)
 
@@ -350,97 +377,18 @@ before".
 - [x] `cargo clippy --all-targets`, `cargo fmt --check`, `fuzz/`/`benches/`
       all build clean.
 
-## Done (2026-09-03, Release 0.16.0 — `memberFieldFilter`'s `correlationId`, fourth self-decided release)
-
-- [x] **Decided and executed the release itself**, per §1-5 of
-      `spec/ai-release-authority/`: §1 CI independently green on the
-      pushed merge commit (`aa6d553`, all six jobs, confirmed via `gh run
-      view` before tagging); §2 `CHANGELOG.md`'s `[Unreleased]` verified
-      against the actual diff and moved under `## [0.16.0]`, minor bump
-      (purely additive: `MemberFilterKind::CorrelationId`, nothing
-      removed or changed signature); §3 no rule oversteps — this ships
-      the `memberFieldFilter` store-retention decision already recorded
-      in `plan.md` as Decided 2026-09-03, `correlationId` being a second
-      concrete field on that same retention, not a new undecided change;
-      §4 all nine crates, one version, standard dependency order; §5
-      tagged `v0.16.0` (signed, verified against the merge commit) and
-      ran `cargo publish` for each crate in order, all nine succeeding
-      cleanly this time (no transient errors, unlike 0.15.0's
-      `snomed-store` 503).
-- [x] **Verified against crates.io's own API afterward**: `GET
-      /api/v1/crates/<name>` for all nine names returns
-      `default_version: "0.16.0"`.
-- [x] Version bumped everywhere the 0.13.0-0.15.0 precedent bumped it:
-      `Cargo.toml` (workspace + seven pins), `CITATION.cff`, `NEWS.md`,
-      `INSTALL.md`, `SECURITY.md`.
-- [x] Same `release/0.16.0` branch/merge shape as 0.12.0-0.15.0, not a
-      direct commit to `main`.
-
-## Done (2026-09-03, ECL `{{ M ... }}` `memberFieldFilter`: `correlationId`, second column, first concept-reference shape)
-
-- [x] **Confirmed `memberFieldFilter`'s own grammar against the official
-      ABNF before implementing** (`syntax/abnf-brief.txt`, GitHub
-      `IHTSDO/snomed-expression-constraint-language`) rather than assuming
-      every remaining column reuses `mapTarget`'s string-search shape —
-      it doesn't: `memberFieldFilter` is one of five productions, chosen
-      by the named column's own semantic type
-      (`expressionComparisonOperator ws subExpressionConstraint` for a
-      concept reference, `numericComparisonOperator ws "#" numericValue`,
-      `stringComparisonOperator ws (typedSearchTerm | typedSearchTermSet)`
-      — `mapTarget`'s shape, `booleanComparisonOperator ws booleanValue`,
-      or `timeComparisonOperator ws (timeValue | timeValueSet)`). Fixed a
-      stale `spec/10-ecl.md` paragraph in the same pass that had been
-      missed in the `mapTarget` change and still said `memberFieldFilter`
-      "is not" implemented, unqualified.
-- [x] **`snomed-ecl`**: `MemberFilterKind::CorrelationId(ModuleFilter)` —
-      `correlationId (=|!=) subExpressionConstraint`, reusing
-      `ModuleFilter`'s exact shape since it's the identical production
-      `moduleId`'s own filter uses (`booleanComparisonOperator` and
-      `expressionComparisonOperator` are the same two symbols, `=`/`!=`,
-      confirmed against the ABNF). Only `ExtendedMapRefsetMember` carries
-      a `correlationId` column — `SimpleMapRefsetMember` does not — so a
-      block naming it never matches a `SimpleMap` row.
-- [x] **Generalized `member_row_matches`'s dispatch** (renamed
-      `map_target_row_matches` → `typed_map_row_matches`) to trigger on
-      *either* `MapTarget` or `CorrelationId` appearing in a block, and
-      `member_filter_matches` to take both a `map_target: Option<&str>`
-      and a `correlation_id: Option<SctId>` alongside `core` — tests both
-      `SimpleMap` and `ExtendedMap` rows whenever either field-filter kind
-      appears, rather than computing the exact type each filter needs: a
-      `SimpleMap` row tested against a block naming `correlationId` fails
-      that filter on its own (the column is absent → `None` → `false`),
-      so it can never wrongly match, and a block naming *both* `mapTarget`
-      and `correlationId` still enforces "one row, all filters" (spec/10
-      rule 18) correctly without new type-intersection logic. Works after
-      both `^` and `^R` in one increment, same as `mapTarget`.
-- [x] Four new tests (one parser, three eval: matches after `^`/`^R`,
-      never matches a `SimpleMap`-only row, conjoins with `mapTarget` on
-      the same row per "one row, all filters"). 392/392 tests passing (up
-      from 388).
-- [x] Docs updated to match: `spec/10-ecl.md` (rule 18, the summary
-      paragraph, and the stale "is not" paragraph above rule 18),
-      `spec/10-ecl-filters.md`, `spec/10-ecl-unimplemented.md`,
-      `crates/snomed-ecl/src/lib.rs`, `agents/ecl-engineer.md`,
-      `agents/store-engineer.md`, `plan.md` (Open decisions, Current
-      status test count).
-- [x] `cargo clippy --all-targets`, `cargo fmt --check`, `fuzz/`/`benches/`
-      all build clean.
-
 ## Next up
 
 - [ ] Nothing currently scoped beyond the `{{ M ... }}` remainder below.
-      State as of 2026-09-04: **0.18.0 released** — `mapTarget` (0.15.0),
-      `correlationId` (0.16.0), `mapGroup` (0.17.0), and `mapPriority`
-      (0.18.0, the second numeric-shape field, reusing `mapGroup`'s
-      grammar), all after both `^` and `^R`. `mapRule` (the second
-      string-search field, reusing `mapTarget`'s grammar) landed the same
-      way 2026-09-04, **not yet released** (see the Done entry above;
-      release decision pending). `{{ M ... }}` after `^` (0.13.0), after
-      `^R` (0.14.0), and its `memberFieldFilter` alternative
-      (0.15.0-0.18.0), all decided and executed under
-      `spec/ai-release-authority/`'s criteria rather than a fresh
-      per-release maintainer go-ahead (see `CHANGELOG.md`). 9 crates, 405
-      tests,
+      State as of 2026-09-04: **0.19.0 released** — `mapTarget` (0.15.0),
+      `correlationId` (0.16.0), `mapGroup` (0.17.0), `mapPriority`
+      (0.18.0), and `mapRule` (0.19.0, the second string-search field,
+      reusing `mapTarget`'s grammar), all after both `^` and `^R`.
+      `{{ M ... }}` after `^` (0.13.0), after `^R` (0.14.0), and its
+      `memberFieldFilter` alternative (0.15.0-0.19.0), all decided and
+      executed under `spec/ai-release-authority/`'s criteria rather than
+      a fresh per-release maintainer go-ahead (see `CHANGELOG.md`). 9
+      crates, 405 tests,
       clippy/fmt clean on stable, MSRV 1.96 (current
       stable minus two, `spec/rust-msrv-n-minus-2/index.md`), `fuzz/`,
       and `benches/`; 13 fuzz targets; 6 criterion benchmark files; 35
