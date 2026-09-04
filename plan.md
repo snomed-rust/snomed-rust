@@ -250,10 +250,10 @@ and harmonizes it with the sibling repositories (`hl7-rust`, `er7-rust`,
   ones (`SnapshotStore`, spec/09 rule 4; mechanics in
   `agents/store-engineer.md`'s "sixteen `*_member_rows` indexes"
   section), storing the active subset twice rather than changing any
-  existing accessor's signature. `mapTarget`, `correlationId`, and
-  `mapGroup` are the first three concrete fields built on this retention
-  (`crates/snomed-ecl`, spec/10 rule 18): the `memberFieldFilter` grammar
-  alternative, tested against
+  existing accessor's signature. `mapTarget`, `correlationId`, `mapGroup`,
+  and `mapPriority` are the first four concrete fields built on this
+  retention (`crates/snomed-ecl`, spec/10 rule 18): the `memberFieldFilter`
+  grammar alternative, tested against
   `simple_map_member_rows`/`extended_map_member_rows`, after both `^` and
   `^R` in one increment each since both reuse the same
   `member_row_matches` helper. `memberFieldFilter` itself turned out not
@@ -261,12 +261,13 @@ and harmonizes it with the sibling repositories (`hl7-rust`, `er7-rust`,
   semantic type (confirmed against the official ABNF): `mapTarget` is
   the string-search shape, `correlationId` the concept-reference shape
   (`expressionComparisonOperator ws subExpressionConstraint`, reusing
-  `ModuleFilter` verbatim), `mapGroup` the numeric shape
-  (`numericComparisonOperator ws "#" numericValue`) — which caught a real
-  bug: the existing `numeric_matches` (built for `eclAttribute`'s
-  cardinality-negated `!=`) silently inverts `!=` into `=`, wrong for a
-  direct field comparison, fixed with a dedicated `field_numeric_matches`
-  before it shipped — the boolean and time shapes remain unimplemented.
+  `ModuleFilter` verbatim), `mapGroup`/`mapPriority` the numeric shape
+  (`numericComparisonOperator ws "#" numericValue`, both reusing
+  `NumericFieldFilter`) — which caught a real bug: the existing
+  `numeric_matches` (built for `eclAttribute`'s cardinality-negated `!=`)
+  silently inverts `!=` into `=`, wrong for a direct field comparison,
+  fixed with a dedicated `field_numeric_matches` before it shipped — the
+  boolean and time shapes remain unimplemented.
   Every other `memberFieldFilter` column (`order`, `domainConstraint`,
   …) remains rejected generically — not by a fixed keyword list
   (`refsetFieldName` is `1*alpha`, confirmed against the
@@ -283,8 +284,8 @@ and harmonizes it with the sibling repositories (`hl7-rust`, `er7-rust`,
 ## Current status
 
 All eight phases above are closed. As of the `mapTarget`/`correlationId`/
-`mapGroup` member field filters (2026-09-03) the workspace is 9 published
-crates with zero dependencies, 397 tests, a clean
+`mapGroup`/`mapPriority` member field filters (2026-09-04) the workspace
+is 9 published crates with zero dependencies, 401 tests, a clean
 `cargo clippy --all-targets`, 13 fuzz targets, and six criterion
 benchmark files. What is *not* done is tracked
 in two places and nowhere
@@ -310,10 +311,10 @@ reverse of `refsets_containing` — since `^R`'s row-per-candidate shape
 can't reuse `^`'s). `{{ M ... }}`'s refset-type-specific
 `memberFieldFilter` kind's store-retention call was decided 2026-09-03
 ("Open decisions" below): sixteen new `*_member_rows` accessors, one per
-non-Simple/Language refset type, and `mapTarget`, `correlationId`, and
-`mapGroup` — the first three concrete fields, each a different one of
-`memberFieldFilter`'s five grammar shapes — landed the same day, after
-both `^` and `^R` in one increment each since both reuse the same
+non-Simple/Language refset type, and `mapTarget`, `correlationId`,
+`mapGroup`, and `mapPriority` — the first four concrete fields, spanning
+three of `memberFieldFilter`'s five grammar shapes — landed 2026-09-03/04,
+after both `^` and `^R` in one increment each since both reuse the same
 `member_row_matches` helper. Each construct above was confirmed against
 the official ABNF or a verbatim guide quote before implementation,
 because every one of them has a plausible wrong reading that returns a

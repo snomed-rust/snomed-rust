@@ -417,22 +417,24 @@ impl Parser {
     /// tokenized for `{{ C }}`, so no new lexer keywords were needed for
     /// them. The fourth, `memberFieldFilter`, is `refsetFieldName` —
     /// `1*alpha` in the official grammar, not a fixed keyword list, so it
-    /// lexes as a plain `TokenKind::Word` — and only the three spellings
-    /// this crate implements, `mapTarget`, `correlationId`, and
-    /// `mapGroup` (spec/10 rule 18), are recognized here; any other word
-    /// falls through to the generic "unexpected keyword" bucket rule 9
-    /// describes rather than being named. `correlationId (=|!=)
-    /// subExpressionConstraint` reuses `moduleId`'s own parse shape
-    /// verbatim (both are `booleanComparisonOperator`-spelled `=`/`!=`,
-    /// confirmed against the official ABNF, even though `moduleFilter`
-    /// and `memberFieldFilter` name that operator differently —
-    /// `booleanComparisonOperator` vs. `expressionComparisonOperator` —
-    /// the two productions are the same two symbols). `mapGroup (=|!=|
-    /// <=|<|>=|>) "#" numericValue` reuses `eclAttribute`'s own
+    /// lexes as a plain `TokenKind::Word` — and only the four spellings
+    /// this crate implements, `mapTarget`, `correlationId`, `mapGroup`,
+    /// and `mapPriority` (spec/10 rule 18), are recognized here; any
+    /// other word falls through to the generic "unexpected keyword"
+    /// bucket rule 9 describes rather than being named. `correlationId
+    /// (=|!=) subExpressionConstraint` reuses `moduleId`'s own parse
+    /// shape verbatim (both are `booleanComparisonOperator`-spelled
+    /// `=`/`!=`, confirmed against the official ABNF, even though
+    /// `moduleFilter` and `memberFieldFilter` name that operator
+    /// differently — `booleanComparisonOperator` vs.
+    /// `expressionComparisonOperator` — the two productions are the same
+    /// two symbols). `mapGroup`/`mapPriority (=|!=|<=|<|>=|>) "#"
+    /// numericValue` both reuse `eclAttribute`'s own
     /// `numericComparisonOperator "#" numericValue` value form
-    /// (`parse_numeric_field_filter`) — `memberFieldFilter`'s numeric
-    /// shape has no set alternative (no `numericValueSet` production
-    /// exists for it), unlike `effectiveTimeFilter`'s.
+    /// (`parse_numeric_field_filter`, shared by both) —
+    /// `memberFieldFilter`'s numeric shape has no set alternative (no
+    /// `numericValueSet` production exists for it), unlike
+    /// `effectiveTimeFilter`'s.
     fn parse_member_filter_kind(&mut self) -> Result<MemberFilterKind, EclError> {
         match &self.peek().kind {
             TokenKind::ModuleIdKeyword => {
@@ -479,11 +481,16 @@ impl Parser {
                 let filter = self.parse_numeric_field_filter()?;
                 Ok(MemberFilterKind::MapGroup(filter))
             }
+            TokenKind::Word(word) if word == "mapPriority" => {
+                self.advance()?;
+                let filter = self.parse_numeric_field_filter()?;
+                Ok(MemberFilterKind::MapPriority(filter))
+            }
             _ => {
                 let tok = self.peek().clone();
                 Err(Self::unexpected(
                     &tok,
-                    "`moduleId`, `effectiveTime`, `active`, `mapTarget`, `correlationId`, or `mapGroup`",
+                    "`moduleId`, `effectiveTime`, `active`, `mapTarget`, `correlationId`, `mapGroup`, or `mapPriority`",
                 ))
             }
         }
@@ -1694,6 +1701,30 @@ mod tests {
         };
         assert_eq!(*operator, crate::ast::NumericComparisonOp::Ge);
         assert_eq!(value, "1");
+    }
+
+    /// `mapPriority` (spec/10 rule 18) — the fourth `memberFieldFilter`
+    /// column implemented, and the second to use the numeric grammar
+    /// shape (the same one `mapGroup` uses, reusing
+    /// `parse_numeric_field_filter` verbatim — a different RF2 column,
+    /// not a different production).
+    #[test]
+    fn parses_member_filter_map_priority() {
+        let EC::MemberFilter { filters, .. } =
+            parse("^ 447562003 {{ M mapPriority = #2 }}").unwrap()
+        else {
+            panic!("expected a member filter");
+        };
+        assert_eq!(filters.len(), 1);
+        let crate::ast::MemberFilterKind::MapPriority(crate::ast::NumericFieldFilter {
+            operator,
+            value,
+        }) = &filters[0]
+        else {
+            panic!("expected a MapPriority filter, got {:?}", filters[0]);
+        };
+        assert_eq!(*operator, crate::ast::NumericComparisonOp::Eq);
+        assert_eq!(value, "2");
     }
 
     /// A field name this crate doesn't recognize (`order`, say) falls to
