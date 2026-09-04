@@ -13,6 +13,8 @@ together, in dependency order (`snomed-core` → `snomed-rf2` → `snomed-owl`
 
 ## [Unreleased]
 
+## [0.20.0] — 2026-09-04
+
 **New ECL capability, additive, plus a fuzz-caught crash fix.** `{{ M
 ... }}`'s `memberFieldFilter` gains its sixth column, `mapAdvice` — after
 both `^` and `^R`. Parsing also now rejects pathologically deep
