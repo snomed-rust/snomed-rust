@@ -1,7 +1,7 @@
 # Tasks archive — index
 
 [`tasks.md`](../tasks.md) keeps the current checklist and the recent
-entries; everything older lives here, split into eighteen files that each
+entries; everything older lives here, split into nineteen files that each
 stay inside the repository's 40 KB per-document budget. Entries were moved
 verbatim — this is a historical record, not a summary, and it is worth
 searching before assuming a problem is new. The one edit applied since is
@@ -29,6 +29,7 @@ so the paths quoted here still resolve.
 | [`tasks-archive-16.md`](tasks-archive-16.md) | 2026-09-03 | The `{{ M ... }}` member filter constraint's fourth grammar alternative, `memberFieldFilter`, implemented for its first column, `mapTarget` (with the all-sixteen-refset-types store-retention decision that made it possible); release 0.15.0 (publishing that work) |
 | [`tasks-archive-17.md`](tasks-archive-17.md) | 2026-09-03 | `memberFieldFilter`'s second column, `correlationId` (the first concept-reference-shaped one, confirming the grammar is five shapes, not just `mapTarget`'s string-search one); release 0.16.0 (publishing that work) |
 | [`tasks-archive-18.md`](tasks-archive-18.md) | 2026-09-03 | The documentation-harmonization audit (five parallel sweeps); the two Claude Code skills (`snomed-skill`, `snomed-rust-maintainer-skill`); release 0.17.0; `memberFieldFilter`'s third column, `mapGroup` (the first numeric-shape field, and the `numeric_matches`-vs-`field_numeric_matches` bug it caught before merge) |
+| [`tasks-archive-19.md`](tasks-archive-19.md) | 2026-09-04 | The repository restructuring that moved every crate out of `crates/<name>/` to `<name>/` at the repo root; release 0.18.0; `memberFieldFilter`'s fourth column, `mapPriority` (the second numeric-shape field) |
 
 Older entries are shorter and more granular than recent ones: they were
 written a change at a time while the workspace was being built from
