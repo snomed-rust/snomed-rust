@@ -459,17 +459,18 @@ impl Parser {
     /// `1*alpha` in the official grammar, not a fixed keyword list, so it
     /// lexes as a plain `TokenKind::Word` — and only the six spellings
     /// this crate implements, `mapTarget`, `correlationId`, `mapGroup`,
-    /// `mapPriority`, `mapRule`, and `mapAdvice` (spec/10 rule 18), are
-    /// recognized here; any other word falls through to the generic
-    /// "unexpected keyword"
-    /// bucket rule 9 describes rather than being named. `correlationId
-    /// (=|!=) subExpressionConstraint` reuses `moduleId`'s own parse
-    /// shape verbatim (both are `booleanComparisonOperator`-spelled
-    /// `=`/`!=`, confirmed against the official ABNF, even though
-    /// `moduleFilter` and `memberFieldFilter` name that operator
-    /// differently — `booleanComparisonOperator` vs.
-    /// `expressionComparisonOperator` — the two productions are the same
-    /// two symbols). `mapGroup`/`mapPriority (=|!=|<=|<|>=|>) "#"
+    /// `mapPriority`, `mapRule`, `mapAdvice`, and `mapCategoryId`
+    /// (spec/10 rule 18), are recognized here; any other word falls
+    /// through to the generic "unexpected keyword"
+    /// bucket rule 9 describes rather than being named. `correlationId`/
+    /// `mapCategoryId (=|!=) subExpressionConstraint` reuse `moduleId`'s
+    /// own parse shape verbatim (both are
+    /// `booleanComparisonOperator`-spelled `=`/`!=`, confirmed against
+    /// the official ABNF, even though `moduleFilter` and
+    /// `memberFieldFilter` name that operator differently —
+    /// `booleanComparisonOperator` vs. `expressionComparisonOperator` —
+    /// the two productions are the same two symbols). `mapGroup`/
+    /// `mapPriority (=|!=|<=|<|>=|>) "#"
     /// numericValue` both reuse `eclAttribute`'s own
     /// `numericComparisonOperator "#" numericValue` value form
     /// (`parse_numeric_field_filter`, shared by both) —
@@ -539,11 +540,20 @@ impl Parser {
                 let values = self.parse_typed_search_term_set()?;
                 Ok(MemberFilterKind::MapAdvice(TermFilter { negated, values }))
             }
+            TokenKind::Word(word) if word == "mapCategoryId" => {
+                self.advance()?;
+                let negated = self.parse_boolean_comparison_operator()?;
+                let value = self.parse_sub_expression_constraint()?;
+                Ok(MemberFilterKind::MapCategoryId(ModuleFilter {
+                    negated,
+                    value: Box::new(value),
+                }))
+            }
             _ => {
                 let tok = self.peek().clone();
                 Err(Self::unexpected(
                     &tok,
-                    "`moduleId`, `effectiveTime`, `active`, `mapTarget`, `correlationId`, `mapGroup`, `mapPriority`, `mapRule`, or `mapAdvice`",
+                    "`moduleId`, `effectiveTime`, `active`, `mapTarget`, `correlationId`, `mapGroup`, `mapPriority`, `mapRule`, `mapAdvice`, or `mapCategoryId`",
                 ))
             }
         }
@@ -1739,6 +1749,27 @@ mod tests {
         }) = &filters[0]
         else {
             panic!("expected a CorrelationId filter, got {:?}", filters[0]);
+        };
+        assert!(!negated);
+    }
+
+    /// `mapCategoryId` (spec/10 rule 18) — the seventh and last
+    /// `memberFieldFilter` column, completing `ExtendedMapRefsetMember`'s
+    /// column coverage. Reuses `correlationId`'s exact concept-reference
+    /// shape.
+    #[test]
+    fn parses_member_filter_map_category_id() {
+        let EC::MemberFilter { filters, .. } =
+            parse("^ 447562003 {{ M mapCategoryId = 900000000000207008 }}").unwrap()
+        else {
+            panic!("expected a member filter");
+        };
+        assert_eq!(filters.len(), 1);
+        let crate::ast::MemberFilterKind::MapCategoryId(crate::ast::ModuleFilter {
+            negated, ..
+        }) = &filters[0]
+        else {
+            panic!("expected a MapCategoryId filter, got {:?}", filters[0]);
         };
         assert!(!negated);
     }

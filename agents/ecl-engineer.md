@@ -319,9 +319,11 @@ shape of call `member_rows`/`member_refsets` both needed. `mapTarget`
 landed the same day as that decision's first concrete field, tested
 against `SnapshotStore::simple_map_member_rows`/
 `extended_map_member_rows` rather than `member_rows`'s type-erased view;
-`correlationId`, `mapGroup`, `mapPriority`, `mapRule`, and `mapAdvice`
-followed immediately after, one to three fields each of two more
-`memberFieldFilter` grammar shapes — `memberFieldFilter`
+`correlationId`, `mapGroup`, `mapPriority`, `mapRule`, `mapAdvice`, and
+`mapCategoryId` followed immediately after, one to three fields each of
+two more `memberFieldFilter` grammar shapes — `mapCategoryId` reusing
+`correlationId`'s exact shape and completing
+`ExtendedMapRefsetMember`'s column coverage. `memberFieldFilter`
 isn't one production but five in the official grammar, chosen by the
 named column's own semantic type
 (`expressionComparisonOperator ws subExpressionConstraint` for a concept

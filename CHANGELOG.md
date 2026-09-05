@@ -13,6 +13,30 @@ together, in dependency order (`snomed-core` → `snomed-rf2` → `snomed-owl`
 
 ## [Unreleased]
 
+**New ECL capability, additive.** `{{ M ... }}`'s `memberFieldFilter`
+gains its seventh and last `ExtendedMapRefsetMember` column,
+`mapCategoryId` — after both `^` and `^R`. Completes
+`ExtendedMapRefsetMember`'s column coverage: every column it has is now
+a filterable `memberFieldFilter` kind. A minor bump: new public API, no
+removals or signature changes to anything existing.
+
+### Added
+
+- `snomed-ecl`: `{{ M mapCategoryId = 116680003 }}` restricts to
+  `ExtendedMap` member rows whose own `mapCategoryId` column matches —
+  the same concept-reference grammar `correlationId` uses (reusing
+  `ModuleFilter`'s exact shape). Works after both `^` and `^R`, and
+  conjoins with `mapTarget` and the shared-column kinds on the same
+  member row. Only `ExtendedMapRefsetMember` rows carry a
+  `mapCategoryId` column; `SimpleMapRefsetMember` and every other refset
+  type never match this filter. New public API:
+  `MemberFilterKind::MapCategoryId`.
+
+### Notes for consumers
+
+- No public API removed or changed signature; existing code compiles
+  unmodified against this release.
+
 ## [0.20.0] — 2026-09-04
 
 **New ECL capability, additive, plus a fuzz-caught crash fix.** `{{ M

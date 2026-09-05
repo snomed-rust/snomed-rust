@@ -372,7 +372,8 @@ pub enum ConceptFilterKind {
 /// than a concept's own row.
 ///
 /// `MapTarget`/`CorrelationId`/`MapGroup`/`MapPriority`/`MapRule`/
-/// `MapAdvice` are the official grammar's fourth kind, `memberFieldFilter`
+/// `MapAdvice`/`MapCategoryId` are the official grammar's fourth kind,
+/// `memberFieldFilter`
 /// — a refset-type-specific column rather than a shared one. Its own
 /// grammar (confirmed against the official ABNF, `syntax/abnf-brief.txt`)
 /// is not one shape but five, chosen by the column's own semantic type:
@@ -385,7 +386,8 @@ pub enum ConceptFilterKind {
 /// ws (timeValue | timeValueSet)`. `mapTarget`
 /// (`SimpleMapRefsetMember`/`ExtendedMapRefsetMember`) was the first
 /// implemented, `correlationId`, `mapGroup`, `mapPriority`, `mapRule`,
-/// and `mapAdvice` (`ExtendedMapRefsetMember` only) followed — all
+/// `mapAdvice`, and `mapCategoryId` (`ExtendedMapRefsetMember` only)
+/// followed — all
 /// decided 2026-09-03 (`plan.md`'s "Open decisions") to retain full rows
 /// — active and inactive — for all sixteen non-Simple/Language refset
 /// types, the same store change `moduleId`/`effectiveTime`/`active`
@@ -462,6 +464,18 @@ pub enum MemberFilterKind {
     /// same "column absent on this row source" case
     /// `mapGroup`/`mapPriority`/`correlationId`/`mapRule` have.
     MapAdvice(TermFilter),
+    /// `mapCategoryId (=|!=) subExpressionConstraint` — a
+    /// `memberFieldFilter` (spec/10 rule 18): `ExtendedMapRefsetMember`'s
+    /// own `mapCategoryId` column (a concept reference, not free text or
+    /// a number). Reuses [`ModuleFilter`]'s exact shape and grammar — the
+    /// same concept-reference production `correlationId` uses, just a
+    /// different RF2 column. `SimpleMapRefsetMember` has no
+    /// `mapCategoryId` column, the same "column absent on this row
+    /// source" case `mapGroup`/`mapPriority`/`correlationId`/`mapRule`/
+    /// `mapAdvice` have. Completes `ExtendedMapRefsetMember`'s column
+    /// coverage — every column it has is now a filterable
+    /// `memberFieldFilter` kind.
+    MapCategoryId(ModuleFilter),
 }
 
 /// `numericComparisonOperator ws "#" numericValue` — a `memberFieldFilter`

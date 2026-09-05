@@ -157,9 +157,9 @@ named column's own semantic type (confirmed against the official ABNF,
 subExpressionConstraint` (a concept reference), `numericComparisonOperator
 ws "#" numericValue`, `stringComparisonOperator ws (typedSearchTerm |
 typedSearchTermSet)`, `booleanComparisonOperator ws booleanValue`, or
-`timeComparisonOperator ws (timeValue | timeValueSet)`. Six kinds are
+`timeComparisonOperator ws (timeValue | timeValueSet)`. Seven kinds are
 implemented, spanning three of the five shapes (string has three,
-numeric has two):
+concept reference has two, numeric has two):
 
 - `mapTarget (=|!=) (typedSearchTerm | typedSearchTermSet)` — the same
   `match:`/`wild:`/`exact:` search-term grammar `{{ D term }}` uses,
@@ -177,6 +177,13 @@ numeric has two):
   all, so a `correlationId` filter never matches a `SimpleMap` row, even
   though `mapTarget` does — tested against
   `SnapshotStore::extended_map_member_rows` directly.
+- `mapCategoryId (=|!=) subExpressionConstraint` — the same
+  concept-reference shape as `correlationId` (`ModuleFilter`'s exact
+  shape, reused again), matched against the member row's own
+  `mapCategoryId` column. Same "column absent" case as `correlationId` —
+  `ExtendedMapRefsetMember`-only. Completes
+  `ExtendedMapRefsetMember`'s column coverage: every column it has is
+  now a filterable `memberFieldFilter` kind.
 - `mapGroup (=|!=|<=|<|>=|>) "#" numericValue` — the same
   `numericComparisonOperator "#" numericValue` value form
   `eclAttribute`'s own numeric concrete value comparison uses, matched
@@ -203,17 +210,17 @@ numeric has two):
   as `mapTarget`/`mapRule`, matched against the member row's own
   `mapAdvice` column (`ExtendedMapRefsetMember`-only).
 
-All six reuse the shared dispatch `mapTarget` introduced: a block
-naming *any* of the six kinds is tested against
+All seven reuse the shared dispatch `mapTarget` introduced: a block
+naming *any* of the seven kinds is tested against
 `SimpleMap`/`ExtendedMap` rows together rather than `member_rows`, and
 the "one row, all filters" and "active unless stated otherwise" rules
 above still hold across a block naming several field filters at once,
 not just a field filter and a shared-column one — a `SimpleMap` row can
 never satisfy a block naming any of `correlationId`/`mapGroup`/
-`mapPriority`/`mapRule`/`mapAdvice` (the column is simply absent on that
-row source, the same "not this row's type" answer a shared-column filter
-gets from a row of the wrong refset type), so it can never be a spurious
-match.
+`mapPriority`/`mapRule`/`mapAdvice`/`mapCategoryId` (the column is simply
+absent on that row source, the same "not this row's type" answer a
+shared-column filter gets from a row of the wrong refset type), so it
+can never be a spurious match.
 
 **Not implemented:** every other `memberFieldFilter` column, and both
 remaining shapes — boolean, time (`order`, `domainConstraint`, and the
