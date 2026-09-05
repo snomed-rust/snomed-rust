@@ -13,6 +13,8 @@ together, in dependency order (`snomed-core` → `snomed-rf2` → `snomed-owl`
 
 ## [Unreleased]
 
+## [0.21.0] — 2026-09-05
+
 **New ECL capability, additive.** `{{ M ... }}`'s `memberFieldFilter`
 gains its seventh and last `ExtendedMapRefsetMember` column,
 `mapCategoryId` — after both `^` and `^R`. Completes

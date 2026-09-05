@@ -54,8 +54,8 @@ real burden and it is stated rather than glossed.
 
 | Version | Supported |
 |---|---|
-| 0.20.x | yes |
-| < 0.20 | no |
+| 0.21.x | yes |
+| < 0.21 | no |
 
 ## What counts as a vulnerability here
 
