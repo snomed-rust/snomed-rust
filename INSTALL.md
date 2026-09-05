@@ -74,7 +74,7 @@ Verhoeff check digit — so it is the fastest way to confirm the install worked.
 To install a specific version, or to reinstall over an existing copy:
 
 ```sh
-cargo install snomed-cli --version 0.20.0 --force
+cargo install snomed-cli --version 0.21.0 --force
 ```
 
 ## Build from source
