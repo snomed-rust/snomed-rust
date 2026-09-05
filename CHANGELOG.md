@@ -13,6 +13,8 @@ together, in dependency order (`snomed-core` → `snomed-rf2` → `snomed-owl`
 
 ## [Unreleased]
 
+## [0.22.0] — 2026-09-05
+
 **New ECL capability, additive.** `{{ M ... }}`'s `memberFieldFilter`
 gains its eighth column, `targetComponentId` — the first outside the
 two map types (`AssociationRefsetMember`), after both `^` and `^R`. A
