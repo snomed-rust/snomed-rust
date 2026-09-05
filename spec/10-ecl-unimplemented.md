@@ -79,8 +79,8 @@ token shape:
   the same thing (see "Concept filter constraint" above).
 - A member filter's `memberFieldFilter` kind other than `mapTarget`/
   `correlationId`/`mapGroup`/`mapPriority`/`mapRule`/`mapAdvice`/
-  `mapCategoryId` — a refset-type-specific column (`order`,
-  `domainConstraint`, …), as
+  `mapCategoryId`/`targetComponentId` — a refset-type-specific column
+  (`order`, `domainConstraint`, …), as
   opposed to the three shared-column kinds
   (`moduleId`/`effectiveTime`/`active`) implemented 2026-09-01 after both
   `^` and `^R`. `refsetFieldName` is `1*alpha` in the official grammar
@@ -116,9 +116,14 @@ token shape:
   either) — reuse `mapTarget`'s grammar and `term_matches` verbatim;
   `mapCategoryId` — a second concept-reference-shape column, also
   `ExtendedMapRefsetMember` only — reuses `correlationId`'s grammar
-  verbatim and completes `ExtendedMapRefsetMember`'s column coverage.
+  verbatim and completes `ExtendedMapRefsetMember`'s column coverage;
+  `targetComponentId` (2026-09-05) — the third concept-reference-shape
+  column, and the first outside the two map types
+  (`AssociationRefsetMember`) — reuses `correlationId`'s grammar
+  verbatim, tested against `SnapshotStore::association_member_rows`.
   Boolean and time remain unimplemented, with no example yet. See
-  `SnapshotStore::simple_map_member_rows`/`extended_map_member_rows` and
+  `SnapshotStore::simple_map_member_rows`/`extended_map_member_rows`/
+  `association_member_rows` and
   spec/09 rule 4. Decided 2026-09-03 in `plan.md`'s "Open decisions":
   retain active-and-inactive typed rows for all sixteen non-Simple/
   Language refset types (not just SimpleMap/ExtendedMap), so the same

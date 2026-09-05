@@ -202,17 +202,18 @@ with an active-only accessor but no way for `snomed-ecl` to ever reach
 its inactive rows.
 
 `snomed-ecl`'s `mapTarget`, `correlationId`, `mapGroup`, `mapPriority`,
-`mapRule`, `mapAdvice`, and `mapCategoryId` filters (`spec/10-ecl.md`
-rule 18) are the first seven consumers: all seven dispatch directly to
-`simple_map_member_rows`/`extended_map_member_rows` rather than going
-through `member_rows` (`correlationId`/`mapGroup`/`mapPriority`/
+`mapRule`, `mapAdvice`, `mapCategoryId`, and `targetComponentId` filters
+(`spec/10-ecl.md` rule 18) are the first eight consumers: the first
+seven dispatch directly to `simple_map_member_rows`/
+`extended_map_member_rows` (`correlationId`/`mapGroup`/`mapPriority`/
 `mapRule`/`mapAdvice`/`mapCategoryId` only ever match an
 `extended_map_member_rows` row — `simple_map_member_rows`' own type has
-no such columns — but all row sets are still tested
-whenever any field-filter kind appears in a block, since a row missing
-the column simply fails that filter rather than needing its own excluded
-code path). Every future `memberFieldFilter` column on another type
-reads its own `*_member_rows` accessor the same way — the store side is
-done for all
+no such columns), and `targetComponentId` — the first outside the two
+map types — dispatches to `association_member_rows` instead; all row
+sets are still tested whenever any field-filter kind appears in a
+block, since a row missing the column simply fails that filter rather
+than needing its own excluded code path. Every future `memberFieldFilter`
+column on another type reads its own `*_member_rows` accessor the same
+way — the store side is done for all
 sixteen types; each remaining column is a `snomed-ecl` parser/eval
 increment only.

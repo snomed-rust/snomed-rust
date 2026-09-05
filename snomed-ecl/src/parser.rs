@@ -457,14 +457,14 @@ impl Parser {
     /// tokenized for `{{ C }}`, so no new lexer keywords were needed for
     /// them. The fourth, `memberFieldFilter`, is `refsetFieldName` —
     /// `1*alpha` in the official grammar, not a fixed keyword list, so it
-    /// lexes as a plain `TokenKind::Word` — and only the six spellings
+    /// lexes as a plain `TokenKind::Word` — and only the eight spellings
     /// this crate implements, `mapTarget`, `correlationId`, `mapGroup`,
-    /// `mapPriority`, `mapRule`, `mapAdvice`, and `mapCategoryId`
-    /// (spec/10 rule 18), are recognized here; any other word falls
-    /// through to the generic "unexpected keyword"
+    /// `mapPriority`, `mapRule`, `mapAdvice`, `mapCategoryId`, and
+    /// `targetComponentId` (spec/10 rule 18), are recognized here; any
+    /// other word falls through to the generic "unexpected keyword"
     /// bucket rule 9 describes rather than being named. `correlationId`/
-    /// `mapCategoryId (=|!=) subExpressionConstraint` reuse `moduleId`'s
-    /// own parse shape verbatim (both are
+    /// `mapCategoryId`/`targetComponentId (=|!=) subExpressionConstraint`
+    /// reuse `moduleId`'s own parse shape verbatim (all are
     /// `booleanComparisonOperator`-spelled `=`/`!=`, confirmed against
     /// the official ABNF, even though `moduleFilter` and
     /// `memberFieldFilter` name that operator differently —
@@ -549,11 +549,20 @@ impl Parser {
                     value: Box::new(value),
                 }))
             }
+            TokenKind::Word(word) if word == "targetComponentId" => {
+                self.advance()?;
+                let negated = self.parse_boolean_comparison_operator()?;
+                let value = self.parse_sub_expression_constraint()?;
+                Ok(MemberFilterKind::TargetComponentId(ModuleFilter {
+                    negated,
+                    value: Box::new(value),
+                }))
+            }
             _ => {
                 let tok = self.peek().clone();
                 Err(Self::unexpected(
                     &tok,
-                    "`moduleId`, `effectiveTime`, `active`, `mapTarget`, `correlationId`, `mapGroup`, `mapPriority`, `mapRule`, `mapAdvice`, or `mapCategoryId`",
+                    "`moduleId`, `effectiveTime`, `active`, `mapTarget`, `correlationId`, `mapGroup`, `mapPriority`, `mapRule`, `mapAdvice`, `mapCategoryId`, or `targetComponentId`",
                 ))
             }
         }
@@ -1770,6 +1779,28 @@ mod tests {
         }) = &filters[0]
         else {
             panic!("expected a MapCategoryId filter, got {:?}", filters[0]);
+        };
+        assert!(!negated);
+    }
+
+    /// `targetComponentId` (spec/10 rule 18) — the eighth
+    /// `memberFieldFilter` column, and the first outside the two map
+    /// types (`AssociationRefsetMember`). Reuses `correlationId`/
+    /// `mapCategoryId`'s exact concept-reference shape.
+    #[test]
+    fn parses_member_filter_target_component_id() {
+        let EC::MemberFilter { filters, .. } =
+            parse("^ 900000000000527005 {{ M targetComponentId = 22298006 }}").unwrap()
+        else {
+            panic!("expected a member filter");
+        };
+        assert_eq!(filters.len(), 1);
+        let crate::ast::MemberFilterKind::TargetComponentId(crate::ast::ModuleFilter {
+            negated,
+            ..
+        }) = &filters[0]
+        else {
+            panic!("expected a TargetComponentId filter, got {:?}", filters[0]);
         };
         assert!(!negated);
     }

@@ -9,10 +9,10 @@
 //! What remains unimplemented (boolean concrete comparisons, every
 //! `memberFieldFilter` column but
 //! `mapTarget`/`correlationId`/`mapGroup`/`mapPriority`/`mapRule`/
-//! `mapAdvice`/`mapCategoryId`, the history supplement, alternate
-//! identifiers, …) is listed in `spec/10-ecl-unimplemented.md`.
-//! Encountering one is a parse error, never a silently incomplete
-//! result.
+//! `mapAdvice`/`mapCategoryId`/`targetComponentId`, the history
+//! supplement, alternate identifiers, …) is listed in
+//! `spec/10-ecl-unimplemented.md`. Encountering one is a parse error,
+//! never a silently incomplete result.
 //!
 //! Parenthesized/refinement/attribute-set nesting beyond 100 levels is
 //! also a parse error (`EclError::MaxNestingDepthExceeded`, spec/10 rule

@@ -251,16 +251,18 @@ and harmonizes it with the sibling repositories (`hl7-rust`, `er7-rust`,
   `agents/store-engineer.md`'s "sixteen `*_member_rows` indexes"
   section), storing the active subset twice rather than changing any
   existing accessor's signature. `mapTarget`, `correlationId`, `mapGroup`,
-  `mapPriority`, `mapRule`, `mapAdvice`, and `mapCategoryId` are the
-  first seven concrete fields built on this retention (`snomed-ecl`,
-  spec/10 rule 18): the `memberFieldFilter` grammar alternative, tested
-  against `simple_map_member_rows`/`extended_map_member_rows`, after both
-  `^` and `^R` in one increment each since both reuse the same
-  `member_row_matches` helper. `memberFieldFilter` itself turned out not
-  to be one grammar shape but five, chosen by the named column's own
-  semantic type (confirmed against the official ABNF): `mapTarget`/
-  `mapRule`/`mapAdvice` the string-search shape, `correlationId`/
-  `mapCategoryId` the concept-reference shape
+  `mapPriority`, `mapRule`, `mapAdvice`, `mapCategoryId`, and
+  `targetComponentId` are the first eight concrete fields built on this
+  retention (`snomed-ecl`, spec/10 rule 18): the `memberFieldFilter`
+  grammar alternative, tested against
+  `simple_map_member_rows`/`extended_map_member_rows`/
+  `association_member_rows`, after both `^` and `^R` in one increment
+  each since both reuse the same `member_row_matches` helper.
+  `memberFieldFilter` itself turned out not to be one grammar shape but
+  five, chosen by the named column's own semantic type (confirmed
+  against the official ABNF): `mapTarget`/`mapRule`/`mapAdvice` the
+  string-search shape, `correlationId`/`mapCategoryId`/
+  `targetComponentId` the concept-reference shape
   (`expressionComparisonOperator ws subExpressionConstraint`, reusing
   `ModuleFilter` verbatim), `mapGroup`/`mapPriority` the numeric shape
   (`numericComparisonOperator ws "#" numericValue`, both reusing
@@ -269,9 +271,12 @@ and harmonizes it with the sibling repositories (`hl7-rust`, `er7-rust`,
   silently inverts `!=` into `=`, wrong for a direct field comparison,
   fixed with a dedicated `field_numeric_matches` before it shipped — the
   boolean and time shapes remain unimplemented. `mapCategoryId` completes
-  `ExtendedMapRefsetMember`'s column coverage: every column it has is now
-  a filterable `memberFieldFilter` kind. Every other `memberFieldFilter`
-  column (`order`, `domainConstraint`, …) remains rejected generically —
+  `ExtendedMapRefsetMember`'s column coverage; `targetComponentId` is the
+  first field on a refset type other than the two map types
+  (`AssociationRefsetMember`), proving the same store retention and
+  dispatch pattern generalizes past `ExtendedMap`/`SimpleMap`. Every
+  other `memberFieldFilter` column (`order`, `domainConstraint`, …)
+  remains rejected generically —
   not by a fixed keyword list (`refsetFieldName` is `1*alpha`, confirmed
   against the official ABNF) — but each is now a free `snomed-ecl`
   parser/eval-only increment (plus, per column, confirming which grammar
@@ -286,9 +291,10 @@ and harmonizes it with the sibling repositories (`hl7-rust`, `er7-rust`,
 ## Current status
 
 All eight phases above are closed. As of `memberFieldFilter`'s
-`mapCategoryId` (2026-09-05, below) the workspace is 9 published crates
-with zero dependencies, 417 tests, a clean `cargo clippy --all-targets`,
-13 fuzz targets, and six criterion benchmark files. What is *not* done is tracked
+`targetComponentId` (2026-09-05, below) the workspace is 9 published
+crates with zero dependencies, 421 tests, a clean
+`cargo clippy --all-targets`, 13 fuzz targets, and six criterion
+benchmark files. What is *not* done is tracked
 in two places and nowhere
 else: `tasks.md`'s "Next up" (scoped work and known gaps, each with the
 spec section that documents it) and the deliberately-rejected lists —
@@ -313,13 +319,18 @@ can't reuse `^`'s). `{{ M ... }}`'s refset-type-specific
 `memberFieldFilter` kind's store-retention call was decided 2026-09-03
 ("Open decisions" below): sixteen new `*_member_rows` accessors, one per
 non-Simple/Language refset type, and `mapTarget`, `correlationId`,
-`mapGroup`, `mapPriority`, `mapRule`, `mapAdvice`, and `mapCategoryId` —
-the first seven concrete fields, spanning three of `memberFieldFilter`'s
-five grammar shapes — landed 2026-09-03/05, after both `^` and `^R` in
-one increment each since both reuse the same `member_row_matches`
-helper; `mapCategoryId` (2026-09-05) reuses `correlationId`'s exact
-concept-reference shape and completes `ExtendedMapRefsetMember`'s column
-coverage. In between, the `ecl_parse` fuzz target's CI smoke run caught
+`mapGroup`, `mapPriority`, `mapRule`, `mapAdvice`, `mapCategoryId`, and
+`targetComponentId` — the first eight concrete fields, spanning three of
+`memberFieldFilter`'s five grammar shapes — landed 2026-09-03/05, after
+both `^` and `^R` in one increment each since both reuse the same
+`member_row_matches` helper; `mapCategoryId` (2026-09-05) reuses
+`correlationId`'s exact concept-reference shape and completes
+`ExtendedMapRefsetMember`'s column coverage, and `targetComponentId`
+(2026-09-05) is the first field on a refset type other than the two map
+types (`AssociationRefsetMember`), tested against a third typed row set
+(`association_member_rows`) — the dispatch function renamed from
+`typed_map_row_matches` to `typed_field_row_matches` once it stopped
+being map-only. In between, the `ecl_parse` fuzz target's CI smoke run caught
 a real stack overflow on pathologically deep `(`/refinement/
 attribute-set nesting (2026-09-04) — fixed with a shared `Parser::depth`
 counter and a 100-level cap (spec/10 rule 19,

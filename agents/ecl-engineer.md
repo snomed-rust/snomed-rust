@@ -323,7 +323,13 @@ against `SnapshotStore::simple_map_member_rows`/
 `mapCategoryId` followed immediately after, one to three fields each of
 two more `memberFieldFilter` grammar shapes — `mapCategoryId` reusing
 `correlationId`'s exact shape and completing
-`ExtendedMapRefsetMember`'s column coverage. `memberFieldFilter`
+`ExtendedMapRefsetMember`'s column coverage. `targetComponentId`
+(2026-09-05) is the first column outside the two map types
+(`AssociationRefsetMember`), reusing `correlationId`'s concept-reference
+shape again but tested against a third typed row set
+(`association_member_rows`) — the dispatch function that used to be
+`typed_map_row_matches` is `typed_field_row_matches` now that it isn't
+map-only. `memberFieldFilter`
 isn't one production but five in the official grammar, chosen by the
 named column's own semantic type
 (`expressionComparisonOperator ws subExpressionConstraint` for a concept

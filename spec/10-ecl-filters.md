@@ -157,9 +157,9 @@ named column's own semantic type (confirmed against the official ABNF,
 subExpressionConstraint` (a concept reference), `numericComparisonOperator
 ws "#" numericValue`, `stringComparisonOperator ws (typedSearchTerm |
 typedSearchTermSet)`, `booleanComparisonOperator ws booleanValue`, or
-`timeComparisonOperator ws (timeValue | timeValueSet)`. Seven kinds are
+`timeComparisonOperator ws (timeValue | timeValueSet)`. Eight kinds are
 implemented, spanning three of the five shapes (string has three,
-concept reference has two, numeric has two):
+concept reference has three, numeric has two):
 
 - `mapTarget (=|!=) (typedSearchTerm | typedSearchTermSet)` — the same
   `match:`/`wild:`/`exact:` search-term grammar `{{ D term }}` uses,
@@ -184,6 +184,14 @@ concept reference has two, numeric has two):
   `ExtendedMapRefsetMember`-only. Completes
   `ExtendedMapRefsetMember`'s column coverage: every column it has is
   now a filterable `memberFieldFilter` kind.
+- `targetComponentId (=|!=) subExpressionConstraint` — the same
+  concept-reference shape again, matched against the member row's own
+  `targetComponentId` column. The first `memberFieldFilter` column
+  outside the two map types: only `AssociationRefsetMember` rows carry
+  it (`OrderedAssociationRefsetMember` carries the same column but isn't
+  implemented yet), tested against
+  `SnapshotStore::association_member_rows` directly, never
+  `simple_map_member_rows`/`extended_map_member_rows`.
 - `mapGroup (=|!=|<=|<|>=|>) "#" numericValue` — the same
   `numericComparisonOperator "#" numericValue` value form
   `eclAttribute`'s own numeric concrete value comparison uses, matched
@@ -210,14 +218,16 @@ concept reference has two, numeric has two):
   as `mapTarget`/`mapRule`, matched against the member row's own
   `mapAdvice` column (`ExtendedMapRefsetMember`-only).
 
-All seven reuse the shared dispatch `mapTarget` introduced: a block
-naming *any* of the seven kinds is tested against
-`SimpleMap`/`ExtendedMap` rows together rather than `member_rows`, and
-the "one row, all filters" and "active unless stated otherwise" rules
-above still hold across a block naming several field filters at once,
-not just a field filter and a shared-column one — a `SimpleMap` row can
-never satisfy a block naming any of `correlationId`/`mapGroup`/
-`mapPriority`/`mapRule`/`mapAdvice`/`mapCategoryId` (the column is simply
+All eight reuse the shared dispatch `mapTarget` introduced (renamed
+`typed_field_row_matches` once a non-map type joined it): a block
+naming *any* of the eight kinds is tested against
+`SimpleMap`/`ExtendedMap`/`Association` rows together rather than
+`member_rows`, and the "one row, all filters" and "active unless stated
+otherwise" rules above still hold across a block naming several field
+filters at once, not just a field filter and a shared-column one — a
+`SimpleMap` row can never satisfy a block naming any of `correlationId`/
+`mapGroup`/`mapPriority`/`mapRule`/`mapAdvice`/`mapCategoryId`/
+`targetComponentId` (the column is simply
 absent on that row source, the same "not this row's type" answer a
 shared-column filter gets from a row of the wrong refset type), so it
 can never be a spurious match.

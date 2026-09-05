@@ -27,6 +27,50 @@ most recently on 2026-09-04, to keep this file inside the repository's
 40 KB per-document budget. Search both when asking "has this come up
 before".
 
+## Done (2026-09-05, ECL `{{ M ... }}` `memberFieldFilter`: `targetComponentId`, first column outside the two map types)
+
+- [x] **`snomed-ecl`**: `MemberFilterKind::TargetComponentId(ModuleFilter)`
+      — `targetComponentId (=|!=) subExpressionConstraint`, reusing
+      `correlationId`/`mapCategoryId`'s exact concept-reference grammar
+      and `ModuleFilter` verbatim, but on `AssociationRefsetMember`
+      instead of `ExtendedMapRefsetMember` — the first `memberFieldFilter`
+      column implemented outside the two map types. Extended
+      `TypedFields` with one more `Option<SctId>` field;
+      `member_row_matches`'s dispatch condition now includes it; the
+      dispatch function itself renamed from `typed_map_row_matches` to
+      `typed_field_row_matches` (it stopped being map-only) and grew a
+      third row-set check (`association_member_rows`, after
+      `simple_map_member_rows`/`extended_map_member_rows`) — a `SimpleMap`
+      or `ExtendedMap` row still can't wrongly match a `targetComponentId`
+      filter, via the same "column absent → never matches" arm every
+      other field filter has.
+- [x] **Design note recorded for the next pick**:
+      `OrderedAssociationRefsetMember` carries the same `targetComponentId`
+      column (spec/08) and would extend this same variant when picked up
+      — the way `mapTarget` already spans `SimpleMap`/`ExtendedMap` —
+      not a reason to add a second `MemberFilterKind` variant. Documented
+      in `ast.rs`'s doc comment so it isn't rediscovered.
+- [x] 4 new tests (parser: one shape test; eval: matches `Association`
+      rows after both `^` and `^R`, never matches `ExtendedMap` rows,
+      conjoins with `moduleId` on the same row — this test's first draft
+      forgot to add the two module concepts to the store, since
+      `moduleId`'s value clause is itself an evaluated ECL expression
+      that returns empty against an absent focus concept per spec/10
+      rule 2; caught immediately by the test itself failing, fixed by
+      adding both concepts) — 421/421 total, up from 417.
+- [x] Updated: `spec/10-ecl.md` (rule 18's column list and dispatch
+      enumeration, the summary paragraph — "seven" to "eight" columns),
+      `spec/10-ecl-filters.md` (new bullet, dispatch-list update, renamed
+      dispatch function), `spec/10-ecl-unimplemented.md` (removed from
+      the "not implemented" enumeration, added to the narrative),
+      `snomed-ecl/src/lib.rs`, `snomed-ecl/README.md` (table row,
+      not-yet-implemented list), `agents/ecl-engineer.md`,
+      `agents/store-engineer.md` (seven consumers to eight, association
+      dispatch), `plan.md` (Open decisions paragraph, Current status
+      test count, Since 0.9.0 narrative), `CHANGELOG.md`.
+- [x] Verified: build/clippy/fmt/test (421/421)/check-docs/
+      check-trademarks/spec_citations all clean.
+
 ## Done (2026-09-05, Release 0.21.0 — `memberFieldFilter`'s `mapCategoryId`, ninth self-decided release)
 
 - [x] **Decided and executed the release itself**, per §1-5 of
@@ -381,11 +425,14 @@ before".
       `mapCategoryId` (0.21.0), all after both `^` and `^R`. Together
       `mapAdvice`/`mapCategoryId` complete `ExtendedMap`'s column
       coverage entirely — every column that type has is now a filterable
-      `memberFieldFilter` kind. `{{ M ... }}` after `^` (0.13.0), after
+      `memberFieldFilter` kind. `targetComponentId` (2026-09-05, see the
+      Done entry above) landed the same way, **not yet released** — the
+      first `memberFieldFilter` column outside the two map types
+      (`AssociationRefsetMember`). `{{ M ... }}` after `^` (0.13.0), after
       `^R` (0.14.0), and its `memberFieldFilter` alternative
       (0.15.0-0.21.0), all decided and executed under
       `spec/ai-release-authority/`'s criteria rather than a fresh
-      per-release maintainer go-ahead (see `CHANGELOG.md`). 9 crates, 417
+      per-release maintainer go-ahead (see `CHANGELOG.md`). 9 crates, 421
       tests,
       clippy/fmt clean on stable, MSRV 1.96 (current
       stable minus two, `spec/rust-msrv-n-minus-2/index.md`), `fuzz/`,
@@ -414,11 +461,12 @@ before".
       the `moduleId`/`effectiveTime`/`active` kinds are done after both
       `^` (2026-09-01) and `^R` (2026-09-02); the fourth grammar
       alternative, `memberFieldFilter`, now has its store-retention
-      decided and seven columns done after both `^` and `^R`:
+      decided and eight columns done after both `^` and `^R`:
       `mapTarget`, `correlationId`, `mapGroup` (2026-09-03),
-      `mapPriority`, `mapRule`, `mapAdvice` (2026-09-04), and
-      `mapCategoryId` (2026-09-05, see Done above — completes
-      `ExtendedMap`'s column coverage). What is still open:
+      `mapPriority`, `mapRule`, `mapAdvice` (2026-09-04), `mapCategoryId`
+      (2026-09-05, completes `ExtendedMap`'s column coverage), and
+      `targetComponentId` (2026-09-05, see Done above — the first column
+      outside the two map types). What is still open:
       - Every other `memberFieldFilter` column — no longer blocked on a
         store decision (all sixteen non-Simple/Language types already
         retain typed active-and-inactive rows via `*_member_rows`), so
@@ -446,17 +494,26 @@ before".
         `TypedFields` (`snomed-ecl/src/eval.rs`) with one more
         `Option` field per new column, the same way `mapGroup` added
         `map_group` alongside `map_target`/`correlation_id` — not a new
-        function parameter, and not a new dispatch function. The full
+        function parameter. A column on a refset type already dispatched
+        (either map type) needs no dispatch change beyond that; a column
+        on a *new* refset type needs one more row-set check inside
+        `typed_field_row_matches` (renamed from `typed_map_row_matches`
+        when `targetComponentId`/`Association` stopped that being
+        map-only, 2026-09-05) — not a new dispatch function, but not
+        nothing either; don't assume the field-only change suffices
+        without checking whether the type is already covered. The full
         remaining list, one bullet per refset type, RF2 column names
         from `snomed-rf2/src/refset.rs`'s `HEADER` consts
         (Simple/Language excluded — spec/09 rule 4, they keep no typed
         rows at all), each annotated with its Rust field type and the
         grammar shape that type implies:
-        - Association: `targetComponentId` (`SctId` — concept-reference
-          shape) — the most likely next pick; single field, reuses
-          `correlationId`/`mapCategoryId`'s exact shape (`ModuleFilter`).
+        - Association: **done** — `targetComponentId` (2026-09-05)
+          covers the only column it has.
         - AttributeValue: `valueId` (`SctId` — concept-reference shape) —
-          same shape, same size, an equally free pick.
+          the most likely next pick; single field, same shape as
+          `targetComponentId`, but a fourth typed row set
+          (`attribute_value_member_rows`) to add to
+          `typed_field_row_matches`, not a reused one.
         - ExtendedMap: **done** — `mapTarget`, `correlationId`,
           `mapGroup`, `mapPriority`, `mapRule`, `mapAdvice`, and
           `mapCategoryId` (2026-09-05) cover every column it has.
@@ -485,8 +542,10 @@ before".
         - MrcmModuleScope: `mrcmRuleRefsetId` (`SctId` —
           concept-reference shape).
         - OrderedComponent: `order` (`u32` — numeric shape).
-        - OrderedAssociation: `targetComponentId` (`SctId` —
-          concept-reference shape); `order` (`u32` — numeric shape).
+        - OrderedAssociation: `targetComponentId` (same column,
+          `MemberFilterKind::TargetComponentId` variant, one more row-set
+          check — not a new variant, see `ast.rs`'s doc comment);
+          `order` (`u32` — numeric shape, its own new variant).
         - ComponentAnnotation: `languageDialectCode`, `value` (`String`
           — string shape); `typeId` (`SctId` — concept-reference shape).
         - MemberAnnotation: `languageDialectCode`, `value` (`String` —

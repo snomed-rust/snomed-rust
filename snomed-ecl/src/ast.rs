@@ -372,8 +372,8 @@ pub enum ConceptFilterKind {
 /// than a concept's own row.
 ///
 /// `MapTarget`/`CorrelationId`/`MapGroup`/`MapPriority`/`MapRule`/
-/// `MapAdvice`/`MapCategoryId` are the official grammar's fourth kind,
-/// `memberFieldFilter`
+/// `MapAdvice`/`MapCategoryId`/`TargetComponentId` are the official
+/// grammar's fourth kind, `memberFieldFilter`
 /// — a refset-type-specific column rather than a shared one. Its own
 /// grammar (confirmed against the official ABNF, `syntax/abnf-brief.txt`)
 /// is not one shape but five, chosen by the column's own semantic type:
@@ -387,7 +387,8 @@ pub enum ConceptFilterKind {
 /// (`SimpleMapRefsetMember`/`ExtendedMapRefsetMember`) was the first
 /// implemented, `correlationId`, `mapGroup`, `mapPriority`, `mapRule`,
 /// `mapAdvice`, and `mapCategoryId` (`ExtendedMapRefsetMember` only)
-/// followed — all
+/// followed, then `targetComponentId` (`AssociationRefsetMember`, the
+/// first column outside the two map types) — all
 /// decided 2026-09-03 (`plan.md`'s "Open decisions") to retain full rows
 /// — active and inactive — for all sixteen non-Simple/Language refset
 /// types, the same store change `moduleId`/`effectiveTime`/`active`
@@ -476,6 +477,20 @@ pub enum MemberFilterKind {
     /// coverage — every column it has is now a filterable
     /// `memberFieldFilter` kind.
     MapCategoryId(ModuleFilter),
+    /// `targetComponentId (=|!=) subExpressionConstraint` — a
+    /// `memberFieldFilter` (spec/10 rule 18): `AssociationRefsetMember`'s
+    /// own `targetComponentId` column (a concept reference). Reuses
+    /// [`ModuleFilter`]'s exact shape and grammar — the same
+    /// concept-reference production `correlationId`/`mapCategoryId`
+    /// use, just a different refset type and RF2 column. The first
+    /// `memberFieldFilter` column implemented outside
+    /// `SimpleMapRefsetMember`/`ExtendedMapRefsetMember`, so a block
+    /// naming it is tested against `SnapshotStore::association_member_rows`
+    /// instead. `OrderedAssociationRefsetMember` carries the same
+    /// `targetComponentId` column (spec/08) and would extend this same
+    /// variant when picked up, the way `mapTarget` already spans two
+    /// refset types — not a reason to add a second variant.
+    TargetComponentId(ModuleFilter),
 }
 
 /// `numericComparisonOperator ws "#" numericValue` — a `memberFieldFilter`
