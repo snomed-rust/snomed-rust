@@ -373,7 +373,7 @@ pub enum ConceptFilterKind {
 ///
 /// `MapTarget`/`CorrelationId`/`MapGroup`/`MapPriority`/`MapRule`/
 /// `MapAdvice`/`MapCategoryId`/`TargetComponentId`/`ValueId`/
-/// `OwlExpression` are the official grammar's fourth kind,
+/// `OwlExpression`/`Order` are the official grammar's fourth kind,
 /// `memberFieldFilter`
 /// — a refset-type-specific column rather than a shared one. Its own
 /// grammar (confirmed against the official ABNF, `syntax/abnf-brief.txt`)
@@ -390,9 +390,11 @@ pub enum ConceptFilterKind {
 /// `mapAdvice`, and `mapCategoryId` (`ExtendedMapRefsetMember` only)
 /// followed, then `targetComponentId` (`AssociationRefsetMember`, the
 /// first column outside the two map types), `valueId`
-/// (`AttributeValueRefsetMember`, the second), and `owlExpression`
+/// (`AttributeValueRefsetMember`, the second), `owlExpression`
 /// (`OwlExpressionRefsetMember`, the third, and the first of those
-/// three to use the string-search shape) — all
+/// four to use the string-search shape), and `order`
+/// (`OrderedComponentRefsetMember`, the fourth, and the first to use
+/// the numeric shape) — all
 /// decided 2026-09-03 (`plan.md`'s "Open decisions") to retain full rows
 /// — active and inactive — for all sixteen non-Simple/Language refset
 /// types, the same store change `moduleId`/`effectiveTime`/`active`
@@ -518,6 +520,23 @@ pub enum MemberFilterKind {
     /// concept-reference shape), so a block naming it is tested against
     /// `SnapshotStore::owl_expression_member_rows` instead.
     OwlExpression(TermFilter),
+    /// `order (=|!=|<=|<|>=|>) "#" numericValue` — a `memberFieldFilter`
+    /// (spec/10 rule 18): `OrderedComponentRefsetMember`'s own `order`
+    /// column (a `u32`, not a concept or free text). Reuses
+    /// [`NumericFieldFilter`]'s exact shape and grammar — the same
+    /// numeric production `mapGroup`/`mapPriority` use, just a
+    /// different refset type and RF2 column. The fourth
+    /// `memberFieldFilter` column implemented outside
+    /// `SimpleMapRefsetMember`/`ExtendedMapRefsetMember`, and the first
+    /// of those four on the numeric shape (`targetComponentId`/`valueId`
+    /// used concept-reference, `owlExpression` used string-search), so a
+    /// block naming it is tested against
+    /// `SnapshotStore::ordered_component_member_rows` instead.
+    /// `OrderedAssociationRefsetMember` carries both `targetComponentId`
+    /// and its own `order` column (spec/08) and would extend
+    /// [`MemberFilterKind::TargetComponentId`] and this variant
+    /// respectively when picked up — not a reason to add new variants.
+    Order(NumericFieldFilter),
 }
 
 /// `numericComparisonOperator ws "#" numericValue` — a `memberFieldFilter`

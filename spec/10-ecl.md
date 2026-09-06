@@ -52,7 +52,7 @@ shape, rather than re-enumerating it here).
 Boolean concrete value comparisons (not
 representable in RF2 — see below), `moduleId`'s
 `eclConceptReferenceSet` spelling, every other `memberFieldFilter`
-column (`order`, `domainConstraint`, …), the
+column (`domainConstraint`, `grouped`, …), the
 remaining description filter kinds (the `dialect` alias form), the
 history supplement, and alternate identifiers are **out of scope for this
 version** — see
@@ -386,7 +386,7 @@ column's own semantic type (confirmed against the official ABNF):
 reference, `numericComparisonOperator ws "#" numericValue`,
 `stringComparisonOperator ws (typedSearchTerm | typedSearchTermSet)`,
 `booleanComparisonOperator ws booleanValue`, or `timeComparisonOperator
-ws (timeValue | timeValueSet)`. Ten columns are implemented, spanning
+ws (timeValue | timeValueSet)`. Eleven columns are implemented, spanning
 three of the five shapes (string, concept-reference, numeric), all for
 both `^` and `^R` — see `spec/10-ecl-filters.md` for the current
 per-column list. Every other column, and both remaining shapes
@@ -672,7 +672,8 @@ still governs it: nothing on that list may be silently accepted.
     `mapAdvice`/`mapCategoryId`, since `SimpleMapRefsetMember` has no
     such columns; `association_member_rows` for `targetComponentId`;
     `attribute_value_member_rows` for `valueId`;
-    `owl_expression_member_rows` for `owlExpression`),
+    `owl_expression_member_rows` for `owlExpression`;
+    `ordered_component_member_rows` for `order`),
     never against `member_rows`'s type-erased
     `RefsetMemberCore` view, which has no such column — and every other
     filter in the same block MUST be tested against that *same* typed

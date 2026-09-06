@@ -157,9 +157,9 @@ named column's own semantic type (confirmed against the official ABNF,
 subExpressionConstraint` (a concept reference), `numericComparisonOperator
 ws "#" numericValue`, `stringComparisonOperator ws (typedSearchTerm |
 typedSearchTermSet)`, `booleanComparisonOperator ws booleanValue`, or
-`timeComparisonOperator ws (timeValue | timeValueSet)`. Ten kinds are
+`timeComparisonOperator ws (timeValue | timeValueSet)`. Eleven kinds are
 implemented, spanning three of the five shapes (string has four,
-concept reference has four, numeric has two):
+concept reference has four, numeric has three):
 
 - `mapTarget (=|!=) (typedSearchTerm | typedSearchTermSet)` — the same
   `match:`/`wild:`/`exact:` search-term grammar `{{ D term }}` uses,
@@ -230,11 +230,20 @@ concept reference has four, numeric has two):
   types, and the first of those three on the string-search shape: only
   `OwlExpressionRefsetMember` rows carry it, tested against
   `SnapshotStore::owl_expression_member_rows` directly.
+- `order (=|!=|<=|<|>=|>) "#" numericValue` — the same numeric shape
+  and the same `NumericFieldFilter`/`field_numeric_matches` machinery
+  as `mapGroup`/`mapPriority`, matched against the member row's own
+  `order` column (a `u32`). The fourth `memberFieldFilter` column
+  outside the two map types, and the first of those four on the
+  numeric shape: only `OrderedComponentRefsetMember` rows carry it,
+  tested against `SnapshotStore::ordered_component_member_rows`
+  directly.
 
-All ten reuse the shared dispatch `mapTarget` introduced (renamed
+All eleven reuse the shared dispatch `mapTarget` introduced (renamed
 `typed_field_row_matches` once a non-map type joined it): a block
-naming *any* of the ten kinds is tested against
-`SimpleMap`/`ExtendedMap`/`Association`/`AttributeValue`/`OwlExpression`
+naming *any* of the eleven kinds is tested against
+`SimpleMap`/`ExtendedMap`/`Association`/`AttributeValue`/`OwlExpression`/
+`OrderedComponent`
 rows together
 rather than `member_rows`, and the "one row, all filters" and "active
 unless stated otherwise" rules above still hold across a block naming
@@ -242,15 +251,16 @@ several field filters at once, not just a field filter and a
 shared-column one — a `SimpleMap` row can never satisfy a block naming
 any of `correlationId`/
 `mapGroup`/`mapPriority`/`mapRule`/`mapAdvice`/`mapCategoryId`/
-`targetComponentId`/`valueId`/`owlExpression` (the column is simply
+`targetComponentId`/`valueId`/`owlExpression`/`order` (the column is
+simply
 absent on that row source, the same "not this row's type" answer a
 shared-column filter gets from a row of the wrong refset type), so it
 can never be a spurious match.
 
 **Not implemented:** every other `memberFieldFilter` column, and both
-remaining shapes — boolean, time (`order`, `domainConstraint`, and the
-rest — see `spec/10-ecl-unimplemented.md`); the store retention that
-made these six columns possible already covers every non-Simple/
+remaining shapes — boolean, time (`domainConstraint`, `grouped`, and
+the rest — see `spec/10-ecl-unimplemented.md`); the store retention
+that made these ten columns possible already covers every non-Simple/
 Language refset type (decided 2026-09-03, `plan.md`'s "Open decisions"),
 so each remaining column is a parser/eval increment only, not a further
 store decision.

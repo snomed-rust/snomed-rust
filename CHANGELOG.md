@@ -13,6 +13,29 @@ together, in dependency order (`snomed-core` → `snomed-rf2` → `snomed-owl`
 
 ## [Unreleased]
 
+**New ECL capability, additive.** `{{ M ... }}`'s `memberFieldFilter`
+gains its eleventh column, `order` — the fourth column outside the two
+map types (`OrderedComponentRefsetMember`), and the first of those
+four back on the numeric shape, after both `^` and `^R`. A minor
+bump: new public API, no removals or signature changes to anything
+existing.
+
+### Added
+
+- `snomed-ecl`: `{{ M order = #2 }}` restricts to `OrderedComponent`
+  member rows whose own `order` column satisfies the comparison — `=`,
+  `!=`, `<=`, `<`, `>=`, or `>`, the same numeric grammar
+  `mapGroup`/`mapPriority` use. Works after both `^` and `^R`, and
+  conjoins with `moduleId` and the other shared-column kinds on the
+  same member row. Only `OrderedComponentRefsetMember` rows carry an
+  `order` column; every other refset type never matches this filter.
+  New public API: `MemberFilterKind::Order`.
+
+### Notes for consumers
+
+- No public API removed or changed signature; existing code compiles
+  unmodified against this release.
+
 ## [0.24.0] — 2026-09-06
 
 **New ECL capability, additive.** `{{ M ... }}`'s `memberFieldFilter`

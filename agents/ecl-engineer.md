@@ -334,7 +334,10 @@ map types (`AttributeValueRefsetMember`), the same shape again but a
 fourth row-set check (`attribute_value_member_rows`) added to the same
 function; `owlExpression` (2026-09-06) is the third, on the
 string-search shape this time (`OwlExpressionRefsetMember`, a fifth
-row-set check) rather than concept-reference — three increments in a
+row-set check) rather than concept-reference; `order` (2026-09-06) is
+the fourth, back on the numeric shape (`OrderedComponentRefsetMember`,
+a sixth row-set check, reusing `mapGroup`/`mapPriority`'s
+`field_numeric_matches` verbatim) — four increments in a
 row confirming the pattern generalizes cleanly across every grammar
 shape: extend `TypedFields`, extend the dispatch condition, add one
 row-set check to `typed_field_row_matches`, done. `memberFieldFilter`
@@ -359,7 +362,7 @@ inspection. `mapPriority` reused that same numeric shape and
 `mapAdvice` did the same for `mapTarget`'s string shape, reusing
 `TermFilter`/`term_matches` verbatim. With the store side now done for
 all sixteen types, every
-*remaining* `memberFieldFilter` column (`order`, `domainConstraint`, …)
+*remaining* `memberFieldFilter` column (`domainConstraint`, `grouped`, …)
 IS a free next increment — the cadence below applies to them cleanly,
 the same as any other filter kind. See `spec/10-ecl-unimplemented.md`.
 

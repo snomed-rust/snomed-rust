@@ -457,12 +457,12 @@ impl Parser {
     /// tokenized for `{{ C }}`, so no new lexer keywords were needed for
     /// them. The fourth, `memberFieldFilter`, is `refsetFieldName` —
     /// `1*alpha` in the official grammar, not a fixed keyword list, so it
-    /// lexes as a plain `TokenKind::Word` — and only the ten spellings
+    /// lexes as a plain `TokenKind::Word` — and only the eleven spellings
     /// this crate implements, `mapTarget`, `correlationId`, `mapGroup`,
     /// `mapPriority`, `mapRule`, `mapAdvice`, `mapCategoryId`,
-    /// `targetComponentId`, `valueId`, and `owlExpression` (spec/10 rule
-    /// 18), are recognized here; any other word falls through to the generic
-    /// "unexpected keyword"
+    /// `targetComponentId`, `valueId`, `owlExpression`, and `order`
+    /// (spec/10 rule 18), are recognized here; any other word falls
+    /// through to the generic "unexpected keyword"
     /// bucket rule 9 describes rather than being named. `correlationId`/
     /// `mapCategoryId`/`targetComponentId`/`valueId (=|!=)
     /// subExpressionConstraint` reuse `moduleId`'s own parse shape
@@ -472,10 +472,10 @@ impl Parser {
     /// `memberFieldFilter` name that operator differently —
     /// `booleanComparisonOperator` vs. `expressionComparisonOperator` —
     /// the two productions are the same two symbols). `mapGroup`/
-    /// `mapPriority (=|!=|<=|<|>=|>) "#"
-    /// numericValue` both reuse `eclAttribute`'s own
+    /// `mapPriority`/`order (=|!=|<=|<|>=|>) "#"
+    /// numericValue` all reuse `eclAttribute`'s own
     /// `numericComparisonOperator "#" numericValue` value form
-    /// (`parse_numeric_field_filter`, shared by both) —
+    /// (`parse_numeric_field_filter`, shared by all three) —
     /// `memberFieldFilter`'s numeric shape has no set alternative (no
     /// `numericValueSet` production exists for it), unlike
     /// `effectiveTimeFilter`'s.
@@ -578,11 +578,16 @@ impl Parser {
                     values,
                 }))
             }
+            TokenKind::Word(word) if word == "order" => {
+                self.advance()?;
+                let filter = self.parse_numeric_field_filter()?;
+                Ok(MemberFilterKind::Order(filter))
+            }
             _ => {
                 let tok = self.peek().clone();
                 Err(Self::unexpected(
                     &tok,
-                    "`moduleId`, `effectiveTime`, `active`, `mapTarget`, `correlationId`, `mapGroup`, `mapPriority`, `mapRule`, `mapAdvice`, `mapCategoryId`, `targetComponentId`, `valueId`, or `owlExpression`",
+                    "`moduleId`, `effectiveTime`, `active`, `mapTarget`, `correlationId`, `mapGroup`, `mapPriority`, `mapRule`, `mapAdvice`, `mapCategoryId`, `targetComponentId`, `valueId`, `owlExpression`, or `order`",
                 ))
             }
         }
@@ -1870,6 +1875,28 @@ mod tests {
         assert_eq!(values[0].search_type, crate::ast::SearchType::Match);
     }
 
+    /// `order` (spec/10 rule 18) — the eleventh `memberFieldFilter`
+    /// column, and the fourth outside the two map types
+    /// (`OrderedComponentRefsetMember`) — the first of those four to use
+    /// the numeric shape. Reuses `mapGroup`/`mapPriority`'s exact
+    /// grammar and `parse_numeric_field_filter` verbatim.
+    #[test]
+    fn parses_member_filter_order() {
+        let EC::MemberFilter { filters, .. } =
+            parse("^ 900000000000538005 {{ M order = #2 }}").unwrap()
+        else {
+            panic!("expected a member filter");
+        };
+        assert_eq!(filters.len(), 1);
+        let crate::ast::MemberFilterKind::Order(crate::ast::NumericFieldFilter { operator, value }) =
+            &filters[0]
+        else {
+            panic!("expected an Order filter, got {:?}", filters[0]);
+        };
+        assert_eq!(*operator, crate::ast::NumericComparisonOp::Eq);
+        assert_eq!(value, "2");
+    }
+
     /// `mapGroup` (spec/10 rule 18) — the third `memberFieldFilter`
     /// column implemented, and the first to use the numeric grammar
     /// shape (`numericComparisonOperator ws "#" numericValue`, the same
@@ -1968,13 +1995,14 @@ mod tests {
         assert_eq!(values[0].search_type, crate::ast::SearchType::Wild);
     }
 
-    /// A field name this crate doesn't recognize (`order`, say) falls to
-    /// the generic bucket, not `NotYetImplemented` — the same
-    /// "genuinely unimplemented" distinction rule 9 draws elsewhere.
+    /// A field name this crate doesn't recognize (`domainConstraint`,
+    /// say) falls to the generic bucket, not `NotYetImplemented` — the
+    /// same "genuinely unimplemented" distinction rule 9 draws
+    /// elsewhere.
     #[test]
     fn rejects_an_unrecognized_member_field_filter_generically() {
         assert!(matches!(
-            parse("^ 447562003 {{ M order = #1 }}"),
+            parse("^ 447562003 {{ M domainConstraint = \"x\" }}"),
             Err(EclError::UnexpectedKeyword { .. })
         ));
     }

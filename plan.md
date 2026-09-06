@@ -252,13 +252,15 @@ and harmonizes it with the sibling repositories (`hl7-rust`, `er7-rust`,
   section), storing the active subset twice rather than changing any
   existing accessor's signature. `mapTarget`, `correlationId`, `mapGroup`,
   `mapPriority`, `mapRule`, `mapAdvice`, `mapCategoryId`,
-  `targetComponentId`, `valueId`, and `owlExpression` are the first ten
+  `targetComponentId`, `valueId`, `owlExpression`, and `order` are the
+  first eleven
   concrete fields
   built on this retention (`snomed-ecl`, spec/10 rule 18): the
   `memberFieldFilter` grammar alternative, tested against
   `simple_map_member_rows`/`extended_map_member_rows`/
   `association_member_rows`/`attribute_value_member_rows`/
-  `owl_expression_member_rows`, after both
+  `owl_expression_member_rows`/`ordered_component_member_rows`, after
+  both
   `^` and `^R` in one increment each since both reuse the same
   `member_row_matches` helper.
   `memberFieldFilter` itself turned out not to be one grammar shape but
@@ -267,22 +269,24 @@ and harmonizes it with the sibling repositories (`hl7-rust`, `er7-rust`,
   `owlExpression` the string-search shape, `correlationId`/`mapCategoryId`/
   `targetComponentId`/`valueId` the concept-reference shape
   (`expressionComparisonOperator ws subExpressionConstraint`, reusing
-  `ModuleFilter` verbatim), `mapGroup`/`mapPriority` the numeric shape
-  (`numericComparisonOperator ws "#" numericValue`, both reusing
+  `ModuleFilter` verbatim), `mapGroup`/`mapPriority`/`order` the numeric
+  shape
+  (`numericComparisonOperator ws "#" numericValue`, all three reusing
   `NumericFieldFilter`) — which caught a real bug: the existing
   `numeric_matches` (built for `eclAttribute`'s cardinality-negated `!=`)
   silently inverts `!=` into `=`, wrong for a direct field comparison,
   fixed with a dedicated `field_numeric_matches` before it shipped — the
   boolean and time shapes remain unimplemented. `mapCategoryId` completes
   `ExtendedMapRefsetMember`'s column coverage; `targetComponentId`/
-  `valueId`/`owlExpression` are the first three fields on refset types
+  `valueId`/`owlExpression`/`order` are the first four fields on refset
+  types
   other than the two
   map types (`AssociationRefsetMember`/`AttributeValueRefsetMember`/
-  `OwlExpressionRefsetMember`),
+  `OwlExpressionRefsetMember`/`OrderedComponentRefsetMember`),
   confirming the same store retention and dispatch pattern generalizes
   past `ExtendedMap`/`SimpleMap` across every grammar shape, not just
   the concept-reference one. Every
-  other `memberFieldFilter` column (`order`, `domainConstraint`, …)
+  other `memberFieldFilter` column (`domainConstraint`, `grouped`, …)
   remains rejected generically —
   not by a fixed keyword list (`refsetFieldName` is `1*alpha`, confirmed
   against the official ABNF) — but each is now a free `snomed-ecl`
@@ -298,8 +302,8 @@ and harmonizes it with the sibling repositories (`hl7-rust`, `er7-rust`,
 ## Current status
 
 All eight phases above are closed. As of `memberFieldFilter`'s
-`owlExpression` (2026-09-06, below) the workspace is 9 published
-crates with zero dependencies, 429 tests, a clean
+`order` (2026-09-06, below) the workspace is 9 published
+crates with zero dependencies, 433 tests, a clean
 `cargo clippy --all-targets`, 13 fuzz targets, and six criterion
 benchmark files. What is *not* done is tracked
 in two places and nowhere
@@ -327,7 +331,8 @@ can't reuse `^`'s). `{{ M ... }}`'s refset-type-specific
 ("Open decisions" below): sixteen new `*_member_rows` accessors, one per
 non-Simple/Language refset type, and `mapTarget`, `correlationId`,
 `mapGroup`, `mapPriority`, `mapRule`, `mapAdvice`, `mapCategoryId`,
-`targetComponentId`, `valueId`, and `owlExpression` — the first ten
+`targetComponentId`, `valueId`, `owlExpression`, and `order` — the
+first eleven
 concrete fields,
 spanning three of `memberFieldFilter`'s five grammar shapes — landed
 2026-09-03/06, after both `^` and `^R` in one increment each since both
@@ -340,9 +345,11 @@ types (`AssociationRefsetMember`), tested against a third typed row set
 `typed_map_row_matches` to `typed_field_row_matches` once it stopped
 being map-only; `valueId` (2026-09-06) is the second such field
 (`AttributeValueRefsetMember`), a fourth row-set check added to the same
-function; and `owlExpression` (2026-09-06) is the third, on the
+function; `owlExpression` (2026-09-06) is the third, on the
 string-search shape this time (`OwlExpressionRefsetMember`, a fifth
-row-set check), confirming the pattern generalizes across grammar
+row-set check); and `order` (2026-09-06) is the fourth, back on the
+numeric shape (`OrderedComponentRefsetMember`, a sixth row-set check),
+confirming the pattern generalizes across grammar
 shapes too. In between, the `ecl_parse` fuzz target's CI smoke run caught
 a real stack overflow on pathologically deep `(`/refinement/
 attribute-set nesting (2026-09-04) — fixed with a shared `Parser::depth`

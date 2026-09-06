@@ -203,16 +203,19 @@ its inactive rows.
 
 `snomed-ecl`'s `mapTarget`, `correlationId`, `mapGroup`, `mapPriority`,
 `mapRule`, `mapAdvice`, `mapCategoryId`, `targetComponentId`,
-`valueId`, and `owlExpression` filters (`spec/10-ecl.md` rule 18) are
-the first ten
+`valueId`, `owlExpression`, and `order` filters (`spec/10-ecl.md` rule
+18) are
+the first eleven
 consumers: the first seven dispatch directly to
 `simple_map_member_rows`/`extended_map_member_rows`
 (`correlationId`/`mapGroup`/`mapPriority`/`mapRule`/`mapAdvice`/
 `mapCategoryId` only ever match an `extended_map_member_rows` row —
 `simple_map_member_rows`' own type has no such columns), and
-`targetComponentId`/`valueId`/`owlExpression` — the first three outside
+`targetComponentId`/`valueId`/`owlExpression`/`order` — the first four
+outside
 the two map types — dispatch to `association_member_rows`/
-`attribute_value_member_rows`/`owl_expression_member_rows`
+`attribute_value_member_rows`/`owl_expression_member_rows`/
+`ordered_component_member_rows`
 respectively; all row sets are still
 tested whenever any field-filter kind appears in a block, since a row
 missing the column simply fails that filter rather than needing its

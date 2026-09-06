@@ -296,6 +296,7 @@ fn member_row_matches(
                 | MemberFilterKind::TargetComponentId(_)
                 | MemberFilterKind::ValueId(_)
                 | MemberFilterKind::OwlExpression(_)
+                | MemberFilterKind::Order(_)
         )
     }) {
         return typed_field_row_matches(
@@ -329,9 +330,10 @@ fn member_row_matches(
 /// `mapPriority`, `mapRule`, `mapAdvice`, `mapCategoryId`, …) is
 /// `ExtendedMap`-only and adds one more field here instead of one more
 /// function parameter everywhere. `target_component_id`/`value_id`/
-/// `owl_expression` are the first fields from refset types outside the
-/// two map types (`AssociationRefsetMember`/`AttributeValueRefsetMember`/
-/// `OwlExpressionRefsetMember`).
+/// `owl_expression`/`order` are the first fields from refset types
+/// outside the two map types
+/// (`AssociationRefsetMember`/`AttributeValueRefsetMember`/
+/// `OwlExpressionRefsetMember`/`OrderedComponentRefsetMember`).
 #[derive(Default)]
 struct TypedFields<'a> {
     map_target: Option<&'a str>,
@@ -344,25 +346,29 @@ struct TypedFields<'a> {
     target_component_id: Option<SctId>,
     value_id: Option<SctId>,
     owl_expression: Option<&'a str>,
+    order: Option<u32>,
 }
 
 /// The `mapTarget`/`correlationId`/`mapGroup`/`mapPriority`/`mapRule`/
 /// `mapAdvice`/`mapCategoryId`/`targetComponentId`/`valueId`/
-/// `owlExpression` branch of
+/// `owlExpression`/`order` branch of
 /// [`member_row_matches`]: the first seven exist only on
 /// `SimpleMapRefsetMember`/`ExtendedMapRefsetMember` (and
 /// `correlationId`/`mapGroup`/`mapPriority`/`mapRule`/`mapAdvice`/
 /// `mapCategoryId` only on the latter — `SimpleMapRefsetMember` has no
-/// such columns); `targetComponentId`/`valueId`/`owlExpression` instead
+/// such columns); `targetComponentId`/`valueId`/`owlExpression`/`order`
+/// instead
 /// exist only on `AssociationRefsetMember`/`AttributeValueRefsetMember`/
-/// `OwlExpressionRefsetMember` respectively,
+/// `OwlExpressionRefsetMember`/`OrderedComponentRefsetMember`
+/// respectively,
 /// each tested against its own typed row set
 /// (`SnapshotStore::association_member_rows`/
-/// `attribute_value_member_rows`/`owl_expression_member_rows`) rather
+/// `attribute_value_member_rows`/`owl_expression_member_rows`/
+/// `ordered_component_member_rows`) rather
 /// than either map type's.
 /// Renamed from `typed_map_row_matches` once it stopped being map-only.
 /// Whichever field-filter kind appears, a block naming it is
-/// tested against all five typed row sets rather than `member_rows`.
+/// tested against all six typed row sets rather than `member_rows`.
 /// Testing every set whenever *any* field-filter kind appears (rather
 /// than computing the exact type each filter needs) is deliberately
 /// simple, not merely convenient: a `SimpleMap` row tested against a
@@ -466,7 +472,7 @@ fn typed_field_row_matches(
     if matches_attribute_value {
         return true;
     }
-    store
+    let matches_owl_expression = store
         .owl_expression_member_rows(refset_id, component_id)
         .iter()
         .any(|row| {
@@ -478,6 +484,26 @@ fn typed_field_row_matches(
                         &row.core,
                         &TypedFields {
                             owl_expression: Some(&row.owl_expression),
+                            ..TypedFields::default()
+                        },
+                    )
+                })
+        });
+    if matches_owl_expression {
+        return true;
+    }
+    store
+        .ordered_component_member_rows(refset_id, component_id)
+        .iter()
+        .any(|row| {
+            (states_active || row.core.active)
+                && filters.iter().zip(prepared).all(|(f, p)| {
+                    member_filter_matches(
+                        f,
+                        p,
+                        &row.core,
+                        &TypedFields {
+                            order: Some(row.order),
                             ..TypedFields::default()
                         },
                     )
@@ -805,6 +831,15 @@ fn member_filter_matches(
                 .zip(searches)
                 .any(|(search, prepared)| term_matches(owl_expression, search, prepared));
             matches != *negated
+        }
+        MemberFilterKind::Order(NumericFieldFilter { operator, value }) => {
+            // No `order` on this row source (every source but
+            // `OrderedComponent`'s own): never matches, same reasoning
+            // as `MapGroup`'s `None` case above.
+            let Some(order) = fields.order else {
+                return false;
+            };
+            field_numeric_matches(*operator, &order.to_string(), value)
         }
     }
 }
@@ -1540,8 +1575,8 @@ mod tests {
     use snomed_core::time::EffectiveTime;
     use snomed_rf2::refset::{
         AssociationRefsetMember, AttributeValueRefsetMember, ExtendedMapRefsetMember,
-        LanguageRefsetMember, OwlExpressionRefsetMember, RefsetMemberCore, SimpleMapRefsetMember,
-        SimpleRefsetMember,
+        LanguageRefsetMember, OrderedComponentRefsetMember, OwlExpressionRefsetMember,
+        RefsetMemberCore, SimpleMapRefsetMember, SimpleRefsetMember,
     };
 
     const ROOT: SctId = constants::ROOT_CONCEPT;
@@ -3692,6 +3727,133 @@ mod tests {
         let matched = format!(
             "^ {owl_axiom} {{{{ M moduleId = {module_a}, owlExpression = \"SubClassOf\" }}}}"
         );
+        assert_eq!(eval(&matched, &store), HashSet::from([MI]));
+    }
+
+    /// `order` — the fourth `memberFieldFilter` column outside the two
+    /// map types, and the first of those four on the numeric shape
+    /// (`targetComponentId`/`valueId` used concept-reference,
+    /// `owlExpression` used string-search): `OrderedComponentRefsetMember`'s
+    /// own `order` column, reusing `mapGroup`/`mapPriority`'s exact
+    /// `NumericFieldFilter`/`field_numeric_matches` machinery — the
+    /// comparison-operator correctness itself is already proven by
+    /// `mapGroup`'s own dedicated test, so this doesn't repeat it.
+    /// Tested against a sixth typed row set
+    /// (`ordered_component_member_rows`). Also proves `{{ M }}` after
+    /// `^R` reaches it, via the same shared `member_row_matches` the
+    /// `^` path uses.
+    #[test]
+    fn member_filter_order_matches_ordered_component_rows() {
+        let description_order = SctId::compose(9900, ComponentType::Concept, None).unwrap();
+        let mut b = SnapshotStore::builder();
+        b.add_concept(concept(MI));
+        b.add_ordered_component_member(OrderedComponentRefsetMember {
+            core: RefsetMemberCore {
+                id: MemberId::parse("80000000-0000-4000-8000-000000000112").unwrap(),
+                effective_time: EffectiveTime::new_unchecked(20190731),
+                active: true,
+                module_id: constants::CORE_MODULE,
+                refset_id: description_order,
+                referenced_component_id: MI,
+            },
+            order: 3,
+        });
+        let store = b.build();
+
+        assert_eq!(
+            eval(
+                &format!("^ {description_order} {{{{ M order = #1 }}}}"),
+                &store
+            ),
+            HashSet::new(),
+            "the row's own order doesn't match"
+        );
+        assert_eq!(
+            eval(
+                &format!("^ {description_order} {{{{ M order = #3 }}}}"),
+                &store
+            ),
+            HashSet::from([MI])
+        );
+        // `^R` reaches the same row, through the shared row-matching path.
+        assert_eq!(
+            eval(&format!("^R {MI} {{{{ M order = #3 }}}}"), &store),
+            HashSet::from([description_order])
+        );
+    }
+
+    /// `OwlExpressionRefsetMember`/`AttributeValueRefsetMember`/
+    /// `AssociationRefsetMember`/the two map types have no `order`
+    /// column — a membership that exists only there must never match,
+    /// the same "column absent on this row source" case every other
+    /// field filter has for the row types it doesn't apply to.
+    #[test]
+    fn member_filter_order_never_matches_owl_expression_rows() {
+        let owl_axiom = SctId::compose(9901, ComponentType::Concept, None).unwrap();
+        let mut b = SnapshotStore::builder();
+        b.add_concept(concept(MI));
+        b.add_owl_expression_member(OwlExpressionRefsetMember {
+            core: RefsetMemberCore {
+                id: MemberId::parse("80000000-0000-4000-8000-000000000113").unwrap(),
+                effective_time: EffectiveTime::new_unchecked(20190731),
+                active: true,
+                module_id: constants::CORE_MODULE,
+                refset_id: owl_axiom,
+                referenced_component_id: MI,
+            },
+            owl_expression: "SubClassOf(:22298006 :64572001)".to_string(),
+        });
+        let store = b.build();
+
+        assert_eq!(
+            eval(&format!("^ {owl_axiom} {{{{ M order = #1 }}}}"), &store),
+            HashSet::new()
+        );
+    }
+
+    /// "One row, all filters" (spec/10 rule 18) for a block mixing a
+    /// shared-column filter with `order`: two separate rows, each
+    /// satisfying only one filter, must not satisfy the block together.
+    #[test]
+    fn member_filter_order_conjoins_with_module_id_on_the_same_row() {
+        let description_order = SctId::compose(9902, ComponentType::Concept, None).unwrap();
+        let module_a = SctId::new_unchecked(900000000000012004);
+        let module_b = constants::CORE_MODULE;
+        let mut b = SnapshotStore::builder();
+        b.add_concept(concept(MI));
+        b.add_concept(concept(module_a));
+        b.add_concept(concept(module_b));
+        // Row 1: right order, wrong module.
+        b.add_ordered_component_member(OrderedComponentRefsetMember {
+            core: RefsetMemberCore {
+                id: MemberId::parse("80000000-0000-4000-8000-000000000114").unwrap(),
+                effective_time: EffectiveTime::new_unchecked(20190731),
+                active: true,
+                module_id: module_a,
+                refset_id: description_order,
+                referenced_component_id: MI,
+            },
+            order: 3,
+        });
+        // Row 2: right module, wrong order.
+        b.add_ordered_component_member(OrderedComponentRefsetMember {
+            core: RefsetMemberCore {
+                id: MemberId::parse("80000000-0000-4000-8000-000000000115").unwrap(),
+                effective_time: EffectiveTime::new_unchecked(20190731),
+                active: true,
+                module_id: module_b,
+                refset_id: description_order,
+                referenced_component_id: MI,
+            },
+            order: 5,
+        });
+        let store = b.build();
+
+        let mismatched =
+            format!("^ {description_order} {{{{ M moduleId = {module_b}, order = #3 }}}}");
+        assert_eq!(eval(&mismatched, &store), HashSet::new());
+        let matched =
+            format!("^ {description_order} {{{{ M moduleId = {module_a}, order = #3 }}}}");
         assert_eq!(eval(&matched, &store), HashSet::from([MI]));
     }
 
