@@ -33,6 +33,44 @@ most recently on 2026-09-06, to keep this file inside the repository's
 40 KB per-document budget. Search both when asking "has this come up
 before".
 
+## Done (2026-09-06, Release 0.25.0 — `memberFieldFilter`'s `order`, thirteenth self-decided release)
+
+- [x] **Decided and executed the release itself**, per §1-5 of
+      `spec/ai-release-authority/`: §1 CI independently green on the
+      pushed merge commit (`1a99e3b`, all jobs); §2 `CHANGELOG.md`'s
+      `[Unreleased]` verified against the actual diff and moved under
+      `## [0.25.0]`, minor bump (purely additive:
+      `MemberFilterKind::Order`, nothing removed or changed signature);
+      §3 no rule oversteps — ships the `memberFieldFilter`
+      store-retention decision already recorded in `plan.md` as Decided
+      2026-09-03, `order` being the eleventh concrete field on that same
+      retention and the fourth data point confirming the
+      retention/dispatch pattern generalizes past the two map types and
+      across every grammar shape with a concrete example so far; §4 all
+      nine crates, one version, standard dependency order; §5 tagged
+      `v0.25.0` (signed, verified against the merge commit) and ran
+      `cargo publish` for each crate in order, all nine succeeding.
+- [x] **Verified against crates.io's own API afterward**: `GET
+      /api/v1/crates/<name>` for all nine names returns
+      `max_version: "0.25.0"`.
+- [x] Version bumped everywhere the 0.13.0-0.24.0 precedent bumped it:
+      `Cargo.toml` (workspace + seven pins), `CITATION.cff`, `NEWS.md`,
+      `INSTALL.md`, `SECURITY.md`.
+- [x] Same `release/0.25.0` branch/merge shape as 0.12.0-0.24.0, not a
+      direct commit to `main`.
+- [x] **All three forges pushed cleanly on the first attempt** — no
+      connectivity issues this release, unlike the last three; `main`
+      and `v0.25.0` landed on GitHub/GitLab/Codeberg together.
+- [x] **The sandbox itself ran unusually slowly mid-publish**:
+      `snomed-core`'s own `cargo publish` verification build took over
+      3 minutes (typically a couple of seconds) and the whole first
+      publish loop attempt hit the tool's 2-minute default timeout
+      before `snomed-core` finished; every crate after it published at
+      the normal speed once retried individually with longer timeouts.
+      Nothing in the repository caused this — nine independent
+      `cargo publish` runs, each a fresh `cargo build`-shaped
+      compilation, and only the first one was slow.
+
 ## Done (2026-09-06, ECL `{{ M ... }}` `memberFieldFilter`: `order`, fourth column outside the two map types, back on numeric shape)
 
 - [x] **`snomed-ecl`**: `MemberFilterKind::Order(NumericFieldFilter)` —
@@ -361,28 +399,26 @@ before".
 ## Next up
 
 - [ ] Nothing currently scoped beyond the `{{ M ... }}` remainder below.
-      State as of 2026-09-06: **0.24.0 released** — `mapTarget` (0.15.0),
+      State as of 2026-09-06: **0.25.0 released** — `mapTarget` (0.15.0),
       `correlationId` (0.16.0), `mapGroup` (0.17.0), `mapPriority`
       (0.18.0), `mapRule` (0.19.0), `mapAdvice` plus the `ecl_parse`
       fuzz-caught recursion-depth guard (spec/10 rule 19, 0.20.0),
       `mapCategoryId` (0.21.0), `targetComponentId` (0.22.0),
-      `valueId` (0.23.0), and `owlExpression` (0.24.0), all after both
+      `valueId` (0.23.0), `owlExpression` (0.24.0), and `order`
+      (0.25.0), all after both
       `^` and `^R`. Together
       `mapAdvice`/`mapCategoryId` complete `ExtendedMap`'s column
       coverage entirely — every column that type has is now a filterable
       `memberFieldFilter` kind — and `targetComponentId`/`valueId`/
-      `owlExpression` are the first three columns implemented outside
-      the two map types
+      `owlExpression`/`order` are the first four columns implemented
+      outside the two map types
       (`AssociationRefsetMember`/`AttributeValueRefsetMember`/
-      `OwlExpressionRefsetMember`). `order` (2026-09-06, see the Done
-      entry above) landed the same way, **not yet released** — the
-      fourth column outside the two map types
-      (`OrderedComponentRefsetMember`), back on the numeric shape,
+      `OwlExpressionRefsetMember`/`OrderedComponentRefsetMember`),
       confirming the pattern generalizes across every grammar shape
       with a concrete example so far.
       `{{ M ... }}` after `^`
       (0.13.0), after `^R` (0.14.0), and its `memberFieldFilter`
-      alternative (0.15.0-0.24.0), all decided and executed under
+      alternative (0.15.0-0.25.0), all decided and executed under
       `spec/ai-release-authority/`'s criteria rather than a fresh
       per-release maintainer go-ahead (see `CHANGELOG.md`). 9 crates, 433
       tests,
