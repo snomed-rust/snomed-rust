@@ -30,6 +30,43 @@ most recently on 2026-09-05, to keep this file inside the repository's
 40 KB per-document budget. Search both when asking "has this come up
 before".
 
+## Done (2026-09-06, Release 0.23.0 — `memberFieldFilter`'s `valueId`, eleventh self-decided release)
+
+- [x] **Decided and executed the release itself**, per §1-5 of
+      `spec/ai-release-authority/`: §1 CI independently green on the
+      pushed merge commit (`f129114`, all jobs); §2 `CHANGELOG.md`'s
+      `[Unreleased]` verified against the actual diff and moved under
+      `## [0.23.0]`, minor bump (purely additive:
+      `MemberFilterKind::ValueId`, nothing removed or changed
+      signature); §3 no rule oversteps — ships the `memberFieldFilter`
+      store-retention decision already recorded in `plan.md` as Decided
+      2026-09-03, `valueId` being the ninth concrete field on that same
+      retention and the second data point confirming the
+      retention/dispatch pattern generalizes past the two map types;
+      §4 all nine crates, one version, standard dependency order; §5
+      tagged `v0.23.0` (signed, verified against the merge commit) and
+      ran `cargo publish` for each crate in order, all nine succeeding.
+- [x] **Verified against crates.io's own API afterward**: `GET
+      /api/v1/crates/<name>` for all nine names returns
+      `max_version: "0.23.0"`.
+- [x] Version bumped everywhere the 0.13.0-0.22.0 precedent bumped it:
+      `Cargo.toml` (workspace + seven pins), `CITATION.cff`, `NEWS.md`,
+      `INSTALL.md`, `SECURITY.md`.
+- [x] Same `release/0.23.0` branch/merge shape as 0.12.0-0.22.0, not a
+      direct commit to `main`.
+- [x] **Codeberg's TLS handshake has been failing since before this
+      commit was pushed** (`SSL_ERROR_SYSCALL` on `codeberg.org:443`,
+      confirmed with `curl -v`; SSH to the same host times out the same
+      way) — retried five times across the push/tag/publish sequence,
+      every attempt failing the same way. Unrelated to the GitLab SSH
+      issue two releases ago (that was port 22 specifically resetting,
+      with HTTPS working throughout; this is a full TLS-layer failure on
+      both protocols to a different host). GitHub and GitLab both have
+      `main` and `v0.23.0`; **Codeberg does not yet** — retry `git push
+      git@codeberg.org:snomed-rust/snomed-rust.git main v0.23.0` next
+      session if this is still open, or drop this bullet once it's
+      confirmed pushed.
+
 ## Done (2026-09-06, ECL `{{ M ... }}` `memberFieldFilter`: `valueId`, second column outside the two map types)
 
 - [x] **`snomed-ecl`**: `MemberFilterKind::ValueId(ModuleFilter)` —
@@ -362,22 +399,20 @@ before".
 ## Next up
 
 - [ ] Nothing currently scoped beyond the `{{ M ... }}` remainder below.
-      State as of 2026-09-06: **0.22.0 released** — `mapTarget` (0.15.0),
+      State as of 2026-09-06: **0.23.0 released** — `mapTarget` (0.15.0),
       `correlationId` (0.16.0), `mapGroup` (0.17.0), `mapPriority`
       (0.18.0), `mapRule` (0.19.0), `mapAdvice` plus the `ecl_parse`
       fuzz-caught recursion-depth guard (spec/10 rule 19, 0.20.0),
-      `mapCategoryId` (0.21.0), and `targetComponentId` (0.22.0), all
-      after both `^` and `^R`. Together `mapAdvice`/`mapCategoryId`
-      complete `ExtendedMap`'s column coverage entirely — every column
-      that type has is now a filterable `memberFieldFilter` kind — and
-      `targetComponentId` is the first column implemented outside the
-      two map types (`AssociationRefsetMember`). `valueId` (2026-09-06,
-      see the Done entry above) landed the same way, **not yet
-      released** — the second column outside the two map types
-      (`AttributeValueRefsetMember`), confirming the pattern generalizes
-      cleanly. `{{ M ... }}` after `^`
+      `mapCategoryId` (0.21.0), `targetComponentId` (0.22.0), and
+      `valueId` (0.23.0), all after both `^` and `^R`. Together
+      `mapAdvice`/`mapCategoryId` complete `ExtendedMap`'s column
+      coverage entirely — every column that type has is now a filterable
+      `memberFieldFilter` kind — and `targetComponentId`/`valueId` are
+      the first two columns implemented outside the two map types
+      (`AssociationRefsetMember`/`AttributeValueRefsetMember`),
+      confirming the pattern generalizes cleanly. `{{ M ... }}` after `^`
       (0.13.0), after `^R` (0.14.0), and its `memberFieldFilter`
-      alternative (0.15.0-0.22.0), all decided and executed under
+      alternative (0.15.0-0.23.0), all decided and executed under
       `spec/ai-release-authority/`'s criteria rather than a fresh
       per-release maintainer go-ahead (see `CHANGELOG.md`). 9 crates, 425
       tests,
