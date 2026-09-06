@@ -13,6 +13,37 @@ together, in dependency order (`snomed-core` → `snomed-rf2` → `snomed-owl`
 
 ## [Unreleased]
 
+**New ECL capability, additive.** `{{ M ... }}`'s `memberFieldFilter`
+gains its fourteenth column, `attributeType` —
+`RefsetDescriptorRefsetMember`'s second column (after
+`attributeDescription`), after both `^` and `^R`. Like
+`attributeDescription`/`mrcmRuleRefsetId`, no other implemented column
+shares this RF2 field name, so this is a genuinely new
+`MemberFilterKind` variant rather than an extension of an existing
+one. A minor bump: new public API, no removals or signature changes to
+anything existing.
+
+### Added
+
+- `snomed-ecl`: `{{ M attributeType = 116680003 }}` restricts to
+  `RefsetDescriptor` member rows whose own `attributeType` column
+  matches — the same concept-reference grammar `correlationId`/
+  `mapCategoryId`/`targetComponentId`/`valueId`/`mrcmRuleRefsetId`/
+  `attributeDescription` use (reusing `ModuleFilter`'s exact shape).
+  Works after both `^` and `^R`, and conjoins with `moduleId` and the
+  other shared-column kinds on the same member row.
+  `attributeDescription`/`attributeType` both live on the same
+  `RefsetDescriptorRefsetMember` row, so a block naming both is
+  satisfied by that one row. Only `RefsetDescriptorRefsetMember` rows
+  carry an `attributeType` column; every other refset type never
+  matches this filter. New public API:
+  `MemberFilterKind::AttributeType`.
+
+### Notes for consumers
+
+- No public API removed or changed signature; existing code compiles
+  unmodified against this release.
+
 ## [0.28.0] — 2026-09-06
 
 **New ECL capability, additive.** `{{ M ... }}`'s `memberFieldFilter`

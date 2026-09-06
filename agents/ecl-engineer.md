@@ -362,7 +362,15 @@ implemented column shares its RF2 field name either, and a ninth
 row-set check (`refset_descriptor_member_rows`) — the store already
 carried that accessor (`RefsetDescriptorRefsetMember` was already one
 of the sixteen retained types), so this increment was parser/eval only,
-no `snomed-store` change. `memberFieldFilter`
+no `snomed-store` change. `attributeType` (2026-09-06),
+`RefsetDescriptorRefsetMember`'s second column, followed immediately:
+another genuinely new variant (`AttributeType`) since no implemented
+column shares that RF2 field name either, but this one needed no new
+row-set check at all — both columns live on the same row, so
+`refset_descriptor_member_rows`' existing block just grew a second
+`TypedFields` entry populated alongside the first, the same "two
+fields, one row" shape `targetComponentId`/`order` already have for
+`OrderedAssociationRefsetMember`. `memberFieldFilter`
 isn't one production but five in the official grammar, chosen by the
 named column's own semantic type
 (`expressionComparisonOperator ws subExpressionConstraint` for a concept

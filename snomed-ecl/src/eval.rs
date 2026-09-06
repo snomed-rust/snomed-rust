@@ -299,6 +299,7 @@ fn member_row_matches(
                 | MemberFilterKind::Order(_)
                 | MemberFilterKind::MrcmRuleRefsetId(_)
                 | MemberFilterKind::AttributeDescription(_)
+                | MemberFilterKind::AttributeType(_)
         )
     }) {
         return typed_field_row_matches(
@@ -332,12 +333,17 @@ fn member_row_matches(
 /// `mapPriority`, `mapRule`, `mapAdvice`, `mapCategoryId`, …) is
 /// `ExtendedMap`-only and adds one more field here instead of one more
 /// function parameter everywhere. `target_component_id`/`value_id`/
-/// `owl_expression`/`order`/`mrcm_rule_refset_id`/`attribute_description`
+/// `owl_expression`/`order`/`mrcm_rule_refset_id`/`attribute_description`/
+/// `attribute_type`
 /// are the first fields from refset types
 /// outside the two map types
 /// (`AssociationRefsetMember`/`AttributeValueRefsetMember`/
 /// `OwlExpressionRefsetMember`/`OrderedComponentRefsetMember`/
-/// `MrcmModuleScopeRefsetMember`/`RefsetDescriptorRefsetMember`).
+/// `MrcmModuleScopeRefsetMember`/`RefsetDescriptorRefsetMember` —
+/// `attribute_description`/`attribute_type` are both populated from the
+/// same `RefsetDescriptorRefsetMember` row, the same "two fields, one
+/// row" case `target_component_id`/`order` have for
+/// `OrderedAssociationRefsetMember`).
 #[derive(Default)]
 struct TypedFields<'a> {
     map_target: Option<&'a str>,
@@ -353,6 +359,7 @@ struct TypedFields<'a> {
     order: Option<u32>,
     mrcm_rule_refset_id: Option<SctId>,
     attribute_description: Option<SctId>,
+    attribute_type: Option<SctId>,
 }
 
 /// The `mapTarget`/`correlationId`/`mapGroup`/`mapPriority`/`mapRule`/
@@ -582,6 +589,7 @@ fn typed_field_row_matches(
                         &row.core,
                         &TypedFields {
                             attribute_description: Some(row.attribute_description_id),
+                            attribute_type: Some(row.attribute_type_id),
                             ..TypedFields::default()
                         },
                     )
@@ -728,7 +736,8 @@ fn prepare_member_filter(filter: &MemberFilterKind, store: &SnapshotStore) -> Pr
         | MemberFilterKind::TargetComponentId(ModuleFilter { value, .. })
         | MemberFilterKind::ValueId(ModuleFilter { value, .. })
         | MemberFilterKind::MrcmRuleRefsetId(ModuleFilter { value, .. })
-        | MemberFilterKind::AttributeDescription(ModuleFilter { value, .. }) => {
+        | MemberFilterKind::AttributeDescription(ModuleFilter { value, .. })
+        | MemberFilterKind::AttributeType(ModuleFilter { value, .. }) => {
             PreparedMemberFilter::Concepts(evaluate(value, store))
         }
         MemberFilterKind::MapTarget(TermFilter { values, .. })
@@ -944,6 +953,18 @@ fn member_filter_matches(
                 return false;
             };
             values.contains(&attribute_description) != *negated
+        }
+        MemberFilterKind::AttributeType(ModuleFilter { negated, .. }) => {
+            let PreparedMemberFilter::Concepts(values) = prepared else {
+                unreachable!("an attributeType filter prepares to `Concepts`")
+            };
+            // No `attribute_type` on this row source (every source but
+            // `RefsetDescriptor`'s own): never matches, same reasoning
+            // as `AttributeDescription`'s `None` case above.
+            let Some(attribute_type) = fields.attribute_type else {
+                return false;
+            };
+            values.contains(&attribute_type) != *negated
         }
     }
 }
@@ -4358,6 +4379,157 @@ mod tests {
             "^ {refset_descriptor} {{{{ M moduleId = {module_a}, attributeDescription = {exact_match} }}}}"
         );
         assert_eq!(eval(&matched, &store), HashSet::from([MI]));
+    }
+
+    /// `attributeType` (spec/10 rule 18) — the fourteenth
+    /// `memberFieldFilter` column, and `RefsetDescriptorRefsetMember`'s
+    /// second (after `attributeDescription`). Like
+    /// `attributeDescription`/`mrcmRuleRefsetId`, no other implemented
+    /// column shares this RF2 field name, so it needed a genuinely new
+    /// `MemberFilterKind` variant, though it reuses the same
+    /// concept-reference shape. Tested against the same ninth typed row
+    /// set (`refset_descriptor_member_rows`) `attributeDescription`
+    /// uses — no new row-set check needed, since both columns live on
+    /// the same row. Also proves `{{ M }}` after `^R` reaches it.
+    #[test]
+    fn member_filter_attribute_type_matches_refset_descriptor_rows() {
+        let refset_descriptor = SctId::compose(9925, ComponentType::Concept, None).unwrap();
+        let description = SctId::compose(9926, ComponentType::Concept, None).unwrap();
+        let exact_match = SctId::compose(9927, ComponentType::Concept, None).unwrap();
+        let broad_to_narrow = SctId::compose(9928, ComponentType::Concept, None).unwrap();
+        let mut b = SnapshotStore::builder();
+        b.add_concept(concept(MI));
+        b.add_concept(concept(exact_match));
+        b.add_concept(concept(broad_to_narrow));
+        b.add_refset_descriptor_member(RefsetDescriptorRefsetMember {
+            core: RefsetMemberCore {
+                id: MemberId::parse("80000000-0000-4000-8000-000000000126").unwrap(),
+                effective_time: EffectiveTime::new_unchecked(20190731),
+                active: true,
+                module_id: constants::CORE_MODULE,
+                refset_id: refset_descriptor,
+                referenced_component_id: MI,
+            },
+            attribute_description_id: description,
+            attribute_type_id: exact_match,
+            attribute_order: 0,
+        });
+        let store = b.build();
+
+        assert_eq!(
+            eval(
+                &format!("^ {refset_descriptor} {{{{ M attributeType = {broad_to_narrow} }}}}"),
+                &store
+            ),
+            HashSet::new(),
+            "the row's own attributeType doesn't match"
+        );
+        assert_eq!(
+            eval(
+                &format!("^ {refset_descriptor} {{{{ M attributeType = {exact_match} }}}}"),
+                &store
+            ),
+            HashSet::from([MI])
+        );
+        // `^R` reaches the same row, through the shared row-matching path.
+        assert_eq!(
+            eval(
+                &format!("^R {MI} {{{{ M attributeType = {exact_match} }}}}"),
+                &store
+            ),
+            HashSet::from([refset_descriptor])
+        );
+    }
+
+    /// `AssociationRefsetMember`/every other typed row source has no
+    /// `attributeType` column — a membership that exists only there
+    /// must never match, the same "column absent on this row source"
+    /// case every other field filter has for the row types it doesn't
+    /// apply to.
+    #[test]
+    fn member_filter_attribute_type_never_matches_association_rows() {
+        let same_as = SctId::compose(9929, ComponentType::Concept, None).unwrap();
+        let exact_match = SctId::compose(9930, ComponentType::Concept, None).unwrap();
+        let mut b = SnapshotStore::builder();
+        b.add_concept(concept(MI));
+        b.add_concept(concept(exact_match));
+        b.add_association_member(AssociationRefsetMember {
+            core: RefsetMemberCore {
+                id: MemberId::parse("80000000-0000-4000-8000-000000000127").unwrap(),
+                effective_time: EffectiveTime::new_unchecked(20190731),
+                active: true,
+                module_id: constants::CORE_MODULE,
+                refset_id: same_as,
+                referenced_component_id: MI,
+            },
+            target_component_id: exact_match,
+        });
+        let store = b.build();
+
+        assert_eq!(
+            eval(
+                &format!("^ {same_as} {{{{ M attributeType = {exact_match} }}}}"),
+                &store
+            ),
+            HashSet::new()
+        );
+    }
+
+    /// `attributeDescription`/`attributeType` both live on the same
+    /// `RefsetDescriptorRefsetMember` row (spec/08) — the same "two
+    /// fields, one row" case `targetComponentId`/`order` have for
+    /// `OrderedAssociationRefsetMember`: each filter alone reaches the
+    /// row, and a block naming both is satisfied by that one row, not
+    /// by two different rows each matching one filter.
+    #[test]
+    fn member_filter_attribute_description_and_attribute_type_both_match_the_same_row() {
+        let refset_descriptor = SctId::compose(9931, ComponentType::Concept, None).unwrap();
+        let description = SctId::compose(9932, ComponentType::Concept, None).unwrap();
+        let attribute_type = SctId::compose(9933, ComponentType::Concept, None).unwrap();
+        let mut b = SnapshotStore::builder();
+        b.add_concept(concept(MI));
+        b.add_concept(concept(description));
+        b.add_concept(concept(attribute_type));
+        b.add_refset_descriptor_member(RefsetDescriptorRefsetMember {
+            core: RefsetMemberCore {
+                id: MemberId::parse("80000000-0000-4000-8000-000000000128").unwrap(),
+                effective_time: EffectiveTime::new_unchecked(20190731),
+                active: true,
+                module_id: constants::CORE_MODULE,
+                refset_id: refset_descriptor,
+                referenced_component_id: MI,
+            },
+            attribute_description_id: description,
+            attribute_type_id: attribute_type,
+            attribute_order: 0,
+        });
+        let store = b.build();
+
+        // Each filter alone reaches the row.
+        assert_eq!(
+            eval(
+                &format!("^ {refset_descriptor} {{{{ M attributeDescription = {description} }}}}"),
+                &store
+            ),
+            HashSet::from([MI])
+        );
+        assert_eq!(
+            eval(
+                &format!("^ {refset_descriptor} {{{{ M attributeType = {attribute_type} }}}}"),
+                &store
+            ),
+            HashSet::from([MI])
+        );
+        // Together, one row satisfies both.
+        assert_eq!(
+            eval(
+                &format!(
+                    "^ {refset_descriptor} {{{{ M attributeDescription = {description}, attributeType = {attribute_type} }}}}"
+                ),
+                &store
+            ),
+            HashSet::from([MI])
+        );
     }
 
     /// `constraintOperator "(" expressionConstraint ")"` — the operator

@@ -603,11 +603,20 @@ impl Parser {
                     value: Box::new(value),
                 }))
             }
+            TokenKind::Word(word) if word == "attributeType" => {
+                self.advance()?;
+                let negated = self.parse_boolean_comparison_operator()?;
+                let value = self.parse_sub_expression_constraint()?;
+                Ok(MemberFilterKind::AttributeType(ModuleFilter {
+                    negated,
+                    value: Box::new(value),
+                }))
+            }
             _ => {
                 let tok = self.peek().clone();
                 Err(Self::unexpected(
                     &tok,
-                    "`moduleId`, `effectiveTime`, `active`, `mapTarget`, `correlationId`, `mapGroup`, `mapPriority`, `mapRule`, `mapAdvice`, `mapCategoryId`, `targetComponentId`, `valueId`, `owlExpression`, `order`, `mrcmRuleRefsetId`, or `attributeDescription`",
+                    "`moduleId`, `effectiveTime`, `active`, `mapTarget`, `correlationId`, `mapGroup`, `mapPriority`, `mapRule`, `mapAdvice`, `mapCategoryId`, `targetComponentId`, `valueId`, `owlExpression`, `order`, `mrcmRuleRefsetId`, `attributeDescription`, or `attributeType`",
                 ))
             }
         }
@@ -1966,6 +1975,29 @@ mod tests {
                 "expected an AttributeDescription filter, got {:?}",
                 filters[0]
             );
+        };
+        assert!(!negated);
+    }
+
+    /// `attributeType` (spec/10 rule 18) — the fourteenth
+    /// `memberFieldFilter` column, and `RefsetDescriptorRefsetMember`'s
+    /// second (after `attributeDescription`). Like
+    /// `attributeDescription`/`mrcmRuleRefsetId`, no implemented column
+    /// shares this RF2 field name, so it's a genuinely new variant,
+    /// though it reuses the same concept-reference shape.
+    #[test]
+    fn parses_member_filter_attribute_type() {
+        let EC::MemberFilter { filters, .. } =
+            parse("^ 900000000000456007 {{ M attributeType = 449608002 }}").unwrap()
+        else {
+            panic!("expected a member filter");
+        };
+        assert_eq!(filters.len(), 1);
+        let crate::ast::MemberFilterKind::AttributeType(crate::ast::ModuleFilter {
+            negated, ..
+        }) = &filters[0]
+        else {
+            panic!("expected an AttributeType filter, got {:?}", filters[0]);
         };
         assert!(!negated);
     }

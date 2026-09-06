@@ -212,6 +212,14 @@ concept reference has five, numeric has three):
   genuinely new `MemberFilterKind` variant: only
   `RefsetDescriptorRefsetMember` rows carry it, tested against
   `SnapshotStore::refset_descriptor_member_rows` directly.
+- `attributeType (=|!=) subExpressionConstraint` — the same
+  concept-reference shape again, matched against the member row's own
+  `attributeType` column. `RefsetDescriptorRefsetMember`'s second
+  column (after `attributeDescription`) — both live on the same row,
+  tested against the same `SnapshotStore::refset_descriptor_member_rows`,
+  no new row-set check needed. Like `attributeDescription`, no other
+  implemented column shares this RF2 field name, so it's its own
+  genuinely new `MemberFilterKind` variant too.
 - `mapGroup (=|!=|<=|<|>=|>) "#" numericValue` — the same
   `numericComparisonOperator "#" numericValue` value form
   `eclAttribute`'s own numeric concrete value comparison uses, matched
@@ -261,9 +269,9 @@ concept reference has five, numeric has three):
   true rather than accidentally satisfying the two filters from two
   different rows.
 
-All thirteen reuse the shared dispatch `mapTarget` introduced (renamed
+All fourteen reuse the shared dispatch `mapTarget` introduced (renamed
 `typed_field_row_matches` once a non-map type joined it): a block
-naming *any* of the thirteen kinds is tested against
+naming *any* of the fourteen kinds is tested against
 `SimpleMap`/`ExtendedMap`/`Association`/`AttributeValue`/`OwlExpression`/
 `OrderedComponent`/`OrderedAssociation`/`MrcmModuleScope`/
 `RefsetDescriptor`
@@ -275,7 +283,7 @@ shared-column one — a `SimpleMap` row can never satisfy a block naming
 any of `correlationId`/
 `mapGroup`/`mapPriority`/`mapRule`/`mapAdvice`/`mapCategoryId`/
 `targetComponentId`/`valueId`/`owlExpression`/`order`/
-`mrcmRuleRefsetId`/`attributeDescription` (the column is
+`mrcmRuleRefsetId`/`attributeDescription`/`attributeType` (the column is
 simply
 absent on that row source, the same "not this row's type" answer a
 shared-column filter gets from a row of the wrong refset type), so it

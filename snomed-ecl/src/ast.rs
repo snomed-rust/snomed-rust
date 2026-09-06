@@ -373,7 +373,8 @@ pub enum ConceptFilterKind {
 ///
 /// `MapTarget`/`CorrelationId`/`MapGroup`/`MapPriority`/`MapRule`/
 /// `MapAdvice`/`MapCategoryId`/`TargetComponentId`/`ValueId`/
-/// `OwlExpression`/`Order`/`MrcmRuleRefsetId`/`AttributeDescription`
+/// `OwlExpression`/`Order`/`MrcmRuleRefsetId`/`AttributeDescription`/
+/// `AttributeType`
 /// are the official grammar's fourth kind, `memberFieldFilter`
 /// — a refset-type-specific column rather than a shared one. Its own
 /// grammar (confirmed against the official ABNF, `syntax/abnf-brief.txt`)
@@ -400,9 +401,12 @@ pub enum ConceptFilterKind {
 /// ones; `mrcmRuleRefsetId` (`MrcmModuleScopeRefsetMember`, a sixth
 /// refset type outside the two map types, back to needing a genuinely
 /// new variant since no implemented column shares its RF2 field name);
-/// and `attributeDescription` (`RefsetDescriptorRefsetMember`, a
+/// `attributeDescription` (`RefsetDescriptorRefsetMember`, a
 /// seventh refset type outside the two map types, another genuinely new
-/// variant for the same reason) — all
+/// variant for the same reason); and `attributeType`
+/// (`RefsetDescriptorRefsetMember` again, its second column, another
+/// genuinely new variant — both columns come from the same row, so a
+/// block naming both is satisfied by that one row) — all
 /// decided 2026-09-03 (`plan.md`'s "Open decisions") to retain full rows
 /// — active and inactive — for all sixteen non-Simple/Language refset
 /// types, the same store change `moduleId`/`effectiveTime`/`active`
@@ -575,6 +579,21 @@ pub enum MemberFilterKind {
     /// than extending an existing one. A block naming it is tested
     /// against `SnapshotStore::refset_descriptor_member_rows` instead.
     AttributeDescription(ModuleFilter),
+    /// `attributeType (=|!=) subExpressionConstraint` — a
+    /// `memberFieldFilter` (spec/10 rule 18):
+    /// `RefsetDescriptorRefsetMember`'s own `attributeType` column (a
+    /// concept reference — the datatype of the extra column being
+    /// documented, e.g. |SNOMED CT concept|, |integer|, |string|).
+    /// Reuses [`ModuleFilter`]'s exact shape and grammar again, on the
+    /// same refset type as [`MemberFilterKind::AttributeDescription`] —
+    /// `RefsetDescriptorRefsetMember` carries both columns on one row,
+    /// so a block naming both is satisfied by that one row, the same
+    /// way `TargetComponentId`/`Order` share
+    /// `OrderedAssociationRefsetMember`. No other implemented column
+    /// shares the RF2 field name `attributeType`, so this needs its own
+    /// variant too, not a reuse. A block naming it is tested against
+    /// `SnapshotStore::refset_descriptor_member_rows` instead.
+    AttributeType(ModuleFilter),
 }
 
 /// `numericComparisonOperator ws "#" numericValue` — a `memberFieldFilter`
