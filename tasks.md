@@ -37,6 +37,38 @@ most recently on 2026-09-06, to keep this file inside the repository's
 40 KB per-document budget. Search both when asking "has this come up
 before".
 
+## Done (2026-09-06, Release 0.28.0 — `memberFieldFilter`'s `attributeDescription`, sixteenth self-decided release)
+
+- [x] **Decided and executed the release itself**, per §1-5 of
+      `spec/ai-release-authority/`: §1 CI independently green on the
+      pushed merge commit (`880125f`, all jobs); §2 `CHANGELOG.md`'s
+      `[Unreleased]` verified against the actual diff and moved under
+      `## [0.28.0]`, minor bump (purely additive: new
+      `MemberFilterKind::AttributeDescription` variant, new
+      `TypedFields` field, new `refset_descriptor_member_rows`
+      dispatch check — nothing removed or changed signature); §3 no
+      rule oversteps — needed a genuinely new variant (no existing
+      column shares the RF2 field name `attributeDescription`), the
+      same kind of routine grammar-coverage call this authority already
+      covers, not a `plan.md` "Open decisions" item; §4 all nine
+      crates, one version, standard dependency order; §5 tagged
+      `v0.28.0` (signed, verified against the merge commit) and ran
+      `cargo publish` for each crate in order, all nine succeeding with
+      no package-cache waits or slow builds this time.
+- [x] **Verified against crates.io's own API afterward**: `GET
+      /api/v1/crates/<name>` for all nine names returns
+      `max_version: "0.28.0"`.
+- [x] Version bumped everywhere the 0.13.0-0.27.0 precedent bumped it:
+      `Cargo.toml` (workspace + seven pins), `CITATION.cff`, `NEWS.md`,
+      `INSTALL.md`, `SECURITY.md`.
+- [x] Same `release/0.28.0` branch/merge shape as 0.12.0-0.27.0, not a
+      direct commit to `main`; branch deleted locally after the merge
+      commit was confirmed pushed and green on all three forges.
+- [x] All three forges (GitHub/GitLab/Codeberg) pushed cleanly on the
+      first attempt throughout — `main`, the merge commit, and
+      `v0.28.0` all landed together, no retries needed, no connectivity
+      issues this cycle.
+
 ## Done (2026-09-06, ECL `{{ M ... }}` `memberFieldFilter`: `attributeDescription`, seventh column outside the two map types, second new variant in a row)
 
 - [x] **`snomed-ecl`**: `MemberFilterKind::AttributeDescription(ModuleFilter)`
@@ -345,7 +377,7 @@ before".
 ## Next up
 
 - [ ] Nothing currently scoped beyond the `{{ M ... }}` remainder below.
-      State as of 2026-09-06: **0.27.0 released** — `mapTarget` (0.15.0),
+      State as of 2026-09-06: **0.28.0 released** — `mapTarget` (0.15.0),
       `correlationId` (0.16.0), `mapGroup` (0.17.0), `mapPriority`
       (0.18.0), `mapRule` (0.19.0), `mapAdvice` plus the `ecl_parse`
       fuzz-caught recursion-depth guard (spec/10 rule 19, 0.20.0),
@@ -353,14 +385,11 @@ before".
       `valueId` (0.23.0), `owlExpression` (0.24.0), `order`
       (0.25.0), `targetComponentId`/`order` extending to
       `OrderedAssociationRefsetMember` (0.26.0, zero new variants,
-      reusing both existing filter kinds), and `mrcmRuleRefsetId`
+      reusing both existing filter kinds), `mrcmRuleRefsetId`
       (0.27.0, first genuinely new variant since `targetComponentId`,
-      on `MrcmModuleScopeRefsetMember`), all after both `^` and `^R`.
-      `attributeDescription` (2026-09-06, see the Done entry above)
-      landed the same way, **not yet released** — an eighth column
-      outside the two map types (`RefsetDescriptorRefsetMember`), and
-      the second in a row (after `mrcmRuleRefsetId`) needing a
-      genuinely new variant rather than reusing one.
+      on `MrcmModuleScopeRefsetMember`), and `attributeDescription`
+      (0.28.0, second genuinely new variant in a row, on
+      `RefsetDescriptorRefsetMember`), all after both `^` and `^R`.
       Together `mapAdvice`/`mapCategoryId` complete `ExtendedMap`'s
       column coverage entirely — every column that type has is now a
       filterable `memberFieldFilter` kind — and `targetComponentId`/
@@ -374,8 +403,7 @@ before".
       first two of those columns).
       `{{ M ... }}` after `^`
       (0.13.0), after `^R` (0.14.0), and its `memberFieldFilter`
-      alternative (0.15.0-0.27.0, `attributeDescription` not yet
-      released), all decided and executed under
+      alternative (0.15.0-0.28.0), all decided and executed under
       `spec/ai-release-authority/`'s criteria rather than a fresh
       per-release maintainer go-ahead (see `CHANGELOG.md`). 9 crates, 443
       tests,
