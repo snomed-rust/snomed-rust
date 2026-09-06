@@ -24,12 +24,64 @@ audit, the two Claude Code skills (`snomed-skill`,
 column plus release 0.17.0 (2026-09-03), the repository restructuring
 that moved every crate out of `crates/<name>/` to `<name>/`,
 `memberFieldFilter`'s `mapPriority` column plus release 0.18.0
-(2026-09-04), release 0.19.0, and `memberFieldFilter`'s `mapRule`
-column (2026-09-04), live in
+(2026-09-04), release 0.19.0, `memberFieldFilter`'s `mapRule`
+column, release 0.20.0, the `ecl_parse` fuzz-caught stack overflow, and
+`memberFieldFilter`'s `mapAdvice` column (2026-09-04), live in
 [`docs/tasks-archive.md`](docs/tasks-archive.md) — moved there verbatim,
 most recently on 2026-09-06, to keep this file inside the repository's
 40 KB per-document budget. Search both when asking "has this come up
 before".
+
+## Done (2026-09-06, Release 0.24.0 — `memberFieldFilter`'s `owlExpression`, twelfth self-decided release)
+
+- [x] **Decided and executed the release itself**, per §1-5 of
+      `spec/ai-release-authority/`: §1 CI independently green on the
+      pushed merge commit (`ece1ee1`, all jobs); §2 `CHANGELOG.md`'s
+      `[Unreleased]` verified against the actual diff and moved under
+      `## [0.24.0]`, minor bump (purely additive:
+      `MemberFilterKind::OwlExpression`, nothing removed or changed
+      signature); §3 no rule oversteps — ships the `memberFieldFilter`
+      store-retention decision already recorded in `plan.md` as Decided
+      2026-09-03, `owlExpression` being the tenth concrete field on
+      that same retention and the third data point confirming the
+      retention/dispatch pattern generalizes past the two map types
+      (and across grammar shapes, not just refset types); §4 all nine
+      crates, one version, standard dependency order; §5 tagged
+      `v0.24.0` (signed, verified against the merge commit) and ran
+      `cargo publish` for each crate in order, all nine succeeding
+      (`snomed-rf2`/`snomed-ecl` each hit a transient package-cache
+      file-lock wait mid-run but still reported published; verified
+      below).
+- [x] **Verified against crates.io's own API afterward**: `GET
+      /api/v1/crates/<name>` for all nine names returns
+      `max_version: "0.24.0"`.
+- [x] Version bumped everywhere the 0.13.0-0.23.0 precedent bumped it:
+      `Cargo.toml` (workspace + seven pins), `CITATION.cff`, `NEWS.md`,
+      `INSTALL.md`, `SECURITY.md`.
+- [x] Same `release/0.24.0` branch/merge shape as 0.12.0-0.23.0, not a
+      direct commit to `main`.
+- [x] **Codeberg and GitLab traded places on which forge was
+      unreachable, mid-release**: Codeberg (down since before 0.23.0's
+      release, per that Done entry) recovered on its own partway
+      through this one — its `main`/tag push both succeeded on the
+      first retry — while GitLab's SSH port then started resetting
+      every connection (`Connection reset by 172.65.251.78 port 22`,
+      the same symptom and same IP as the GitLab issue two releases
+      ago that resolved on its own). Five retries across the
+      merge-push/tag-push/post-publish sequence all failed the same
+      way. GitHub and Codeberg both have `main` and `v0.24.0`; **GitLab
+      does not yet** — retry `git push
+      git@gitlab.com:snomed-rust/snomed-rust.git main v0.24.0` next
+      session if this is still open. Net effect across the last three
+      releases: every forge has now had at least one transient outage
+      from this environment, always resolving within a session or two,
+      never blocking crates.io publication.
+- [x] **Archived proactively again**: `tasks.md` was down to ~1.8 KB of
+      budget margin after this entry alone, so moved the three oldest
+      remaining 2026-09-04 sections (release 0.20.0, the `ecl_parse`
+      fuzz-caught stack overflow, `memberFieldFilter`'s `mapAdvice`
+      column) into `docs/tasks-archive-21.md`, restoring comfortable
+      margin.
 
 ## Done (2026-09-06, ECL `{{ M ... }}` `memberFieldFilter`: `owlExpression`, third column outside the two map types, first on string-search shape)
 
@@ -309,105 +361,28 @@ before".
 - [x] Verified: build/clippy/fmt/test (417/417)/check-docs/
       check-trademarks/spec_citations all clean.
 
-## Done (2026-09-04, Release 0.20.0 — `memberFieldFilter`'s `mapAdvice` + fuzz stack-overflow fix, eighth self-decided release)
-
-- [x] **Decided and executed the release itself**, per §1-5 of
-      `spec/ai-release-authority/`: §1 CI independently green on the
-      pushed merge commit (`f58d51d`, all jobs, confirmed via `gh run
-      view` before tagging — including the fuzz-target job that had
-      failed on the pre-fix commit); §2 `CHANGELOG.md`'s `[Unreleased]`
-      verified against the actual diff and moved under `## [0.20.0]`,
-      minor bump (purely additive: `MemberFilterKind::MapAdvice` plus
-      `EclError::MaxNestingDepthExceeded`, nothing removed or changed
-      signature); §3 no rule oversteps — ships the `memberFieldFilter`
-      store-retention decision already recorded in `plan.md` as Decided
-      2026-09-03, `mapAdvice` being a sixth concrete field on that same
-      retention, plus a robustness fix with no undecided change of its
-      own; §4 all nine crates, one version, standard dependency order;
-      §5 tagged `v0.20.0` (signed, verified against the merge commit) and
-      ran `cargo publish` for each crate in order, all nine succeeding.
-- [x] **Verified against crates.io's own API afterward**: `GET
-      /api/v1/crates/<name>` for all nine names returns
-      `max_version: "0.20.0"`.
-- [x] Version bumped everywhere the 0.13.0-0.19.0 precedent bumped it:
-      `Cargo.toml` (workspace + seven pins), `CITATION.cff` (also
-      corrected `date-released`, stale at `2026-09-03` since 0.15.0),
-      `NEWS.md`, `INSTALL.md`, `SECURITY.md`.
-- [x] Same `release/0.20.0` branch/merge shape as 0.12.0-0.19.0, not a
-      direct commit to `main`.
-
-## Done (2026-09-04, `ecl_parse` fuzz-caught stack overflow: recursion depth guard)
-
-- [x] **`snomed-ecl`**: CI's `ecl_parse` fuzz smoke run (post-`mapAdvice`
-      push) found a real stack overflow — deeply nested
-      `(`/refinement/attribute-set input (`((((((...`) recursed until the
-      process aborted. Reproduced locally outside `cargo fuzz` first
-      (`"(".repeat(100_000)` around a bare concept, plain release build)
-      to confirm before touching anything. Fixed with a shared
-      `Parser::depth: u32` counter and `MAX_NESTING_DEPTH = 100`, checked
-      in all three grammar productions with a `"(" ... ")"` recursive
-      alternative — `parse_sub_expression_constraint`,
-      `parse_sub_refinement`, `parse_sub_attribute_set` — each now a thin
-      `enter_nesting()?` wrapper around its real (renamed `_inner`) body,
-      rejecting with the new `EclError::MaxNestingDepthExceeded` instead
-      of recursing further. All three needed the guard independently:
-      refinement nesting (`A: ((((r = 1))))`) and attribute-set nesting
-      don't route through the expression path at all. New spec/10 rule
-      19. 4 new tests: rejects beyond the limit for all three productions,
-      parses fine exactly at the limit. Verified: build/clippy/fmt/test
-      (413/413)/check-docs/check-trademarks/spec_citations/fuzz-check/
-      benches-check all clean, plus a local `cargo +nightly fuzz build
-      ecl_parse` and a 20s smoke run matching CI's own command to confirm
-      the crash is actually gone, not just the specific repro string.
-
-## Done (2026-09-04, ECL `{{ M ... }}` `memberFieldFilter`: `mapAdvice`, sixth column, third string-search field)
-
-- [x] **`snomed-ecl`**: `MemberFilterKind::MapAdvice(TermFilter)` —
-      `mapAdvice (=|!=) (typedSearchTerm | typedSearchTermSet)`, reusing
-      `mapTarget`/`mapRule`'s exact grammar and
-      `parse_typed_search_term_set` verbatim (a different
-      `ExtendedMapRefsetMember` column, not a new production —
-      `SimpleMapRefsetMember` doesn't carry `mapAdvice`, same as
-      `mapRule`). Extended `TypedFields` with one more `Option<&str>`
-      field and `member_row_matches`'s dispatch condition, matching the
-      pattern established for every field so far; `member_filter_matches`'s
-      new arm reuses `term_matches`/`PreparedSearch`, the same machinery
-      `mapTarget`/`mapRule` already proved out. Completes
-      `ExtendedMapRefsetMember`'s string-shaped columns.
-- [x] Four new tests (one parser, three eval: matches after `^`/`^R`,
-      never matches a `SimpleMap`-only row, conjoins with `mapTarget` on
-      the same row per "one row, all filters"). 409/409 tests passing (up
-      from 405).
-- [x] Docs updated to match: `spec/10-ecl.md`, `spec/10-ecl-filters.md`,
-      `spec/10-ecl-unimplemented.md`, `snomed-ecl/src/lib.rs`,
-      `snomed-ecl/README.md`, `agents/ecl-engineer.md`,
-      `agents/store-engineer.md`, `plan.md` (Open decisions, Current
-      status test count).
-- [x] `cargo clippy --all-targets`, `cargo fmt --check`, `fuzz/`/`benches/`
-      all build clean.
-
 ## Next up
 
 - [ ] Nothing currently scoped beyond the `{{ M ... }}` remainder below.
-      State as of 2026-09-06: **0.23.0 released** — `mapTarget` (0.15.0),
+      State as of 2026-09-06: **0.24.0 released** — `mapTarget` (0.15.0),
       `correlationId` (0.16.0), `mapGroup` (0.17.0), `mapPriority`
       (0.18.0), `mapRule` (0.19.0), `mapAdvice` plus the `ecl_parse`
       fuzz-caught recursion-depth guard (spec/10 rule 19, 0.20.0),
-      `mapCategoryId` (0.21.0), `targetComponentId` (0.22.0), and
-      `valueId` (0.23.0), all after both `^` and `^R`. Together
+      `mapCategoryId` (0.21.0), `targetComponentId` (0.22.0),
+      `valueId` (0.23.0), and `owlExpression` (0.24.0), all after both
+      `^` and `^R`. Together
       `mapAdvice`/`mapCategoryId` complete `ExtendedMap`'s column
       coverage entirely — every column that type has is now a filterable
-      `memberFieldFilter` kind — and `targetComponentId`/`valueId` are
-      the first two columns implemented outside the two map types
-      (`AssociationRefsetMember`/`AttributeValueRefsetMember`).
-      `owlExpression` (2026-09-06, see the Done entry above) landed the
-      same way, **not yet released** — the third column outside the two
-      map types (`OwlExpressionRefsetMember`), and the first of those
-      three on the string-search shape rather than concept-reference,
-      confirming the pattern generalizes across grammar shapes too.
+      `memberFieldFilter` kind — and `targetComponentId`/`valueId`/
+      `owlExpression` are the first three columns implemented outside
+      the two map types
+      (`AssociationRefsetMember`/`AttributeValueRefsetMember`/
+      `OwlExpressionRefsetMember`), the last of those three on the
+      string-search shape rather than concept-reference, confirming the
+      pattern generalizes across grammar shapes too.
       `{{ M ... }}` after `^`
       (0.13.0), after `^R` (0.14.0), and its `memberFieldFilter`
-      alternative (0.15.0-0.23.0), all decided and executed under
+      alternative (0.15.0-0.24.0), all decided and executed under
       `spec/ai-release-authority/`'s criteria rather than a fresh
       per-release maintainer go-ahead (see `CHANGELOG.md`). 9 crates, 429
       tests,
