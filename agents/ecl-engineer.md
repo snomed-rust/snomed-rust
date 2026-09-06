@@ -329,7 +329,12 @@ two more `memberFieldFilter` grammar shapes — `mapCategoryId` reusing
 shape again but tested against a third typed row set
 (`association_member_rows`) — the dispatch function that used to be
 `typed_map_row_matches` is `typed_field_row_matches` now that it isn't
-map-only. `memberFieldFilter`
+map-only. `valueId` (2026-09-06) is the second column outside the two
+map types (`AttributeValueRefsetMember`), the same shape again but a
+fourth row-set check (`attribute_value_member_rows`) added to the same
+function — two increments in a row confirming the pattern generalizes
+cleanly: extend `TypedFields`, extend the dispatch condition, add one
+row-set check to `typed_field_row_matches`, done. `memberFieldFilter`
 isn't one production but five in the official grammar, chosen by the
 named column's own semantic type
 (`expressionComparisonOperator ws subExpressionConstraint` for a concept

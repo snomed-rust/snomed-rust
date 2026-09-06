@@ -457,14 +457,16 @@ impl Parser {
     /// tokenized for `{{ C }}`, so no new lexer keywords were needed for
     /// them. The fourth, `memberFieldFilter`, is `refsetFieldName` —
     /// `1*alpha` in the official grammar, not a fixed keyword list, so it
-    /// lexes as a plain `TokenKind::Word` — and only the eight spellings
+    /// lexes as a plain `TokenKind::Word` — and only the nine spellings
     /// this crate implements, `mapTarget`, `correlationId`, `mapGroup`,
-    /// `mapPriority`, `mapRule`, `mapAdvice`, `mapCategoryId`, and
-    /// `targetComponentId` (spec/10 rule 18), are recognized here; any
-    /// other word falls through to the generic "unexpected keyword"
+    /// `mapPriority`, `mapRule`, `mapAdvice`, `mapCategoryId`,
+    /// `targetComponentId`, and `valueId` (spec/10 rule 18), are
+    /// recognized here; any other word falls through to the generic
+    /// "unexpected keyword"
     /// bucket rule 9 describes rather than being named. `correlationId`/
-    /// `mapCategoryId`/`targetComponentId (=|!=) subExpressionConstraint`
-    /// reuse `moduleId`'s own parse shape verbatim (all are
+    /// `mapCategoryId`/`targetComponentId`/`valueId (=|!=)
+    /// subExpressionConstraint` reuse `moduleId`'s own parse shape
+    /// verbatim (all are
     /// `booleanComparisonOperator`-spelled `=`/`!=`, confirmed against
     /// the official ABNF, even though `moduleFilter` and
     /// `memberFieldFilter` name that operator differently —
@@ -558,11 +560,20 @@ impl Parser {
                     value: Box::new(value),
                 }))
             }
+            TokenKind::Word(word) if word == "valueId" => {
+                self.advance()?;
+                let negated = self.parse_boolean_comparison_operator()?;
+                let value = self.parse_sub_expression_constraint()?;
+                Ok(MemberFilterKind::ValueId(ModuleFilter {
+                    negated,
+                    value: Box::new(value),
+                }))
+            }
             _ => {
                 let tok = self.peek().clone();
                 Err(Self::unexpected(
                     &tok,
-                    "`moduleId`, `effectiveTime`, `active`, `mapTarget`, `correlationId`, `mapGroup`, `mapPriority`, `mapRule`, `mapAdvice`, `mapCategoryId`, or `targetComponentId`",
+                    "`moduleId`, `effectiveTime`, `active`, `mapTarget`, `correlationId`, `mapGroup`, `mapPriority`, `mapRule`, `mapAdvice`, `mapCategoryId`, `targetComponentId`, or `valueId`",
                 ))
             }
         }
@@ -1801,6 +1812,27 @@ mod tests {
         }) = &filters[0]
         else {
             panic!("expected a TargetComponentId filter, got {:?}", filters[0]);
+        };
+        assert!(!negated);
+    }
+
+    /// `valueId` (spec/10 rule 18) — the ninth `memberFieldFilter`
+    /// column, and the second outside the two map types
+    /// (`AttributeValueRefsetMember`). Reuses `correlationId`/
+    /// `mapCategoryId`/`targetComponentId`'s exact concept-reference
+    /// shape.
+    #[test]
+    fn parses_member_filter_value_id() {
+        let EC::MemberFilter { filters, .. } =
+            parse("^ 900000000000527005 {{ M valueId = 22298006 }}").unwrap()
+        else {
+            panic!("expected a member filter");
+        };
+        assert_eq!(filters.len(), 1);
+        let crate::ast::MemberFilterKind::ValueId(crate::ast::ModuleFilter { negated, .. }) =
+            &filters[0]
+        else {
+            panic!("expected a ValueId filter, got {:?}", filters[0]);
         };
         assert!(!negated);
     }

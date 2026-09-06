@@ -386,18 +386,11 @@ column's own semantic type (confirmed against the official ABNF):
 reference, `numericComparisonOperator ws "#" numericValue`,
 `stringComparisonOperator ws (typedSearchTerm | typedSearchTermSet)`,
 `booleanComparisonOperator ws booleanValue`, or `timeComparisonOperator
-ws (timeValue | timeValueSet)`. Eight columns are implemented, spanning
-three of the five shapes: `mapTarget`/`mapRule`/`mapAdvice` (the
-string-search shape, three columns — `mapTarget` on
-`SimpleMap`/`ExtendedMap` rows, the other two on `ExtendedMap` rows
-only), `correlationId`/`mapCategoryId`/`targetComponentId` (the
-concept-reference shape, three columns — `correlationId`/`mapCategoryId`
-on `ExtendedMap` rows only, completing `ExtendedMapRefsetMember`'s
-column coverage; `targetComponentId` on `Association` rows, the first
-column outside the two map types), and `mapGroup`/`mapPriority` (the
-numeric shape, `ExtendedMap` rows only, two columns) — all for both `^`
-and `^R`. Every other column, and both remaining shapes (boolean,
-time), are not; see `spec/10-ecl-unimplemented.md`.
+ws (timeValue | timeValueSet)`. Nine columns are implemented, spanning
+three of the five shapes (string, concept-reference, numeric), all for
+both `^` and `^R` — see `spec/10-ecl-filters.md` for the current
+per-column list. Every other column, and both remaining shapes
+(boolean, time), are not; see `spec/10-ecl-unimplemented.md`.
 
 Grammatically, `memberFilterConstraint` sits *inside* the
 `refsetOperator` branch, not in the trailing `*(conceptFilterConstraint |
@@ -677,7 +670,8 @@ still governs it: nothing on that list may be silently accepted.
     `extended_map_member_rows` for `mapTarget`; `extended_map_member_rows`
     only for `correlationId`/`mapGroup`/`mapPriority`/`mapRule`/
     `mapAdvice`/`mapCategoryId`, since `SimpleMapRefsetMember` has no
-    such columns; `association_member_rows` for `targetComponentId`),
+    such columns; `association_member_rows` for `targetComponentId`;
+    `attribute_value_member_rows` for `valueId`),
     never against `member_rows`'s type-erased
     `RefsetMemberCore` view, which has no such column — and every other
     filter in the same block MUST be tested against that *same* typed

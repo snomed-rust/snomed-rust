@@ -30,6 +30,50 @@ most recently on 2026-09-05, to keep this file inside the repository's
 40 KB per-document budget. Search both when asking "has this come up
 before".
 
+## Done (2026-09-06, ECL `{{ M ... }}` `memberFieldFilter`: `valueId`, second column outside the two map types)
+
+- [x] **`snomed-ecl`**: `MemberFilterKind::ValueId(ModuleFilter)` —
+      `valueId (=|!=) subExpressionConstraint`, reusing
+      `correlationId`/`mapCategoryId`/`targetComponentId`'s exact
+      concept-reference grammar and `ModuleFilter` verbatim, but on
+      `AttributeValueRefsetMember` instead — the second
+      `memberFieldFilter` column implemented outside the two map types,
+      confirming the pattern generalizes cleanly rather than needing a
+      one-off adjustment each time. Extended `TypedFields` with one more
+      `Option<SctId>` field; `member_row_matches`'s dispatch condition
+      now includes it; `typed_field_row_matches` grew a fourth row-set
+      check (`attribute_value_member_rows`, after
+      `simple_map_member_rows`/`extended_map_member_rows`/
+      `association_member_rows`) — same "column absent → never matches"
+      arm every other field filter has, so no cross-type row can wrongly
+      match.
+- [x] 4 new tests (parser: one shape test; eval: matches
+      `AttributeValue` rows after both `^` and `^R`, never matches
+      `Association` rows, conjoins with `moduleId` on the same row) —
+      425/425 total, up from 421.
+- [x] Updated: `spec/10-ecl.md` (rule 18's dispatch enumeration; the
+      summary paragraph trimmed to defer the per-column list to
+      `spec/10-ecl-filters.md` rather than re-enumerating inline — the
+      file was down to 665 bytes of budget margin before this change),
+      `spec/10-ecl-filters.md` (new bullet, dispatch-list update),
+      `spec/10-ecl-unimplemented.md` (removed from the "not implemented"
+      enumeration, added to the narrative), `snomed-ecl/src/lib.rs`,
+      `snomed-ecl/README.md` (table row, not-yet-implemented list),
+      `agents/ecl-engineer.md`, `agents/store-engineer.md` (eight
+      consumers to nine), `plan.md` (Open decisions paragraph, Current
+      status test count, Since 0.9.0 narrative), `CHANGELOG.md`.
+- [x] **`CHANGELOG.md` crossed its own 40 KB budget** (`bin/check-docs`
+      caught it immediately — 41241 bytes) once this entry's `[Unreleased]`
+      section was added, a first for that file. Fixed the same way
+      `tasks.md` handles it: moved the oldest remaining section, `##
+      [0.9.0]`, verbatim into `docs/changelog-archive.md` (which already
+      held 0.8.0 and earlier from an earlier pass), ahead of `## [0.8.0]`
+      to keep it newest-first, and updated both files' own "entries N and
+      earlier live in..." footer text from "0.8.0" to "0.9.0". First
+      time `CHANGELOG.md` itself needed this, not just `tasks.md`.
+- [x] Verified: build/clippy/fmt/test (425/425)/check-docs/
+      check-trademarks/spec_citations all clean.
+
 ## Done (2026-09-05, Release 0.22.0 — `memberFieldFilter`'s `targetComponentId`, tenth self-decided release)
 
 - [x] **Decided and executed the release itself**, per §1-5 of
@@ -318,7 +362,7 @@ before".
 ## Next up
 
 - [ ] Nothing currently scoped beyond the `{{ M ... }}` remainder below.
-      State as of 2026-09-05: **0.22.0 released** — `mapTarget` (0.15.0),
+      State as of 2026-09-06: **0.22.0 released** — `mapTarget` (0.15.0),
       `correlationId` (0.16.0), `mapGroup` (0.17.0), `mapPriority`
       (0.18.0), `mapRule` (0.19.0), `mapAdvice` plus the `ecl_parse`
       fuzz-caught recursion-depth guard (spec/10 rule 19, 0.20.0),
@@ -327,11 +371,15 @@ before".
       complete `ExtendedMap`'s column coverage entirely — every column
       that type has is now a filterable `memberFieldFilter` kind — and
       `targetComponentId` is the first column implemented outside the
-      two map types (`AssociationRefsetMember`). `{{ M ... }}` after `^`
+      two map types (`AssociationRefsetMember`). `valueId` (2026-09-06,
+      see the Done entry above) landed the same way, **not yet
+      released** — the second column outside the two map types
+      (`AttributeValueRefsetMember`), confirming the pattern generalizes
+      cleanly. `{{ M ... }}` after `^`
       (0.13.0), after `^R` (0.14.0), and its `memberFieldFilter`
       alternative (0.15.0-0.22.0), all decided and executed under
       `spec/ai-release-authority/`'s criteria rather than a fresh
-      per-release maintainer go-ahead (see `CHANGELOG.md`). 9 crates, 421
+      per-release maintainer go-ahead (see `CHANGELOG.md`). 9 crates, 425
       tests,
       clippy/fmt clean on stable, MSRV 1.96 (current
       stable minus two, `spec/rust-msrv-n-minus-2/index.md`), `fuzz/`,
@@ -360,12 +408,13 @@ before".
       the `moduleId`/`effectiveTime`/`active` kinds are done after both
       `^` (2026-09-01) and `^R` (2026-09-02); the fourth grammar
       alternative, `memberFieldFilter`, now has its store-retention
-      decided and eight columns done after both `^` and `^R`:
+      decided and nine columns done after both `^` and `^R`:
       `mapTarget`, `correlationId`, `mapGroup` (2026-09-03),
       `mapPriority`, `mapRule`, `mapAdvice` (2026-09-04), `mapCategoryId`
-      (2026-09-05, completes `ExtendedMap`'s column coverage), and
-      `targetComponentId` (2026-09-05, see Done above — the first column
-      outside the two map types). What is still open:
+      (2026-09-05, completes `ExtendedMap`'s column coverage),
+      `targetComponentId` (2026-09-05, the first column outside the two
+      map types), and `valueId` (2026-09-06, see Done above — the
+      second). What is still open:
       - Every other `memberFieldFilter` column — no longer blocked on a
         store decision (all sixteen non-Simple/Language types already
         retain typed active-and-inactive rows via `*_member_rows`), so
@@ -408,15 +457,16 @@ before".
         grammar shape that type implies:
         - Association: **done** — `targetComponentId` (2026-09-05)
           covers the only column it has.
-        - AttributeValue: `valueId` (`SctId` — concept-reference shape) —
-          the most likely next pick; single field, same shape as
-          `targetComponentId`, but a fourth typed row set
-          (`attribute_value_member_rows`) to add to
-          `typed_field_row_matches`, not a reused one.
+        - AttributeValue: **done** — `valueId` (2026-09-06) covers the
+          only column it has.
         - ExtendedMap: **done** — `mapTarget`, `correlationId`,
           `mapGroup`, `mapPriority`, `mapRule`, `mapAdvice`, and
           `mapCategoryId` (2026-09-05) cover every column it has.
-        - OwlExpression: `owlExpression` (`String` — string shape).
+        - OwlExpression: `owlExpression` (`String` — string shape) — the
+          most likely next pick; single field, reuses
+          `mapTarget`/`mapRule`/`mapAdvice`'s `TermFilter`/`term_matches`
+          shape, but the first non-map type on the string shape, so a
+          fifth typed row set (`owl_expression_member_rows`) to add.
         - ModuleDependency: `sourceEffectiveTime`, `targetEffectiveTime`
           (`EffectiveTime` — time shape, no implemented example yet).
         - RefsetDescriptor: `attributeDescription`, `attributeType`
@@ -440,7 +490,9 @@ before".
           (`SctId` — concept-reference shape).
         - MrcmModuleScope: `mrcmRuleRefsetId` (`SctId` —
           concept-reference shape).
-        - OrderedComponent: `order` (`u32` — numeric shape).
+        - OrderedComponent: `order` (`u32` — numeric shape) — equally
+          free; reuses `mapGroup`/`mapPriority`'s `NumericFieldFilter`/
+          `field_numeric_matches` shape, first non-map use of it.
         - OrderedAssociation: `targetComponentId` (same column,
           `MemberFilterKind::TargetComponentId` variant, one more row-set
           check — not a new variant, see `ast.rs`'s doc comment);

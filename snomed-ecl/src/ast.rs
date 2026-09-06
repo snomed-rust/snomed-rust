@@ -372,8 +372,8 @@ pub enum ConceptFilterKind {
 /// than a concept's own row.
 ///
 /// `MapTarget`/`CorrelationId`/`MapGroup`/`MapPriority`/`MapRule`/
-/// `MapAdvice`/`MapCategoryId`/`TargetComponentId` are the official
-/// grammar's fourth kind, `memberFieldFilter`
+/// `MapAdvice`/`MapCategoryId`/`TargetComponentId`/`ValueId` are the
+/// official grammar's fourth kind, `memberFieldFilter`
 /// — a refset-type-specific column rather than a shared one. Its own
 /// grammar (confirmed against the official ABNF, `syntax/abnf-brief.txt`)
 /// is not one shape but five, chosen by the column's own semantic type:
@@ -388,7 +388,8 @@ pub enum ConceptFilterKind {
 /// implemented, `correlationId`, `mapGroup`, `mapPriority`, `mapRule`,
 /// `mapAdvice`, and `mapCategoryId` (`ExtendedMapRefsetMember` only)
 /// followed, then `targetComponentId` (`AssociationRefsetMember`, the
-/// first column outside the two map types) — all
+/// first column outside the two map types) and `valueId`
+/// (`AttributeValueRefsetMember`, the second) — all
 /// decided 2026-09-03 (`plan.md`'s "Open decisions") to retain full rows
 /// — active and inactive — for all sixteen non-Simple/Language refset
 /// types, the same store change `moduleId`/`effectiveTime`/`active`
@@ -491,6 +492,17 @@ pub enum MemberFilterKind {
     /// variant when picked up, the way `mapTarget` already spans two
     /// refset types — not a reason to add a second variant.
     TargetComponentId(ModuleFilter),
+    /// `valueId (=|!=) subExpressionConstraint` — a `memberFieldFilter`
+    /// (spec/10 rule 18): `AttributeValueRefsetMember`'s own `valueId`
+    /// column (a concept reference). Reuses [`ModuleFilter`]'s exact
+    /// shape and grammar — the same concept-reference production
+    /// `correlationId`/`mapCategoryId`/`targetComponentId` use, just a
+    /// different refset type and RF2 column. The second
+    /// `memberFieldFilter` column implemented outside
+    /// `SimpleMapRefsetMember`/`ExtendedMapRefsetMember`, so a block
+    /// naming it is tested against `SnapshotStore::attribute_value_member_rows`
+    /// instead.
+    ValueId(ModuleFilter),
 }
 
 /// `numericComparisonOperator ws "#" numericValue` — a `memberFieldFilter`

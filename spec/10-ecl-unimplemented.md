@@ -79,8 +79,8 @@ token shape:
   the same thing (see "Concept filter constraint" above).
 - A member filter's `memberFieldFilter` kind other than `mapTarget`/
   `correlationId`/`mapGroup`/`mapPriority`/`mapRule`/`mapAdvice`/
-  `mapCategoryId`/`targetComponentId` — a refset-type-specific column
-  (`order`, `domainConstraint`, …), as
+  `mapCategoryId`/`targetComponentId`/`valueId` — a refset-type-specific
+  column (`order`, `domainConstraint`, …), as
   opposed to the three shared-column kinds
   (`moduleId`/`effectiveTime`/`active`) implemented 2026-09-01 after both
   `^` and `^R`. `refsetFieldName` is `1*alpha` in the official grammar
@@ -120,7 +120,11 @@ token shape:
   `targetComponentId` (2026-09-05) — the third concept-reference-shape
   column, and the first outside the two map types
   (`AssociationRefsetMember`) — reuses `correlationId`'s grammar
-  verbatim, tested against `SnapshotStore::association_member_rows`.
+  verbatim, tested against `SnapshotStore::association_member_rows`;
+  `valueId` (2026-09-06) — the fourth concept-reference-shape column,
+  and the second outside the two map types
+  (`AttributeValueRefsetMember`) — reuses `correlationId`'s grammar
+  verbatim, tested against `SnapshotStore::attribute_value_member_rows`.
   Boolean and time remain unimplemented, with no example yet. See
   `SnapshotStore::simple_map_member_rows`/`extended_map_member_rows`/
   `association_member_rows` and
