@@ -76,6 +76,9 @@ before".
       releases: every forge has now had at least one transient outage
       from this environment, always resolving within a session or two,
       never blocking crates.io publication.
+      **Resolved 2026-09-06, next session**: the retry succeeded on the
+      first attempt — all three forges verified at the same commit
+      (`2c7b713`) via `git ls-remote`.
 - [x] **Archived proactively again**: `tasks.md` was down to ~1.8 KB of
       budget margin after this entry alone, so moved the three oldest
       remaining 2026-09-04 sections (release 0.20.0, the `ecl_parse`
