@@ -13,6 +13,8 @@ together, in dependency order (`snomed-core` → `snomed-rf2` → `snomed-owl`
 
 ## [Unreleased]
 
+## [0.25.0] — 2026-09-06
+
 **New ECL capability, additive.** `{{ M ... }}`'s `memberFieldFilter`
 gains its eleventh column, `order` — the fourth column outside the two
 map types (`OrderedComponentRefsetMember`), and the first of those

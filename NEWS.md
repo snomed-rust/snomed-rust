@@ -11,7 +11,7 @@ human-readable layer above it.
 
 | | |
 |---|---|
-| Version | **0.24.0**, released 2026-09-06 |
+| Version | **0.25.0**, released 2026-09-06 |
 | Crates | nine, released together and sharing one version number |
 | Rust MSRV | 1.96 (current stable minus two) |
 | License | `Apache-2.0 OR MIT` |
@@ -19,11 +19,11 @@ human-readable layer above it.
 | Packages | <https://crates.io/crates/snomed> |
 | Documentation | <https://docs.rs/snomed> · <https://snomed-rust.github.io/> |
 
-0.24.0 gives the ECL `{{ M ... }}` member filter constraint's
-`memberFieldFilter` alternative its tenth column, `owlExpression` — the
-third implemented outside the two map types
-(`OwlExpressionRefsetMember`), and the first of those three on the
-string-search shape. Purely additive: no public API removed or
+0.25.0 gives the ECL `{{ M ... }}` member filter constraint's
+`memberFieldFilter` alternative its eleventh column, `order` — the
+fourth implemented outside the two map types
+(`OrderedComponentRefsetMember`), and the first of those four back on
+the numeric shape. Purely additive: no public API removed or
 changed, existing code compiles unmodified. Full detail is in the
 [changelog](CHANGELOG.md).
 
@@ -54,6 +54,7 @@ project is young and says so.
 | 2026-09-05 | 0.22.0 — `{{ M ... }}`'s `memberFieldFilter`: `targetComponentId`, first column outside the two map types |
 | 2026-09-06 | 0.23.0 — `{{ M ... }}`'s `memberFieldFilter`: `valueId`, second column outside the two map types |
 | 2026-09-06 | 0.24.0 — `{{ M ... }}`'s `memberFieldFilter`: `owlExpression`, third column outside the two map types, first on string-search shape |
+| 2026-09-06 | 0.25.0 — `{{ M ... }}`'s `memberFieldFilter`: `order`, fourth column outside the two map types, first back on numeric shape |
 
 ## Following updates
 
@@ -139,7 +140,7 @@ remains licensed material obtained separately from SNOMED International.
 - **What it is not.** Not a terminology server, not an authoring platform, not
   a browser, and not a replacement for Snowstorm. [COMPARISONS.md](COMPARISONS.md)
   states the limitations at length and names the tools that do those jobs.
-- **Maturity.** Version 0.24.0, first published in September 2026, one
+- **Maturity.** Version 0.25.0, first published in September 2026, one
   maintainer, pre-1.0. [MAINTAINERS.md](MAINTAINERS.md) states the bus factor
   and the continuity position without softening, and is the right source for
   any risk framing.
