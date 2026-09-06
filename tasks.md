@@ -40,6 +40,51 @@ most recently on 2026-09-06, to keep this file inside the repository's
 40 KB per-document budget. Search both when asking "has this come up
 before".
 
+## Done (2026-09-06/07, Release 0.30.0 — `memberFieldFilter`'s `attributeOrder`, eighteenth self-decided release)
+
+- [x] **Decided and executed the release itself**, per §1-5 of
+      `spec/ai-release-authority/`: §1 CI independently green on the
+      pushed merge commit (`6eb5d8d`, all jobs, confirmed both by direct
+      `gh run view` and a background monitor); §2 `CHANGELOG.md`'s
+      `[Unreleased]` verified against the actual diff and moved under
+      `## [0.30.0]`, minor bump (purely additive: new
+      `MemberFilterKind::AttributeOrder` variant, no new row-set check
+      needed — nothing removed or changed signature); §3 no rule
+      oversteps — needed a genuinely new variant (no existing column
+      shares the RF2 field name `attributeOrder`, despite the overlap
+      with `order` itself), the same kind of routine grammar-coverage
+      call this authority already covers; §4 all nine crates, one
+      version, standard dependency order; §5 tagged `v0.30.0` (signed,
+      verified against the merge commit) and ran `cargo publish` for
+      each crate in order, all nine succeeding cleanly.
+- [x] **Verified against crates.io's own API afterward**: `GET
+      /api/v1/crates/<name>` for all nine names returns
+      `max_version: "0.30.0"`.
+- [x] Version bumped everywhere the 0.13.0-0.29.0 precedent bumped it:
+      `Cargo.toml` (workspace + seven pins), `CITATION.cff`, `NEWS.md`,
+      `INSTALL.md`, `SECURITY.md`.
+- [x] Same `release/0.30.0` branch/merge shape as 0.12.0-0.29.0, not a
+      direct commit to `main`; branch deleted locally once GitHub and
+      Codeberg confirmed the merge commit and CI came back green.
+- [x] **GitLab's SSH port went down mid-release, twice in a row**: first
+      during the `main`/merge-commit push (resolved after ~31 minutes of
+      60-second retries — GitHub and Codeberg had it immediately;
+      confirmed via `git ls-remote` over HTTPS while SSH kept resetting
+      the connection, then a background retry loop eventually got the
+      SSH push through too), then again on the `v0.30.0` tag push
+      (`Connection reset by 172.65.251.78 port 22`, the same IP as
+      every prior GitLab SSH incident this session). Given the
+      established precedent (the 0.24.0 cycle proceeded to
+      `cargo publish` while GitLab still lagged, and closed the gap in
+      a follow-up), this cycle did the same: all nine crates published
+      and verified against crates.io while the tag-push retry ran in
+      the background. **If this entry still says the tag push is
+      pending, retry `git push git@gitlab.com:snomed-rust/snomed-rust.git
+      v0.30.0` next session** — `cargo publish` never depends on any
+      forge's git state, so this never blocked the actual release.
+- [x] Verified: build/clippy/fmt/test (451/451)/check-docs/
+      check-trademarks/spec_citations all clean before tagging.
+
 ## Done (2026-09-06, ECL `{{ M ... }}` `memberFieldFilter`: `attributeOrder`, `RefsetDescriptor`'s third and last column)
 
 - [x] **`snomed-ecl`**: `MemberFilterKind::AttributeOrder(NumericFieldFilter)`
@@ -319,7 +364,7 @@ before".
 ## Next up
 
 - [ ] Nothing currently scoped beyond the `{{ M ... }}` remainder below.
-      State as of 2026-09-06: **0.29.0 released** — `mapTarget` (0.15.0),
+      State as of 2026-09-06/07: **0.30.0 released** — `mapTarget` (0.15.0),
       `correlationId` (0.16.0), `mapGroup` (0.17.0), `mapPriority`
       (0.18.0), `mapRule` (0.19.0), `mapAdvice` plus the `ecl_parse`
       fuzz-caught recursion-depth guard (spec/10 rule 19, 0.20.0),
@@ -331,15 +376,13 @@ before".
       (0.27.0, first genuinely new variant since `targetComponentId`,
       on `MrcmModuleScopeRefsetMember`), `attributeDescription`
       (0.28.0, second genuinely new variant in a row, on
-      `RefsetDescriptorRefsetMember`), and `attributeType` (0.29.0,
+      `RefsetDescriptorRefsetMember`), `attributeType` (0.29.0,
       `RefsetDescriptorRefsetMember`'s second column, another
       genuinely new variant but needing no new row-set check since
-      both columns share one row), all after both `^` and `^R`.
-      `attributeOrder` (2026-09-06, see the Done entry above) landed
-      the same way, **not yet released** —
+      both columns share one row), and `attributeOrder` (0.30.0,
       `RefsetDescriptorRefsetMember`'s third and last column, back on
       the numeric shape, another genuinely new variant, again needing
-      no new row-set check.
+      no new row-set check), all after both `^` and `^R`.
       Together `mapAdvice`/`mapCategoryId` complete `ExtendedMap`'s
       column coverage entirely — every column that type has is now a
       filterable `memberFieldFilter` kind — and `targetComponentId`/
@@ -357,7 +400,7 @@ before".
       type outside the two map types with full column coverage.
       `{{ M ... }}` after `^`
       (0.13.0), after `^R` (0.14.0), and its `memberFieldFilter`
-      alternative (0.15.0-0.29.0, `attributeOrder` not yet released),
+      alternative (0.15.0-0.30.0),
       all decided and executed under
       `spec/ai-release-authority/`'s criteria rather than a fresh
       per-release maintainer go-ahead (see `CHANGELOG.md`). 9 crates, 451
