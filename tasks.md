@@ -35,6 +35,35 @@ most recently on 2026-09-06, to keep this file inside the repository's
 40 KB per-document budget. Search both when asking "has this come up
 before".
 
+## Done (2026-09-06, Release 0.26.0 — `targetComponentId`/`order` extend to `OrderedAssociation`, fourteenth self-decided release)
+
+- [x] **Decided and executed the release itself**, per §1-5 of
+      `spec/ai-release-authority/`: §1 CI independently green on the
+      pushed merge commit (`caf3d70`, all jobs); §2 `CHANGELOG.md`'s
+      `[Unreleased]` verified against the actual diff and moved under
+      `## [0.26.0]`, minor bump (purely additive: `targetComponentId`/
+      `order` now also match `OrderedAssociationRefsetMember` rows — no
+      new `MemberFilterKind` variant, but a genuine new match target,
+      nothing removed or changed signature); §3 no rule oversteps —
+      built on the same `memberFieldFilter` store-retention decision
+      already recorded in `plan.md` as Decided 2026-09-03, needing no
+      new decision since both filter kinds already existed; §4 all nine
+      crates, one version, standard dependency order; §5 tagged
+      `v0.26.0` (signed, verified against the merge commit) and ran
+      `cargo publish` for each crate in order, all nine succeeding —
+      no package-cache waits or slow builds this time, unlike 0.25.0.
+- [x] **Verified against crates.io's own API afterward**: `GET
+      /api/v1/crates/<name>` for all nine names returns
+      `max_version: "0.26.0"`.
+- [x] Version bumped everywhere the 0.13.0-0.25.0 precedent bumped it:
+      `Cargo.toml` (workspace + seven pins), `CITATION.cff`, `NEWS.md`,
+      `INSTALL.md`, `SECURITY.md`.
+- [x] Same `release/0.26.0` branch/merge shape as 0.12.0-0.25.0, not a
+      direct commit to `main`.
+- [x] All three forges (GitHub/GitLab/Codeberg) pushed cleanly on the
+      first attempt throughout — `main`, the merge commit, and
+      `v0.26.0` all landed together, no retries needed.
+
 ## Done (2026-09-06, ECL `{{ M ... }}` `memberFieldFilter`: `targetComponentId`/`order` extend to `OrderedAssociation`, zero new variants)
 
 - [x] **`snomed-ecl`**: `OrderedAssociationRefsetMember` — a fifth
@@ -361,13 +390,15 @@ before".
 ## Next up
 
 - [ ] Nothing currently scoped beyond the `{{ M ... }}` remainder below.
-      State as of 2026-09-06: **0.25.0 released** — `mapTarget` (0.15.0),
+      State as of 2026-09-06: **0.26.0 released** — `mapTarget` (0.15.0),
       `correlationId` (0.16.0), `mapGroup` (0.17.0), `mapPriority`
       (0.18.0), `mapRule` (0.19.0), `mapAdvice` plus the `ecl_parse`
       fuzz-caught recursion-depth guard (spec/10 rule 19, 0.20.0),
       `mapCategoryId` (0.21.0), `targetComponentId` (0.22.0),
-      `valueId` (0.23.0), `owlExpression` (0.24.0), and `order`
-      (0.25.0), all after both
+      `valueId` (0.23.0), `owlExpression` (0.24.0), `order`
+      (0.25.0), and `targetComponentId`/`order` extending to
+      `OrderedAssociationRefsetMember` (0.26.0, zero new variants,
+      reusing both existing filter kinds), all after both
       `^` and `^R`. Together
       `mapAdvice`/`mapCategoryId` complete `ExtendedMap`'s column
       coverage entirely — every column that type has is now a filterable
@@ -375,17 +406,13 @@ before".
       `owlExpression`/`order` are the first four columns implemented
       outside the two map types
       (`AssociationRefsetMember`/`AttributeValueRefsetMember`/
-      `OwlExpressionRefsetMember`/`OrderedComponentRefsetMember`),
+      `OwlExpressionRefsetMember`/`OrderedComponentRefsetMember`,
+      now joined by `OrderedAssociationRefsetMember` as a fifth type),
       confirming the pattern generalizes across every grammar shape
-      with a concrete example so far. `targetComponentId`/`order` then
-      extended to `OrderedAssociationRefsetMember` too (2026-09-06, see
-      the Done entry above), **not yet released** — zero new
-      `MemberFilterKind` variants, since both filter kinds already
-      existed; the store side's "sixteen typed types" retention already
-      covered it, so this was purely an eval-side reuse.
+      with a concrete example so far.
       `{{ M ... }}` after `^`
       (0.13.0), after `^R` (0.14.0), and its `memberFieldFilter`
-      alternative (0.15.0-0.25.0), all decided and executed under
+      alternative (0.15.0-0.26.0), all decided and executed under
       `spec/ai-release-authority/`'s criteria rather than a fresh
       per-release maintainer go-ahead (see `CHANGELOG.md`). 9 crates, 435
       tests,
