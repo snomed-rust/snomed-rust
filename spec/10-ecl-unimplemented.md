@@ -80,7 +80,7 @@ token shape:
 - A member filter's `memberFieldFilter` kind other than `mapTarget`/
   `correlationId`/`mapGroup`/`mapPriority`/`mapRule`/`mapAdvice`/
   `mapCategoryId`/`targetComponentId`/`valueId`/`owlExpression`/`order`/
-  `mrcmRuleRefsetId`
+  `mrcmRuleRefsetId`/`attributeDescription`
   — a refset-type-specific column (`domainConstraint`, `grouped`, …), as
   opposed to the three shared-column kinds
   (`moduleId`/`effectiveTime`/`active`) implemented 2026-09-01 after both
@@ -141,7 +141,11 @@ token shape:
   column, and the sixth outside the two map types
   (`MrcmModuleScopeRefsetMember`) — reuses `correlationId`'s grammar
   verbatim, tested against
-  `SnapshotStore::mrcm_module_scope_member_rows`.
+  `SnapshotStore::mrcm_module_scope_member_rows`;
+  `attributeDescription` (2026-09-06) — the sixth concept-reference-shape
+  column, and the seventh outside the two map types
+  (`RefsetDescriptorRefsetMember`) — reuses `correlationId`'s grammar
+  verbatim, tested against `SnapshotStore::refset_descriptor_member_rows`.
   Boolean and time remain unimplemented, with no example yet. See
   `SnapshotStore::simple_map_member_rows`/`extended_map_member_rows`/
   `association_member_rows` and

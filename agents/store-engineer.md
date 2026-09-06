@@ -203,22 +203,24 @@ its inactive rows.
 
 `snomed-ecl`'s `mapTarget`, `correlationId`, `mapGroup`, `mapPriority`,
 `mapRule`, `mapAdvice`, `mapCategoryId`, `targetComponentId`,
-`valueId`, `owlExpression`, `order`, and `mrcmRuleRefsetId` filters
-(`spec/10-ecl.md` rule
+`valueId`, `owlExpression`, `order`, `mrcmRuleRefsetId`, and
+`attributeDescription` filters (`spec/10-ecl.md` rule
 18) are
-the first twelve
+the first thirteen
 consumers: the first seven dispatch directly to
 `simple_map_member_rows`/`extended_map_member_rows`
 (`correlationId`/`mapGroup`/`mapPriority`/`mapRule`/`mapAdvice`/
 `mapCategoryId` only ever match an `extended_map_member_rows` row —
 `simple_map_member_rows`' own type has no such columns), and
-`targetComponentId`/`valueId`/`owlExpression`/`order`/`mrcmRuleRefsetId`
-— the first five
+`targetComponentId`/`valueId`/`owlExpression`/`order`/`mrcmRuleRefsetId`/
+`attributeDescription`
+— the first six
 outside
 the two map types — dispatch to `association_member_rows`/
 `attribute_value_member_rows`/`owl_expression_member_rows`/
-`ordered_component_member_rows`/`mrcm_module_scope_member_rows`
-respectively, plus a seventh row set,
+`ordered_component_member_rows`/`mrcm_module_scope_member_rows`/
+`refset_descriptor_member_rows`
+respectively, plus an eighth row set,
 `ordered_association_member_rows`, which both `targetComponentId` and
 `order` also dispatch to (one row there carries both columns, so both
 `TypedFields` entries are set from it together — see

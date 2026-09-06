@@ -354,7 +354,15 @@ first since `targetComponentId` where no implemented column shares the
 RF2 field name, so it needed a genuinely new variant
 (`MrcmRuleRefsetId`) and an eighth row-set check
 (`mrcm_module_scope_member_rows`) — the "reuse" shortcut only fires
-when the column *name* recurs, not just the shape. `memberFieldFilter`
+when the column *name* recurs, not just the shape.
+`attributeDescription` (`RefsetDescriptorRefsetMember`, 2026-09-06)
+followed the same non-reuse path: the seventh type outside the two map
+types, another genuinely new variant (`AttributeDescription`) since no
+implemented column shares its RF2 field name either, and a ninth
+row-set check (`refset_descriptor_member_rows`) — the store already
+carried that accessor (`RefsetDescriptorRefsetMember` was already one
+of the sixteen retained types), so this increment was parser/eval only,
+no `snomed-store` change. `memberFieldFilter`
 isn't one production but five in the official grammar, chosen by the
 named column's own semantic type
 (`expressionComparisonOperator ws subExpressionConstraint` for a concept

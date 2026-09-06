@@ -594,11 +594,20 @@ impl Parser {
                     value: Box::new(value),
                 }))
             }
+            TokenKind::Word(word) if word == "attributeDescription" => {
+                self.advance()?;
+                let negated = self.parse_boolean_comparison_operator()?;
+                let value = self.parse_sub_expression_constraint()?;
+                Ok(MemberFilterKind::AttributeDescription(ModuleFilter {
+                    negated,
+                    value: Box::new(value),
+                }))
+            }
             _ => {
                 let tok = self.peek().clone();
                 Err(Self::unexpected(
                     &tok,
-                    "`moduleId`, `effectiveTime`, `active`, `mapTarget`, `correlationId`, `mapGroup`, `mapPriority`, `mapRule`, `mapAdvice`, `mapCategoryId`, `targetComponentId`, `valueId`, `owlExpression`, `order`, or `mrcmRuleRefsetId`",
+                    "`moduleId`, `effectiveTime`, `active`, `mapTarget`, `correlationId`, `mapGroup`, `mapPriority`, `mapRule`, `mapAdvice`, `mapCategoryId`, `targetComponentId`, `valueId`, `owlExpression`, `order`, `mrcmRuleRefsetId`, or `attributeDescription`",
                 ))
             }
         }
@@ -1929,6 +1938,34 @@ mod tests {
         }) = &filters[0]
         else {
             panic!("expected an MrcmRuleRefsetId filter, got {:?}", filters[0]);
+        };
+        assert!(!negated);
+    }
+
+    /// `attributeDescription` (spec/10 rule 18) — the thirteenth
+    /// `memberFieldFilter` column, and the seventh outside the two map
+    /// types (`RefsetDescriptorRefsetMember`). Like `mrcmRuleRefsetId`,
+    /// no implemented column shares this RF2 field name, so it's a
+    /// genuinely new variant, though it reuses `correlationId`/
+    /// `mapCategoryId`/`targetComponentId`/`valueId`/`mrcmRuleRefsetId`'s
+    /// exact concept-reference shape.
+    #[test]
+    fn parses_member_filter_attribute_description() {
+        let EC::MemberFilter { filters, .. } =
+            parse("^ 900000000000456007 {{ M attributeDescription = 449608002 }}").unwrap()
+        else {
+            panic!("expected a member filter");
+        };
+        assert_eq!(filters.len(), 1);
+        let crate::ast::MemberFilterKind::AttributeDescription(crate::ast::ModuleFilter {
+            negated,
+            ..
+        }) = &filters[0]
+        else {
+            panic!(
+                "expected an AttributeDescription filter, got {:?}",
+                filters[0]
+            );
         };
         assert!(!negated);
     }

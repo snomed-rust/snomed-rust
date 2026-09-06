@@ -373,8 +373,8 @@ pub enum ConceptFilterKind {
 ///
 /// `MapTarget`/`CorrelationId`/`MapGroup`/`MapPriority`/`MapRule`/
 /// `MapAdvice`/`MapCategoryId`/`TargetComponentId`/`ValueId`/
-/// `OwlExpression`/`Order`/`MrcmRuleRefsetId` are the official
-/// grammar's fourth kind, `memberFieldFilter`
+/// `OwlExpression`/`Order`/`MrcmRuleRefsetId`/`AttributeDescription`
+/// are the official grammar's fourth kind, `memberFieldFilter`
 /// — a refset-type-specific column rather than a shared one. Its own
 /// grammar (confirmed against the official ABNF, `syntax/abnf-brief.txt`)
 /// is not one shape but five, chosen by the column's own semantic type:
@@ -397,10 +397,12 @@ pub enum ConceptFilterKind {
 /// the numeric shape); `TargetComponentId`/`Order` then both extended
 /// to `OrderedAssociationRefsetMember`, a fifth refset type outside the
 /// two map types reusing both existing variants rather than adding new
-/// ones; and `mrcmRuleRefsetId` (`MrcmModuleScopeRefsetMember`, a sixth
+/// ones; `mrcmRuleRefsetId` (`MrcmModuleScopeRefsetMember`, a sixth
 /// refset type outside the two map types, back to needing a genuinely
-/// new variant since no implemented column shares its RF2 field name)
-/// — all
+/// new variant since no implemented column shares its RF2 field name);
+/// and `attributeDescription` (`RefsetDescriptorRefsetMember`, a
+/// seventh refset type outside the two map types, another genuinely new
+/// variant for the same reason) — all
 /// decided 2026-09-03 (`plan.md`'s "Open decisions") to retain full rows
 /// — active and inactive — for all sixteen non-Simple/Language refset
 /// types, the same store change `moduleId`/`effectiveTime`/`active`
@@ -560,6 +562,19 @@ pub enum MemberFilterKind {
     /// naming it is tested against
     /// `SnapshotStore::mrcm_module_scope_member_rows` instead.
     MrcmRuleRefsetId(ModuleFilter),
+    /// `attributeDescription (=|!=) subExpressionConstraint` — a
+    /// `memberFieldFilter` (spec/10 rule 18):
+    /// `RefsetDescriptorRefsetMember`'s own `attributeDescription` column
+    /// (a concept reference — the description of the extra column being
+    /// documented). Reuses [`ModuleFilter`]'s exact shape and grammar —
+    /// the same concept-reference production
+    /// `correlationId`/`mapCategoryId`/`targetComponentId`/`valueId`/
+    /// `mrcmRuleRefsetId` use, just a different refset type and RF2
+    /// column. Like `mrcmRuleRefsetId`, no other implemented column
+    /// shares this RF2 field name, so this needs its own variant rather
+    /// than extending an existing one. A block naming it is tested
+    /// against `SnapshotStore::refset_descriptor_member_rows` instead.
+    AttributeDescription(ModuleFilter),
 }
 
 /// `numericComparisonOperator ws "#" numericValue` — a `memberFieldFilter`

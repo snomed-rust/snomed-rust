@@ -386,7 +386,7 @@ column's own semantic type (confirmed against the official ABNF):
 reference, `numericComparisonOperator ws "#" numericValue`,
 `stringComparisonOperator ws (typedSearchTerm | typedSearchTermSet)`,
 `booleanComparisonOperator ws booleanValue`, or `timeComparisonOperator
-ws (timeValue | timeValueSet)`. Twelve columns are implemented, spanning
+ws (timeValue | timeValueSet)`. Thirteen columns are implemented, spanning
 three of the five shapes (string, concept-reference, numeric), all for
 both `^` and `^R` — see `spec/10-ecl-filters.md` for the current
 per-column list. Every other column, and both remaining shapes
@@ -675,8 +675,9 @@ still governs it: nothing on that list may be silently accepted.
     `attribute_value_member_rows` for `valueId`;
     `owl_expression_member_rows` for `owlExpression`;
     `ordered_component_member_rows` and `ordered_association_member_rows`
-    for `order`; `mrcm_module_scope_member_rows` for `mrcmRuleRefsetId`),
-    never against `member_rows`'s type-erased
+    for `order`; `mrcm_module_scope_member_rows` for `mrcmRuleRefsetId`;
+    `refset_descriptor_member_rows` for `attributeDescription`), never
+    against `member_rows`'s type-erased
     `RefsetMemberCore` view, which has no such column — and every other
     filter in the same block MUST be tested against that *same* typed
     row's shared columns, per the "one row, all filters" rule above; a

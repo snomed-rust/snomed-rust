@@ -1,7 +1,7 @@
 # Tasks archive — index
 
 [`tasks.md`](../tasks.md) keeps the current checklist and the recent
-entries; everything older lives here, split into twenty-four files that
+entries; everything older lives here, split into twenty-five files that
 each
 stay inside the repository's 40 KB per-document budget. Entries were moved
 verbatim — this is a historical record, not a summary, and it is worth
@@ -36,6 +36,7 @@ so the paths quoted here still resolve.
 | [`tasks-archive-22.md`](tasks-archive-22.md) | 2026-09-05 | Release 0.21.0; `memberFieldFilter`'s seventh column, `mapCategoryId` (the second concept-reference field, completing `ExtendedMapRefsetMember`'s column coverage) |
 | [`tasks-archive-23.md`](tasks-archive-23.md) | 2026-09-05 | Release 0.22.0; `memberFieldFilter`'s eighth column, `targetComponentId` (the first column implemented outside the two map types, on `AssociationRefsetMember`) |
 | [`tasks-archive-24.md`](tasks-archive-24.md) | 2026-09-06 | Release 0.23.0; `memberFieldFilter`'s ninth column, `valueId` (the second column implemented outside the two map types, on `AttributeValueRefsetMember`) |
+| [`tasks-archive-25.md`](tasks-archive-25.md) | 2026-09-06 | Release 0.24.0; `memberFieldFilter`'s tenth column, `owlExpression` (the third column implemented outside the two map types, and the first of those three on the string-search shape) |
 
 Older entries are shorter and more granular than recent ones: they were
 written a change at a time while the workspace was being built from

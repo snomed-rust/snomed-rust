@@ -252,16 +252,17 @@ and harmonizes it with the sibling repositories (`hl7-rust`, `er7-rust`,
   section), storing the active subset twice rather than changing any
   existing accessor's signature. `mapTarget`, `correlationId`, `mapGroup`,
   `mapPriority`, `mapRule`, `mapAdvice`, `mapCategoryId`,
-  `targetComponentId`, `valueId`, `owlExpression`, `order`, and
-  `mrcmRuleRefsetId` are the
-  first twelve
+  `targetComponentId`, `valueId`, `owlExpression`, `order`,
+  `mrcmRuleRefsetId`, and `attributeDescription` are the
+  first thirteen
   concrete fields
   built on this retention (`snomed-ecl`, spec/10 rule 18): the
   `memberFieldFilter` grammar alternative, tested against
   `simple_map_member_rows`/`extended_map_member_rows`/
   `association_member_rows`/`attribute_value_member_rows`/
   `owl_expression_member_rows`/`ordered_component_member_rows`/
-  `ordered_association_member_rows`/`mrcm_module_scope_member_rows`,
+  `ordered_association_member_rows`/`mrcm_module_scope_member_rows`/
+  `refset_descriptor_member_rows`,
   after
   both
   `^` and `^R` in one increment each since both reuse the same
@@ -270,7 +271,8 @@ and harmonizes it with the sibling repositories (`hl7-rust`, `er7-rust`,
   five, chosen by the named column's own semantic type (confirmed
   against the official ABNF): `mapTarget`/`mapRule`/`mapAdvice`/
   `owlExpression` the string-search shape, `correlationId`/`mapCategoryId`/
-  `targetComponentId`/`valueId`/`mrcmRuleRefsetId` the concept-reference
+  `targetComponentId`/`valueId`/`mrcmRuleRefsetId`/`attributeDescription`
+  the concept-reference
   shape
   (`expressionComparisonOperator ws subExpressionConstraint`, reusing
   `ModuleFilter` verbatim), `mapGroup`/`mapPriority`/`order` the numeric
@@ -282,14 +284,16 @@ and harmonizes it with the sibling repositories (`hl7-rust`, `er7-rust`,
   fixed with a dedicated `field_numeric_matches` before it shipped — the
   boolean and time shapes remain unimplemented. `mapCategoryId` completes
   `ExtendedMapRefsetMember`'s column coverage; `targetComponentId`/
-  `valueId`/`owlExpression`/`order`/`mrcmRuleRefsetId` are the first
-  five fields on refset
+  `valueId`/`owlExpression`/`order`/`mrcmRuleRefsetId`/
+  `attributeDescription` are the first
+  six fields on refset
   types
   other than the two
   map types (`AssociationRefsetMember`/`AttributeValueRefsetMember`/
   `OwlExpressionRefsetMember`/`OrderedComponentRefsetMember`/
-  `MrcmModuleScopeRefsetMember`, plus `OrderedAssociationRefsetMember`
-  as a sixth reusing two existing variants),
+  `MrcmModuleScopeRefsetMember`/`RefsetDescriptorRefsetMember`, plus
+  `OrderedAssociationRefsetMember`
+  as a seventh reusing two existing variants),
   confirming the same store retention and dispatch pattern generalizes
   past `ExtendedMap`/`SimpleMap` across every grammar shape, not just
   the concept-reference one. Every
@@ -309,9 +313,9 @@ and harmonizes it with the sibling repositories (`hl7-rust`, `er7-rust`,
 ## Current status
 
 All eight phases above are closed. As of `memberFieldFilter`'s
-`mrcmRuleRefsetId` (2026-09-06, below) the
+`attributeDescription` (2026-09-06, below) the
 workspace is 9 published
-crates with zero dependencies, 439 tests, a clean
+crates with zero dependencies, 443 tests, a clean
 `cargo clippy --all-targets`, 13 fuzz targets, and six criterion
 benchmark files. What is *not* done is tracked
 in two places and nowhere
@@ -362,11 +366,16 @@ shapes too; `targetComponentId`/`order` both then extended to
 `OrderedAssociationRefsetMember` (2026-09-06, a fifth type outside the
 two map types, a seventh row-set check) — needing no new variant at
 all, since one `OrderedAssociationRefsetMember` row carries both
-columns and both filter kinds already existed; and `mrcmRuleRefsetId`
+columns and both filter kinds already existed; `mrcmRuleRefsetId`
 (2026-09-06) is a sixth type outside the two map types
 (`MrcmModuleScopeRefsetMember`, an eighth row-set check), back to
 needing a genuinely new variant since — unlike `targetComponentId`/
-`order` — no other implemented column shares its RF2 field name. In between, the `ecl_parse` fuzz target's CI smoke run caught
+`order` — no other implemented column shares its RF2 field name; and
+`attributeDescription` (2026-09-06) is a seventh type outside the two
+map types (`RefsetDescriptorRefsetMember`, a ninth row-set check),
+another genuinely new variant for the same reason — the store already
+carried the `refset_descriptor_member_rows` accessor, so this
+increment needed no `snomed-store` change. In between, the `ecl_parse` fuzz target's CI smoke run caught
 a real stack overflow on pathologically deep `(`/refinement/
 attribute-set nesting (2026-09-04) — fixed with a shared `Parser::depth`
 counter and a 100-level cap (spec/10 rule 19,
