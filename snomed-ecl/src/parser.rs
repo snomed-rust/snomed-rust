@@ -457,11 +457,11 @@ impl Parser {
     /// tokenized for `{{ C }}`, so no new lexer keywords were needed for
     /// them. The fourth, `memberFieldFilter`, is `refsetFieldName` —
     /// `1*alpha` in the official grammar, not a fixed keyword list, so it
-    /// lexes as a plain `TokenKind::Word` — and only the nine spellings
+    /// lexes as a plain `TokenKind::Word` — and only the ten spellings
     /// this crate implements, `mapTarget`, `correlationId`, `mapGroup`,
     /// `mapPriority`, `mapRule`, `mapAdvice`, `mapCategoryId`,
-    /// `targetComponentId`, and `valueId` (spec/10 rule 18), are
-    /// recognized here; any other word falls through to the generic
+    /// `targetComponentId`, `valueId`, and `owlExpression` (spec/10 rule
+    /// 18), are recognized here; any other word falls through to the generic
     /// "unexpected keyword"
     /// bucket rule 9 describes rather than being named. `correlationId`/
     /// `mapCategoryId`/`targetComponentId`/`valueId (=|!=)
@@ -569,11 +569,20 @@ impl Parser {
                     value: Box::new(value),
                 }))
             }
+            TokenKind::Word(word) if word == "owlExpression" => {
+                self.advance()?;
+                let negated = self.parse_boolean_comparison_operator()?;
+                let values = self.parse_typed_search_term_set()?;
+                Ok(MemberFilterKind::OwlExpression(TermFilter {
+                    negated,
+                    values,
+                }))
+            }
             _ => {
                 let tok = self.peek().clone();
                 Err(Self::unexpected(
                     &tok,
-                    "`moduleId`, `effectiveTime`, `active`, `mapTarget`, `correlationId`, `mapGroup`, `mapPriority`, `mapRule`, `mapAdvice`, `mapCategoryId`, `targetComponentId`, or `valueId`",
+                    "`moduleId`, `effectiveTime`, `active`, `mapTarget`, `correlationId`, `mapGroup`, `mapPriority`, `mapRule`, `mapAdvice`, `mapCategoryId`, `targetComponentId`, `valueId`, or `owlExpression`",
                 ))
             }
         }
@@ -1835,6 +1844,30 @@ mod tests {
             panic!("expected a ValueId filter, got {:?}", filters[0]);
         };
         assert!(!negated);
+    }
+
+    /// `owlExpression` (spec/10 rule 18) — the tenth `memberFieldFilter`
+    /// column, and the third outside the two map types
+    /// (`OwlExpressionRefsetMember`) — the first of those three to use
+    /// the string-search shape. Reuses `mapTarget`/`mapRule`/
+    /// `mapAdvice`'s exact grammar.
+    #[test]
+    fn parses_member_filter_owl_expression() {
+        let EC::MemberFilter { filters, .. } =
+            parse("^ 733073007 {{ M owlExpression = \"SubClassOf\" }}").unwrap()
+        else {
+            panic!("expected a member filter");
+        };
+        assert_eq!(filters.len(), 1);
+        let crate::ast::MemberFilterKind::OwlExpression(crate::ast::TermFilter { negated, values }) =
+            &filters[0]
+        else {
+            panic!("expected an OwlExpression filter, got {:?}", filters[0]);
+        };
+        assert!(!negated);
+        assert_eq!(values.len(), 1);
+        assert_eq!(values[0].text, "SubClassOf");
+        assert_eq!(values[0].search_type, crate::ast::SearchType::Match);
     }
 
     /// `mapGroup` (spec/10 rule 18) — the third `memberFieldFilter`

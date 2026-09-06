@@ -157,8 +157,8 @@ named column's own semantic type (confirmed against the official ABNF,
 subExpressionConstraint` (a concept reference), `numericComparisonOperator
 ws "#" numericValue`, `stringComparisonOperator ws (typedSearchTerm |
 typedSearchTermSet)`, `booleanComparisonOperator ws booleanValue`, or
-`timeComparisonOperator ws (timeValue | timeValueSet)`. Nine kinds are
-implemented, spanning three of the five shapes (string has three,
+`timeComparisonOperator ws (timeValue | timeValueSet)`. Ten kinds are
+implemented, spanning three of the five shapes (string has four,
 concept reference has four, numeric has two):
 
 - `mapTarget (=|!=) (typedSearchTerm | typedSearchTermSet)` — the same
@@ -222,18 +222,27 @@ concept reference has four, numeric has two):
   string-search shape and the same `TermFilter`/`term_matches` machinery
   as `mapTarget`/`mapRule`, matched against the member row's own
   `mapAdvice` column (`ExtendedMapRefsetMember`-only).
+- `owlExpression (=|!=) (typedSearchTerm | typedSearchTermSet)` — the
+  same string-search shape and the same `TermFilter`/`term_matches`
+  machinery as `mapTarget`/`mapRule`/`mapAdvice`, matched against the
+  member row's own `owlExpression` column (unparsed OWL 2 functional
+  syntax). The third `memberFieldFilter` column outside the two map
+  types, and the first of those three on the string-search shape: only
+  `OwlExpressionRefsetMember` rows carry it, tested against
+  `SnapshotStore::owl_expression_member_rows` directly.
 
-All nine reuse the shared dispatch `mapTarget` introduced (renamed
+All ten reuse the shared dispatch `mapTarget` introduced (renamed
 `typed_field_row_matches` once a non-map type joined it): a block
-naming *any* of the nine kinds is tested against
-`SimpleMap`/`ExtendedMap`/`Association`/`AttributeValue` rows together
+naming *any* of the ten kinds is tested against
+`SimpleMap`/`ExtendedMap`/`Association`/`AttributeValue`/`OwlExpression`
+rows together
 rather than `member_rows`, and the "one row, all filters" and "active
 unless stated otherwise" rules above still hold across a block naming
 several field filters at once, not just a field filter and a
 shared-column one — a `SimpleMap` row can never satisfy a block naming
 any of `correlationId`/
 `mapGroup`/`mapPriority`/`mapRule`/`mapAdvice`/`mapCategoryId`/
-`targetComponentId`/`valueId` (the column is simply
+`targetComponentId`/`valueId`/`owlExpression` (the column is simply
 absent on that row source, the same "not this row's type" answer a
 shared-column filter gets from a row of the wrong refset type), so it
 can never be a spurious match.

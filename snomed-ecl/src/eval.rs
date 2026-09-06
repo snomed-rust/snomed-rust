@@ -295,6 +295,7 @@ fn member_row_matches(
                 | MemberFilterKind::MapCategoryId(_)
                 | MemberFilterKind::TargetComponentId(_)
                 | MemberFilterKind::ValueId(_)
+                | MemberFilterKind::OwlExpression(_)
         )
     }) {
         return typed_field_row_matches(
@@ -327,9 +328,10 @@ fn member_row_matches(
 /// every field added after it (`correlationId`, `mapGroup`,
 /// `mapPriority`, `mapRule`, `mapAdvice`, `mapCategoryId`, …) is
 /// `ExtendedMap`-only and adds one more field here instead of one more
-/// function parameter everywhere. `target_component_id`/`value_id` are
-/// the first fields from refset types outside the two map types
-/// (`AssociationRefsetMember`/`AttributeValueRefsetMember`).
+/// function parameter everywhere. `target_component_id`/`value_id`/
+/// `owl_expression` are the first fields from refset types outside the
+/// two map types (`AssociationRefsetMember`/`AttributeValueRefsetMember`/
+/// `OwlExpressionRefsetMember`).
 #[derive(Default)]
 struct TypedFields<'a> {
     map_target: Option<&'a str>,
@@ -341,22 +343,26 @@ struct TypedFields<'a> {
     map_category_id: Option<SctId>,
     target_component_id: Option<SctId>,
     value_id: Option<SctId>,
+    owl_expression: Option<&'a str>,
 }
 
 /// The `mapTarget`/`correlationId`/`mapGroup`/`mapPriority`/`mapRule`/
-/// `mapAdvice`/`mapCategoryId`/`targetComponentId`/`valueId` branch of
+/// `mapAdvice`/`mapCategoryId`/`targetComponentId`/`valueId`/
+/// `owlExpression` branch of
 /// [`member_row_matches`]: the first seven exist only on
 /// `SimpleMapRefsetMember`/`ExtendedMapRefsetMember` (and
 /// `correlationId`/`mapGroup`/`mapPriority`/`mapRule`/`mapAdvice`/
 /// `mapCategoryId` only on the latter — `SimpleMapRefsetMember` has no
-/// such columns); `targetComponentId`/`valueId` instead exist only on
-/// `AssociationRefsetMember`/`AttributeValueRefsetMember` respectively,
+/// such columns); `targetComponentId`/`valueId`/`owlExpression` instead
+/// exist only on `AssociationRefsetMember`/`AttributeValueRefsetMember`/
+/// `OwlExpressionRefsetMember` respectively,
 /// each tested against its own typed row set
 /// (`SnapshotStore::association_member_rows`/
-/// `attribute_value_member_rows`) rather than either map type's.
+/// `attribute_value_member_rows`/`owl_expression_member_rows`) rather
+/// than either map type's.
 /// Renamed from `typed_map_row_matches` once it stopped being map-only.
 /// Whichever field-filter kind appears, a block naming it is
-/// tested against all four typed row sets rather than `member_rows`.
+/// tested against all five typed row sets rather than `member_rows`.
 /// Testing every set whenever *any* field-filter kind appears (rather
 /// than computing the exact type each filter needs) is deliberately
 /// simple, not merely convenient: a `SimpleMap` row tested against a
@@ -440,7 +446,7 @@ fn typed_field_row_matches(
     if matches_association {
         return true;
     }
-    store
+    let matches_attribute_value = store
         .attribute_value_member_rows(refset_id, component_id)
         .iter()
         .any(|row| {
@@ -452,6 +458,26 @@ fn typed_field_row_matches(
                         &row.core,
                         &TypedFields {
                             value_id: Some(row.value_id),
+                            ..TypedFields::default()
+                        },
+                    )
+                })
+        });
+    if matches_attribute_value {
+        return true;
+    }
+    store
+        .owl_expression_member_rows(refset_id, component_id)
+        .iter()
+        .any(|row| {
+            (states_active || row.core.active)
+                && filters.iter().zip(prepared).all(|(f, p)| {
+                    member_filter_matches(
+                        f,
+                        p,
+                        &row.core,
+                        &TypedFields {
+                            owl_expression: Some(&row.owl_expression),
                             ..TypedFields::default()
                         },
                     )
@@ -601,7 +627,8 @@ fn prepare_member_filter(filter: &MemberFilterKind, store: &SnapshotStore) -> Pr
         }
         MemberFilterKind::MapTarget(TermFilter { values, .. })
         | MemberFilterKind::MapRule(TermFilter { values, .. })
-        | MemberFilterKind::MapAdvice(TermFilter { values, .. }) => PreparedMemberFilter::Term(
+        | MemberFilterKind::MapAdvice(TermFilter { values, .. })
+        | MemberFilterKind::OwlExpression(TermFilter { values, .. }) => PreparedMemberFilter::Term(
             values
                 .iter()
                 .map(|search| match search.search_type {
@@ -762,6 +789,22 @@ fn member_filter_matches(
                 return false;
             };
             values.contains(&value_id) != *negated
+        }
+        MemberFilterKind::OwlExpression(TermFilter { negated, values }) => {
+            let PreparedMemberFilter::Term(searches) = prepared else {
+                unreachable!("an owlExpression filter prepares to `Term`")
+            };
+            // No `owl_expression` on this row source (every source but
+            // `OwlExpression`'s own): never matches, same reasoning as
+            // `MapTarget`'s `None` case above.
+            let Some(owl_expression) = fields.owl_expression else {
+                return false;
+            };
+            let matches = values
+                .iter()
+                .zip(searches)
+                .any(|(search, prepared)| term_matches(owl_expression, search, prepared));
+            matches != *negated
         }
     }
 }
@@ -1497,7 +1540,8 @@ mod tests {
     use snomed_core::time::EffectiveTime;
     use snomed_rf2::refset::{
         AssociationRefsetMember, AttributeValueRefsetMember, ExtendedMapRefsetMember,
-        LanguageRefsetMember, RefsetMemberCore, SimpleMapRefsetMember, SimpleRefsetMember,
+        LanguageRefsetMember, OwlExpressionRefsetMember, RefsetMemberCore, SimpleMapRefsetMember,
+        SimpleRefsetMember,
     };
 
     const ROOT: SctId = constants::ROOT_CONCEPT;
@@ -3512,6 +3556,141 @@ mod tests {
         assert_eq!(eval(&mismatched, &store), HashSet::new());
         let matched = format!(
             "^ {concept_inactive} {{{{ M moduleId = {module_a}, valueId = {exact_match} }}}}"
+        );
+        assert_eq!(eval(&matched, &store), HashSet::from([MI]));
+    }
+
+    /// `owlExpression` — the third `memberFieldFilter` column outside
+    /// the two map types, and the first of the three to use the
+    /// string-search shape (`targetComponentId`/`valueId` used the
+    /// concept-reference shape): `OwlExpressionRefsetMember`'s own
+    /// `owlExpression` column, reusing `mapTarget`/`mapRule`/
+    /// `mapAdvice`'s exact `TermFilter`/`term_matches` machinery.
+    /// Tested against a fifth typed row set
+    /// (`owl_expression_member_rows`). Also proves `{{ M }}` after `^R`
+    /// reaches it, via the same shared `member_row_matches` the `^`
+    /// path uses.
+    #[test]
+    fn member_filter_owl_expression_matches_owl_expression_rows() {
+        let owl_axiom = SctId::compose(9800, ComponentType::Concept, None).unwrap();
+        let mut b = SnapshotStore::builder();
+        b.add_concept(concept(MI));
+        b.add_owl_expression_member(OwlExpressionRefsetMember {
+            core: RefsetMemberCore {
+                id: MemberId::parse("80000000-0000-4000-8000-000000000108").unwrap(),
+                effective_time: EffectiveTime::new_unchecked(20190731),
+                active: true,
+                module_id: constants::CORE_MODULE,
+                refset_id: owl_axiom,
+                referenced_component_id: MI,
+            },
+            owl_expression: "SubClassOf(:22298006 :64572001)".to_string(),
+        });
+        let store = b.build();
+
+        assert_eq!(
+            eval(
+                &format!("^ {owl_axiom} {{{{ M owlExpression = \"EquivalentClasses\" }}}}"),
+                &store
+            ),
+            HashSet::new(),
+            "the row's own owlExpression doesn't match"
+        );
+        assert_eq!(
+            eval(
+                &format!("^ {owl_axiom} {{{{ M owlExpression = \"SubClassOf\" }}}}"),
+                &store
+            ),
+            HashSet::from([MI])
+        );
+        // `^R` reaches the same row, through the shared row-matching path.
+        assert_eq!(
+            eval(
+                &format!("^R {MI} {{{{ M owlExpression = \"SubClassOf\" }}}}"),
+                &store
+            ),
+            HashSet::from([owl_axiom])
+        );
+    }
+
+    /// `AssociationRefsetMember`/`AttributeValueRefsetMember`/
+    /// `SimpleMapRefsetMember`/`ExtendedMapRefsetMember` have no
+    /// `owlExpression` column — a membership that exists only there
+    /// must never match, the same "column absent on this row source"
+    /// case every other field filter has for the row types it doesn't
+    /// apply to.
+    #[test]
+    fn member_filter_owl_expression_never_matches_attribute_value_rows() {
+        let concept_inactive = SctId::compose(9801, ComponentType::Concept, None).unwrap();
+        let mut b = SnapshotStore::builder();
+        b.add_concept(concept(MI));
+        b.add_attribute_value_member(AttributeValueRefsetMember {
+            core: RefsetMemberCore {
+                id: MemberId::parse("80000000-0000-4000-8000-000000000109").unwrap(),
+                effective_time: EffectiveTime::new_unchecked(20190731),
+                active: true,
+                module_id: constants::CORE_MODULE,
+                refset_id: concept_inactive,
+                referenced_component_id: MI,
+            },
+            value_id: constants::CORE_MODULE,
+        });
+        let store = b.build();
+
+        assert_eq!(
+            eval(
+                &format!("^ {concept_inactive} {{{{ M owlExpression = \"SubClassOf\" }}}}"),
+                &store
+            ),
+            HashSet::new()
+        );
+    }
+
+    /// "One row, all filters" (spec/10 rule 18) for a block mixing a
+    /// shared-column filter with `owlExpression`: two separate rows,
+    /// each satisfying only one filter, must not satisfy the block
+    /// together.
+    #[test]
+    fn member_filter_owl_expression_conjoins_with_module_id_on_the_same_row() {
+        let owl_axiom = SctId::compose(9802, ComponentType::Concept, None).unwrap();
+        let module_a = SctId::new_unchecked(900000000000012004);
+        let module_b = constants::CORE_MODULE;
+        let mut b = SnapshotStore::builder();
+        b.add_concept(concept(MI));
+        b.add_concept(concept(module_a));
+        b.add_concept(concept(module_b));
+        // Row 1: right owlExpression, wrong module.
+        b.add_owl_expression_member(OwlExpressionRefsetMember {
+            core: RefsetMemberCore {
+                id: MemberId::parse("80000000-0000-4000-8000-000000000110").unwrap(),
+                effective_time: EffectiveTime::new_unchecked(20190731),
+                active: true,
+                module_id: module_a,
+                refset_id: owl_axiom,
+                referenced_component_id: MI,
+            },
+            owl_expression: "SubClassOf(:22298006 :64572001)".to_string(),
+        });
+        // Row 2: right module, wrong owlExpression.
+        b.add_owl_expression_member(OwlExpressionRefsetMember {
+            core: RefsetMemberCore {
+                id: MemberId::parse("80000000-0000-4000-8000-000000000111").unwrap(),
+                effective_time: EffectiveTime::new_unchecked(20190731),
+                active: true,
+                module_id: module_b,
+                refset_id: owl_axiom,
+                referenced_component_id: MI,
+            },
+            owl_expression: "EquivalentClasses(:22298006 :404684003)".to_string(),
+        });
+        let store = b.build();
+
+        let mismatched = format!(
+            "^ {owl_axiom} {{{{ M moduleId = {module_b}, owlExpression = \"SubClassOf\" }}}}"
+        );
+        assert_eq!(eval(&mismatched, &store), HashSet::new());
+        let matched = format!(
+            "^ {owl_axiom} {{{{ M moduleId = {module_a}, owlExpression = \"SubClassOf\" }}}}"
         );
         assert_eq!(eval(&matched, &store), HashSet::from([MI]));
     }

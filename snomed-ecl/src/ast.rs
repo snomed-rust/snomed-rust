@@ -372,8 +372,9 @@ pub enum ConceptFilterKind {
 /// than a concept's own row.
 ///
 /// `MapTarget`/`CorrelationId`/`MapGroup`/`MapPriority`/`MapRule`/
-/// `MapAdvice`/`MapCategoryId`/`TargetComponentId`/`ValueId` are the
-/// official grammar's fourth kind, `memberFieldFilter`
+/// `MapAdvice`/`MapCategoryId`/`TargetComponentId`/`ValueId`/
+/// `OwlExpression` are the official grammar's fourth kind,
+/// `memberFieldFilter`
 /// — a refset-type-specific column rather than a shared one. Its own
 /// grammar (confirmed against the official ABNF, `syntax/abnf-brief.txt`)
 /// is not one shape but five, chosen by the column's own semantic type:
@@ -388,8 +389,10 @@ pub enum ConceptFilterKind {
 /// implemented, `correlationId`, `mapGroup`, `mapPriority`, `mapRule`,
 /// `mapAdvice`, and `mapCategoryId` (`ExtendedMapRefsetMember` only)
 /// followed, then `targetComponentId` (`AssociationRefsetMember`, the
-/// first column outside the two map types) and `valueId`
-/// (`AttributeValueRefsetMember`, the second) — all
+/// first column outside the two map types), `valueId`
+/// (`AttributeValueRefsetMember`, the second), and `owlExpression`
+/// (`OwlExpressionRefsetMember`, the third, and the first of those
+/// three to use the string-search shape) — all
 /// decided 2026-09-03 (`plan.md`'s "Open decisions") to retain full rows
 /// — active and inactive — for all sixteen non-Simple/Language refset
 /// types, the same store change `moduleId`/`effectiveTime`/`active`
@@ -503,6 +506,18 @@ pub enum MemberFilterKind {
     /// naming it is tested against `SnapshotStore::attribute_value_member_rows`
     /// instead.
     ValueId(ModuleFilter),
+    /// `owlExpression (=|!=) (typedSearchTerm | typedSearchTermSet)` — a
+    /// `memberFieldFilter` (spec/10 rule 18):
+    /// `OwlExpressionRefsetMember`'s own `owlExpression` column (free
+    /// text — unparsed OWL 2 functional syntax, not a concept or a
+    /// number). Reuses [`TermFilter`]'s exact shape and grammar — the
+    /// same string production `mapTarget`/`mapRule`/`mapAdvice` use,
+    /// just a different refset type and RF2 column. The first
+    /// `memberFieldFilter` column outside the two map types to use the
+    /// string-search shape (`targetComponentId`/`valueId` used the
+    /// concept-reference shape), so a block naming it is tested against
+    /// `SnapshotStore::owl_expression_member_rows` instead.
+    OwlExpression(TermFilter),
 }
 
 /// `numericComparisonOperator ws "#" numericValue` — a `memberFieldFilter`

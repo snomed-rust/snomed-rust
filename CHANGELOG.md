@@ -13,6 +13,29 @@ together, in dependency order (`snomed-core` → `snomed-rf2` → `snomed-owl`
 
 ## [Unreleased]
 
+**New ECL capability, additive.** `{{ M ... }}`'s `memberFieldFilter`
+gains its tenth column, `owlExpression` — the third column outside the
+two map types (`OwlExpressionRefsetMember`), and the first of those
+three on the string-search shape, after both `^` and `^R`. A minor
+bump: new public API, no removals or signature changes to anything
+existing.
+
+### Added
+
+- `snomed-ecl`: `{{ M owlExpression = "SubClassOf" }}` restricts to
+  `OwlExpression` member rows whose own `owlExpression` column matches
+  — the same `match:`/`wild:`/`exact:` search-term grammar
+  `mapTarget`/`mapRule`/`mapAdvice` use. Works after both `^` and `^R`,
+  and conjoins with `moduleId` and the other shared-column kinds on the
+  same member row. Only `OwlExpressionRefsetMember` rows carry an
+  `owlExpression` column; every other refset type never matches this
+  filter. New public API: `MemberFilterKind::OwlExpression`.
+
+### Notes for consumers
+
+- No public API removed or changed signature; existing code compiles
+  unmodified against this release.
+
 ## [0.23.0] — 2026-09-06
 
 **New ECL capability, additive.** `{{ M ... }}`'s `memberFieldFilter`

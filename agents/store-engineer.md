@@ -202,16 +202,18 @@ with an active-only accessor but no way for `snomed-ecl` to ever reach
 its inactive rows.
 
 `snomed-ecl`'s `mapTarget`, `correlationId`, `mapGroup`, `mapPriority`,
-`mapRule`, `mapAdvice`, `mapCategoryId`, `targetComponentId`, and
-`valueId` filters (`spec/10-ecl.md` rule 18) are the first nine
+`mapRule`, `mapAdvice`, `mapCategoryId`, `targetComponentId`,
+`valueId`, and `owlExpression` filters (`spec/10-ecl.md` rule 18) are
+the first ten
 consumers: the first seven dispatch directly to
 `simple_map_member_rows`/`extended_map_member_rows`
 (`correlationId`/`mapGroup`/`mapPriority`/`mapRule`/`mapAdvice`/
 `mapCategoryId` only ever match an `extended_map_member_rows` row —
 `simple_map_member_rows`' own type has no such columns), and
-`targetComponentId`/`valueId` — the first two outside the two map
-types — dispatch to `association_member_rows`/
-`attribute_value_member_rows` respectively; all row sets are still
+`targetComponentId`/`valueId`/`owlExpression` — the first three outside
+the two map types — dispatch to `association_member_rows`/
+`attribute_value_member_rows`/`owl_expression_member_rows`
+respectively; all row sets are still
 tested whenever any field-filter kind appears in a block, since a row
 missing the column simply fails that filter rather than needing its
 own excluded code path. Every future `memberFieldFilter` column on
