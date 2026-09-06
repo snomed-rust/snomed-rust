@@ -65,6 +65,11 @@ before".
       GitHub and Codeberg are current. Retry `git push
       git@gitlab.com:snomed-rust/snomed-rust.git main v0.21.0 v0.22.0`
       next session if this is still open.
+      **Resolved 2026-09-06**: the same retry succeeded on the first
+      attempt — connectivity to GitLab's SSH endpoint recovered on its
+      own, confirming the network-path diagnosis rather than anything
+      wrong on GitLab's or this project's side. All three forges verified
+      at the same commit (`f15cf5d`) via `git ls-remote`.
 
 ## Done (2026-09-05, ECL `{{ M ... }}` `memberFieldFilter`: `targetComponentId`, first column outside the two map types)
 
