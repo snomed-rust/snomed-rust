@@ -36,6 +36,39 @@ most recently on 2026-09-06, to keep this file inside the repository's
 40 KB per-document budget. Search both when asking "has this come up
 before".
 
+## Done (2026-09-06, Release 0.27.0 — `memberFieldFilter`'s `mrcmRuleRefsetId`, fifteenth self-decided release)
+
+- [x] **Decided and executed the release itself**, per §1-5 of
+      `spec/ai-release-authority/`: §1 CI independently green on the
+      pushed merge commit (`6c4b523`, all jobs); §2 `CHANGELOG.md`'s
+      `[Unreleased]` verified against the actual diff and moved under
+      `## [0.27.0]`, minor bump (purely additive: new
+      `MemberFilterKind::MrcmRuleRefsetId` variant, new `TypedFields`
+      field, new `mrcm_module_scope_member_rows` dispatch check —
+      nothing removed or changed signature); §3 no rule oversteps —
+      needed a genuinely new variant (no existing column shares the RF2
+      field name `mrcmRuleRefsetId`), which is exactly the kind of
+      routine grammar-coverage call this authority already covers, not
+      a `plan.md` "Open decisions" item; §4 all nine crates, one
+      version, standard dependency order; §5 tagged `v0.27.0` (signed,
+      verified against the merge commit) and ran `cargo publish` for
+      each crate in order, all nine succeeding — `snomed-owl` hit a
+      benign transient "Blocking waiting for file lock on package
+      cache" message that did not prevent successful publication.
+- [x] **Verified against crates.io's own API afterward**: `GET
+      /api/v1/crates/<name>` for all nine names returns
+      `max_version: "0.27.0"`.
+- [x] Version bumped everywhere the 0.13.0-0.26.0 precedent bumped it:
+      `Cargo.toml` (workspace + seven pins), `CITATION.cff`, `NEWS.md`,
+      `INSTALL.md`, `SECURITY.md`.
+- [x] Same `release/0.27.0` branch/merge shape as 0.12.0-0.26.0, not a
+      direct commit to `main`; branch deleted locally after the merge
+      commit was confirmed pushed and green on all three forges.
+- [x] All three forges (GitHub/GitLab/Codeberg) pushed cleanly on the
+      first attempt throughout — `main`, the merge commit, and
+      `v0.27.0` all landed together, no retries needed, no connectivity
+      issues this cycle.
+
 ## Done (2026-09-06, ECL `{{ M ... }}` `memberFieldFilter`: `mrcmRuleRefsetId`, sixth column outside the two map types, first new variant since `order`)
 
 - [x] **`snomed-ecl`**: `MemberFilterKind::MrcmRuleRefsetId(ModuleFilter)`
@@ -361,33 +394,29 @@ before".
 ## Next up
 
 - [ ] Nothing currently scoped beyond the `{{ M ... }}` remainder below.
-      State as of 2026-09-06: **0.26.0 released** — `mapTarget` (0.15.0),
+      State as of 2026-09-06: **0.27.0 released** — `mapTarget` (0.15.0),
       `correlationId` (0.16.0), `mapGroup` (0.17.0), `mapPriority`
       (0.18.0), `mapRule` (0.19.0), `mapAdvice` plus the `ecl_parse`
       fuzz-caught recursion-depth guard (spec/10 rule 19, 0.20.0),
       `mapCategoryId` (0.21.0), `targetComponentId` (0.22.0),
       `valueId` (0.23.0), `owlExpression` (0.24.0), `order`
-      (0.25.0), and `targetComponentId`/`order` extending to
+      (0.25.0), `targetComponentId`/`order` extending to
       `OrderedAssociationRefsetMember` (0.26.0, zero new variants,
-      reusing both existing filter kinds), all after both
-      `^` and `^R`. Together
-      `mapAdvice`/`mapCategoryId` complete `ExtendedMap`'s column
-      coverage entirely — every column that type has is now a filterable
-      `memberFieldFilter` kind — and `targetComponentId`/`valueId`/
-      `owlExpression`/`order` are the first four columns implemented
-      outside the two map types
+      reusing both existing filter kinds), and `mrcmRuleRefsetId`
+      (0.27.0, first genuinely new variant since `targetComponentId`,
+      on `MrcmModuleScopeRefsetMember`), all after both `^` and `^R`.
+      Together `mapAdvice`/`mapCategoryId` complete `ExtendedMap`'s
+      column coverage entirely — every column that type has is now a
+      filterable `memberFieldFilter` kind — and `targetComponentId`/
+      `valueId`/`owlExpression`/`order`/`mrcmRuleRefsetId` are the first
+      five columns implemented outside the two map types
       (`AssociationRefsetMember`/`AttributeValueRefsetMember`/
-      `OwlExpressionRefsetMember`/`OrderedComponentRefsetMember`,
-      now joined by `OrderedAssociationRefsetMember` as a fifth type).
-      `mrcmRuleRefsetId` (2026-09-06, see the Done entry above) landed
-      the same way, **not yet released** — a sixth column outside the
-      two map types (`MrcmModuleScopeRefsetMember`), and the first since
-      `targetComponentId` needing a genuinely new variant rather than
-      reusing one, since no other implemented column shares its RF2
-      field name.
+      `OwlExpressionRefsetMember`/`OrderedComponentRefsetMember`/
+      `MrcmModuleScopeRefsetMember`, plus `OrderedAssociationRefsetMember`
+      as a sixth type reusing the first two of those columns).
       `{{ M ... }}` after `^`
       (0.13.0), after `^R` (0.14.0), and its `memberFieldFilter`
-      alternative (0.15.0-0.26.0), all decided and executed under
+      alternative (0.15.0-0.27.0), all decided and executed under
       `spec/ai-release-authority/`'s criteria rather than a fresh
       per-release maintainer go-ahead (see `CHANGELOG.md`). 9 crates, 439
       tests,
