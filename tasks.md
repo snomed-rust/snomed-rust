@@ -30,13 +30,60 @@ column, release 0.20.0, the `ecl_parse` fuzz-caught stack overflow,
 `memberFieldFilter`'s `mapCategoryId` column (2026-09-05), release
 0.22.0, `memberFieldFilter`'s `targetComponentId` column (2026-09-05),
 release 0.23.0, `memberFieldFilter`'s `valueId` column, release 0.24.0,
-`memberFieldFilter`'s `owlExpression` column, release 0.25.0, and
-`memberFieldFilter`'s `order` column
+`memberFieldFilter`'s `owlExpression` column, release 0.25.0,
+`memberFieldFilter`'s `order` column, release 0.26.0, and
+`memberFieldFilter`'s `targetComponentId`/`order` extending to
+`OrderedAssociation`
 (2026-09-06), live in
 [`docs/tasks-archive.md`](docs/tasks-archive.md) — moved there verbatim,
 most recently on 2026-09-06, to keep this file inside the repository's
 40 KB per-document budget. Search both when asking "has this come up
 before".
+
+## Done (2026-09-06, ECL `{{ M ... }}` `memberFieldFilter`: `attributeOrder`, `RefsetDescriptor`'s third and last column)
+
+- [x] **`snomed-ecl`**: `MemberFilterKind::AttributeOrder(NumericFieldFilter)`
+      — `attributeOrder (=|!=|<=|<|>=|>) "#" numericValue`, reusing
+      `mapGroup`/`mapPriority`/`order`'s exact numeric grammar and
+      `field_numeric_matches` verbatim, on `RefsetDescriptorRefsetMember`
+      again (its third and last column) — the fifteenth
+      `memberFieldFilter` column. Distinct from `order` itself
+      (`OrderedComponentRefsetMember`'s own column) despite the name
+      overlap, so — like `attributeDescription`/`attributeType` before
+      it — this genuinely needed a new variant: no other implemented
+      column shares the RF2 field name `attributeOrder`. Like
+      `attributeType`, no new row-set check was needed either — all
+      three `RefsetDescriptorRefsetMember` columns now populate from
+      the same `refset_descriptor_member_rows` block, extending
+      `TypedFields` to three entries set from one row.
+      `RefsetDescriptorRefsetMember` is now the first refset type with
+      every column it has covered by `memberFieldFilter`, alongside
+      `ExtendedMapRefsetMember`, `Association`, `AttributeValue`,
+      `OwlExpression`, and `MrcmModuleScope`.
+- [x] 4 new tests (parser: one shape test; eval: matches
+      `RefsetDescriptor` rows after both `^` and `^R`, never matches
+      `Association` rows, and a new test proving all three
+      `RefsetDescriptor` columns conjoin on the same row together) —
+      451/451 total, up from 447.
+- [x] Updated: `spec/10-ecl.md` (rule 18's dispatch enumeration,
+      summary count — **and trimmed the per-column row-set
+      enumeration down to a pointer at `spec/10-ecl-filters.md`**,
+      since margin had shrunk to ~728 bytes; freed ~1.4 KB back),
+      `spec/10-ecl-filters.md` (new bullet, dispatch-list update),
+      `spec/10-ecl-unimplemented.md` (removed from the "not
+      implemented" enumeration, added to the narrative),
+      `snomed-ecl/src/lib.rs`, `snomed-ecl/README.md` (table row,
+      not-yet-implemented list), `agents/ecl-engineer.md`,
+      `agents/store-engineer.md` (fourteen consumers to fifteen),
+      `plan.md` (Open decisions paragraph, Current status test count,
+      Since 0.9.0 narrative), `CHANGELOG.md`.
+- [x] **Archived proactively**: `tasks.md` was down to ~1.4 KB of
+      budget margin, so moved the two oldest remaining 2026-09-06
+      sections (release 0.26.0, `memberFieldFilter`'s
+      `targetComponentId`/`order` extension to `OrderedAssociation`)
+      into `docs/tasks-archive-27.md`, restoring comfortable margin.
+- [x] Verified: build/clippy/fmt/test (451/451)/check-docs/
+      check-trademarks/spec_citations all clean.
 
 ## Done (2026-09-06, Release 0.29.0 — `memberFieldFilter`'s `attributeType`, seventeenth self-decided release)
 
@@ -268,80 +315,6 @@ before".
 - [x] Verified: build/clippy/fmt/test (439/439)/check-docs/
       check-trademarks/spec_citations all clean.
 
-## Done (2026-09-06, Release 0.26.0 — `targetComponentId`/`order` extend to `OrderedAssociation`, fourteenth self-decided release)
-
-- [x] **Decided and executed the release itself**, per §1-5 of
-      `spec/ai-release-authority/`: §1 CI independently green on the
-      pushed merge commit (`caf3d70`, all jobs); §2 `CHANGELOG.md`'s
-      `[Unreleased]` verified against the actual diff and moved under
-      `## [0.26.0]`, minor bump (purely additive: `targetComponentId`/
-      `order` now also match `OrderedAssociationRefsetMember` rows — no
-      new `MemberFilterKind` variant, but a genuine new match target,
-      nothing removed or changed signature); §3 no rule oversteps —
-      built on the same `memberFieldFilter` store-retention decision
-      already recorded in `plan.md` as Decided 2026-09-03, needing no
-      new decision since both filter kinds already existed; §4 all nine
-      crates, one version, standard dependency order; §5 tagged
-      `v0.26.0` (signed, verified against the merge commit) and ran
-      `cargo publish` for each crate in order, all nine succeeding —
-      no package-cache waits or slow builds this time, unlike 0.25.0.
-- [x] **Verified against crates.io's own API afterward**: `GET
-      /api/v1/crates/<name>` for all nine names returns
-      `max_version: "0.26.0"`.
-- [x] Version bumped everywhere the 0.13.0-0.25.0 precedent bumped it:
-      `Cargo.toml` (workspace + seven pins), `CITATION.cff`, `NEWS.md`,
-      `INSTALL.md`, `SECURITY.md`.
-- [x] Same `release/0.26.0` branch/merge shape as 0.12.0-0.25.0, not a
-      direct commit to `main`.
-- [x] All three forges (GitHub/GitLab/Codeberg) pushed cleanly on the
-      first attempt throughout — `main`, the merge commit, and
-      `v0.26.0` all landed together, no retries needed.
-
-## Done (2026-09-06, ECL `{{ M ... }}` `memberFieldFilter`: `targetComponentId`/`order` extend to `OrderedAssociation`, zero new variants)
-
-- [x] **`snomed-ecl`**: `OrderedAssociationRefsetMember` — a fifth
-      refset type outside the two map types, carrying both
-      `targetComponentId` and `order` on the same row — extends the
-      *existing* `MemberFilterKind::TargetComponentId` (from
-      `Association`) and `MemberFilterKind::Order` (from
-      `OrderedComponent`) rather than adding new variants: exactly the
-      "cheapest possible increment" `tasks.md` flagged it as. No AST or
-      parser change at all — `targetComponentId`/`order` already parse
-      to those variants regardless of which refset type ends up
-      matching at eval time. `typed_field_row_matches` grew a seventh
-      row-set check (`ordered_association_member_rows`, after
-      `simple_map_member_rows`/`extended_map_member_rows`/
-      `association_member_rows`/`attribute_value_member_rows`/
-      `owl_expression_member_rows`/`ordered_component_member_rows`) that
-      populates *both* `TypedFields::target_component_id` and
-      `TypedFields::order` from one row — the only place two
-      refset-type-specific fields are set together rather than one.
-- [x] 2 new tests: matches `OrderedAssociation` rows for
-      `targetComponentId` alone, `order` alone, and both conjoined
-      together on the same row (proving "one row, all filters" holds
-      when the two filters are two different `MemberFilterKind`
-      variants sharing one row source, not just two instances of the
-      same kind) — plus after `^R` for both kinds; never matches a
-      plain `AssociationRefsetMember` row (which has no `order` column)
-      — 435/435 total, up from 433.
-- [x] Updated: `spec/10-ecl.md` (rule 18's dispatch enumeration — no
-      column-count change, since no new `MemberFilterKind` variant),
-      `spec/10-ecl-filters.md` (both bullets' row-source lists, the
-      shared-dispatch paragraph's type list), `ast.rs`'s doc comments on
-      both `TargetComponentId` and `Order` (updated from "would extend...
-      when picked up" to "reuses... tested against"),
-      `snomed-ecl/README.md` (table row's "only" qualifiers corrected),
-      `agents/ecl-engineer.md`, `agents/store-engineer.md` (seventh
-      row-set check, populated from one row), `plan.md` (Current status
-      test count, Since 0.9.0 narrative), `CHANGELOG.md`.
-- [x] **Archived proactively**: `tasks.md` was down to ~3.7 KB of
-      budget margin, so moved the two oldest remaining 2026-09-05
-      sections (release 0.22.0, `memberFieldFilter`'s `targetComponentId`
-      column) into `docs/tasks-archive-23.md`, restoring comfortable
-      margin.
-- [x] Verified: build/clippy/fmt/test (435/435)/check-docs/
-      check-trademarks/spec_citations all clean.
-
 
 ## Next up
 
@@ -362,11 +335,17 @@ before".
       `RefsetDescriptorRefsetMember`'s second column, another
       genuinely new variant but needing no new row-set check since
       both columns share one row), all after both `^` and `^R`.
+      `attributeOrder` (2026-09-06, see the Done entry above) landed
+      the same way, **not yet released** —
+      `RefsetDescriptorRefsetMember`'s third and last column, back on
+      the numeric shape, another genuinely new variant, again needing
+      no new row-set check.
       Together `mapAdvice`/`mapCategoryId` complete `ExtendedMap`'s
       column coverage entirely — every column that type has is now a
       filterable `memberFieldFilter` kind — and `targetComponentId`/
       `valueId`/`owlExpression`/`order`/`mrcmRuleRefsetId`/
-      `attributeDescription`/`attributeType` are the first seven columns
+      `attributeDescription`/`attributeType`/`attributeOrder` are the
+      first eight columns
       implemented
       outside the two map types
       (`AssociationRefsetMember`/`AttributeValueRefsetMember`/
@@ -374,13 +353,14 @@ before".
       `MrcmModuleScopeRefsetMember`/`RefsetDescriptorRefsetMember`, plus
       `OrderedAssociationRefsetMember` as a seventh type reusing the
       first two of those columns) — `RefsetDescriptorRefsetMember`
-      alone now carries two of those seven columns.
+      alone now carries all three of its own columns, the first refset
+      type outside the two map types with full column coverage.
       `{{ M ... }}` after `^`
       (0.13.0), after `^R` (0.14.0), and its `memberFieldFilter`
-      alternative (0.15.0-0.29.0), all
-      decided and executed under
+      alternative (0.15.0-0.29.0, `attributeOrder` not yet released),
+      all decided and executed under
       `spec/ai-release-authority/`'s criteria rather than a fresh
-      per-release maintainer go-ahead (see `CHANGELOG.md`). 9 crates, 447
+      per-release maintainer go-ahead (see `CHANGELOG.md`). 9 crates, 451
       tests,
       clippy/fmt clean on stable, MSRV 1.96 (current
       stable minus two, `spec/rust-msrv-n-minus-2/index.md`), `fuzz/`,
@@ -409,7 +389,7 @@ before".
       the `moduleId`/`effectiveTime`/`active` kinds are done after both
       `^` (2026-09-01) and `^R` (2026-09-02); the fourth grammar
       alternative, `memberFieldFilter`, now has its store-retention
-      decided and fourteen columns done after both `^` and `^R`:
+      decided and fifteen columns done after both `^` and `^R`:
       `mapTarget`, `correlationId`, `mapGroup` (2026-09-03),
       `mapPriority`, `mapRule`, `mapAdvice` (2026-09-04), `mapCategoryId`
       (2026-09-05, completes `ExtendedMap`'s column coverage),
@@ -424,13 +404,17 @@ before".
       (2026-09-06 — the sixth column outside the two map
       types, and the first genuinely new variant since `targetComponentId`,
       on `MrcmModuleScopeRefsetMember`), `attributeDescription`
-      (2026-09-06, see the Done entry two above — the seventh column
+      (2026-09-06 — the seventh column
       outside the two map types, another genuinely new variant, on
       `RefsetDescriptorRefsetMember`, needing no `snomed-store` change
-      since that type was already retained), and `attributeType`
-      (2026-09-06, see Done above — `RefsetDescriptorRefsetMember`'s
+      since that type was already retained), `attributeType`
+      (2026-09-06 — `RefsetDescriptorRefsetMember`'s
       second column, another genuinely new variant, but needing no new
-      row-set check at all since both columns share one row) followed.
+      row-set check at all since both columns share one row), and
+      `attributeOrder` (2026-09-06, see Done above —
+      `RefsetDescriptorRefsetMember`'s third and last column, back on
+      the numeric shape, another genuinely new variant, again no new
+      row-set check) followed.
       What is still open:
       - Every other `memberFieldFilter` column — no longer blocked on a
         store decision (all sixteen non-Simple/Language types already
@@ -489,20 +473,24 @@ before".
           `timeValue`/`timeComparisonOperator` production against the
           official ABNF before writing any Rust — not a routine
           "reuse the shape" pick like the others on this list.
-        - RefsetDescriptor: `attributeDescription` **done** (2026-09-06)
-          — reused `correlationId`/`mrcmRuleRefsetId`'s exact
-          concept-reference grammar, tested against a ninth typed row
-          set (`refset_descriptor_member_rows`, already present in the
-          store). `attributeType` **done** (2026-09-06) — same
-          concept-reference grammar again, its own genuinely new
-          variant since no implemented column shares that RF2 field
-          name either, but no new row-set check: both columns share one
-          row. `attributeOrder` (`u32` — numeric shape) is this type's
-          third and last column, free to pick up next — the most likely
-          next pick, no unconfirmed shape to research first.
+        - RefsetDescriptor: **done** — `attributeDescription`,
+          `attributeType` (both 2026-09-06, reused
+          `correlationId`/`mrcmRuleRefsetId`'s exact concept-reference
+          grammar, tested against a ninth typed row set,
+          `refset_descriptor_member_rows`, already present in the
+          store), and `attributeOrder` (2026-09-06, numeric shape,
+          reused `mapGroup`/`mapPriority`/`order`'s grammar, no new
+          row-set check either — all three columns share one row)
+          cover every column this type has, the first refset type
+          outside the two map types with full column coverage.
         - DescriptionType: `descriptionFormat` (`SctId` —
-          concept-reference shape); `descriptionLength` (`u32` — numeric
-          shape).
+          concept-reference shape) — the most likely next pick, reusing
+          `correlationId`'s exact grammar again but needing a new
+          variant and a tenth typed row set,
+          `description_type_member_rows` (already present in the
+          store); `descriptionLength` (`u32` — numeric shape) is this
+          type's second column, free to pick up in the same or a later
+          increment.
         - MrcmDomain: `domainConstraint`, `parentDomain`,
           `proximalPrimitiveConstraint`, `proximalPrimitiveRefinement`,
           `domainTemplateForPrecoordination`,

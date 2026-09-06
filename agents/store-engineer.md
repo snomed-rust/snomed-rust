@@ -204,17 +204,17 @@ its inactive rows.
 `snomed-ecl`'s `mapTarget`, `correlationId`, `mapGroup`, `mapPriority`,
 `mapRule`, `mapAdvice`, `mapCategoryId`, `targetComponentId`,
 `valueId`, `owlExpression`, `order`, `mrcmRuleRefsetId`,
-`attributeDescription`, and `attributeType` filters
+`attributeDescription`, `attributeType`, and `attributeOrder` filters
 (`spec/10-ecl.md` rule
 18) are
-the first fourteen
+the first fifteen
 consumers: the first seven dispatch directly to
 `simple_map_member_rows`/`extended_map_member_rows`
 (`correlationId`/`mapGroup`/`mapPriority`/`mapRule`/`mapAdvice`/
 `mapCategoryId` only ever match an `extended_map_member_rows` row —
 `simple_map_member_rows`' own type has no such columns), and
 `targetComponentId`/`valueId`/`owlExpression`/`order`/`mrcmRuleRefsetId`/
-`attributeDescription`/`attributeType`
+`attributeDescription`/`attributeType`/`attributeOrder`
 — the first six
 outside
 the two map types — dispatch to `association_member_rows`/
@@ -226,10 +226,11 @@ respectively, plus an eighth row set,
 `order` also dispatch to (one row there carries both columns, so both
 `TypedFields` entries are set from it together — see
 `agents/ecl-engineer.md` and `ast.rs`'s doc comments on those two
-variants); `attributeDescription`/`attributeType` share this same "two
-fields, one row" shape too, but on the existing
-`refset_descriptor_member_rows` set rather than a new one, since both
-columns were already on that accessor's row type; all row sets are still
+variants); `attributeDescription`/`attributeType`/`attributeOrder`
+share this same "several fields, one row" shape too, but on the
+existing `refset_descriptor_member_rows` set rather than a new one,
+since all three columns were already on that accessor's row type; all
+row sets are still
 tested whenever any field-filter kind appears in a block, since a row
 missing the column simply fails that filter rather than needing its
 own excluded code path. Every future `memberFieldFilter` column on

@@ -268,10 +268,20 @@ concept reference has five, numeric has three):
   rule — testing its typed row set once, not once per field, keeps that
   true rather than accidentally satisfying the two filters from two
   different rows.
+- `attributeOrder (=|!=|<=|<|>=|>) "#" numericValue` — the same numeric
+  shape and the same `NumericFieldFilter`/`field_numeric_matches`
+  machinery as `mapGroup`/`mapPriority`/`order`, matched against the
+  member row's own `attributeOrder` column (a `u32`, distinct from
+  `order` itself despite the name overlap).
+  `RefsetDescriptorRefsetMember`'s third and last column, tested
+  against the same `SnapshotStore::refset_descriptor_member_rows` as
+  `attributeDescription`/`attributeType` — all three live on one row,
+  so a block naming any combination of the three is satisfied by that
+  row alone.
 
-All fourteen reuse the shared dispatch `mapTarget` introduced (renamed
+All fifteen reuse the shared dispatch `mapTarget` introduced (renamed
 `typed_field_row_matches` once a non-map type joined it): a block
-naming *any* of the fourteen kinds is tested against
+naming *any* of the fifteen kinds is tested against
 `SimpleMap`/`ExtendedMap`/`Association`/`AttributeValue`/`OwlExpression`/
 `OrderedComponent`/`OrderedAssociation`/`MrcmModuleScope`/
 `RefsetDescriptor`
@@ -283,7 +293,8 @@ shared-column one — a `SimpleMap` row can never satisfy a block naming
 any of `correlationId`/
 `mapGroup`/`mapPriority`/`mapRule`/`mapAdvice`/`mapCategoryId`/
 `targetComponentId`/`valueId`/`owlExpression`/`order`/
-`mrcmRuleRefsetId`/`attributeDescription`/`attributeType` (the column is
+`mrcmRuleRefsetId`/`attributeDescription`/`attributeType`/
+`attributeOrder` (the column is
 simply
 absent on that row source, the same "not this row's type" answer a
 shared-column filter gets from a row of the wrong refset type), so it

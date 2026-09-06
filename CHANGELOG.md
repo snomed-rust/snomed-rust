@@ -13,6 +13,37 @@ together, in dependency order (`snomed-core` → `snomed-rf2` → `snomed-owl`
 
 ## [Unreleased]
 
+**New ECL capability, additive.** `{{ M ... }}`'s `memberFieldFilter`
+gains its fifteenth column, `attributeOrder` —
+`RefsetDescriptorRefsetMember`'s third and last column (after
+`attributeDescription`/`attributeType`), after both `^` and `^R`. Back
+on the numeric shape, reusing `mapGroup`/`mapPriority`/`order`'s exact
+grammar and `field_numeric_matches`; distinct from `order` itself
+despite the name overlap, so this is a genuinely new
+`MemberFilterKind` variant rather than an extension of an existing
+one. A minor bump: new public API, no removals or signature changes to
+anything existing.
+
+### Added
+
+- `snomed-ecl`: `{{ M attributeOrder = #1 }}` restricts to
+  `RefsetDescriptor` member rows whose own `attributeOrder` column
+  matches — the same numeric grammar `mapGroup`/`mapPriority`/`order`
+  use (reusing `NumericFieldFilter`'s exact shape). Works after both
+  `^` and `^R`, and conjoins with `moduleId` and the other
+  shared-column kinds on the same member row.
+  `attributeDescription`/`attributeType`/`attributeOrder` all live on
+  the same `RefsetDescriptorRefsetMember` row, so a block naming any
+  combination of the three is satisfied by that one row. Only
+  `RefsetDescriptorRefsetMember` rows carry an `attributeOrder` column;
+  every other refset type never matches this filter. New public API:
+  `MemberFilterKind::AttributeOrder`.
+
+### Notes for consumers
+
+- No public API removed or changed signature; existing code compiles
+  unmodified against this release.
+
 ## [0.29.0] — 2026-09-06
 
 **New ECL capability, additive.** `{{ M ... }}`'s `memberFieldFilter`

@@ -370,7 +370,14 @@ row-set check at all — both columns live on the same row, so
 `refset_descriptor_member_rows`' existing block just grew a second
 `TypedFields` entry populated alongside the first, the same "two
 fields, one row" shape `targetComponentId`/`order` already have for
-`OrderedAssociationRefsetMember`. `memberFieldFilter`
+`OrderedAssociationRefsetMember`. `attributeOrder` (2026-09-06),
+`RefsetDescriptorRefsetMember`'s third and last column, followed the
+same pattern once more: back on the numeric shape (reusing
+`mapGroup`/`mapPriority`/`order`'s `field_numeric_matches`), another
+genuinely new variant (`AttributeOrder`, since no implemented column
+shares that field name), and again no new row-set check — the same
+`refset_descriptor_member_rows` block now populates all three
+`TypedFields` entries from one row. `memberFieldFilter`
 isn't one production but five in the official grammar, chosen by the
 named column's own semantic type
 (`expressionComparisonOperator ws subExpressionConstraint` for a concept

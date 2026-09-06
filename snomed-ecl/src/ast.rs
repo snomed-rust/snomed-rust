@@ -374,7 +374,7 @@ pub enum ConceptFilterKind {
 /// `MapTarget`/`CorrelationId`/`MapGroup`/`MapPriority`/`MapRule`/
 /// `MapAdvice`/`MapCategoryId`/`TargetComponentId`/`ValueId`/
 /// `OwlExpression`/`Order`/`MrcmRuleRefsetId`/`AttributeDescription`/
-/// `AttributeType`
+/// `AttributeType`/`AttributeOrder`
 /// are the official grammar's fourth kind, `memberFieldFilter`
 /// — a refset-type-specific column rather than a shared one. Its own
 /// grammar (confirmed against the official ABNF, `syntax/abnf-brief.txt`)
@@ -403,10 +403,13 @@ pub enum ConceptFilterKind {
 /// new variant since no implemented column shares its RF2 field name);
 /// `attributeDescription` (`RefsetDescriptorRefsetMember`, a
 /// seventh refset type outside the two map types, another genuinely new
-/// variant for the same reason); and `attributeType`
+/// variant for the same reason); `attributeType`
 /// (`RefsetDescriptorRefsetMember` again, its second column, another
 /// genuinely new variant — both columns come from the same row, so a
-/// block naming both is satisfied by that one row) — all
+/// block naming both is satisfied by that one row); and `attributeOrder`
+/// (`RefsetDescriptorRefsetMember`'s third and last column, back on the
+/// numeric shape, another genuinely new variant — all three of that
+/// type's columns now come from the same row) — all
 /// decided 2026-09-03 (`plan.md`'s "Open decisions") to retain full rows
 /// — active and inactive — for all sixteen non-Simple/Language refset
 /// types, the same store change `moduleId`/`effectiveTime`/`active`
@@ -594,6 +597,26 @@ pub enum MemberFilterKind {
     /// variant too, not a reuse. A block naming it is tested against
     /// `SnapshotStore::refset_descriptor_member_rows` instead.
     AttributeType(ModuleFilter),
+    /// `attributeOrder (=|!=|<=|<|>=|>) "#" numericValue` — a
+    /// `memberFieldFilter` (spec/10 rule 18):
+    /// `RefsetDescriptorRefsetMember`'s own `attributeOrder` column (a
+    /// `u32` — the display order of the extra column being documented
+    /// among that refset's other extra columns). Reuses
+    /// [`NumericFieldFilter`]'s exact shape and grammar — the same
+    /// numeric production `mapGroup`/`mapPriority`/`order` use, just a
+    /// different refset type and RF2 column — evaluated with
+    /// `field_numeric_matches`, never `numeric_matches`, same as those
+    /// three. `RefsetDescriptorRefsetMember` now carries all three of
+    /// its columns as filterable kinds:
+    /// [`MemberFilterKind::AttributeDescription`]/
+    /// [`MemberFilterKind::AttributeType`]/this one all live on the
+    /// same row, so a block naming any combination of the three is
+    /// satisfied by that one row. No other implemented column shares
+    /// the RF2 field name `attributeOrder` (distinct from `order`
+    /// itself, `OrderedComponentRefsetMember`'s own column), so this
+    /// needs its own variant too. A block naming it is tested against
+    /// `SnapshotStore::refset_descriptor_member_rows` instead.
+    AttributeOrder(NumericFieldFilter),
 }
 
 /// `numericComparisonOperator ws "#" numericValue` — a `memberFieldFilter`

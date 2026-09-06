@@ -300,6 +300,7 @@ fn member_row_matches(
                 | MemberFilterKind::MrcmRuleRefsetId(_)
                 | MemberFilterKind::AttributeDescription(_)
                 | MemberFilterKind::AttributeType(_)
+                | MemberFilterKind::AttributeOrder(_)
         )
     }) {
         return typed_field_row_matches(
@@ -334,15 +335,16 @@ fn member_row_matches(
 /// `ExtendedMap`-only and adds one more field here instead of one more
 /// function parameter everywhere. `target_component_id`/`value_id`/
 /// `owl_expression`/`order`/`mrcm_rule_refset_id`/`attribute_description`/
-/// `attribute_type`
+/// `attribute_type`/`attribute_order`
 /// are the first fields from refset types
 /// outside the two map types
 /// (`AssociationRefsetMember`/`AttributeValueRefsetMember`/
 /// `OwlExpressionRefsetMember`/`OrderedComponentRefsetMember`/
 /// `MrcmModuleScopeRefsetMember`/`RefsetDescriptorRefsetMember` —
-/// `attribute_description`/`attribute_type` are both populated from the
-/// same `RefsetDescriptorRefsetMember` row, the same "two fields, one
-/// row" case `target_component_id`/`order` have for
+/// `attribute_description`/`attribute_type`/`attribute_order` are all
+/// three populated from the same `RefsetDescriptorRefsetMember` row,
+/// the same "several fields, one row" case
+/// `target_component_id`/`order` have for
 /// `OrderedAssociationRefsetMember`).
 #[derive(Default)]
 struct TypedFields<'a> {
@@ -360,6 +362,7 @@ struct TypedFields<'a> {
     mrcm_rule_refset_id: Option<SctId>,
     attribute_description: Option<SctId>,
     attribute_type: Option<SctId>,
+    attribute_order: Option<u32>,
 }
 
 /// The `mapTarget`/`correlationId`/`mapGroup`/`mapPriority`/`mapRule`/
@@ -590,6 +593,7 @@ fn typed_field_row_matches(
                         &TypedFields {
                             attribute_description: Some(row.attribute_description_id),
                             attribute_type: Some(row.attribute_type_id),
+                            attribute_order: Some(row.attribute_order),
                             ..TypedFields::default()
                         },
                     )
@@ -965,6 +969,15 @@ fn member_filter_matches(
                 return false;
             };
             values.contains(&attribute_type) != *negated
+        }
+        MemberFilterKind::AttributeOrder(NumericFieldFilter { operator, value }) => {
+            // No `attribute_order` on this row source (every source but
+            // `RefsetDescriptor`'s own): never matches, same reasoning
+            // as `Order`'s `None` case above.
+            let Some(attribute_order) = fields.attribute_order else {
+                return false;
+            };
+            field_numeric_matches(*operator, &attribute_order.to_string(), value)
         }
     }
 }
@@ -4529,6 +4542,145 @@ mod tests {
                 &store
             ),
             HashSet::from([MI])
+        );
+    }
+
+    /// `attributeOrder` (spec/10 rule 18) — the fifteenth
+    /// `memberFieldFilter` column, and `RefsetDescriptorRefsetMember`'s
+    /// third and last (after `attributeDescription`/`attributeType`).
+    /// Back on the numeric shape, reusing `mapGroup`/`mapPriority`/
+    /// `order`'s exact grammar and `field_numeric_matches`; distinct
+    /// from `order` itself (`OrderedComponentRefsetMember`'s own
+    /// column) despite the name overlap. Tested against the same ninth
+    /// typed row set every `RefsetDescriptor` column uses — no new
+    /// row-set check needed. Also proves `{{ M }}` after `^R` reaches
+    /// it.
+    #[test]
+    fn member_filter_attribute_order_matches_refset_descriptor_rows() {
+        let refset_descriptor = SctId::compose(9934, ComponentType::Concept, None).unwrap();
+        let description = SctId::compose(9935, ComponentType::Concept, None).unwrap();
+        let attribute_type = SctId::compose(9936, ComponentType::Concept, None).unwrap();
+        let mut b = SnapshotStore::builder();
+        b.add_concept(concept(MI));
+        b.add_concept(concept(description));
+        b.add_concept(concept(attribute_type));
+        b.add_refset_descriptor_member(RefsetDescriptorRefsetMember {
+            core: RefsetMemberCore {
+                id: MemberId::parse("80000000-0000-4000-8000-000000000129").unwrap(),
+                effective_time: EffectiveTime::new_unchecked(20190731),
+                active: true,
+                module_id: constants::CORE_MODULE,
+                refset_id: refset_descriptor,
+                referenced_component_id: MI,
+            },
+            attribute_description_id: description,
+            attribute_type_id: attribute_type,
+            attribute_order: 2,
+        });
+        let store = b.build();
+
+        assert_eq!(
+            eval(
+                &format!("^ {refset_descriptor} {{{{ M attributeOrder = #1 }}}}"),
+                &store
+            ),
+            HashSet::new(),
+            "the row's own attributeOrder doesn't match"
+        );
+        assert_eq!(
+            eval(
+                &format!("^ {refset_descriptor} {{{{ M attributeOrder = #2 }}}}"),
+                &store
+            ),
+            HashSet::from([MI])
+        );
+        // `^R` reaches the same row, through the shared row-matching path.
+        assert_eq!(
+            eval(&format!("^R {MI} {{{{ M attributeOrder = #2 }}}}"), &store),
+            HashSet::from([refset_descriptor])
+        );
+    }
+
+    /// `AssociationRefsetMember`/every other typed row source has no
+    /// `attributeOrder` column — a membership that exists only there
+    /// must never match, the same "column absent on this row source"
+    /// case every other field filter has for the row types it doesn't
+    /// apply to.
+    #[test]
+    fn member_filter_attribute_order_never_matches_association_rows() {
+        let same_as = SctId::compose(9937, ComponentType::Concept, None).unwrap();
+        let exact_match = SctId::compose(9938, ComponentType::Concept, None).unwrap();
+        let mut b = SnapshotStore::builder();
+        b.add_concept(concept(MI));
+        b.add_concept(concept(exact_match));
+        b.add_association_member(AssociationRefsetMember {
+            core: RefsetMemberCore {
+                id: MemberId::parse("80000000-0000-4000-8000-000000000130").unwrap(),
+                effective_time: EffectiveTime::new_unchecked(20190731),
+                active: true,
+                module_id: constants::CORE_MODULE,
+                refset_id: same_as,
+                referenced_component_id: MI,
+            },
+            target_component_id: exact_match,
+        });
+        let store = b.build();
+
+        assert_eq!(
+            eval(
+                &format!("^ {same_as} {{{{ M attributeOrder = #1 }}}}"),
+                &store
+            ),
+            HashSet::new()
+        );
+    }
+
+    /// `attributeDescription`/`attributeType`/`attributeOrder` all
+    /// three live on the same `RefsetDescriptorRefsetMember` row
+    /// (spec/08) — a block naming all three is satisfied by that one
+    /// row, not by separate rows each matching one filter.
+    #[test]
+    fn member_filter_all_three_refset_descriptor_columns_conjoin_on_the_same_row() {
+        let refset_descriptor = SctId::compose(9939, ComponentType::Concept, None).unwrap();
+        let description = SctId::compose(9940, ComponentType::Concept, None).unwrap();
+        let attribute_type = SctId::compose(9941, ComponentType::Concept, None).unwrap();
+        let mut b = SnapshotStore::builder();
+        b.add_concept(concept(MI));
+        b.add_concept(concept(description));
+        b.add_concept(concept(attribute_type));
+        b.add_refset_descriptor_member(RefsetDescriptorRefsetMember {
+            core: RefsetMemberCore {
+                id: MemberId::parse("80000000-0000-4000-8000-000000000131").unwrap(),
+                effective_time: EffectiveTime::new_unchecked(20190731),
+                active: true,
+                module_id: constants::CORE_MODULE,
+                refset_id: refset_descriptor,
+                referenced_component_id: MI,
+            },
+            attribute_description_id: description,
+            attribute_type_id: attribute_type,
+            attribute_order: 5,
+        });
+        let store = b.build();
+
+        assert_eq!(
+            eval(
+                &format!(
+                    "^ {refset_descriptor} {{{{ M attributeDescription = {description}, attributeType = {attribute_type}, attributeOrder = #5 }}}}"
+                ),
+                &store
+            ),
+            HashSet::from([MI])
+        );
+        assert_eq!(
+            eval(
+                &format!(
+                    "^ {refset_descriptor} {{{{ M attributeDescription = {description}, attributeOrder = #6 }}}}"
+                ),
+                &store
+            ),
+            HashSet::new(),
+            "wrong attributeOrder on the only row rules it out"
         );
     }
 

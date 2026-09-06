@@ -1,8 +1,8 @@
 # Tasks archive — index
 
 [`tasks.md`](../tasks.md) keeps the current checklist and the recent
-entries; everything older lives here, split into twenty-six files that
-each
+entries; everything older lives here, split into twenty-seven files
+that each
 stay inside the repository's 40 KB per-document budget. Entries were moved
 verbatim — this is a historical record, not a summary, and it is worth
 searching before assuming a problem is new. The one edit applied since is
@@ -38,6 +38,7 @@ so the paths quoted here still resolve.
 | [`tasks-archive-24.md`](tasks-archive-24.md) | 2026-09-06 | Release 0.23.0; `memberFieldFilter`'s ninth column, `valueId` (the second column implemented outside the two map types, on `AttributeValueRefsetMember`) |
 | [`tasks-archive-25.md`](tasks-archive-25.md) | 2026-09-06 | Release 0.24.0; `memberFieldFilter`'s tenth column, `owlExpression` (the third column implemented outside the two map types, and the first of those three on the string-search shape) |
 | [`tasks-archive-26.md`](tasks-archive-26.md) | 2026-09-06 | Release 0.25.0; `memberFieldFilter`'s eleventh column, `order` (the fourth column implemented outside the two map types, and the first of those four back on the numeric shape) |
+| [`tasks-archive-27.md`](tasks-archive-27.md) | 2026-09-06 | Release 0.26.0; `memberFieldFilter`'s `targetComponentId`/`order` extending to `OrderedAssociationRefsetMember` (zero new variants — a fifth type outside the two map types reusing both existing filter kinds) |
 
 Older entries are shorter and more granular than recent ones: they were
 written a change at a time while the workspace was being built from

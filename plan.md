@@ -253,8 +253,9 @@ and harmonizes it with the sibling repositories (`hl7-rust`, `er7-rust`,
   existing accessor's signature. `mapTarget`, `correlationId`, `mapGroup`,
   `mapPriority`, `mapRule`, `mapAdvice`, `mapCategoryId`,
   `targetComponentId`, `valueId`, `owlExpression`, `order`,
-  `mrcmRuleRefsetId`, `attributeDescription`, and `attributeType` are the
-  first fourteen
+  `mrcmRuleRefsetId`, `attributeDescription`, `attributeType`, and
+  `attributeOrder` are the
+  first fifteen
   concrete fields
   built on this retention (`snomed-ecl`, spec/10 rule 18): the
   `memberFieldFilter` grammar alternative, tested against
@@ -276,7 +277,8 @@ and harmonizes it with the sibling repositories (`hl7-rust`, `er7-rust`,
   the concept-reference
   shape
   (`expressionComparisonOperator ws subExpressionConstraint`, reusing
-  `ModuleFilter` verbatim), `mapGroup`/`mapPriority`/`order` the numeric
+  `ModuleFilter` verbatim), `mapGroup`/`mapPriority`/`order`/
+  `attributeOrder` the numeric
   shape
   (`numericComparisonOperator ws "#" numericValue`, all three reusing
   `NumericFieldFilter`) — which caught a real bug: the existing
@@ -286,8 +288,8 @@ and harmonizes it with the sibling repositories (`hl7-rust`, `er7-rust`,
   boolean and time shapes remain unimplemented. `mapCategoryId` completes
   `ExtendedMapRefsetMember`'s column coverage; `targetComponentId`/
   `valueId`/`owlExpression`/`order`/`mrcmRuleRefsetId`/
-  `attributeDescription`/`attributeType` are the first
-  seven fields on refset
+  `attributeDescription`/`attributeType`/`attributeOrder` are the first
+  eight fields on refset
   types
   other than the two
   map types (`AssociationRefsetMember`/`AttributeValueRefsetMember`/
@@ -314,9 +316,9 @@ and harmonizes it with the sibling repositories (`hl7-rust`, `er7-rust`,
 ## Current status
 
 All eight phases above are closed. As of `memberFieldFilter`'s
-`attributeType` (2026-09-06, below) the
+`attributeOrder` (2026-09-06, below) the
 workspace is 9 published
-crates with zero dependencies, 447 tests, a clean
+crates with zero dependencies, 451 tests, a clean
 `cargo clippy --all-targets`, 13 fuzz targets, and six criterion
 benchmark files. What is *not* done is tracked
 in two places and nowhere
@@ -376,13 +378,17 @@ needing a genuinely new variant since — unlike `targetComponentId`/
 map types (`RefsetDescriptorRefsetMember`, a ninth row-set check),
 another genuinely new variant for the same reason — the store already
 carried the `refset_descriptor_member_rows` accessor, so this
-increment needed no `snomed-store` change; and `attributeType`
+increment needed no `snomed-store` change; `attributeType`
 (2026-09-06) is `RefsetDescriptorRefsetMember`'s second column,
 another genuinely new variant, but needing no new row-set check at
 all — both columns share one row, so the existing
 `refset_descriptor_member_rows` block just grew a second `TypedFields`
 entry, the same "two fields, one row" shape
-`targetComponentId`/`order` have. In between, the `ecl_parse` fuzz target's CI smoke run caught
+`targetComponentId`/`order` have; and `attributeOrder` (2026-09-06) is
+`RefsetDescriptorRefsetMember`'s third and last column, back on the
+numeric shape, another genuinely new variant, again needing no new
+row-set check — all three of that type's columns now populate from
+the same row. In between, the `ecl_parse` fuzz target's CI smoke run caught
 a real stack overflow on pathologically deep `(`/refinement/
 attribute-set nesting (2026-09-04) — fixed with a shared `Parser::depth`
 counter and a 100-level cap (spec/10 rule 19,

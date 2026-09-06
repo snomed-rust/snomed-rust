@@ -612,11 +612,16 @@ impl Parser {
                     value: Box::new(value),
                 }))
             }
+            TokenKind::Word(word) if word == "attributeOrder" => {
+                self.advance()?;
+                let filter = self.parse_numeric_field_filter()?;
+                Ok(MemberFilterKind::AttributeOrder(filter))
+            }
             _ => {
                 let tok = self.peek().clone();
                 Err(Self::unexpected(
                     &tok,
-                    "`moduleId`, `effectiveTime`, `active`, `mapTarget`, `correlationId`, `mapGroup`, `mapPriority`, `mapRule`, `mapAdvice`, `mapCategoryId`, `targetComponentId`, `valueId`, `owlExpression`, `order`, `mrcmRuleRefsetId`, `attributeDescription`, or `attributeType`",
+                    "`moduleId`, `effectiveTime`, `active`, `mapTarget`, `correlationId`, `mapGroup`, `mapPriority`, `mapRule`, `mapAdvice`, `mapCategoryId`, `targetComponentId`, `valueId`, `owlExpression`, `order`, `mrcmRuleRefsetId`, `attributeDescription`, `attributeType`, or `attributeOrder`",
                 ))
             }
         }
@@ -2000,6 +2005,30 @@ mod tests {
             panic!("expected an AttributeType filter, got {:?}", filters[0]);
         };
         assert!(!negated);
+    }
+
+    /// `attributeOrder` (spec/10 rule 18) — the fifteenth
+    /// `memberFieldFilter` column, and `RefsetDescriptorRefsetMember`'s
+    /// third and last (after `attributeDescription`/`attributeType`).
+    /// Back on the numeric shape, reusing `mapGroup`/`mapPriority`/
+    /// `order`'s exact grammar and `field_numeric_matches`.
+    #[test]
+    fn parses_member_filter_attribute_order() {
+        let EC::MemberFilter { filters, .. } =
+            parse("^ 900000000000456007 {{ M attributeOrder = #1 }}").unwrap()
+        else {
+            panic!("expected a member filter");
+        };
+        assert_eq!(filters.len(), 1);
+        let crate::ast::MemberFilterKind::AttributeOrder(crate::ast::NumericFieldFilter {
+            operator,
+            value,
+        }) = &filters[0]
+        else {
+            panic!("expected an AttributeOrder filter, got {:?}", filters[0]);
+        };
+        assert_eq!(*operator, crate::ast::NumericComparisonOp::Eq);
+        assert_eq!(value, "1");
     }
 
     /// `mapGroup` (spec/10 rule 18) — the third `memberFieldFilter`
