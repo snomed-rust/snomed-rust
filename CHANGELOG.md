@@ -13,6 +13,8 @@ together, in dependency order (`snomed-core` → `snomed-rf2` → `snomed-owl`
 
 ## [Unreleased]
 
+## [0.24.0] — 2026-09-06
+
 **New ECL capability, additive.** `{{ M ... }}`'s `memberFieldFilter`
 gains its tenth column, `owlExpression` — the third column outside the
 two map types (`OwlExpressionRefsetMember`), and the first of those
