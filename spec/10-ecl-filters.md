@@ -187,10 +187,10 @@ concept reference has four, numeric has three):
 - `targetComponentId (=|!=) subExpressionConstraint` — the same
   concept-reference shape again, matched against the member row's own
   `targetComponentId` column. The first `memberFieldFilter` column
-  outside the two map types: only `AssociationRefsetMember` rows carry
-  it (`OrderedAssociationRefsetMember` carries the same column but isn't
-  implemented yet), tested against
-  `SnapshotStore::association_member_rows` directly, never
+  outside the two map types: `AssociationRefsetMember` and
+  `OrderedAssociationRefsetMember` rows both carry it, tested against
+  `SnapshotStore::association_member_rows`/
+  `ordered_association_member_rows` directly, never
   `simple_map_member_rows`/`extended_map_member_rows`.
 - `valueId (=|!=) subExpressionConstraint` — the same concept-reference
   shape again, matched against the member row's own `valueId` column.
@@ -235,15 +235,22 @@ concept reference has four, numeric has three):
   as `mapGroup`/`mapPriority`, matched against the member row's own
   `order` column (a `u32`). The fourth `memberFieldFilter` column
   outside the two map types, and the first of those four on the
-  numeric shape: only `OrderedComponentRefsetMember` rows carry it,
-  tested against `SnapshotStore::ordered_component_member_rows`
-  directly.
+  numeric shape: `OrderedComponentRefsetMember` and
+  `OrderedAssociationRefsetMember` rows both carry it, tested against
+  `SnapshotStore::ordered_component_member_rows`/
+  `ordered_association_member_rows`
+  directly. `OrderedAssociationRefsetMember` is the only row source
+  carrying both `targetComponentId` and `order`, so a block naming both
+  is satisfied by that type's row alone, per the "one row, all filters"
+  rule — testing its typed row set once, not once per field, keeps that
+  true rather than accidentally satisfying the two filters from two
+  different rows.
 
 All eleven reuse the shared dispatch `mapTarget` introduced (renamed
 `typed_field_row_matches` once a non-map type joined it): a block
 naming *any* of the eleven kinds is tested against
 `SimpleMap`/`ExtendedMap`/`Association`/`AttributeValue`/`OwlExpression`/
-`OrderedComponent`
+`OrderedComponent`/`OrderedAssociation`
 rows together
 rather than `member_rows`, and the "one row, all filters" and "active
 unless stated otherwise" rules above still hold across a block naming

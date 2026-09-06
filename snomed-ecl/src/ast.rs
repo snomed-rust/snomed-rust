@@ -394,7 +394,10 @@ pub enum ConceptFilterKind {
 /// (`OwlExpressionRefsetMember`, the third, and the first of those
 /// four to use the string-search shape), and `order`
 /// (`OrderedComponentRefsetMember`, the fourth, and the first to use
-/// the numeric shape) — all
+/// the numeric shape); `TargetComponentId`/`Order` then both extended
+/// to `OrderedAssociationRefsetMember`, a fifth refset type outside the
+/// two map types reusing both existing variants rather than adding new
+/// ones — all
 /// decided 2026-09-03 (`plan.md`'s "Open decisions") to retain full rows
 /// — active and inactive — for all sixteen non-Simple/Language refset
 /// types, the same store change `moduleId`/`effectiveTime`/`active`
@@ -493,9 +496,9 @@ pub enum MemberFilterKind {
     /// `SimpleMapRefsetMember`/`ExtendedMapRefsetMember`, so a block
     /// naming it is tested against `SnapshotStore::association_member_rows`
     /// instead. `OrderedAssociationRefsetMember` carries the same
-    /// `targetComponentId` column (spec/08) and would extend this same
-    /// variant when picked up, the way `mapTarget` already spans two
-    /// refset types — not a reason to add a second variant.
+    /// `targetComponentId` column (spec/08) and reuses this same variant
+    /// — tested against `SnapshotStore::ordered_association_member_rows`
+    /// too, the same way `mapTarget` already spans two refset types.
     TargetComponentId(ModuleFilter),
     /// `valueId (=|!=) subExpressionConstraint` — a `memberFieldFilter`
     /// (spec/10 rule 18): `AttributeValueRefsetMember`'s own `valueId`
@@ -533,9 +536,12 @@ pub enum MemberFilterKind {
     /// block naming it is tested against
     /// `SnapshotStore::ordered_component_member_rows` instead.
     /// `OrderedAssociationRefsetMember` carries both `targetComponentId`
-    /// and its own `order` column (spec/08) and would extend
+    /// and its own `order` column (spec/08) and reuses
     /// [`MemberFilterKind::TargetComponentId`] and this variant
-    /// respectively when picked up — not a reason to add new variants.
+    /// respectively — the two are populated from the same
+    /// `ordered_association_member_rows` row together, the only place
+    /// `snomed-ecl/src/eval.rs`'s `TypedFields` sets two refset-type-
+    /// specific fields from one row instead of one.
     Order(NumericFieldFilter),
 }
 

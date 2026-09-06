@@ -360,15 +360,23 @@ struct TypedFields<'a> {
 /// instead
 /// exist only on `AssociationRefsetMember`/`AttributeValueRefsetMember`/
 /// `OwlExpressionRefsetMember`/`OrderedComponentRefsetMember`
-/// respectively,
-/// each tested against its own typed row set
+/// respectively, plus a seventh row set,
+/// `OrderedAssociationRefsetMember` (`SnapshotStore::
+/// ordered_association_member_rows`), which carries *both*
+/// `targetComponentId` and `order` on the same row — the only place two
+/// `TypedFields` are populated from one row rather than one, needing no
+/// new `MemberFilterKind` variant or `TypedFields` field, since both
+/// columns already exist from `Association`/`OrderedComponent`
+/// respectively.
+/// Each type is tested against its own typed row set
 /// (`SnapshotStore::association_member_rows`/
 /// `attribute_value_member_rows`/`owl_expression_member_rows`/
-/// `ordered_component_member_rows`) rather
+/// `ordered_component_member_rows`/`ordered_association_member_rows`)
+/// rather
 /// than either map type's.
 /// Renamed from `typed_map_row_matches` once it stopped being map-only.
 /// Whichever field-filter kind appears, a block naming it is
-/// tested against all six typed row sets rather than `member_rows`.
+/// tested against all seven typed row sets rather than `member_rows`.
 /// Testing every set whenever *any* field-filter kind appears (rather
 /// than computing the exact type each filter needs) is deliberately
 /// simple, not merely convenient: a `SimpleMap` row tested against a
@@ -492,7 +500,7 @@ fn typed_field_row_matches(
     if matches_owl_expression {
         return true;
     }
-    store
+    let matches_ordered_component = store
         .ordered_component_member_rows(refset_id, component_id)
         .iter()
         .any(|row| {
@@ -503,6 +511,27 @@ fn typed_field_row_matches(
                         p,
                         &row.core,
                         &TypedFields {
+                            order: Some(row.order),
+                            ..TypedFields::default()
+                        },
+                    )
+                })
+        });
+    if matches_ordered_component {
+        return true;
+    }
+    store
+        .ordered_association_member_rows(refset_id, component_id)
+        .iter()
+        .any(|row| {
+            (states_active || row.core.active)
+                && filters.iter().zip(prepared).all(|(f, p)| {
+                    member_filter_matches(
+                        f,
+                        p,
+                        &row.core,
+                        &TypedFields {
+                            target_component_id: Some(row.target_component_id),
                             order: Some(row.order),
                             ..TypedFields::default()
                         },
@@ -1575,8 +1604,8 @@ mod tests {
     use snomed_core::time::EffectiveTime;
     use snomed_rf2::refset::{
         AssociationRefsetMember, AttributeValueRefsetMember, ExtendedMapRefsetMember,
-        LanguageRefsetMember, OrderedComponentRefsetMember, OwlExpressionRefsetMember,
-        RefsetMemberCore, SimpleMapRefsetMember, SimpleRefsetMember,
+        LanguageRefsetMember, OrderedAssociationRefsetMember, OrderedComponentRefsetMember,
+        OwlExpressionRefsetMember, RefsetMemberCore, SimpleMapRefsetMember, SimpleRefsetMember,
     };
 
     const ROOT: SctId = constants::ROOT_CONCEPT;
@@ -3855,6 +3884,110 @@ mod tests {
         let matched =
             format!("^ {description_order} {{{{ M moduleId = {module_a}, order = #3 }}}}");
         assert_eq!(eval(&matched, &store), HashSet::from([MI]));
+    }
+
+    /// `OrderedAssociationRefsetMember` carries both `targetComponentId`
+    /// and `order` on the same row — the fifth refset type outside the
+    /// two map types, but reusing both `MemberFilterKind::
+    /// TargetComponentId` (from `AssociationRefsetMember`) and
+    /// `MemberFilterKind::Order` (from `OrderedComponentRefsetMember`)
+    /// rather than adding new variants. Tested against a seventh typed
+    /// row set (`ordered_association_member_rows`). Also proves each
+    /// filter reaches it after `^R`, via the same shared
+    /// `member_row_matches` the `^` path uses.
+    #[test]
+    fn member_filter_target_component_id_and_order_match_ordered_association_rows() {
+        let historical_relationship = SctId::compose(9903, ComponentType::Concept, None).unwrap();
+        let exact_match = SctId::compose(9904, ComponentType::Concept, None).unwrap();
+        let mut b = SnapshotStore::builder();
+        b.add_concept(concept(MI));
+        b.add_concept(concept(exact_match));
+        b.add_ordered_association_member(OrderedAssociationRefsetMember {
+            core: RefsetMemberCore {
+                id: MemberId::parse("80000000-0000-4000-8000-000000000116").unwrap(),
+                effective_time: EffectiveTime::new_unchecked(20190731),
+                active: true,
+                module_id: constants::CORE_MODULE,
+                refset_id: historical_relationship,
+                referenced_component_id: MI,
+            },
+            target_component_id: exact_match,
+            order: 3,
+        });
+        let store = b.build();
+
+        // Each filter alone reaches the row.
+        assert_eq!(
+            eval(
+                &format!(
+                    "^ {historical_relationship} {{{{ M targetComponentId = {exact_match} }}}}"
+                ),
+                &store
+            ),
+            HashSet::from([MI])
+        );
+        assert_eq!(
+            eval(
+                &format!("^ {historical_relationship} {{{{ M order = #3 }}}}"),
+                &store
+            ),
+            HashSet::from([MI])
+        );
+        // Both filters together must be satisfied by the same row's two
+        // columns (spec/10 rule 18's "one row, all filters").
+        assert_eq!(
+            eval(
+                &format!(
+                    "^ {historical_relationship} {{{{ M targetComponentId = {exact_match}, order = #3 }}}}"
+                ),
+                &store
+            ),
+            HashSet::from([MI])
+        );
+        // `^R` reaches the same row too, for both filter kinds.
+        assert_eq!(
+            eval(
+                &format!("^R {MI} {{{{ M targetComponentId = {exact_match} }}}}"),
+                &store
+            ),
+            HashSet::from([historical_relationship])
+        );
+        assert_eq!(
+            eval(&format!("^R {MI} {{{{ M order = #3 }}}}"), &store),
+            HashSet::from([historical_relationship])
+        );
+    }
+
+    /// A plain `AssociationRefsetMember` row has no `order` column, and
+    /// a plain `OrderedComponentRefsetMember` row has no
+    /// `targetComponentId` column — `OrderedAssociationRefsetMember`
+    /// being a distinct fourth type from the other three that carries
+    /// either column doesn't let a filter matching one accidentally
+    /// match the other's rows.
+    #[test]
+    fn member_filter_order_never_matches_plain_association_rows() {
+        let same_as = SctId::compose(9905, ComponentType::Concept, None).unwrap();
+        let exact_match = SctId::compose(9906, ComponentType::Concept, None).unwrap();
+        let mut b = SnapshotStore::builder();
+        b.add_concept(concept(MI));
+        b.add_concept(concept(exact_match));
+        b.add_association_member(AssociationRefsetMember {
+            core: RefsetMemberCore {
+                id: MemberId::parse("80000000-0000-4000-8000-000000000117").unwrap(),
+                effective_time: EffectiveTime::new_unchecked(20190731),
+                active: true,
+                module_id: constants::CORE_MODULE,
+                refset_id: same_as,
+                referenced_component_id: MI,
+            },
+            target_component_id: exact_match,
+        });
+        let store = b.build();
+
+        assert_eq!(
+            eval(&format!("^ {same_as} {{{{ M order = #1 }}}}"), &store),
+            HashSet::new()
+        );
     }
 
     /// `constraintOperator "(" expressionConstraint ")"` — the operator

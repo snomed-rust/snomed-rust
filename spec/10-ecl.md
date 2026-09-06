@@ -670,10 +670,12 @@ still governs it: nothing on that list may be silently accepted.
     `extended_map_member_rows` for `mapTarget`; `extended_map_member_rows`
     only for `correlationId`/`mapGroup`/`mapPriority`/`mapRule`/
     `mapAdvice`/`mapCategoryId`, since `SimpleMapRefsetMember` has no
-    such columns; `association_member_rows` for `targetComponentId`;
+    such columns; `association_member_rows` and
+    `ordered_association_member_rows` for `targetComponentId`;
     `attribute_value_member_rows` for `valueId`;
     `owl_expression_member_rows` for `owlExpression`;
-    `ordered_component_member_rows` for `order`),
+    `ordered_component_member_rows` and `ordered_association_member_rows`
+    for `order`),
     never against `member_rows`'s type-erased
     `RefsetMemberCore` view, which has no such column — and every other
     filter in the same block MUST be tested against that *same* typed

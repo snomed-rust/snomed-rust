@@ -27,11 +27,58 @@ that moved every crate out of `crates/<name>/` to `<name>/`,
 (2026-09-04), release 0.19.0, `memberFieldFilter`'s `mapRule`
 column, release 0.20.0, the `ecl_parse` fuzz-caught stack overflow,
 `memberFieldFilter`'s `mapAdvice` column (2026-09-04), release 0.21.0,
-and `memberFieldFilter`'s `mapCategoryId` column (2026-09-05), live in
+`memberFieldFilter`'s `mapCategoryId` column (2026-09-05), release
+0.22.0, and `memberFieldFilter`'s `targetComponentId` column
+(2026-09-05), live in
 [`docs/tasks-archive.md`](docs/tasks-archive.md) — moved there verbatim,
 most recently on 2026-09-06, to keep this file inside the repository's
 40 KB per-document budget. Search both when asking "has this come up
 before".
+
+## Done (2026-09-06, ECL `{{ M ... }}` `memberFieldFilter`: `targetComponentId`/`order` extend to `OrderedAssociation`, zero new variants)
+
+- [x] **`snomed-ecl`**: `OrderedAssociationRefsetMember` — a fifth
+      refset type outside the two map types, carrying both
+      `targetComponentId` and `order` on the same row — extends the
+      *existing* `MemberFilterKind::TargetComponentId` (from
+      `Association`) and `MemberFilterKind::Order` (from
+      `OrderedComponent`) rather than adding new variants: exactly the
+      "cheapest possible increment" `tasks.md` flagged it as. No AST or
+      parser change at all — `targetComponentId`/`order` already parse
+      to those variants regardless of which refset type ends up
+      matching at eval time. `typed_field_row_matches` grew a seventh
+      row-set check (`ordered_association_member_rows`, after
+      `simple_map_member_rows`/`extended_map_member_rows`/
+      `association_member_rows`/`attribute_value_member_rows`/
+      `owl_expression_member_rows`/`ordered_component_member_rows`) that
+      populates *both* `TypedFields::target_component_id` and
+      `TypedFields::order` from one row — the only place two
+      refset-type-specific fields are set together rather than one.
+- [x] 2 new tests: matches `OrderedAssociation` rows for
+      `targetComponentId` alone, `order` alone, and both conjoined
+      together on the same row (proving "one row, all filters" holds
+      when the two filters are two different `MemberFilterKind`
+      variants sharing one row source, not just two instances of the
+      same kind) — plus after `^R` for both kinds; never matches a
+      plain `AssociationRefsetMember` row (which has no `order` column)
+      — 435/435 total, up from 433.
+- [x] Updated: `spec/10-ecl.md` (rule 18's dispatch enumeration — no
+      column-count change, since no new `MemberFilterKind` variant),
+      `spec/10-ecl-filters.md` (both bullets' row-source lists, the
+      shared-dispatch paragraph's type list), `ast.rs`'s doc comments on
+      both `TargetComponentId` and `Order` (updated from "would extend...
+      when picked up" to "reuses... tested against"),
+      `snomed-ecl/README.md` (table row's "only" qualifiers corrected),
+      `agents/ecl-engineer.md`, `agents/store-engineer.md` (seventh
+      row-set check, populated from one row), `plan.md` (Current status
+      test count, Since 0.9.0 narrative), `CHANGELOG.md`.
+- [x] **Archived proactively**: `tasks.md` was down to ~3.7 KB of
+      budget margin, so moved the two oldest remaining 2026-09-05
+      sections (release 0.22.0, `memberFieldFilter`'s `targetComponentId`
+      column) into `docs/tasks-archive-23.md`, restoring comfortable
+      margin.
+- [x] Verified: build/clippy/fmt/test (435/435)/check-docs/
+      check-trademarks/spec_citations all clean.
 
 ## Done (2026-09-06, Release 0.25.0 — `memberFieldFilter`'s `order`, thirteenth self-decided release)
 
@@ -311,91 +358,6 @@ before".
 - [x] Verified: build/clippy/fmt/test (425/425)/check-docs/
       check-trademarks/spec_citations all clean.
 
-## Done (2026-09-05, Release 0.22.0 — `memberFieldFilter`'s `targetComponentId`, tenth self-decided release)
-
-- [x] **Decided and executed the release itself**, per §1-5 of
-      `spec/ai-release-authority/`: §1 CI independently green on the
-      pushed merge commit (`6e984be`, all jobs); §2 `CHANGELOG.md`'s
-      `[Unreleased]` verified against the actual diff and moved under
-      `## [0.22.0]`, minor bump (purely additive:
-      `MemberFilterKind::TargetComponentId`, nothing removed or changed
-      signature); §3 no rule oversteps — ships the `memberFieldFilter`
-      store-retention decision already recorded in `plan.md` as Decided
-      2026-09-03, `targetComponentId` being the eighth concrete field on
-      that same retention and the first proof the retention/dispatch
-      pattern generalizes past the two map types; §4 all nine crates,
-      one version, standard dependency order; §5 tagged `v0.22.0`
-      (signed, verified against the merge commit) and ran `cargo publish`
-      for each crate in order, all nine succeeding.
-- [x] **Verified against crates.io's own API afterward**: `GET
-      /api/v1/crates/<name>` for all nine names returns
-      `max_version: "0.22.0"`.
-- [x] Version bumped everywhere the 0.13.0-0.21.0 precedent bumped it:
-      `Cargo.toml` (workspace + seven pins), `CITATION.cff`, `NEWS.md`,
-      `INSTALL.md`, `SECURITY.md`.
-- [x] Same `release/0.22.0` branch/merge shape as 0.12.0-0.21.0, not a
-      direct commit to `main`.
-- [x] **GitLab's SSH port (22) is still resetting every connection**,
-      same issue as 0.21.0's release — retried before and after this
-      release (main branch push, tag push, a combined retry after
-      publish) and every attempt reset the same way; `ssh -T
-      git@gitlab.com` itself resets too, and HTTPS to `gitlab.com` keeps
-      working throughout, so this remains a network-path issue rather
-      than a GitLab outage. GitLab is now two releases behind (missing
-      `v0.21.0` and `v0.22.0`, and the commits since `68147ad`) —
-      GitHub and Codeberg are current. Retry `git push
-      git@gitlab.com:snomed-rust/snomed-rust.git main v0.21.0 v0.22.0`
-      next session if this is still open.
-      **Resolved 2026-09-06**: the same retry succeeded on the first
-      attempt — connectivity to GitLab's SSH endpoint recovered on its
-      own, confirming the network-path diagnosis rather than anything
-      wrong on GitLab's or this project's side. All three forges verified
-      at the same commit (`f15cf5d`) via `git ls-remote`.
-
-## Done (2026-09-05, ECL `{{ M ... }}` `memberFieldFilter`: `targetComponentId`, first column outside the two map types)
-
-- [x] **`snomed-ecl`**: `MemberFilterKind::TargetComponentId(ModuleFilter)`
-      — `targetComponentId (=|!=) subExpressionConstraint`, reusing
-      `correlationId`/`mapCategoryId`'s exact concept-reference grammar
-      and `ModuleFilter` verbatim, but on `AssociationRefsetMember`
-      instead of `ExtendedMapRefsetMember` — the first `memberFieldFilter`
-      column implemented outside the two map types. Extended
-      `TypedFields` with one more `Option<SctId>` field;
-      `member_row_matches`'s dispatch condition now includes it; the
-      dispatch function itself renamed from `typed_map_row_matches` to
-      `typed_field_row_matches` (it stopped being map-only) and grew a
-      third row-set check (`association_member_rows`, after
-      `simple_map_member_rows`/`extended_map_member_rows`) — a `SimpleMap`
-      or `ExtendedMap` row still can't wrongly match a `targetComponentId`
-      filter, via the same "column absent → never matches" arm every
-      other field filter has.
-- [x] **Design note recorded for the next pick**:
-      `OrderedAssociationRefsetMember` carries the same `targetComponentId`
-      column (spec/08) and would extend this same variant when picked up
-      — the way `mapTarget` already spans `SimpleMap`/`ExtendedMap` —
-      not a reason to add a second `MemberFilterKind` variant. Documented
-      in `ast.rs`'s doc comment so it isn't rediscovered.
-- [x] 4 new tests (parser: one shape test; eval: matches `Association`
-      rows after both `^` and `^R`, never matches `ExtendedMap` rows,
-      conjoins with `moduleId` on the same row — this test's first draft
-      forgot to add the two module concepts to the store, since
-      `moduleId`'s value clause is itself an evaluated ECL expression
-      that returns empty against an absent focus concept per spec/10
-      rule 2; caught immediately by the test itself failing, fixed by
-      adding both concepts) — 421/421 total, up from 417.
-- [x] Updated: `spec/10-ecl.md` (rule 18's column list and dispatch
-      enumeration, the summary paragraph — "seven" to "eight" columns),
-      `spec/10-ecl-filters.md` (new bullet, dispatch-list update, renamed
-      dispatch function), `spec/10-ecl-unimplemented.md` (removed from
-      the "not implemented" enumeration, added to the narrative),
-      `snomed-ecl/src/lib.rs`, `snomed-ecl/README.md` (table row,
-      not-yet-implemented list), `agents/ecl-engineer.md`,
-      `agents/store-engineer.md` (seven consumers to eight, association
-      dispatch), `plan.md` (Open decisions paragraph, Current status
-      test count, Since 0.9.0 narrative), `CHANGELOG.md`.
-- [x] Verified: build/clippy/fmt/test (421/421)/check-docs/
-      check-trademarks/spec_citations all clean.
-
 ## Next up
 
 - [ ] Nothing currently scoped beyond the `{{ M ... }}` remainder below.
@@ -415,12 +377,17 @@ before".
       (`AssociationRefsetMember`/`AttributeValueRefsetMember`/
       `OwlExpressionRefsetMember`/`OrderedComponentRefsetMember`),
       confirming the pattern generalizes across every grammar shape
-      with a concrete example so far.
+      with a concrete example so far. `targetComponentId`/`order` then
+      extended to `OrderedAssociationRefsetMember` too (2026-09-06, see
+      the Done entry above), **not yet released** — zero new
+      `MemberFilterKind` variants, since both filter kinds already
+      existed; the store side's "sixteen typed types" retention already
+      covered it, so this was purely an eval-side reuse.
       `{{ M ... }}` after `^`
       (0.13.0), after `^R` (0.14.0), and its `memberFieldFilter`
       alternative (0.15.0-0.25.0), all decided and executed under
       `spec/ai-release-authority/`'s criteria rather than a fresh
-      per-release maintainer go-ahead (see `CHANGELOG.md`). 9 crates, 433
+      per-release maintainer go-ahead (see `CHANGELOG.md`). 9 crates, 435
       tests,
       clippy/fmt clean on stable, MSRV 1.96 (current
       stable minus two, `spec/rust-msrv-n-minus-2/index.md`), `fuzz/`,
@@ -456,8 +423,11 @@ before".
       `targetComponentId` (2026-09-05, the first column outside the two
       map types), `valueId` (2026-09-06, the second),
       `owlExpression` (2026-09-06, the third, the first of those three
-      on the string-search shape), and `order` (2026-09-06, see Done
-      above — the fourth, back on the numeric shape). What is still open:
+      on the string-search shape), and `order` (2026-09-06 — the fourth,
+      back on the numeric shape). `targetComponentId`/`order` both then
+      extended to `OrderedAssociationRefsetMember` (2026-09-06, see Done
+      above — zero new variants, since both filter kinds already
+      existed and one row carries both columns). What is still open:
       - Every other `memberFieldFilter` column — no longer blocked on a
         store decision (all sixteen non-Simple/Language types already
         retain typed active-and-inactive rows via `*_member_rows`), so
@@ -529,19 +499,20 @@ before".
           (`String` — string shape); `ruleStrengthId`, `contentTypeId`
           (`SctId` — concept-reference shape).
         - MrcmModuleScope: `mrcmRuleRefsetId` (`SctId` —
-          concept-reference shape).
+          concept-reference shape) — the most likely next pick; single
+          field, reuses `correlationId`/`mapCategoryId`/
+          `targetComponentId`/`valueId`'s exact shape, but its own new
+          `MemberFilterKind` variant and an eighth typed row set
+          (`mrcm_module_scope_member_rows`) to add — the "reuse an
+          existing variant" trick only works when a column of the same
+          *name* already exists on another type, which none of the
+          remaining columns do.
         - OrderedComponent: **done** — `order` (2026-09-06) covers the
           only column it has.
-        - OrderedAssociation: **the most likely next pick, and the
-          cheapest possible increment** — both its columns already have
-          an implemented `MemberFilterKind` variant on a *different*
-          refset type (`targetComponentId` → `TargetComponentId`,
-          reusing `Association`'s variant; `order` → `Order`, reusing
-          `OrderedComponent`'s), so this needs zero new AST/parser work,
-          only one more row-set check
-          (`ordered_association_member_rows`) added to each of two
-          already-existing dispatch arms in `typed_field_row_matches` —
-          see `ast.rs`'s doc comments on both variants.
+        - OrderedAssociation: **done** (2026-09-06) — both
+          `targetComponentId` and `order` now match its rows too,
+          reusing the variants `Association`/`OrderedComponent`
+          introduced rather than adding new ones.
         - ComponentAnnotation: `languageDialectCode`, `value` (`String`
           — string shape); `typeId` (`SctId` — concept-reference shape).
         - MemberAnnotation: `languageDialectCode`, `value` (`String` —

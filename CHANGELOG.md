@@ -13,6 +13,31 @@ together, in dependency order (`snomed-core` → `snomed-rf2` → `snomed-owl`
 
 ## [Unreleased]
 
+**New ECL capability, additive.** `{{ M ... }}`'s `memberFieldFilter`'s
+`targetComponentId` and `order` kinds now also match
+`OrderedAssociationRefsetMember` rows (a fifth refset type outside the
+two map types, carrying both columns on the same row), after both `^`
+and `^R`. No new `MemberFilterKind` variant — both filter kinds already
+existed, from `AssociationRefsetMember` and `OrderedComponentRefsetMember`
+respectively — but a genuine new match target: a block naming either
+(or both) now reaches `OrderedAssociationRefsetMember` rows it
+previously never could. A minor bump: no removals or signature changes
+to anything existing.
+
+### Added
+
+- `snomed-ecl`: `{{ M targetComponentId = ... }}` and `{{ M order =
+  ... }}` now also match `OrderedAssociationRefsetMember` member rows.
+  Naming both in the same block is satisfied by that type's row alone
+  — `OrderedAssociationRefsetMember` is the only row source carrying
+  both columns — per the "one row, all filters" rule, not by two
+  different rows each satisfying one filter.
+
+### Notes for consumers
+
+- No public API removed or changed signature; existing code compiles
+  unmodified against this release.
+
 ## [0.25.0] — 2026-09-06
 
 **New ECL capability, additive.** `{{ M ... }}`'s `memberFieldFilter`

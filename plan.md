@@ -301,9 +301,10 @@ and harmonizes it with the sibling repositories (`hl7-rust`, `er7-rust`,
 
 ## Current status
 
-All eight phases above are closed. As of `memberFieldFilter`'s
-`order` (2026-09-06, below) the workspace is 9 published
-crates with zero dependencies, 433 tests, a clean
+All eight phases above are closed. As of `targetComponentId`/`order`
+extending to `OrderedAssociationRefsetMember` (2026-09-06, below) the
+workspace is 9 published
+crates with zero dependencies, 435 tests, a clean
 `cargo clippy --all-targets`, 13 fuzz targets, and six criterion
 benchmark files. What is *not* done is tracked
 in two places and nowhere
@@ -347,10 +348,14 @@ being map-only; `valueId` (2026-09-06) is the second such field
 (`AttributeValueRefsetMember`), a fourth row-set check added to the same
 function; `owlExpression` (2026-09-06) is the third, on the
 string-search shape this time (`OwlExpressionRefsetMember`, a fifth
-row-set check); and `order` (2026-09-06) is the fourth, back on the
+row-set check); `order` (2026-09-06) is the fourth, back on the
 numeric shape (`OrderedComponentRefsetMember`, a sixth row-set check),
 confirming the pattern generalizes across grammar
-shapes too. In between, the `ecl_parse` fuzz target's CI smoke run caught
+shapes too; and `targetComponentId`/`order` both then extended to
+`OrderedAssociationRefsetMember` (2026-09-06, a fifth type outside the
+two map types, a seventh row-set check) — needing no new variant at
+all, since one `OrderedAssociationRefsetMember` row carries both
+columns and both filter kinds already existed. In between, the `ecl_parse` fuzz target's CI smoke run caught
 a real stack overflow on pathologically deep `(`/refinement/
 attribute-set nesting (2026-09-04) — fixed with a shared `Parser::depth`
 counter and a 100-level cap (spec/10 rule 19,

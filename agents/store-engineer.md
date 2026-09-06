@@ -216,7 +216,12 @@ outside
 the two map types — dispatch to `association_member_rows`/
 `attribute_value_member_rows`/`owl_expression_member_rows`/
 `ordered_component_member_rows`
-respectively; all row sets are still
+respectively, plus a seventh row set,
+`ordered_association_member_rows`, which both `targetComponentId` and
+`order` also dispatch to (one row there carries both columns, so both
+`TypedFields` entries are set from it together — see
+`agents/ecl-engineer.md` and `ast.rs`'s doc comments on those two
+variants); all row sets are still
 tested whenever any field-filter kind appears in a block, since a row
 missing the column simply fails that filter rather than needing its
 own excluded code path. Every future `memberFieldFilter` column on

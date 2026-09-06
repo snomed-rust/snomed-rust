@@ -340,7 +340,14 @@ a sixth row-set check, reusing `mapGroup`/`mapPriority`'s
 `field_numeric_matches` verbatim) — four increments in a
 row confirming the pattern generalizes cleanly across every grammar
 shape: extend `TypedFields`, extend the dispatch condition, add one
-row-set check to `typed_field_row_matches`, done. `memberFieldFilter`
+row-set check to `typed_field_row_matches`, done. Then
+`OrderedAssociationRefsetMember` (2026-09-06) — a fifth type outside
+the two map types, carrying *both* `targetComponentId` and `order` on
+one row — needed no new variant at all: a seventh row-set check
+(`ordered_association_member_rows`) populating both existing
+`TypedFields` entries from the same row, confirming the "reuse the
+existing variant" path the doc comments on both `TargetComponentId`
+and `Order` had already flagged. `memberFieldFilter`
 isn't one production but five in the official grammar, chosen by the
 named column's own semantic type
 (`expressionComparisonOperator ws subExpressionConstraint` for a concept
