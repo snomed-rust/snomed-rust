@@ -13,6 +13,8 @@ together, in dependency order (`snomed-core` → `snomed-rf2` → `snomed-owl`
 
 ## [Unreleased]
 
+## [0.27.0] — 2026-09-06
+
 **New ECL capability, additive.** `{{ M ... }}`'s `memberFieldFilter`
 gains its twelfth column, `mrcmRuleRefsetId` — the sixth column outside
 the two map types (`MrcmModuleScopeRefsetMember`), after both `^` and
