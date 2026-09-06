@@ -13,6 +13,8 @@ together, in dependency order (`snomed-core` → `snomed-rf2` → `snomed-owl`
 
 ## [Unreleased]
 
+## [0.23.0] — 2026-09-06
+
 **New ECL capability, additive.** `{{ M ... }}`'s `memberFieldFilter`
 gains its ninth column, `valueId` — the second column outside the two
 map types (`AttributeValueRefsetMember`), after both `^` and `^R`. A
