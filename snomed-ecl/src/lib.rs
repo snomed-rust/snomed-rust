@@ -10,10 +10,10 @@
 //! `memberFieldFilter` column but
 //! `mapTarget`/`correlationId`/`mapGroup`/`mapPriority`/`mapRule`/
 //! `mapAdvice`/`mapCategoryId`/`targetComponentId`/`valueId`/
-//! `owlExpression`/`order`, the history supplement, alternate
-//! identifiers, …) is listed in `spec/10-ecl-unimplemented.md`.
-//! Encountering one is a parse error, never a silently incomplete
-//! result.
+//! `owlExpression`/`order`/`mrcmRuleRefsetId`, the history supplement,
+//! alternate identifiers, …) is listed in
+//! `spec/10-ecl-unimplemented.md`. Encountering one is a parse error,
+//! never a silently incomplete result.
 //!
 //! Parenthesized/refinement/attribute-set nesting beyond 100 levels is
 //! also a parse error (`EclError::MaxNestingDepthExceeded`, spec/10 rule

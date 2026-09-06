@@ -79,7 +79,8 @@ token shape:
   the same thing (see "Concept filter constraint" above).
 - A member filter's `memberFieldFilter` kind other than `mapTarget`/
   `correlationId`/`mapGroup`/`mapPriority`/`mapRule`/`mapAdvice`/
-  `mapCategoryId`/`targetComponentId`/`valueId`/`owlExpression`/`order`
+  `mapCategoryId`/`targetComponentId`/`valueId`/`owlExpression`/`order`/
+  `mrcmRuleRefsetId`
   — a refset-type-specific column (`domainConstraint`, `grouped`, …), as
   opposed to the three shared-column kinds
   (`moduleId`/`effectiveTime`/`active`) implemented 2026-09-01 after both
@@ -132,7 +133,15 @@ token shape:
   (2026-09-06) — the third numeric-shape column, and the fourth outside
   the two map types (`OrderedComponentRefsetMember`) — reuses
   `mapGroup`'s grammar and `field_numeric_matches` verbatim, tested
-  against `SnapshotStore::ordered_component_member_rows`.
+  against `SnapshotStore::ordered_component_member_rows`
+  (`targetComponentId`/`order` then both extended to
+  `OrderedAssociationRefsetMember`, a fifth type outside the two map
+  types, reusing the same two variants rather than adding new ones);
+  `mrcmRuleRefsetId` (2026-09-06) — the fifth concept-reference-shape
+  column, and the sixth outside the two map types
+  (`MrcmModuleScopeRefsetMember`) — reuses `correlationId`'s grammar
+  verbatim, tested against
+  `SnapshotStore::mrcm_module_scope_member_rows`.
   Boolean and time remain unimplemented, with no example yet. See
   `SnapshotStore::simple_map_member_rows`/`extended_map_member_rows`/
   `association_member_rows` and

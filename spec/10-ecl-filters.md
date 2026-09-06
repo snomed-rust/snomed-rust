@@ -157,9 +157,9 @@ named column's own semantic type (confirmed against the official ABNF,
 subExpressionConstraint` (a concept reference), `numericComparisonOperator
 ws "#" numericValue`, `stringComparisonOperator ws (typedSearchTerm |
 typedSearchTermSet)`, `booleanComparisonOperator ws booleanValue`, or
-`timeComparisonOperator ws (timeValue | timeValueSet)`. Eleven kinds are
+`timeComparisonOperator ws (timeValue | timeValueSet)`. Twelve kinds are
 implemented, spanning three of the five shapes (string has four,
-concept reference has four, numeric has three):
+concept reference has five, numeric has three):
 
 - `mapTarget (=|!=) (typedSearchTerm | typedSearchTermSet)` — the same
   `match:`/`wild:`/`exact:` search-term grammar `{{ D term }}` uses,
@@ -197,6 +197,14 @@ concept reference has four, numeric has three):
   The second `memberFieldFilter` column outside the two map types: only
   `AttributeValueRefsetMember` rows carry it, tested against
   `SnapshotStore::attribute_value_member_rows` directly.
+- `mrcmRuleRefsetId (=|!=) subExpressionConstraint` — the same
+  concept-reference shape again, matched against the member row's own
+  `mrcmRuleRefsetId` column. Unlike `targetComponentId`/`order`, no
+  other implemented column shares this RF2 field name, so it needed a
+  genuinely new `MemberFilterKind` variant rather than extending an
+  existing one: only `MrcmModuleScopeRefsetMember` rows carry it,
+  tested against `SnapshotStore::mrcm_module_scope_member_rows`
+  directly.
 - `mapGroup (=|!=|<=|<|>=|>) "#" numericValue` — the same
   `numericComparisonOperator "#" numericValue` value form
   `eclAttribute`'s own numeric concrete value comparison uses, matched
@@ -246,11 +254,11 @@ concept reference has four, numeric has three):
   true rather than accidentally satisfying the two filters from two
   different rows.
 
-All eleven reuse the shared dispatch `mapTarget` introduced (renamed
+All twelve reuse the shared dispatch `mapTarget` introduced (renamed
 `typed_field_row_matches` once a non-map type joined it): a block
-naming *any* of the eleven kinds is tested against
+naming *any* of the twelve kinds is tested against
 `SimpleMap`/`ExtendedMap`/`Association`/`AttributeValue`/`OwlExpression`/
-`OrderedComponent`/`OrderedAssociation`
+`OrderedComponent`/`OrderedAssociation`/`MrcmModuleScope`
 rows together
 rather than `member_rows`, and the "one row, all filters" and "active
 unless stated otherwise" rules above still hold across a block naming
@@ -258,7 +266,8 @@ several field filters at once, not just a field filter and a
 shared-column one — a `SimpleMap` row can never satisfy a block naming
 any of `correlationId`/
 `mapGroup`/`mapPriority`/`mapRule`/`mapAdvice`/`mapCategoryId`/
-`targetComponentId`/`valueId`/`owlExpression`/`order` (the column is
+`targetComponentId`/`valueId`/`owlExpression`/`order`/
+`mrcmRuleRefsetId` (the column is
 simply
 absent on that row source, the same "not this row's type" answer a
 shared-column filter gets from a row of the wrong refset type), so it

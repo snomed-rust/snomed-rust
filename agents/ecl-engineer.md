@@ -347,7 +347,14 @@ one row — needed no new variant at all: a seventh row-set check
 (`ordered_association_member_rows`) populating both existing
 `TypedFields` entries from the same row, confirming the "reuse the
 existing variant" path the doc comments on both `TargetComponentId`
-and `Order` had already flagged. `memberFieldFilter`
+and `Order` had already flagged. `mrcmRuleRefsetId`
+(`MrcmModuleScopeRefsetMember`, 2026-09-06) broke that streak
+deliberately: it's the sixth type outside the two map types, but the
+first since `targetComponentId` where no implemented column shares the
+RF2 field name, so it needed a genuinely new variant
+(`MrcmRuleRefsetId`) and an eighth row-set check
+(`mrcm_module_scope_member_rows`) — the "reuse" shortcut only fires
+when the column *name* recurs, not just the shape. `memberFieldFilter`
 isn't one production but five in the official grammar, chosen by the
 named column's own semantic type
 (`expressionComparisonOperator ws subExpressionConstraint` for a concept

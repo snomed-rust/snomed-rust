@@ -457,14 +457,16 @@ impl Parser {
     /// tokenized for `{{ C }}`, so no new lexer keywords were needed for
     /// them. The fourth, `memberFieldFilter`, is `refsetFieldName` —
     /// `1*alpha` in the official grammar, not a fixed keyword list, so it
-    /// lexes as a plain `TokenKind::Word` — and only the eleven spellings
+    /// lexes as a plain `TokenKind::Word` — and only the twelve spellings
     /// this crate implements, `mapTarget`, `correlationId`, `mapGroup`,
     /// `mapPriority`, `mapRule`, `mapAdvice`, `mapCategoryId`,
-    /// `targetComponentId`, `valueId`, `owlExpression`, and `order`
+    /// `targetComponentId`, `valueId`, `owlExpression`, `order`, and
+    /// `mrcmRuleRefsetId`
     /// (spec/10 rule 18), are recognized here; any other word falls
     /// through to the generic "unexpected keyword"
     /// bucket rule 9 describes rather than being named. `correlationId`/
-    /// `mapCategoryId`/`targetComponentId`/`valueId (=|!=)
+    /// `mapCategoryId`/`targetComponentId`/`valueId`/
+    /// `mrcmRuleRefsetId (=|!=)
     /// subExpressionConstraint` reuse `moduleId`'s own parse shape
     /// verbatim (all are
     /// `booleanComparisonOperator`-spelled `=`/`!=`, confirmed against
@@ -583,11 +585,20 @@ impl Parser {
                 let filter = self.parse_numeric_field_filter()?;
                 Ok(MemberFilterKind::Order(filter))
             }
+            TokenKind::Word(word) if word == "mrcmRuleRefsetId" => {
+                self.advance()?;
+                let negated = self.parse_boolean_comparison_operator()?;
+                let value = self.parse_sub_expression_constraint()?;
+                Ok(MemberFilterKind::MrcmRuleRefsetId(ModuleFilter {
+                    negated,
+                    value: Box::new(value),
+                }))
+            }
             _ => {
                 let tok = self.peek().clone();
                 Err(Self::unexpected(
                     &tok,
-                    "`moduleId`, `effectiveTime`, `active`, `mapTarget`, `correlationId`, `mapGroup`, `mapPriority`, `mapRule`, `mapAdvice`, `mapCategoryId`, `targetComponentId`, `valueId`, `owlExpression`, or `order`",
+                    "`moduleId`, `effectiveTime`, `active`, `mapTarget`, `correlationId`, `mapGroup`, `mapPriority`, `mapRule`, `mapAdvice`, `mapCategoryId`, `targetComponentId`, `valueId`, `owlExpression`, `order`, or `mrcmRuleRefsetId`",
                 ))
             }
         }
@@ -1895,6 +1906,31 @@ mod tests {
         };
         assert_eq!(*operator, crate::ast::NumericComparisonOp::Eq);
         assert_eq!(value, "2");
+    }
+
+    /// `mrcmRuleRefsetId` (spec/10 rule 18) — the twelfth
+    /// `memberFieldFilter` column, and the sixth outside the two map
+    /// types (`MrcmModuleScopeRefsetMember`). Unlike
+    /// `targetComponentId`/`order`, no implemented column shares this
+    /// RF2 field name, so it's a genuinely new variant, though it
+    /// reuses `correlationId`/`mapCategoryId`/`targetComponentId`/
+    /// `valueId`'s exact concept-reference shape.
+    #[test]
+    fn parses_member_filter_mrcm_rule_refset_id() {
+        let EC::MemberFilter { filters, .. } =
+            parse("^ 900000000000527005 {{ M mrcmRuleRefsetId = 22298006 }}").unwrap()
+        else {
+            panic!("expected a member filter");
+        };
+        assert_eq!(filters.len(), 1);
+        let crate::ast::MemberFilterKind::MrcmRuleRefsetId(crate::ast::ModuleFilter {
+            negated,
+            ..
+        }) = &filters[0]
+        else {
+            panic!("expected an MrcmRuleRefsetId filter, got {:?}", filters[0]);
+        };
+        assert!(!negated);
     }
 
     /// `mapGroup` (spec/10 rule 18) — the third `memberFieldFilter`

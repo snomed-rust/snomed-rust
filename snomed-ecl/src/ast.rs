@@ -373,8 +373,8 @@ pub enum ConceptFilterKind {
 ///
 /// `MapTarget`/`CorrelationId`/`MapGroup`/`MapPriority`/`MapRule`/
 /// `MapAdvice`/`MapCategoryId`/`TargetComponentId`/`ValueId`/
-/// `OwlExpression`/`Order` are the official grammar's fourth kind,
-/// `memberFieldFilter`
+/// `OwlExpression`/`Order`/`MrcmRuleRefsetId` are the official
+/// grammar's fourth kind, `memberFieldFilter`
 /// — a refset-type-specific column rather than a shared one. Its own
 /// grammar (confirmed against the official ABNF, `syntax/abnf-brief.txt`)
 /// is not one shape but five, chosen by the column's own semantic type:
@@ -397,7 +397,10 @@ pub enum ConceptFilterKind {
 /// the numeric shape); `TargetComponentId`/`Order` then both extended
 /// to `OrderedAssociationRefsetMember`, a fifth refset type outside the
 /// two map types reusing both existing variants rather than adding new
-/// ones — all
+/// ones; and `mrcmRuleRefsetId` (`MrcmModuleScopeRefsetMember`, a sixth
+/// refset type outside the two map types, back to needing a genuinely
+/// new variant since no implemented column shares its RF2 field name)
+/// — all
 /// decided 2026-09-03 (`plan.md`'s "Open decisions") to retain full rows
 /// — active and inactive — for all sixteen non-Simple/Language refset
 /// types, the same store change `moduleId`/`effectiveTime`/`active`
@@ -543,6 +546,20 @@ pub enum MemberFilterKind {
     /// `snomed-ecl/src/eval.rs`'s `TypedFields` sets two refset-type-
     /// specific fields from one row instead of one.
     Order(NumericFieldFilter),
+    /// `mrcmRuleRefsetId (=|!=) subExpressionConstraint` — a
+    /// `memberFieldFilter` (spec/10 rule 18):
+    /// `MrcmModuleScopeRefsetMember`'s own `mrcmRuleRefsetId` column (a
+    /// concept reference). Reuses [`ModuleFilter`]'s exact shape and
+    /// grammar — the same concept-reference production
+    /// `correlationId`/`mapCategoryId`/`targetComponentId`/`valueId`
+    /// use, just a different refset type and RF2 column. Unlike
+    /// `targetComponentId`/`order`, no other implemented column shares
+    /// this RF2 field name, so this needs its own variant rather than
+    /// extending an existing one — the "reuse" shortcut only applies
+    /// when the same column name recurs on a different type. A block
+    /// naming it is tested against
+    /// `SnapshotStore::mrcm_module_scope_member_rows` instead.
+    MrcmRuleRefsetId(ModuleFilter),
 }
 
 /// `numericComparisonOperator ws "#" numericValue` — a `memberFieldFilter`
