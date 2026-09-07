@@ -13,6 +13,26 @@ together, in dependency order (`snomed-core` → `snomed-rf2` → `snomed-owl`
 
 ## [Unreleased]
 
+### Added
+
+- `snomed-ecl`: `{{ M domainConstraint = "<< 404684003" }}` restricts
+  to `MrcmDomain` member rows whose own `domainConstraint` column
+  matches — the same `match:`/`wild:`/`exact:` search-term grammar
+  `mapTarget`/`mapRule`/`mapAdvice`/`owlExpression` use (reusing
+  `TermFilter`'s exact shape and `term_matches`). Works after both `^`
+  and `^R`, and conjoins with `moduleId` and the other shared-column
+  kinds on the same member row. Only `MrcmDomainRefsetMember` rows
+  carry a `domainConstraint` column; every other row source never
+  matches. `memberFieldFilter`'s eighteenth column, and the first on
+  `MrcmDomainRefsetMember` — a ninth refset type outside the two map
+  types, and the first of those nine whose first implemented column is
+  the string-search shape rather than concept-reference or numeric.
+  Needed a genuinely new `MemberFilterKind` variant (no implemented
+  column shares this RF2 field name) and a genuinely new eleventh
+  typed row-set check (`SnapshotStore::mrcm_domain_member_rows`,
+  already present in the store from the sixteen-type retention
+  decision).
+
 ## [0.32.0] — 2026-09-07
 
 **New ECL capability, additive.** `{{ M ... }}`'s `memberFieldFilter`

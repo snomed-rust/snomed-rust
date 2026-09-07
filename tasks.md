@@ -43,6 +43,44 @@ most recently on 2026-09-07, to keep this file inside the repository's
 40 KB per-document budget. Search both when asking "has this come up
 before".
 
+## Done (2026-09-07, ECL `{{ M ... }}` `memberFieldFilter`: `domainConstraint`, first column on `MrcmDomain`, new eleventh row-set check, first string-shape column on a brand-new type)
+
+- [x] **`snomed-ecl`**: `MemberFilterKind::DomainConstraint(TermFilter)`
+      — `domainConstraint (=|!=) (typedSearchTerm | typedSearchTermSet)`,
+      reusing `mapTarget`/`mapRule`/`mapAdvice`/`owlExpression`'s exact
+      string-search grammar and `term_matches` verbatim, on
+      `MrcmDomainRefsetMember` — the eighteenth `memberFieldFilter`
+      column, and the first on that type. A ninth refset type outside
+      the two map types, and the first of those nine whose first
+      implemented column is the string-search shape rather than
+      concept-reference or numeric. No implemented column shares the
+      RF2 field name `domainConstraint`, so this genuinely needed a new
+      variant, plus a genuinely new eleventh row-set check
+      (`mrcm_domain_member_rows`) since it's that type's first
+      filterable column — the store already carried that accessor from
+      the sixteen-type retention decision, so this increment needed no
+      `snomed-store` change either.
+- [x] 4 new tests (parser: one shape test; eval: matches `MrcmDomain`
+      rows after both `^` and `^R`, never matches `DescriptionType`
+      rows, conjoins with `moduleId` on the same row) — 463/463 total,
+      up from 459. Also fixed
+      `rejects_an_unrecognized_member_field_filter_generically`, which
+      had used `domainConstraint` itself as its example of an
+      unrecognized keyword — switched to `parentDomain` (still
+      unimplemented, `MrcmDomainRefsetMember`'s second column).
+- [x] Updated: `spec/10-ecl-filters.md` (new bullet, dispatch-list and
+      shape-count updates — eighteen kinds, string-search now five of
+      them), `spec/10-ecl-unimplemented.md` (keyword list, narrative
+      history), `snomed-ecl/src/lib.rs`, `snomed-ecl/README.md` (table
+      row, not-yet-implemented list — removed `domainConstraint` from
+      its own "still unimplemented" example, replaced with
+      `parentDomain`), `agents/ecl-engineer.md`, `agents/store-engineer.md`
+      (nine consumers outside the map types, eleven row-set checks
+      total), `plan.md` (Open decisions paragraph, Current status test
+      count, Since 0.9.0 narrative), `CHANGELOG.md`.
+- [x] Verified: build/clippy/fmt/test (463/463)/check-docs/
+      check-trademarks/spec_citations all clean.
+
 ## Done (2026-09-07, Release 0.32.0 — `memberFieldFilter`'s `descriptionLength`, twentieth self-decided release)
 
 - [x] **Decided and executed the release itself**, per §1-5 of
@@ -327,10 +365,15 @@ before".
       — the eighth refset type outside the two map types, back on the
       concept-reference shape, another genuinely new variant, and a
       genuinely new tenth row-set check since it's the first filterable
-      column on `DescriptionTypeRefsetMember`), and `descriptionLength`
+      column on `DescriptionTypeRefsetMember`), `descriptionLength`
       (0.32.0 — `DescriptionTypeRefsetMember`'s second and
       last column, back on the numeric shape, another genuinely new
       variant, no new row-set check since both columns share one row),
+      and `domainConstraint` (not yet released — the ninth refset
+      type outside the two map types, the string-search shape this
+      time, another genuinely new variant, and a genuinely new eleventh
+      row-set check since it's the first filterable column on
+      `MrcmDomainRefsetMember`),
       all after both `^` and
       `^R`.
       Together `mapAdvice`/`mapCategoryId` complete `ExtendedMap`'s
@@ -338,14 +381,14 @@ before".
       filterable `memberFieldFilter` kind — and `targetComponentId`/
       `valueId`/`owlExpression`/`order`/`mrcmRuleRefsetId`/
       `attributeDescription`/`attributeType`/`attributeOrder`/
-      `descriptionFormat`/`descriptionLength` are the
-      first ten columns
+      `descriptionFormat`/`descriptionLength`/`domainConstraint` are the
+      first eleven columns
       implemented
       outside the two map types
       (`AssociationRefsetMember`/`AttributeValueRefsetMember`/
       `OwlExpressionRefsetMember`/`OrderedComponentRefsetMember`/
       `MrcmModuleScopeRefsetMember`/`RefsetDescriptorRefsetMember`/
-      `DescriptionTypeRefsetMember`, plus
+      `DescriptionTypeRefsetMember`/`MrcmDomainRefsetMember`, plus
       `OrderedAssociationRefsetMember` as an eighth type reusing the
       first two of those columns) — `RefsetDescriptorRefsetMember` and
       `DescriptionTypeRefsetMember` each carry every column they have,
@@ -353,10 +396,10 @@ before".
       column coverage.
       `{{ M ... }}` after `^`
       (0.13.0), after `^R` (0.14.0), and its `memberFieldFilter`
-      alternative (0.15.0-0.32.0),
+      alternative (0.15.0-0.32.0, `domainConstraint` pending release),
       all decided and executed under
       `spec/ai-release-authority/`'s criteria rather than a fresh
-      per-release maintainer go-ahead (see `CHANGELOG.md`). 9 crates, 459
+      per-release maintainer go-ahead (see `CHANGELOG.md`). 9 crates, 463
       tests,
       clippy/fmt clean on stable, MSRV 1.96 (current
       stable minus two, `spec/rust-msrv-n-minus-2/index.md`), `fuzz/`,
@@ -385,7 +428,7 @@ before".
       the `moduleId`/`effectiveTime`/`active` kinds are done after both
       `^` (2026-09-01) and `^R` (2026-09-02); the fourth grammar
       alternative, `memberFieldFilter`, now has its store-retention
-      decided and seventeen columns done after both `^` and `^R`:
+      decided and eighteen columns done after both `^` and `^R`:
       `mapTarget`, `correlationId`, `mapGroup` (2026-09-03),
       `mapPriority`, `mapRule`, `mapAdvice` (2026-09-04), `mapCategoryId`
       (2026-09-05, completes `ExtendedMap`'s column coverage),
@@ -415,10 +458,15 @@ before".
       `DescriptionTypeRefsetMember`, back on the concept-reference
       shape, another genuinely new variant, and a genuinely new tenth
       row-set check since it's that type's first filterable column),
-      and `descriptionLength` (2026-09-07, see Done above —
+      `descriptionLength` (2026-09-07 —
       `DescriptionTypeRefsetMember`'s second and last column, back on
       the numeric shape, another genuinely new variant, no new row-set
-      check since both columns share one row) followed.
+      check since both columns share one row), and `domainConstraint`
+      (2026-09-07, see Done above — the ninth column outside the two
+      map types, on `MrcmDomainRefsetMember`, the string-search shape
+      this time, another genuinely new variant, and a genuinely new
+      eleventh row-set check since it's that type's first filterable
+      column) followed.
       What is still open:
       - Every other `memberFieldFilter` column — no longer blocked on a
         store decision (all sixteen non-Simple/Language types already
@@ -496,11 +544,17 @@ before".
           either — both columns share one row) cover every column this
           type has, the second refset type outside the two map types
           with full column coverage.
-        - MrcmDomain: `domainConstraint`, `parentDomain`,
-          `proximalPrimitiveConstraint`, `proximalPrimitiveRefinement`,
+        - MrcmDomain: `domainConstraint` (2026-09-07, `String` — string
+          shape, reused `mapTarget`/`owlExpression`'s exact grammar,
+          tested against a new eleventh typed row set,
+          `mrcm_domain_member_rows`, already present in the store) is
+          done — `parentDomain`, `proximalPrimitiveConstraint`,
+          `proximalPrimitiveRefinement`,
           `domainTemplateForPrecoordination`,
           `domainTemplateForPostcoordination`, `guideURL` (all `String`
-          — string shape).
+          — string shape, same grammar) remain, free to pick up
+          whenever, no new row-set check needed since they'd share
+          `domainConstraint`'s row.
         - MrcmAttributeDomain: `domainId`, `ruleStrengthId`,
           `contentTypeId` (`SctId` — concept-reference shape); `grouped`
           (`bool` — boolean shape, no implemented example yet);

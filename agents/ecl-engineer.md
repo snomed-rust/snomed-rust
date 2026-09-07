@@ -392,7 +392,13 @@ followed immediately: back on the numeric shape (reusing
 name), but this time no new row-set check — both of that type's
 columns share one row, the same "two fields, one row" shape
 `AttributeType`/`AttributeOrder` have on `RefsetDescriptorRefsetMember`.
-`memberFieldFilter`
+`domainConstraint` (2026-09-07), `MrcmDomainRefsetMember`'s first
+column, followed: the ninth type outside the two map types, and the
+first of those nine on the string-search shape — reuses
+`mapTarget`/`mapRule`/`mapAdvice`/`owlExpression`'s `term_matches`,
+another genuinely new variant (`DomainConstraint`), and a genuinely
+new eleventh row-set check (`mrcm_domain_member_rows`) since it's that
+type's first filterable column. `memberFieldFilter`
 isn't one production but five in the official grammar, chosen by the
 named column's own semantic type
 (`expressionComparisonOperator ws subExpressionConstraint` for a concept

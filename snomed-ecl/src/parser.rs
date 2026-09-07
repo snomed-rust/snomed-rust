@@ -631,11 +631,20 @@ impl Parser {
                 let filter = self.parse_numeric_field_filter()?;
                 Ok(MemberFilterKind::DescriptionLength(filter))
             }
+            TokenKind::Word(word) if word == "domainConstraint" => {
+                self.advance()?;
+                let negated = self.parse_boolean_comparison_operator()?;
+                let values = self.parse_typed_search_term_set()?;
+                Ok(MemberFilterKind::DomainConstraint(TermFilter {
+                    negated,
+                    values,
+                }))
+            }
             _ => {
                 let tok = self.peek().clone();
                 Err(Self::unexpected(
                     &tok,
-                    "`moduleId`, `effectiveTime`, `active`, `mapTarget`, `correlationId`, `mapGroup`, `mapPriority`, `mapRule`, `mapAdvice`, `mapCategoryId`, `targetComponentId`, `valueId`, `owlExpression`, `order`, `mrcmRuleRefsetId`, `attributeDescription`, `attributeType`, `attributeOrder`, `descriptionFormat`, or `descriptionLength`",
+                    "`moduleId`, `effectiveTime`, `active`, `mapTarget`, `correlationId`, `mapGroup`, `mapPriority`, `mapRule`, `mapAdvice`, `mapCategoryId`, `targetComponentId`, `valueId`, `owlExpression`, `order`, `mrcmRuleRefsetId`, `attributeDescription`, `attributeType`, `attributeOrder`, `descriptionFormat`, `descriptionLength`, or `domainConstraint`",
                 ))
             }
         }
@@ -2094,6 +2103,33 @@ mod tests {
         assert_eq!(value, "255");
     }
 
+    /// `domainConstraint` (spec/10 rule 18) — the eighteenth
+    /// `memberFieldFilter` column, and the first on
+    /// `MrcmDomainRefsetMember`. String-search shape, reusing
+    /// `mapTarget`/`mapRule`/`mapAdvice`/`owlExpression`'s exact
+    /// grammar. No other implemented column shares this RF2 field
+    /// name, so it's a genuinely new variant.
+    #[test]
+    fn parses_member_filter_domain_constraint() {
+        let EC::MemberFilter { filters, .. } =
+            parse("^ 723592007 {{ M domainConstraint = \"<< 404684003\" }}").unwrap()
+        else {
+            panic!("expected a member filter");
+        };
+        assert_eq!(filters.len(), 1);
+        let crate::ast::MemberFilterKind::DomainConstraint(crate::ast::TermFilter {
+            negated,
+            values,
+        }) = &filters[0]
+        else {
+            panic!("expected a DomainConstraint filter, got {:?}", filters[0]);
+        };
+        assert!(!negated);
+        assert_eq!(values.len(), 1);
+        assert_eq!(values[0].text, "<< 404684003");
+        assert_eq!(values[0].search_type, crate::ast::SearchType::Match);
+    }
+
     /// `mapGroup` (spec/10 rule 18) — the third `memberFieldFilter`
     /// column implemented, and the first to use the numeric grammar
     /// shape (`numericComparisonOperator ws "#" numericValue`, the same
@@ -2199,7 +2235,7 @@ mod tests {
     #[test]
     fn rejects_an_unrecognized_member_field_filter_generically() {
         assert!(matches!(
-            parse("^ 447562003 {{ M domainConstraint = \"x\" }}"),
+            parse("^ 447562003 {{ M parentDomain = \"x\" }}"),
             Err(EclError::UnexpectedKeyword { .. })
         ));
     }

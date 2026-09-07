@@ -205,10 +205,10 @@ its inactive rows.
 `mapRule`, `mapAdvice`, `mapCategoryId`, `targetComponentId`,
 `valueId`, `owlExpression`, `order`, `mrcmRuleRefsetId`,
 `attributeDescription`, `attributeType`, `attributeOrder`, and
-`descriptionFormat` filters
+`descriptionFormat`/`descriptionLength` filters
 (`spec/10-ecl.md` rule
 18) are
-the first seventeen
+the first eighteen
 consumers: the first seven dispatch directly to
 `simple_map_member_rows`/`extended_map_member_rows`
 (`correlationId`/`mapGroup`/`mapPriority`/`mapRule`/`mapAdvice`/
@@ -216,13 +216,14 @@ consumers: the first seven dispatch directly to
 `simple_map_member_rows`' own type has no such columns), and
 `targetComponentId`/`valueId`/`owlExpression`/`order`/`mrcmRuleRefsetId`/
 `attributeDescription`/`attributeType`/`attributeOrder`/
-`descriptionFormat`/`descriptionLength`
-— the first eight
+`descriptionFormat`/`descriptionLength`/`domainConstraint`
+— the first nine
 outside
 the two map types — dispatch to `association_member_rows`/
 `attribute_value_member_rows`/`owl_expression_member_rows`/
 `ordered_component_member_rows`/`mrcm_module_scope_member_rows`/
-`refset_descriptor_member_rows`/`description_type_member_rows`
+`refset_descriptor_member_rows`/`description_type_member_rows`/
+`mrcm_domain_member_rows`
 respectively, plus an eighth row set,
 `ordered_association_member_rows`, which both `targetComponentId` and
 `order` also dispatch to (one row there carries both columns, so both
@@ -236,7 +237,10 @@ since all three columns were already on that accessor's row type;
 tenth row-set check (`description_type_member_rows`) since it's the
 first filterable column on that type; `descriptionLength` then reused
 that same tenth row set — it's `descriptionFormat`'s second and last
-column, both on one row, no new row-set check needed. All
+column, both on one row, no new row-set check needed;
+`domainConstraint` needed its own new eleventh row-set check
+(`mrcm_domain_member_rows`) since it's `MrcmDomainRefsetMember`'s
+first filterable column. All
 row sets are still
 tested whenever any field-filter kind appears in a block, since a row
 missing the column simply fails that filter rather than needing its

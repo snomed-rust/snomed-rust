@@ -375,7 +375,7 @@ pub enum ConceptFilterKind {
 /// `MapAdvice`/`MapCategoryId`/`TargetComponentId`/`ValueId`/
 /// `OwlExpression`/`Order`/`MrcmRuleRefsetId`/`AttributeDescription`/
 /// `AttributeType`/`AttributeOrder`/`DescriptionFormat`/
-/// `DescriptionLength`
+/// `DescriptionLength`/`DomainConstraint`
 /// are the official grammar's fourth kind, `memberFieldFilter`
 /// — a refset-type-specific column rather than a shared one. Its own
 /// grammar (confirmed against the official ABNF, `syntax/abnf-brief.txt`)
@@ -418,7 +418,10 @@ pub enum ConceptFilterKind {
 /// (`DescriptionTypeRefsetMember`'s second and last column, back on the
 /// numeric shape, another genuinely new variant, needing no new
 /// row-set check since both of that type's columns come from the same
-/// row) — all
+/// row); and `domainConstraint` (`MrcmDomainRefsetMember`, a ninth
+/// refset type outside the two map types, the string-search shape this
+/// time, another genuinely new variant, and a new row-set check since
+/// this is that type's first filterable column) — all
 /// decided 2026-09-03 (`plan.md`'s "Open decisions") to retain full rows
 /// — active and inactive — for all sixteen non-Simple/Language refset
 /// types, the same store change `moduleId`/`effectiveTime`/`active`
@@ -661,6 +664,23 @@ pub enum MemberFilterKind {
     /// needs its own variant too. A block naming it is tested against
     /// `SnapshotStore::description_type_member_rows` instead.
     DescriptionLength(NumericFieldFilter),
+    /// `domainConstraint (=|!=) (typedSearchTerm | typedSearchTermSet)`
+    /// — a `memberFieldFilter` (spec/10 rule 18):
+    /// `MrcmDomainRefsetMember`'s own `domainConstraint` column (free
+    /// text — an ECL expression constraining domain membership, stored
+    /// as an unparsed string, not a concept reference). Reuses
+    /// [`TermFilter`]'s exact shape and grammar — the same string
+    /// production `mapTarget`/`mapRule`/`mapAdvice`/`owlExpression` use,
+    /// just a different refset type and RF2 column. The first
+    /// `memberFieldFilter` column implemented on
+    /// `MrcmDomainRefsetMember` — a ninth refset type outside the two
+    /// map types, and the first of those nine whose first column is the
+    /// string-search shape rather than concept-reference or numeric —
+    /// so a block naming it needs a new row-set check, tested against
+    /// `SnapshotStore::mrcm_domain_member_rows` instead. No other
+    /// implemented column shares the RF2 field name `domainConstraint`,
+    /// so this needs its own variant too.
+    DomainConstraint(TermFilter),
 }
 
 /// `numericComparisonOperator ws "#" numericValue` — a `memberFieldFilter`
