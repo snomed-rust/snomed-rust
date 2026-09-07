@@ -41,6 +41,57 @@ most recently on 2026-09-07, to keep this file inside the repository's
 40 KB per-document budget. Search both when asking "has this come up
 before".
 
+## Done (2026-09-07, Release 0.31.0 — `memberFieldFilter`'s `descriptionFormat`, nineteenth self-decided release)
+
+- [x] **Decided and executed the release itself**, per §1-5 of
+      `spec/ai-release-authority/`: §1 CI independently green on the
+      pushed merge commit (`3311f24`, all jobs, confirmed via `gh run
+      view` on the exact commit); §2 `CHANGELOG.md`'s `[Unreleased]`
+      verified against the actual diff and moved under `## [0.31.0]`,
+      minor bump (purely additive: new
+      `MemberFilterKind::DescriptionFormat` variant, one new
+      `TypedFields` field, one new row-set check — nothing removed or
+      changed signature); §3 no rule oversteps — needed a genuinely new
+      variant (no existing column shares the RF2 field name
+      `descriptionFormat`) and a genuinely new row-set check (the first
+      filterable column on `DescriptionTypeRefsetMember`), the same kind
+      of routine grammar-coverage call this authority already covers,
+      not a `plan.md` "Open decisions" item; §4 all nine crates, one
+      version, standard dependency order; §5 tagged `v0.31.0` (signed,
+      verified against the merge commit) and ran `cargo publish` for
+      each crate in order, all nine succeeding cleanly.
+- [x] **Verified against crates.io's own API afterward**: `GET
+      /api/v1/crates/<name>` for all nine names returns
+      `max_version: "0.31.0"`.
+- [x] Version bumped everywhere the 0.13.0-0.30.0 precedent bumped it:
+      `Cargo.toml` (workspace + seven pins), `CITATION.cff`, `NEWS.md`,
+      `INSTALL.md`, `SECURITY.md`.
+- [x] Same `release/0.31.0` branch/merge shape as 0.12.0-0.30.0, not a
+      direct commit to `main`; branch deleted locally once GitHub and
+      Codeberg confirmed the merge commit and CI came back green.
+- [x] **GitLab's SSH port was still down from the 0.30.0 cycle,
+      continuously, through this entire release** (`Connection reset by
+      172.65.251.78 port 22`, the same IP as every prior GitLab SSH
+      incident this session — an outage that has now spanned two
+      consecutive releases without a single successful GitLab push).
+      Following the same established precedent as 0.24.0 and 0.30.0:
+      GitHub and Codeberg had every commit and both tags (`v0.30.0` and
+      `v0.31.0`) immediately on each push; CI was confirmed green on
+      GitHub for both the implementation commit (`c65d955`) and the
+      merge commit (`3311f24`); `cargo publish` proceeded for all nine
+      crates and was verified against crates.io while a background
+      retry loop kept trying GitLab in the background — `cargo publish`
+      never depends on any forge's git state, so this never blocked the
+      actual release. **If this entry still says GitLab is behind,
+      retry `git push git@gitlab.com:snomed-rust/snomed-rust.git main
+      v0.30.0 v0.31.0` next session** — worth a closer look next time
+      too, since a multi-release-spanning outage on one IP is starting
+      to look less like transient flakiness and more like something
+      worth asking GitLab support about, or checking GitLab's own status
+      page for.
+- [x] Verified: build/clippy/fmt/test (455/455)/check-docs/
+      check-trademarks/spec_citations all clean before tagging.
+
 ## Done (2026-09-07, ECL `{{ M ... }}` `memberFieldFilter`: `descriptionFormat`, `DescriptionType`'s first column, new tenth row-set check)
 
 - [x] **`snomed-ecl`**: `MemberFilterKind::DescriptionFormat(ModuleFilter)`
@@ -318,8 +369,7 @@ before".
 ## Next up
 
 - [ ] Nothing currently scoped beyond the `{{ M ... }}` remainder below.
-      State as of 2026-09-07: **0.30.0 released, `descriptionFormat`
-      implemented and pending its own release** — `mapTarget` (0.15.0),
+      State as of 2026-09-07: **0.31.0 released** — `mapTarget` (0.15.0),
       `correlationId` (0.16.0), `mapGroup` (0.17.0), `mapPriority`
       (0.18.0), `mapRule` (0.19.0), `mapAdvice` plus the `ecl_parse`
       fuzz-caught recursion-depth guard (spec/10 rule 19, 0.20.0),
@@ -337,7 +387,7 @@ before".
       both columns share one row), and `attributeOrder` (0.30.0,
       `RefsetDescriptorRefsetMember`'s third and last column, back on
       the numeric shape, another genuinely new variant, again needing
-      no new row-set check), and `descriptionFormat` (not yet released
+      no new row-set check), and `descriptionFormat` (0.31.0
       — the eighth refset type outside the two map types, back on the
       concept-reference shape, another genuinely new variant, and a
       genuinely new tenth row-set check since it's the first filterable
@@ -364,7 +414,7 @@ before".
       (`descriptionLength` remains — see below).
       `{{ M ... }}` after `^`
       (0.13.0), after `^R` (0.14.0), and its `memberFieldFilter`
-      alternative (0.15.0-0.30.0, `descriptionFormat` pending release),
+      alternative (0.15.0-0.31.0),
       all decided and executed under
       `spec/ai-release-authority/`'s criteria rather than a fresh
       per-release maintainer go-ahead (see `CHANGELOG.md`). 9 crates, 455
