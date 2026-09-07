@@ -13,6 +13,19 @@ together, in dependency order (`snomed-core` → `snomed-rf2` → `snomed-owl`
 
 ## [Unreleased]
 
+## [0.35.0] — 2026-09-07
+
+**New ECL capability, additive.** `{{ M ... }}`'s `memberFieldFilter`
+gains its twentieth column, `proximalPrimitiveConstraint` —
+`MrcmDomainRefsetMember`'s third column (after
+`domainConstraint`/`parentDomain`), after both `^` and `^R`.
+String-search shape, reusing `mapTarget`/`domainConstraint`'s exact
+grammar and `term_matches`; needed a genuinely new `MemberFilterKind`
+variant (no implemented column shares this RF2 field name) but no new
+row-set check, reusing `domainConstraint`/`parentDomain`'s row set. A
+minor bump: new public API, no removals or signature changes to
+anything existing.
+
 ### Added
 
 - `snomed-ecl`: `{{ M proximalPrimitiveConstraint = "<< 71388002" }}`
