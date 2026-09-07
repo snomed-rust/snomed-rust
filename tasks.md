@@ -45,6 +45,33 @@ most recently on 2026-09-07, to keep this file inside the repository's
 40 KB per-document budget. Search both when asking "has this come up
 before".
 
+## Done (2026-09-07, GitLab SSH outage resolved — main and v0.30.0-v0.34.0 all pushed and verified)
+
+- [x] **The GitLab SSH outage (`Connection reset by 172.65.251.78 port
+      22`) documented in the 0.30.0-0.34.0 release entries below is
+      now resolved.** It lasted from partway through the 0.30.0 cycle
+      until this entry — roughly seven hours, spanning five releases,
+      confirmed unreachable via dozens of retries at both 60-second and
+      5-minute intervals (a background `Monitor` retry loop, re-armed
+      each time it hit its own 1-hour wall-clock cap) and via manual
+      `git push`/`git ls-remote` probes throughout, while GitHub and
+      Codeberg received every push immediately the whole time — HTTPS
+      reads against GitLab also worked throughout, confirming the
+      outage was SSH-transport-specific, not a GitLab-wide incident.
+      `git push git@gitlab.com:snomed-rust/snomed-rust.git main
+      v0.30.0 v0.31.0 v0.32.0 v0.33.0 v0.34.0` succeeded on the first
+      attempt once it recovered, and `git ls-remote` against GitLab
+      afterward confirmed `main` at `93268fd` (matching GitHub/Codeberg
+      exactly) and all five tags present, each pointing at the correct
+      signed-tag object. **All three forges are now fully in sync; no
+      further action needed** — the "if this entry still says GitLab
+      is behind" retry instructions in the 0.30.0-0.34.0 entries below
+      (and their archived counterparts, `docs/tasks-archive-31.md`/
+      `tasks-archive-32.md`) are now stale and can be disregarded.
+      Nothing about `cargo publish` or crates.io was ever affected —
+      those releases were correct and complete throughout, per each
+      entry's own crates.io API verification.
+
 ## Done (2026-09-07, Release 0.34.0 — `memberFieldFilter`'s `parentDomain`, twenty-second self-decided release)
 
 - [x] **Decided and executed the release itself**, per §1-5 of
