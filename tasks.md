@@ -37,12 +37,60 @@ release 0.23.0, `memberFieldFilter`'s `valueId` column, release 0.24.0,
 `mrcmRuleRefsetId` column (2026-09-06), release 0.28.0,
 `memberFieldFilter`'s `attributeDescription` column (2026-09-06),
 release 0.29.0, `memberFieldFilter`'s `attributeType` column
-(2026-09-06), release 0.30.0, and `memberFieldFilter`'s
-`attributeOrder` column (2026-09-06/07), live in
+(2026-09-06), release 0.30.0, `memberFieldFilter`'s
+`attributeOrder` column (2026-09-06/07), release 0.31.0, and
+`memberFieldFilter`'s `descriptionFormat` column (2026-09-07), live in
 [`docs/tasks-archive.md`](docs/tasks-archive.md) — moved there verbatim,
 most recently on 2026-09-07, to keep this file inside the repository's
 40 KB per-document budget. Search both when asking "has this come up
 before".
+
+## Done (2026-09-07, Release 0.34.0 — `memberFieldFilter`'s `parentDomain`, twenty-second self-decided release)
+
+- [x] **Decided and executed the release itself**, per §1-5 of
+      `spec/ai-release-authority/`: §1 CI independently green on the
+      pushed merge commit (`b75cae6`, all jobs, confirmed via `gh run
+      view` on the exact commit); §2 `CHANGELOG.md`'s `[Unreleased]`
+      verified against the actual diff and moved under `## [0.34.0]`,
+      minor bump (purely additive: new
+      `MemberFilterKind::ParentDomain` variant, one new `TypedFields`
+      field, no new row-set check — nothing removed or changed
+      signature); §3 no rule oversteps — needed a genuinely new variant
+      (no existing column shares the RF2 field name `parentDomain`),
+      the same kind of routine grammar-coverage call this authority
+      already covers, not a `plan.md` "Open decisions" item; §4 all
+      nine crates, one version, standard dependency order; §5 tagged
+      `v0.34.0` (signed, verified against the merge commit) and ran
+      `cargo publish` for each crate in order, all nine succeeding
+      cleanly.
+- [x] **Verified against crates.io's own API afterward**: `GET
+      /api/v1/crates/<name>` for all nine names returns
+      `max_version: "0.34.0"`.
+- [x] Version bumped everywhere the 0.13.0-0.33.0 precedent bumped it:
+      `Cargo.toml` (workspace + seven pins), `CITATION.cff`, `NEWS.md`,
+      `INSTALL.md`, `SECURITY.md`.
+- [x] Same `release/0.34.0` branch/merge shape as 0.12.0-0.33.0, not a
+      direct commit to `main`; branch deleted locally once GitHub and
+      Codeberg confirmed the merge commit and CI came back green.
+- [x] **GitLab's SSH port remained down through this entire release
+      too — now five consecutive releases (0.30.0-0.34.0) without a
+      single successful GitLab push**, over roughly two and a half
+      hours of continuous retries at this point
+      (`Connection reset by 172.65.251.78 port 22`, the same IP every
+      time). GitHub and Codeberg had every commit and all five tags
+      (`v0.30.0`-`v0.34.0`) immediately on each push; CI was confirmed
+      green on GitHub for every commit released; `cargo publish`
+      proceeded for all nine crates and was verified against crates.io
+      while a background retry loop kept trying GitLab. **If this
+      entry still says GitLab is behind, retry `git push
+      git@gitlab.com:snomed-rust/snomed-rust.git main v0.30.0 v0.31.0
+      v0.32.0 v0.33.0 v0.34.0` next session** — at this point the
+      outage has spanned essentially this entire session's active
+      working time, so it's genuinely worth checking
+      status.gitlab.com or opening a support ticket, not just retrying
+      blindly again.
+- [x] Verified: build/clippy/fmt/test (467/467)/check-docs/
+      check-trademarks/spec_citations all clean before tagging.
 
 ## Done (2026-09-07, ECL `{{ M ... }}` `memberFieldFilter`: `parentDomain`, `MrcmDomain`'s second column, no new row-set check)
 
@@ -246,99 +294,11 @@ before".
 - [x] Verified: build/clippy/fmt/test (459/459)/check-docs/
       check-trademarks/spec_citations all clean.
 
-## Done (2026-09-07, Release 0.31.0 — `memberFieldFilter`'s `descriptionFormat`, nineteenth self-decided release)
-
-- [x] **Decided and executed the release itself**, per §1-5 of
-      `spec/ai-release-authority/`: §1 CI independently green on the
-      pushed merge commit (`3311f24`, all jobs, confirmed via `gh run
-      view` on the exact commit); §2 `CHANGELOG.md`'s `[Unreleased]`
-      verified against the actual diff and moved under `## [0.31.0]`,
-      minor bump (purely additive: new
-      `MemberFilterKind::DescriptionFormat` variant, one new
-      `TypedFields` field, one new row-set check — nothing removed or
-      changed signature); §3 no rule oversteps — needed a genuinely new
-      variant (no existing column shares the RF2 field name
-      `descriptionFormat`) and a genuinely new row-set check (the first
-      filterable column on `DescriptionTypeRefsetMember`), the same kind
-      of routine grammar-coverage call this authority already covers,
-      not a `plan.md` "Open decisions" item; §4 all nine crates, one
-      version, standard dependency order; §5 tagged `v0.31.0` (signed,
-      verified against the merge commit) and ran `cargo publish` for
-      each crate in order, all nine succeeding cleanly.
-- [x] **Verified against crates.io's own API afterward**: `GET
-      /api/v1/crates/<name>` for all nine names returns
-      `max_version: "0.31.0"`.
-- [x] Version bumped everywhere the 0.13.0-0.30.0 precedent bumped it:
-      `Cargo.toml` (workspace + seven pins), `CITATION.cff`, `NEWS.md`,
-      `INSTALL.md`, `SECURITY.md`.
-- [x] Same `release/0.31.0` branch/merge shape as 0.12.0-0.30.0, not a
-      direct commit to `main`; branch deleted locally once GitHub and
-      Codeberg confirmed the merge commit and CI came back green.
-- [x] **GitLab's SSH port was still down from the 0.30.0 cycle,
-      continuously, through this entire release** (`Connection reset by
-      172.65.251.78 port 22`, the same IP as every prior GitLab SSH
-      incident this session — an outage that has now spanned two
-      consecutive releases without a single successful GitLab push).
-      Following the same established precedent as 0.24.0 and 0.30.0:
-      GitHub and Codeberg had every commit and both tags (`v0.30.0` and
-      `v0.31.0`) immediately on each push; CI was confirmed green on
-      GitHub for both the implementation commit (`c65d955`) and the
-      merge commit (`3311f24`); `cargo publish` proceeded for all nine
-      crates and was verified against crates.io while a background
-      retry loop kept trying GitLab in the background — `cargo publish`
-      never depends on any forge's git state, so this never blocked the
-      actual release. **If this entry still says GitLab is behind,
-      retry `git push git@gitlab.com:snomed-rust/snomed-rust.git main
-      v0.30.0 v0.31.0` next session** — worth a closer look next time
-      too, since a multi-release-spanning outage on one IP is starting
-      to look less like transient flakiness and more like something
-      worth asking GitLab support about, or checking GitLab's own status
-      page for.
-- [x] Verified: build/clippy/fmt/test (455/455)/check-docs/
-      check-trademarks/spec_citations all clean before tagging.
-
-## Done (2026-09-07, ECL `{{ M ... }}` `memberFieldFilter`: `descriptionFormat`, `DescriptionType`'s first column, new tenth row-set check)
-
-- [x] **`snomed-ecl`**: `MemberFilterKind::DescriptionFormat(ModuleFilter)`
-      — `descriptionFormat (=|!=) subExpressionConstraint`, reusing
-      `correlationId`/`mrcmRuleRefsetId`/`attributeDescription`/
-      `attributeType`'s exact concept-reference grammar and
-      `ModuleFilter` verbatim, but on `DescriptionTypeRefsetMember` — an
-      eighth refset type outside the two map types, and the first
-      filterable column on that type. The sixteenth `memberFieldFilter`
-      column overall. No implemented column shares the RF2 field name
-      `descriptionFormat`, so — like `mrcmRuleRefsetId`/
-      `attributeDescription`/`attributeType` — this needed a genuinely
-      new variant. Unlike `attributeType`/`attributeOrder`, this *did*
-      need a new row-set check — the tenth — tested against
-      `SnapshotStore::description_type_member_rows`, an accessor already
-      present in the store from the sixteen-type retention decision, so
-      no `snomed-store` change was needed either.
-- [x] 4 new tests (parser: one shape test; eval: matches `DescriptionType`
-      rows after both `^` and `^R`, never matches `RefsetDescriptor`
-      rows — the "column absent on this row source" case every other
-      field filter has — and conjoins with `moduleId` on the same row) —
-      455/455 total, up from 451.
-- [x] Updated: `spec/10-ecl-filters.md` (new bullet, dispatch-list and
-      shape-count updates — sixteen kinds, concept-reference now eight
-      of them), `spec/10-ecl-unimplemented.md` (keyword list, narrative
-      history), `snomed-ecl/src/lib.rs`, `snomed-ecl/README.md` (table
-      row, not-yet-implemented list), `agents/ecl-engineer.md`,
-      `agents/store-engineer.md` (nine consumers to ten, ninth to tenth
-      row-set check), `plan.md` (Open decisions paragraph, Current
-      status test count, Since 0.9.0 narrative), `CHANGELOG.md`.
-      `spec/10-ecl.md` needed no change this time — its rule 18 prose
-      already points at `spec/10-ecl-filters.md` for the per-column list
-      rather than enumerating it, from the trim the `attributeOrder`
-      increment made.
-- [x] Verified: build/clippy/fmt/test (455/455)/check-docs/
-      check-trademarks/spec_citations all clean.
-
 
 ## Next up
 
 - [ ] Nothing currently scoped beyond the `{{ M ... }}` remainder below.
-      State as of 2026-09-07: **0.33.0 released** — `mapTarget` (0.15.0),
+      State as of 2026-09-07: **0.34.0 released** — `mapTarget` (0.15.0),
       `correlationId` (0.16.0), `mapGroup` (0.17.0), `mapPriority`
       (0.18.0), `mapRule` (0.19.0), `mapAdvice` plus the `ecl_parse`
       fuzz-caught recursion-depth guard (spec/10 rule 19, 0.20.0),
@@ -368,7 +328,7 @@ before".
       type outside the two map types, the string-search shape this
       time, another genuinely new variant, and a genuinely new eleventh
       row-set check since it's the first filterable column on
-      `MrcmDomainRefsetMember`), and `parentDomain` (not yet released
+      `MrcmDomainRefsetMember`), and `parentDomain` (0.34.0
       — `MrcmDomainRefsetMember`'s second column, another genuinely
       new variant, no new row-set check since both columns share one
       row),
@@ -395,7 +355,7 @@ before".
       column coverage.
       `{{ M ... }}` after `^`
       (0.13.0), after `^R` (0.14.0), and its `memberFieldFilter`
-      alternative (0.15.0-0.33.0, `parentDomain` pending release),
+      alternative (0.15.0-0.34.0),
       all decided and executed under
       `spec/ai-release-authority/`'s criteria rather than a fresh
       per-release maintainer go-ahead (see `CHANGELOG.md`). 9 crates, 467

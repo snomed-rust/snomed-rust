@@ -1,7 +1,7 @@
 # Tasks archive — index
 
 [`tasks.md`](../tasks.md) keeps the current checklist and the recent
-entries; everything older lives here, split into thirty-one files
+entries; everything older lives here, split into thirty-two files
 that each
 stay inside the repository's 40 KB per-document budget. Entries were moved
 verbatim — this is a historical record, not a summary, and it is worth
@@ -43,6 +43,7 @@ so the paths quoted here still resolve.
 | [`tasks-archive-29.md`](tasks-archive-29.md) | 2026-09-06 | Release 0.28.0; `memberFieldFilter`'s `attributeDescription` column (the seventh column outside the two map types, and the second genuinely new variant in a row) |
 | [`tasks-archive-30.md`](tasks-archive-30.md) | 2026-09-06 | Release 0.29.0; `memberFieldFilter`'s `attributeType` column (`RefsetDescriptorRefsetMember`'s second column, another genuinely new variant but the first needing no new row-set check) |
 | [`tasks-archive-31.md`](tasks-archive-31.md) | 2026-09-06/07 | Release 0.30.0 (including a double GitLab SSH outage); `memberFieldFilter`'s `attributeOrder` column (`RefsetDescriptorRefsetMember`'s third and last column — the first refset type outside the two map types with full column coverage) |
+| [`tasks-archive-32.md`](tasks-archive-32.md) | 2026-09-07 | Release 0.31.0; `memberFieldFilter`'s `descriptionFormat` column (the first filterable column on `DescriptionTypeRefsetMember`, an eighth refset type outside the two map types) |
 
 Older entries are shorter and more granular than recent ones: they were
 written a change at a time while the workspace was being built from
