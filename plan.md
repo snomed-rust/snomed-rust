@@ -232,7 +232,7 @@ and harmonizes it with the sibling repositories (`hl7-rust`, `er7-rust`,
        Simple/Language types* — symmetric with the `member_rows` choice,
        but the per-row cost is no longer a uniform 48 bytes: MRCM/
        RefsetDescriptor rows carry several `String`s each
-       (`domainConstraint`, `proximalPrimitiveConstraint`, …), so the
+       (`parentDomain`, `proximalPrimitiveConstraint`, …), so the
        ~300 MB precedent figure does not transfer without re-measuring
        each type. Answers every field, at a cost nobody has priced type
        by type yet.
@@ -254,9 +254,9 @@ and harmonizes it with the sibling repositories (`hl7-rust`, `er7-rust`,
   `mapPriority`, `mapRule`, `mapAdvice`, `mapCategoryId`,
   `targetComponentId`, `valueId`, `owlExpression`, `order`,
   `mrcmRuleRefsetId`, `attributeDescription`, `attributeType`,
-  `attributeOrder`, `descriptionFormat`, `descriptionLength`, and
-  `domainConstraint` are the
-  first eighteen
+  `attributeOrder`, `descriptionFormat`, `descriptionLength`,
+  `domainConstraint`, and `parentDomain` are the
+  first twenty
   concrete fields
   built on this retention (`snomed-ecl`, spec/10 rule 18): the
   `memberFieldFilter` grammar alternative, tested against
@@ -273,8 +273,8 @@ and harmonizes it with the sibling repositories (`hl7-rust`, `er7-rust`,
   `memberFieldFilter` itself turned out not to be one grammar shape but
   five, chosen by the named column's own semantic type (confirmed
   against the official ABNF): `mapTarget`/`mapRule`/`mapAdvice`/
-  `owlExpression`/`domainConstraint` the string-search shape,
-  `correlationId`/`mapCategoryId`/
+  `owlExpression`/`domainConstraint`/`parentDomain` the string-search
+  shape, `correlationId`/`mapCategoryId`/
   `targetComponentId`/`valueId`/`mrcmRuleRefsetId`/`attributeDescription`/
   `attributeType`/`descriptionFormat`
   the concept-reference
@@ -292,8 +292,9 @@ and harmonizes it with the sibling repositories (`hl7-rust`, `er7-rust`,
   `ExtendedMapRefsetMember`'s column coverage; `targetComponentId`/
   `valueId`/`owlExpression`/`order`/`mrcmRuleRefsetId`/
   `attributeDescription`/`attributeType`/`attributeOrder`/
-  `descriptionFormat`/`descriptionLength`/`domainConstraint` are the
-  first eleven fields on refset
+  `descriptionFormat`/`descriptionLength`/`domainConstraint`/
+  `parentDomain` are the
+  first twelve fields on refset
   types
   other than the two
   map types (`AssociationRefsetMember`/`AttributeValueRefsetMember`/
@@ -305,7 +306,8 @@ and harmonizes it with the sibling repositories (`hl7-rust`, `er7-rust`,
   confirming the same store retention and dispatch pattern generalizes
   past `ExtendedMap`/`SimpleMap` across every grammar shape, not just
   the concept-reference one. Every
-  other `memberFieldFilter` column (`parentDomain`, `grouped`, …)
+  other `memberFieldFilter` column (`proximalPrimitiveConstraint`,
+  `grouped`, …)
   remains rejected generically —
   not by a fixed keyword list (`refsetFieldName` is `1*alpha`, confirmed
   against the official ABNF) — but each is now a free `snomed-ecl`
@@ -321,9 +323,9 @@ and harmonizes it with the sibling repositories (`hl7-rust`, `er7-rust`,
 ## Current status
 
 All eight phases above are closed. As of `memberFieldFilter`'s
-`domainConstraint` (2026-09-07, below) the
+`parentDomain` (2026-09-07, below) the
 workspace is 9 published
-crates with zero dependencies, 463 tests, a clean
+crates with zero dependencies, 467 tests, a clean
 `cargo clippy --all-targets`, 13 fuzz targets, and six criterion
 benchmark files. What is *not* done is tracked
 in two places and nowhere
@@ -402,11 +404,14 @@ so this increment too needed no `snomed-store` change; and
 `descriptionLength` (2026-09-07) is `DescriptionTypeRefsetMember`'s
 second and last column, back on the numeric shape, another genuinely
 new variant, again needing no new row-set check — both of that type's
-columns now populate from the same row; and `domainConstraint`
+columns now populate from the same row; `domainConstraint`
 (2026-09-07) is a ninth type outside the two map types
 (`MrcmDomainRefsetMember`, an eleventh row-set check), the
 string-search shape this time, another genuinely new variant since no
-implemented column shares its RF2 field name. In between, the `ecl_parse` fuzz target's CI smoke run caught
+implemented column shares its RF2 field name; and `parentDomain`
+(2026-09-07) is `MrcmDomainRefsetMember`'s second column, another
+genuinely new variant, needing no new row-set check since both columns
+share one row. In between, the `ecl_parse` fuzz target's CI smoke run caught
 a real stack overflow on pathologically deep `(`/refinement/
 attribute-set nesting (2026-09-04) — fixed with a shared `Parser::depth`
 counter and a 100-level cap (spec/10 rule 19,

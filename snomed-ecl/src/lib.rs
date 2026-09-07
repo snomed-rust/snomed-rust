@@ -12,7 +12,8 @@
 //! `mapAdvice`/`mapCategoryId`/`targetComponentId`/`valueId`/
 //! `owlExpression`/`order`/`mrcmRuleRefsetId`/`attributeDescription`/
 //! `attributeType`/`attributeOrder`/`descriptionFormat`/
-//! `descriptionLength`/`domainConstraint`, the history supplement,
+//! `descriptionLength`/`domainConstraint`/`parentDomain`, the history
+//! supplement,
 //! alternate identifiers, …) is listed in
 //! `spec/10-ecl-unimplemented.md`. Encountering one is a parse error,
 //! never a silently incomplete result.

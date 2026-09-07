@@ -157,9 +157,9 @@ named column's own semantic type (confirmed against the official ABNF,
 subExpressionConstraint` (a concept reference), `numericComparisonOperator
 ws "#" numericValue`, `stringComparisonOperator ws (typedSearchTerm |
 typedSearchTermSet)`, `booleanComparisonOperator ws booleanValue`, or
-`timeComparisonOperator ws (timeValue | timeValueSet)`. Eighteen kinds
+`timeComparisonOperator ws (timeValue | timeValueSet)`. Nineteen kinds
 are
-implemented, spanning three of the five shapes (string has five,
+implemented, spanning three of the five shapes (string has six,
 concept reference has eight, numeric has five):
 
 - `mapTarget (=|!=) (typedSearchTerm | typedSearchTermSet)` — the same
@@ -305,10 +305,18 @@ concept reference has eight, numeric has five):
   whose first implemented column is the string-search shape — so it
   needed its own new row-set check, tested against
   `SnapshotStore::mrcm_domain_member_rows` directly.
+- `parentDomain (=|!=) (typedSearchTerm | typedSearchTermSet)` — the
+  same string-search shape and the same `TermFilter`/`term_matches`
+  machinery as `mapTarget`/`domainConstraint`, matched against the
+  member row's own `parentDomain` column. `MrcmDomainRefsetMember`'s
+  second column (after `domainConstraint`) — both live on the same
+  row, tested against the same
+  `SnapshotStore::mrcm_domain_member_rows`, no new row-set check
+  needed.
 
-All eighteen reuse the shared dispatch `mapTarget` introduced (renamed
+All nineteen reuse the shared dispatch `mapTarget` introduced (renamed
 `typed_field_row_matches` once a non-map type joined it): a block
-naming *any* of the eighteen kinds is tested against
+naming *any* of the nineteen kinds is tested against
 `SimpleMap`/`ExtendedMap`/`Association`/`AttributeValue`/`OwlExpression`/
 `OrderedComponent`/`OrderedAssociation`/`MrcmModuleScope`/
 `RefsetDescriptor`/`DescriptionType`/`MrcmDomain`
@@ -322,7 +330,7 @@ any of `correlationId`/
 `targetComponentId`/`valueId`/`owlExpression`/`order`/
 `mrcmRuleRefsetId`/`attributeDescription`/`attributeType`/
 `attributeOrder`/`descriptionFormat`/`descriptionLength`/
-`domainConstraint` (the column is
+`domainConstraint`/`parentDomain` (the column is
 simply
 absent on that row source, the same "not this row's type" answer a
 shared-column filter gets from a row of the wrong refset type), so it

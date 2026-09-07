@@ -13,6 +13,24 @@ together, in dependency order (`snomed-core` → `snomed-rf2` → `snomed-owl`
 
 ## [Unreleased]
 
+### Added
+
+- `snomed-ecl`: `{{ M parentDomain = "<< 138875005" }}` restricts to
+  `MrcmDomain` member rows whose own `parentDomain` column matches —
+  the same `match:`/`wild:`/`exact:` search-term grammar
+  `mapTarget`/`domainConstraint` use (reusing `TermFilter`'s exact
+  shape and `term_matches`). Works after both `^` and `^R`, and
+  conjoins with `domainConstraint` and the other shared-column kinds
+  on the same member row — `domainConstraint`/`parentDomain` both live
+  on the same `MrcmDomainRefsetMember` row, so a block naming both is
+  satisfied by that one row. Only `MrcmDomainRefsetMember` rows carry
+  a `parentDomain` column; every other row source never matches.
+  `memberFieldFilter`'s nineteenth column, and `MrcmDomainRefsetMember`'s
+  second. Needed a genuinely new `MemberFilterKind` variant (no
+  implemented column shares this RF2 field name) but no new row-set
+  check, reusing `domainConstraint`'s
+  `SnapshotStore::mrcm_domain_member_rows`.
+
 ## [0.33.0] — 2026-09-07
 
 **New ECL capability, additive.** `{{ M ... }}`'s `memberFieldFilter`

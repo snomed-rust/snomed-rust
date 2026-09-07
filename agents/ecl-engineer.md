@@ -398,7 +398,12 @@ first of those nine on the string-search shape — reuses
 `mapTarget`/`mapRule`/`mapAdvice`/`owlExpression`'s `term_matches`,
 another genuinely new variant (`DomainConstraint`), and a genuinely
 new eleventh row-set check (`mrcm_domain_member_rows`) since it's that
-type's first filterable column. `memberFieldFilter`
+type's first filterable column. `parentDomain` (2026-09-07),
+`MrcmDomainRefsetMember`'s second column, followed immediately: another
+genuinely new variant (`ParentDomain`), but no new row-set check —
+`domainConstraint`/`parentDomain` share one row, the same reuse
+`attributeDescription`/`attributeType` established on
+`RefsetDescriptorRefsetMember`. `memberFieldFilter`
 isn't one production but five in the official grammar, chosen by the
 named column's own semantic type
 (`expressionComparisonOperator ws subExpressionConstraint` for a concept
@@ -420,7 +425,8 @@ inspection. `mapPriority` reused that same numeric shape and
 `mapAdvice` did the same for `mapTarget`'s string shape, reusing
 `TermFilter`/`term_matches` verbatim. With the store side now done for
 all sixteen types, every
-*remaining* `memberFieldFilter` column (`domainConstraint`, `grouped`, …)
+*remaining* `memberFieldFilter` column (`proximalPrimitiveConstraint`,
+`grouped`, …)
 IS a free next increment — the cadence below applies to them cleanly,
 the same as any other filter kind. See `spec/10-ecl-unimplemented.md`.
 

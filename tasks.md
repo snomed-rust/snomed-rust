@@ -44,6 +44,44 @@ most recently on 2026-09-07, to keep this file inside the repository's
 40 KB per-document budget. Search both when asking "has this come up
 before".
 
+## Done (2026-09-07, ECL `{{ M ... }}` `memberFieldFilter`: `parentDomain`, `MrcmDomain`'s second column, no new row-set check)
+
+- [x] **`snomed-ecl`**: `MemberFilterKind::ParentDomain(TermFilter)` —
+      `parentDomain (=|!=) (typedSearchTerm | typedSearchTermSet)`,
+      reusing `mapTarget`/`domainConstraint`'s exact string-search
+      grammar and `term_matches` verbatim, on `MrcmDomainRefsetMember`
+      again (its second column) — the nineteenth `memberFieldFilter`
+      column. No implemented column shares the RF2 field name
+      `parentDomain`, so this genuinely needed a new variant. Unlike
+      `domainConstraint`, no new row-set check was needed —
+      `domainConstraint`/`parentDomain` live on the same
+      `MrcmDomainRefsetMember` row, so the existing
+      `mrcm_domain_member_rows` block just grew a second `TypedFields`
+      entry populated alongside the first, the same "two fields, one
+      row" shape `attributeDescription`/`attributeType` established on
+      `RefsetDescriptorRefsetMember`.
+- [x] 4 new tests (parser: one shape test; eval: matches `MrcmDomain`
+      rows after both `^` and `^R`, never matches `DescriptionType`
+      rows, conjoins with `domainConstraint` on the same row) —
+      467/467 total, up from 463. Also fixed
+      `rejects_an_unrecognized_member_field_filter_generically` again,
+      which had used `parentDomain` itself as its unrecognized-keyword
+      example — switched to `proximalPrimitiveConstraint` (still
+      unimplemented, `MrcmDomainRefsetMember`'s third column).
+- [x] Updated: `spec/10-ecl-filters.md` (new bullet, dispatch-list and
+      shape-count updates — nineteen kinds, string-search now six of
+      them), `spec/10-ecl-unimplemented.md` (keyword list, narrative
+      history, swapped the unimplemented-column example from
+      `domainConstraint` to `proximalPrimitiveConstraint`),
+      `snomed-ecl/src/lib.rs`, `snomed-ecl/README.md` (table row,
+      not-yet-implemented list, same example swap), `agents/ecl-engineer.md`,
+      `agents/store-engineer.md` (ten consumers outside the map types,
+      still eleven row-set checks total), `plan.md` (Open decisions
+      paragraph, Current status test count, Since 0.9.0 narrative),
+      `CHANGELOG.md`.
+- [x] Verified: build/clippy/fmt/test (467/467)/check-docs/
+      check-trademarks/spec_citations all clean.
+
 ## Done (2026-09-07, Release 0.33.0 — `memberFieldFilter`'s `domainConstraint`, twenty-first self-decided release)
 
 - [x] **Decided and executed the release itself**, per §1-5 of
@@ -326,11 +364,14 @@ before".
       (0.32.0 — `DescriptionTypeRefsetMember`'s second and
       last column, back on the numeric shape, another genuinely new
       variant, no new row-set check since both columns share one row),
-      and `domainConstraint` (0.33.0 — the ninth refset
+      `domainConstraint` (0.33.0 — the ninth refset
       type outside the two map types, the string-search shape this
       time, another genuinely new variant, and a genuinely new eleventh
       row-set check since it's the first filterable column on
-      `MrcmDomainRefsetMember`),
+      `MrcmDomainRefsetMember`), and `parentDomain` (not yet released
+      — `MrcmDomainRefsetMember`'s second column, another genuinely
+      new variant, no new row-set check since both columns share one
+      row),
       all after both `^` and
       `^R`.
       Together `mapAdvice`/`mapCategoryId` complete `ExtendedMap`'s
@@ -338,8 +379,9 @@ before".
       filterable `memberFieldFilter` kind — and `targetComponentId`/
       `valueId`/`owlExpression`/`order`/`mrcmRuleRefsetId`/
       `attributeDescription`/`attributeType`/`attributeOrder`/
-      `descriptionFormat`/`descriptionLength`/`domainConstraint` are the
-      first eleven columns
+      `descriptionFormat`/`descriptionLength`/`domainConstraint`/
+      `parentDomain` are the
+      first twelve columns
       implemented
       outside the two map types
       (`AssociationRefsetMember`/`AttributeValueRefsetMember`/
@@ -353,10 +395,10 @@ before".
       column coverage.
       `{{ M ... }}` after `^`
       (0.13.0), after `^R` (0.14.0), and its `memberFieldFilter`
-      alternative (0.15.0-0.33.0),
+      alternative (0.15.0-0.33.0, `parentDomain` pending release),
       all decided and executed under
       `spec/ai-release-authority/`'s criteria rather than a fresh
-      per-release maintainer go-ahead (see `CHANGELOG.md`). 9 crates, 463
+      per-release maintainer go-ahead (see `CHANGELOG.md`). 9 crates, 467
       tests,
       clippy/fmt clean on stable, MSRV 1.96 (current
       stable minus two, `spec/rust-msrv-n-minus-2/index.md`), `fuzz/`,
@@ -385,7 +427,7 @@ before".
       the `moduleId`/`effectiveTime`/`active` kinds are done after both
       `^` (2026-09-01) and `^R` (2026-09-02); the fourth grammar
       alternative, `memberFieldFilter`, now has its store-retention
-      decided and eighteen columns done after both `^` and `^R`:
+      decided and nineteen columns done after both `^` and `^R`:
       `mapTarget`, `correlationId`, `mapGroup` (2026-09-03),
       `mapPriority`, `mapRule`, `mapAdvice` (2026-09-04), `mapCategoryId`
       (2026-09-05, completes `ExtendedMap`'s column coverage),
@@ -423,7 +465,10 @@ before".
       map types, on `MrcmDomainRefsetMember`, the string-search shape
       this time, another genuinely new variant, and a genuinely new
       eleventh row-set check since it's that type's first filterable
-      column) followed.
+      column), and `parentDomain` (2026-09-07, see Done above —
+      `MrcmDomainRefsetMember`'s second column, another genuinely new
+      variant, no new row-set check since both columns share one row)
+      followed.
       What is still open:
       - Every other `memberFieldFilter` column — no longer blocked on a
         store decision (all sixteen non-Simple/Language types already
@@ -501,17 +546,18 @@ before".
           either — both columns share one row) cover every column this
           type has, the second refset type outside the two map types
           with full column coverage.
-        - MrcmDomain: `domainConstraint` (2026-09-07, `String` — string
-          shape, reused `mapTarget`/`owlExpression`'s exact grammar,
-          tested against a new eleventh typed row set,
-          `mrcm_domain_member_rows`, already present in the store) is
-          done — `parentDomain`, `proximalPrimitiveConstraint`,
-          `proximalPrimitiveRefinement`,
+        - MrcmDomain: `domainConstraint` and `parentDomain` (both
+          2026-09-07, `String` — string shape, reused
+          `mapTarget`/`owlExpression`'s exact grammar, tested against a
+          new eleventh typed row set, `mrcm_domain_member_rows`,
+          already present in the store — no new row-set check for
+          `parentDomain`, both columns share one row) are done —
+          `proximalPrimitiveConstraint`, `proximalPrimitiveRefinement`,
           `domainTemplateForPrecoordination`,
           `domainTemplateForPostcoordination`, `guideURL` (all `String`
           — string shape, same grammar) remain, free to pick up
-          whenever, no new row-set check needed since they'd share
-          `domainConstraint`'s row.
+          whenever, no new row-set check needed since they'd share the
+          same row too.
         - MrcmAttributeDomain: `domainId`, `ruleStrengthId`,
           `contentTypeId` (`SctId` — concept-reference shape); `grouped`
           (`bool` — boolean shape, no implemented example yet);

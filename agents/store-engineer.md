@@ -205,10 +205,11 @@ its inactive rows.
 `mapRule`, `mapAdvice`, `mapCategoryId`, `targetComponentId`,
 `valueId`, `owlExpression`, `order`, `mrcmRuleRefsetId`,
 `attributeDescription`, `attributeType`, `attributeOrder`, and
-`descriptionFormat`/`descriptionLength` filters
+`descriptionFormat`/`descriptionLength`/`domainConstraint`/
+`parentDomain` filters
 (`spec/10-ecl.md` rule
 18) are
-the first eighteen
+the first twenty
 consumers: the first seven dispatch directly to
 `simple_map_member_rows`/`extended_map_member_rows`
 (`correlationId`/`mapGroup`/`mapPriority`/`mapRule`/`mapAdvice`/
@@ -216,8 +217,9 @@ consumers: the first seven dispatch directly to
 `simple_map_member_rows`' own type has no such columns), and
 `targetComponentId`/`valueId`/`owlExpression`/`order`/`mrcmRuleRefsetId`/
 `attributeDescription`/`attributeType`/`attributeOrder`/
-`descriptionFormat`/`descriptionLength`/`domainConstraint`
-— the first nine
+`descriptionFormat`/`descriptionLength`/`domainConstraint`/
+`parentDomain`
+— the first ten
 outside
 the two map types — dispatch to `association_member_rows`/
 `attribute_value_member_rows`/`owl_expression_member_rows`/
@@ -240,7 +242,9 @@ that same tenth row set — it's `descriptionFormat`'s second and last
 column, both on one row, no new row-set check needed;
 `domainConstraint` needed its own new eleventh row-set check
 (`mrcm_domain_member_rows`) since it's `MrcmDomainRefsetMember`'s
-first filterable column. All
+first filterable column; `parentDomain` then reused that same eleventh
+row set — it's `domainConstraint`'s second column, both on one row, no
+new row-set check needed. All
 row sets are still
 tested whenever any field-filter kind appears in a block, since a row
 missing the column simply fails that filter rather than needing its

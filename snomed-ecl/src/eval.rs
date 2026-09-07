@@ -304,6 +304,7 @@ fn member_row_matches(
                 | MemberFilterKind::DescriptionFormat(_)
                 | MemberFilterKind::DescriptionLength(_)
                 | MemberFilterKind::DomainConstraint(_)
+                | MemberFilterKind::ParentDomain(_)
         )
     }) {
         return typed_field_row_matches(
@@ -353,7 +354,8 @@ fn member_row_matches(
 /// outside the two map types; `description_length` is its second and
 /// last, populated from the same row. `domain_constraint` is the first
 /// field from `MrcmDomainRefsetMember`, a ninth refset type outside
-/// the two map types.
+/// the two map types; `parent_domain` is its second, populated from
+/// the same row.
 #[derive(Default)]
 struct TypedFields<'a> {
     map_target: Option<&'a str>,
@@ -374,6 +376,7 @@ struct TypedFields<'a> {
     description_format: Option<SctId>,
     description_length: Option<u32>,
     domain_constraint: Option<&'a str>,
+    parent_domain: Option<&'a str>,
 }
 
 /// The `mapTarget`/`correlationId`/`mapGroup`/`mapPriority`/`mapRule`/
@@ -647,6 +650,7 @@ fn typed_field_row_matches(
                         &row.core,
                         &TypedFields {
                             domain_constraint: Some(&row.domain_constraint),
+                            parent_domain: Some(&row.parent_domain),
                             ..TypedFields::default()
                         },
                     )
@@ -802,18 +806,17 @@ fn prepare_member_filter(filter: &MemberFilterKind, store: &SnapshotStore) -> Pr
         | MemberFilterKind::MapRule(TermFilter { values, .. })
         | MemberFilterKind::MapAdvice(TermFilter { values, .. })
         | MemberFilterKind::OwlExpression(TermFilter { values, .. })
-        | MemberFilterKind::DomainConstraint(TermFilter { values, .. }) => {
-            PreparedMemberFilter::Term(
-                values
-                    .iter()
-                    .map(|search| match search.search_type {
-                        SearchType::Match => PreparedSearch::Match(words(&search.text)),
-                        SearchType::Wild => PreparedSearch::Wild(search.text.to_lowercase()),
-                        SearchType::Exact => PreparedSearch::Exact,
-                    })
-                    .collect(),
-            )
-        }
+        | MemberFilterKind::DomainConstraint(TermFilter { values, .. })
+        | MemberFilterKind::ParentDomain(TermFilter { values, .. }) => PreparedMemberFilter::Term(
+            values
+                .iter()
+                .map(|search| match search.search_type {
+                    SearchType::Match => PreparedSearch::Match(words(&search.text)),
+                    SearchType::Wild => PreparedSearch::Wild(search.text.to_lowercase()),
+                    SearchType::Exact => PreparedSearch::Exact,
+                })
+                .collect(),
+        ),
         _ => PreparedMemberFilter::Literal,
     }
 }
@@ -1071,6 +1074,22 @@ fn member_filter_matches(
                 .iter()
                 .zip(searches)
                 .any(|(search, prepared)| term_matches(domain_constraint, search, prepared));
+            matches != *negated
+        }
+        MemberFilterKind::ParentDomain(TermFilter { negated, values }) => {
+            let PreparedMemberFilter::Term(searches) = prepared else {
+                unreachable!("a parentDomain filter prepares to `Term`")
+            };
+            // No `parent_domain` on this row source (every source but
+            // `MrcmDomain`'s own): never matches, same reasoning as
+            // `DomainConstraint`'s `None` case above.
+            let Some(parent_domain) = fields.parent_domain else {
+                return false;
+            };
+            let matches = values
+                .iter()
+                .zip(searches)
+                .any(|(search, prepared)| term_matches(parent_domain, search, prepared));
             matches != *negated
         }
     }
@@ -5215,6 +5234,146 @@ mod tests {
             "^ {mrcm_domain} {{{{ M moduleId = {module_a}, domainConstraint = \"404684003\" }}}}"
         );
         assert_eq!(eval(&matched, &store), HashSet::from([MI]));
+    }
+
+    /// `parentDomain` (spec/10 rule 18) — the nineteenth
+    /// `memberFieldFilter` column, and `MrcmDomainRefsetMember`'s
+    /// second column (after `domainConstraint`). String-search shape,
+    /// reusing `mapTarget`/`domainConstraint`'s exact grammar and
+    /// `term_matches`, tested against the same eleventh typed row set
+    /// `domainConstraint` uses — no new row-set check needed. Also
+    /// proves `{{ M }}` after `^R` reaches it.
+    #[test]
+    fn member_filter_parent_domain_matches_mrcm_domain_rows() {
+        let mrcm_domain = SctId::compose(9962, ComponentType::Concept, None).unwrap();
+        let mut b = SnapshotStore::builder();
+        b.add_concept(concept(MI));
+        b.add_mrcm_domain_member(MrcmDomainRefsetMember {
+            core: RefsetMemberCore {
+                id: MemberId::parse("80000000-0000-4000-8000-000000000143").unwrap(),
+                effective_time: EffectiveTime::new_unchecked(20190731),
+                active: true,
+                module_id: constants::CORE_MODULE,
+                refset_id: mrcm_domain,
+                referenced_component_id: MI,
+            },
+            domain_constraint: "<< 404684003".to_string(),
+            parent_domain: "<< 138875005".to_string(),
+            proximal_primitive_constraint: String::new(),
+            proximal_primitive_refinement: String::new(),
+            domain_template_for_precoordination: String::new(),
+            domain_template_for_postcoordination: String::new(),
+            guide_url: String::new(),
+        });
+        let store = b.build();
+
+        assert_eq!(
+            eval(
+                &format!("^ {mrcm_domain} {{{{ M parentDomain = \"71388002\" }}}}"),
+                &store
+            ),
+            HashSet::new(),
+            "the row's own parentDomain doesn't match"
+        );
+        assert_eq!(
+            eval(
+                &format!("^ {mrcm_domain} {{{{ M parentDomain = \"138875005\" }}}}"),
+                &store
+            ),
+            HashSet::from([MI])
+        );
+        // `^R` reaches the same row, through the shared row-matching path.
+        assert_eq!(
+            eval(
+                &format!("^R {MI} {{{{ M parentDomain = \"138875005\" }}}}"),
+                &store
+            ),
+            HashSet::from([mrcm_domain])
+        );
+    }
+
+    /// `DescriptionTypeRefsetMember`/every other typed row source has no
+    /// `parentDomain` column — a membership that exists only there
+    /// must never match, the same "column absent on this row source"
+    /// case every other field filter has for the row types it doesn't
+    /// apply to.
+    #[test]
+    fn member_filter_parent_domain_never_matches_description_type_rows() {
+        let description_type = SctId::compose(9963, ComponentType::Concept, None).unwrap();
+        let plain_text = SctId::compose(9964, ComponentType::Concept, None).unwrap();
+        let mut b = SnapshotStore::builder();
+        b.add_concept(concept(MI));
+        b.add_concept(concept(plain_text));
+        b.add_description_type_member(DescriptionTypeRefsetMember {
+            core: RefsetMemberCore {
+                id: MemberId::parse("80000000-0000-4000-8000-000000000144").unwrap(),
+                effective_time: EffectiveTime::new_unchecked(20190731),
+                active: true,
+                module_id: constants::CORE_MODULE,
+                refset_id: description_type,
+                referenced_component_id: MI,
+            },
+            description_format_id: plain_text,
+            description_length: 255,
+        });
+        let store = b.build();
+
+        assert_eq!(
+            eval(
+                &format!("^ {description_type} {{{{ M parentDomain = \"138875005\" }}}}"),
+                &store
+            ),
+            HashSet::new()
+        );
+    }
+
+    /// `domainConstraint`/`parentDomain` both live on the same
+    /// `MrcmDomainRefsetMember` row (spec/08) — a block naming both is
+    /// satisfied by that one row, not by separate rows each matching
+    /// one filter.
+    #[test]
+    fn member_filter_domain_constraint_and_parent_domain_conjoin_on_the_same_row() {
+        let mrcm_domain = SctId::compose(9965, ComponentType::Concept, None).unwrap();
+        let mut b = SnapshotStore::builder();
+        b.add_concept(concept(MI));
+        b.add_mrcm_domain_member(MrcmDomainRefsetMember {
+            core: RefsetMemberCore {
+                id: MemberId::parse("80000000-0000-4000-8000-000000000145").unwrap(),
+                effective_time: EffectiveTime::new_unchecked(20190731),
+                active: true,
+                module_id: constants::CORE_MODULE,
+                refset_id: mrcm_domain,
+                referenced_component_id: MI,
+            },
+            domain_constraint: "<< 404684003".to_string(),
+            parent_domain: "<< 138875005".to_string(),
+            proximal_primitive_constraint: String::new(),
+            proximal_primitive_refinement: String::new(),
+            domain_template_for_precoordination: String::new(),
+            domain_template_for_postcoordination: String::new(),
+            guide_url: String::new(),
+        });
+        let store = b.build();
+
+        assert_eq!(
+            eval(
+                &format!(
+                    "^ {mrcm_domain} {{{{ M domainConstraint = \"404684003\", parentDomain = \"138875005\" }}}}"
+                ),
+                &store
+            ),
+            HashSet::from([MI])
+        );
+        assert_eq!(
+            eval(
+                &format!(
+                    "^ {mrcm_domain} {{{{ M domainConstraint = \"404684003\", parentDomain = \"71388002\" }}}}"
+                ),
+                &store
+            ),
+            HashSet::new(),
+            "wrong parentDomain on the only row rules it out"
+        );
     }
 
     /// `constraintOperator "(" expressionConstraint ")"` — the operator
