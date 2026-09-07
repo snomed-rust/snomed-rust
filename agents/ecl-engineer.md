@@ -403,7 +403,11 @@ type's first filterable column. `parentDomain` (2026-09-07),
 genuinely new variant (`ParentDomain`), but no new row-set check —
 `domainConstraint`/`parentDomain` share one row, the same reuse
 `attributeDescription`/`attributeType` established on
-`RefsetDescriptorRefsetMember`. `memberFieldFilter`
+`RefsetDescriptorRefsetMember`. `proximalPrimitiveConstraint`
+(2026-09-07), `MrcmDomainRefsetMember`'s third column, followed
+immediately too: another genuinely new variant
+(`ProximalPrimitiveConstraint`), again no new row-set check — all
+three of that type's columns now share one row. `memberFieldFilter`
 isn't one production but five in the official grammar, chosen by the
 named column's own semantic type
 (`expressionComparisonOperator ws subExpressionConstraint` for a concept

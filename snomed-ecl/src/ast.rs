@@ -375,7 +375,8 @@ pub enum ConceptFilterKind {
 /// `MapAdvice`/`MapCategoryId`/`TargetComponentId`/`ValueId`/
 /// `OwlExpression`/`Order`/`MrcmRuleRefsetId`/`AttributeDescription`/
 /// `AttributeType`/`AttributeOrder`/`DescriptionFormat`/
-/// `DescriptionLength`/`DomainConstraint`/`ParentDomain`
+/// `DescriptionLength`/`DomainConstraint`/`ParentDomain`/
+/// `ProximalPrimitiveConstraint`
 /// are the official grammar's fourth kind, `memberFieldFilter`
 /// — a refset-type-specific column rather than a shared one. Its own
 /// grammar (confirmed against the official ABNF, `syntax/abnf-brief.txt`)
@@ -421,10 +422,13 @@ pub enum ConceptFilterKind {
 /// row); `domainConstraint` (`MrcmDomainRefsetMember`, a ninth
 /// refset type outside the two map types, the string-search shape this
 /// time, another genuinely new variant, and a new row-set check since
-/// this is that type's first filterable column); and `parentDomain`
+/// this is that type's first filterable column); `parentDomain`
 /// (`MrcmDomainRefsetMember`'s second column, another genuinely new
 /// variant, needing no new row-set check since both columns come from
-/// the same row) — all
+/// the same row); and `proximalPrimitiveConstraint`
+/// (`MrcmDomainRefsetMember`'s third column, another genuinely new
+/// variant, again no new row-set check since all three columns come
+/// from the same row) — all
 /// decided 2026-09-03 (`plan.md`'s "Open decisions") to retain full rows
 /// — active and inactive — for all sixteen non-Simple/Language refset
 /// types, the same store change `moduleId`/`effectiveTime`/`active`
@@ -699,6 +703,23 @@ pub enum MemberFilterKind {
     /// `domainConstraint`. No other implemented column shares the RF2
     /// field name `parentDomain`, so this needs its own variant too.
     ParentDomain(TermFilter),
+    /// `proximalPrimitiveConstraint (=|!=) (typedSearchTerm |
+    /// typedSearchTermSet)` — a `memberFieldFilter` (spec/10 rule 18):
+    /// `MrcmDomainRefsetMember`'s own `proximalPrimitiveConstraint`
+    /// column (free text — the ECL expression naming the domain's
+    /// proximal primitive supertype(s), stored as an unparsed string
+    /// like `domainConstraint`/`parentDomain`). Reuses [`TermFilter`]'s
+    /// exact shape and grammar — the same string production
+    /// `mapTarget`/`mapRule`/`mapAdvice`/`owlExpression`/
+    /// `domainConstraint`/`parentDomain` use, just a different RF2
+    /// column. `MrcmDomainRefsetMember`'s third column: all three live
+    /// on the same row, so a block naming any combination is satisfied
+    /// by that one row, no new row-set check needed — tested against
+    /// the same `SnapshotStore::mrcm_domain_member_rows` as
+    /// `domainConstraint`/`parentDomain`. No other implemented column
+    /// shares the RF2 field name `proximalPrimitiveConstraint`, so
+    /// this needs its own variant too.
+    ProximalPrimitiveConstraint(TermFilter),
 }
 
 /// `numericComparisonOperator ws "#" numericValue` — a `memberFieldFilter`

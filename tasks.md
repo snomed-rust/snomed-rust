@@ -38,12 +38,52 @@ release 0.23.0, `memberFieldFilter`'s `valueId` column, release 0.24.0,
 `memberFieldFilter`'s `attributeDescription` column (2026-09-06),
 release 0.29.0, `memberFieldFilter`'s `attributeType` column
 (2026-09-06), release 0.30.0, `memberFieldFilter`'s
-`attributeOrder` column (2026-09-06/07), release 0.31.0, and
-`memberFieldFilter`'s `descriptionFormat` column (2026-09-07), live in
+`attributeOrder` column (2026-09-06/07), release 0.31.0,
+`memberFieldFilter`'s `descriptionFormat` column (2026-09-07),
+release 0.32.0, and `memberFieldFilter`'s `descriptionLength` column
+(2026-09-07), live in
 [`docs/tasks-archive.md`](docs/tasks-archive.md) — moved there verbatim,
 most recently on 2026-09-07, to keep this file inside the repository's
 40 KB per-document budget. Search both when asking "has this come up
 before".
+
+## Done (2026-09-07, ECL `{{ M ... }}` `memberFieldFilter`: `proximalPrimitiveConstraint`, `MrcmDomain`'s third column, no new row-set check)
+
+- [x] **`snomed-ecl`**: `MemberFilterKind::ProximalPrimitiveConstraint(TermFilter)`
+      — `proximalPrimitiveConstraint (=|!=) (typedSearchTerm |
+      typedSearchTermSet)`, reusing `mapTarget`/`domainConstraint`/
+      `parentDomain`'s exact string-search grammar and `term_matches`
+      verbatim, on `MrcmDomainRefsetMember` again (its third column) —
+      the twentieth `memberFieldFilter` column. No implemented column
+      shares the RF2 field name `proximalPrimitiveConstraint`, so this
+      genuinely needed a new variant. Unlike `domainConstraint`, no new
+      row-set check was needed — all three of `MrcmDomainRefsetMember`'s
+      columns now live on the same row, so the existing
+      `mrcm_domain_member_rows` block just grew a third `TypedFields`
+      entry populated alongside the first two.
+- [x] 4 new tests (parser: one shape test; eval: matches `MrcmDomain`
+      rows after both `^` and `^R`, never matches `DescriptionType`
+      rows, and — new for this "three fields, one row" case — a test
+      proving all three of `MrcmDomainRefsetMember`'s columns conjoin
+      on the same row together) — 471/471 total, up from 467. Also
+      fixed `rejects_an_unrecognized_member_field_filter_generically`
+      a third time, which had used `proximalPrimitiveConstraint` itself
+      as its unrecognized-keyword example — switched to
+      `proximalPrimitiveRefinement` (still unimplemented,
+      `MrcmDomainRefsetMember`'s fourth column).
+- [x] Updated: `spec/10-ecl-filters.md` (new bullet, dispatch-list and
+      shape-count updates — twenty kinds, string-search now seven of
+      them), `spec/10-ecl-unimplemented.md` (keyword list, narrative
+      history, swapped the unimplemented-column example from
+      `proximalPrimitiveConstraint` to `proximalPrimitiveRefinement`),
+      `snomed-ecl/src/lib.rs`, `snomed-ecl/README.md` (table row,
+      not-yet-implemented list, same example swap), `agents/ecl-engineer.md`,
+      `agents/store-engineer.md` (ten consumers outside the map types,
+      still eleven row-set checks total), `plan.md` (Open decisions
+      paragraph, Current status test count, Since 0.9.0 narrative),
+      `CHANGELOG.md`.
+- [x] Verified: build/clippy/fmt/test (471/471)/check-docs/
+      check-trademarks/spec_citations all clean.
 
 ## Done (2026-09-07, GitLab SSH outage resolved — main and v0.30.0-v0.34.0 all pushed and verified)
 
@@ -241,91 +281,12 @@ before".
 - [x] Verified: build/clippy/fmt/test (463/463)/check-docs/
       check-trademarks/spec_citations all clean.
 
-## Done (2026-09-07, Release 0.32.0 — `memberFieldFilter`'s `descriptionLength`, twentieth self-decided release)
-
-- [x] **Decided and executed the release itself**, per §1-5 of
-      `spec/ai-release-authority/`: §1 CI independently green on the
-      pushed merge commit (`6b8d6ea`, all jobs, confirmed via `gh run
-      view` on the exact commit); §2 `CHANGELOG.md`'s `[Unreleased]`
-      verified against the actual diff and moved under `## [0.32.0]`,
-      minor bump (purely additive: new
-      `MemberFilterKind::DescriptionLength` variant, one new
-      `TypedFields` field, no new row-set check — nothing removed or
-      changed signature); §3 no rule oversteps — needed a genuinely new
-      variant (no existing column shares the RF2 field name
-      `descriptionLength`), the same kind of routine grammar-coverage
-      call this authority already covers, not a `plan.md` "Open
-      decisions" item; §4 all nine crates, one version, standard
-      dependency order; §5 tagged `v0.32.0` (signed, verified against
-      the merge commit) and ran `cargo publish` for each crate in
-      order, all nine succeeding cleanly.
-- [x] **Verified against crates.io's own API afterward**: `GET
-      /api/v1/crates/<name>` for all nine names returns
-      `max_version: "0.32.0"`.
-- [x] Version bumped everywhere the 0.13.0-0.31.0 precedent bumped it:
-      `Cargo.toml` (workspace + seven pins), `CITATION.cff`, `NEWS.md`,
-      `INSTALL.md`, `SECURITY.md`.
-- [x] Same `release/0.32.0` branch/merge shape as 0.12.0-0.31.0, not a
-      direct commit to `main`; branch deleted locally once GitHub and
-      Codeberg confirmed the merge commit and CI came back green.
-- [x] **GitLab's SSH port remained down through this entire release
-      too — now three consecutive releases (0.30.0, 0.31.0, 0.32.0)
-      without a single successful GitLab push**
-      (`Connection reset by 172.65.251.78 port 22`, the same IP every
-      time). GitHub and Codeberg had every commit and all three tags
-      (`v0.30.0`, `v0.31.0`, `v0.32.0`) immediately on each push; CI was
-      confirmed green on GitHub for every commit released; `cargo
-      publish` proceeded for all nine crates and was verified against
-      crates.io while a background retry loop kept trying GitLab.
-      **If this entry still says GitLab is behind, retry `git push
-      git@gitlab.com:snomed-rust/snomed-rust.git main v0.30.0 v0.31.0
-      v0.32.0` next session.** This is now a multi-hour, multi-release
-      outage on one specific IP — worth checking GitLab's own status
-      page (status.gitlab.com) or opening a support ticket next
-      session rather than continuing to assume it's transient.
-- [x] Verified: build/clippy/fmt/test (459/459)/check-docs/
-      check-trademarks/spec_citations all clean before tagging.
-
-## Done (2026-09-07, ECL `{{ M ... }}` `memberFieldFilter`: `descriptionLength`, `DescriptionType`'s second and last column, no new row-set check)
-
-- [x] **`snomed-ecl`**: `MemberFilterKind::DescriptionLength(NumericFieldFilter)`
-      — `descriptionLength (=|!=|<=|<|>=|>) "#" numericValue`, reusing
-      `mapGroup`/`mapPriority`/`order`/`attributeOrder`'s exact numeric
-      grammar and `field_numeric_matches` verbatim, on
-      `DescriptionTypeRefsetMember` again (its second and last column)
-      — the seventeenth `memberFieldFilter` column. No implemented
-      column shares the RF2 field name `descriptionLength`, so this
-      genuinely needed a new variant. Unlike `descriptionFormat`, no
-      new row-set check was needed — `descriptionFormat`/
-      `descriptionLength` live on the same `DescriptionTypeRefsetMember`
-      row, so the existing `description_type_member_rows` block just
-      grew a second `TypedFields` entry populated alongside the first,
-      the same "two fields, one row" shape `attributeType`/
-      `attributeOrder` have on `RefsetDescriptorRefsetMember`.
-      `DescriptionTypeRefsetMember` is now the second refset type
-      outside the two map types with full column coverage, alongside
-      `RefsetDescriptorRefsetMember`.
-- [x] 4 new tests (parser: one shape test; eval: matches
-      `DescriptionType` rows after both `^` and `^R`, never matches
-      `RefsetDescriptor` rows, and conjoins with `descriptionFormat` on
-      the same row) — 459/459 total, up from 455.
-- [x] Updated: `spec/10-ecl-filters.md` (new bullet, dispatch-list and
-      shape-count updates — seventeen kinds, numeric now five of them),
-      `spec/10-ecl-unimplemented.md` (keyword list, narrative history),
-      `snomed-ecl/src/lib.rs`, `snomed-ecl/README.md` (table row,
-      not-yet-implemented list), `agents/ecl-engineer.md`,
-      `agents/store-engineer.md` (eight consumers outside the map types,
-      still ten row-set checks total), `plan.md` (Open decisions
-      paragraph, Current status test count, Since 0.9.0 narrative),
-      `CHANGELOG.md`.
-- [x] Verified: build/clippy/fmt/test (459/459)/check-docs/
-      check-trademarks/spec_citations all clean.
-
 
 ## Next up
 
 - [ ] Nothing currently scoped beyond the `{{ M ... }}` remainder below.
-      State as of 2026-09-07: **0.34.0 released** — `mapTarget` (0.15.0),
+      State as of 2026-09-07: **0.34.0 released, `proximalPrimitiveConstraint`
+      implemented and pending its own release** — `mapTarget` (0.15.0),
       `correlationId` (0.16.0), `mapGroup` (0.17.0), `mapPriority`
       (0.18.0), `mapRule` (0.19.0), `mapAdvice` plus the `ecl_parse`
       fuzz-caught recursion-depth guard (spec/10 rule 19, 0.20.0),
@@ -355,9 +316,12 @@ before".
       type outside the two map types, the string-search shape this
       time, another genuinely new variant, and a genuinely new eleventh
       row-set check since it's the first filterable column on
-      `MrcmDomainRefsetMember`), and `parentDomain` (0.34.0
+      `MrcmDomainRefsetMember`), `parentDomain` (0.34.0
       — `MrcmDomainRefsetMember`'s second column, another genuinely
       new variant, no new row-set check since both columns share one
+      row), and `proximalPrimitiveConstraint` (not yet released —
+      `MrcmDomainRefsetMember`'s third column, another genuinely new
+      variant, no new row-set check since all three columns share one
       row),
       all after both `^` and
       `^R`.
@@ -367,8 +331,8 @@ before".
       `valueId`/`owlExpression`/`order`/`mrcmRuleRefsetId`/
       `attributeDescription`/`attributeType`/`attributeOrder`/
       `descriptionFormat`/`descriptionLength`/`domainConstraint`/
-      `parentDomain` are the
-      first twelve columns
+      `parentDomain`/`proximalPrimitiveConstraint` are the
+      first thirteen columns
       implemented
       outside the two map types
       (`AssociationRefsetMember`/`AttributeValueRefsetMember`/
@@ -382,10 +346,10 @@ before".
       column coverage.
       `{{ M ... }}` after `^`
       (0.13.0), after `^R` (0.14.0), and its `memberFieldFilter`
-      alternative (0.15.0-0.34.0),
+      alternative (0.15.0-0.34.0, `proximalPrimitiveConstraint` pending release),
       all decided and executed under
       `spec/ai-release-authority/`'s criteria rather than a fresh
-      per-release maintainer go-ahead (see `CHANGELOG.md`). 9 crates, 467
+      per-release maintainer go-ahead (see `CHANGELOG.md`). 9 crates, 471
       tests,
       clippy/fmt clean on stable, MSRV 1.96 (current
       stable minus two, `spec/rust-msrv-n-minus-2/index.md`), `fuzz/`,
@@ -414,7 +378,7 @@ before".
       the `moduleId`/`effectiveTime`/`active` kinds are done after both
       `^` (2026-09-01) and `^R` (2026-09-02); the fourth grammar
       alternative, `memberFieldFilter`, now has its store-retention
-      decided and nineteen columns done after both `^` and `^R`:
+      decided and twenty columns done after both `^` and `^R`:
       `mapTarget`, `correlationId`, `mapGroup` (2026-09-03),
       `mapPriority`, `mapRule`, `mapAdvice` (2026-09-04), `mapCategoryId`
       (2026-09-05, completes `ExtendedMap`'s column coverage),
@@ -452,10 +416,13 @@ before".
       map types, on `MrcmDomainRefsetMember`, the string-search shape
       this time, another genuinely new variant, and a genuinely new
       eleventh row-set check since it's that type's first filterable
-      column), and `parentDomain` (2026-09-07, see Done above —
+      column), `parentDomain` (2026-09-07 —
       `MrcmDomainRefsetMember`'s second column, another genuinely new
-      variant, no new row-set check since both columns share one row)
-      followed.
+      variant, no new row-set check since both columns share one row),
+      and `proximalPrimitiveConstraint` (2026-09-07, see Done above —
+      `MrcmDomainRefsetMember`'s third column, another genuinely new
+      variant, no new row-set check since all three columns share one
+      row) followed.
       What is still open:
       - Every other `memberFieldFilter` column — no longer blocked on a
         store decision (all sixteen non-Simple/Language types already
@@ -533,13 +500,14 @@ before".
           either — both columns share one row) cover every column this
           type has, the second refset type outside the two map types
           with full column coverage.
-        - MrcmDomain: `domainConstraint` and `parentDomain` (both
-          2026-09-07, `String` — string shape, reused
-          `mapTarget`/`owlExpression`'s exact grammar, tested against a
-          new eleventh typed row set, `mrcm_domain_member_rows`,
-          already present in the store — no new row-set check for
-          `parentDomain`, both columns share one row) are done —
-          `proximalPrimitiveConstraint`, `proximalPrimitiveRefinement`,
+        - MrcmDomain: `domainConstraint`, `parentDomain`, and
+          `proximalPrimitiveConstraint` (all 2026-09-07, `String` —
+          string shape, reused `mapTarget`/`owlExpression`'s exact
+          grammar, tested against a new eleventh typed row set,
+          `mrcm_domain_member_rows`, already present in the store — no
+          new row-set check for `parentDomain`/
+          `proximalPrimitiveConstraint`, all three columns share one
+          row) are done — `proximalPrimitiveRefinement`,
           `domainTemplateForPrecoordination`,
           `domainTemplateForPostcoordination`, `guideURL` (all `String`
           — string shape, same grammar) remain, free to pick up
