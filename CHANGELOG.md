@@ -13,6 +13,18 @@ together, in dependency order (`snomed-core` → `snomed-rf2` → `snomed-owl`
 
 ## [Unreleased]
 
+## [0.33.0] — 2026-09-07
+
+**New ECL capability, additive.** `{{ M ... }}`'s `memberFieldFilter`
+gains its eighteenth column, `domainConstraint` — the first filterable
+column on `MrcmDomainRefsetMember`, a ninth refset type outside the
+two map types, after both `^` and `^R`. String-search shape, reusing
+`mapTarget`/`mapRule`/`mapAdvice`/`owlExpression`'s exact grammar and
+`term_matches`; needed a genuinely new `MemberFilterKind` variant (no
+implemented column shares this RF2 field name) and a genuinely new
+eleventh row-set check. A minor bump: new public API, no removals or
+signature changes to anything existing.
+
 ### Added
 
 - `snomed-ecl`: `{{ M domainConstraint = "<< 404684003" }}` restricts
