@@ -11,7 +11,7 @@ human-readable layer above it.
 
 | | |
 |---|---|
-| Version | **0.35.0**, released 2026-09-07 |
+| Version | **0.36.0**, released 2026-09-07 |
 | Crates | nine, released together and sharing one version number |
 | Rust MSRV | 1.96 (current stable minus two) |
 | License | `Apache-2.0 OR MIT` |
@@ -19,13 +19,14 @@ human-readable layer above it.
 | Packages | <https://crates.io/crates/snomed> |
 | Documentation | <https://docs.rs/snomed> · <https://snomed-rust.github.io/> |
 
-0.35.0 gives the ECL `{{ M ... }}` member filter constraint's
-`memberFieldFilter` alternative its twentieth column,
-`proximalPrimitiveConstraint` — `MrcmDomainRefsetMember`'s third
-column, sharing a row with `domainConstraint`/`parentDomain`, so no
-new store-side row-set check was needed. Purely additive: no public
-API removed or changed, existing code compiles unmodified. Full detail
-is in the [changelog](CHANGELOG.md).
+0.36.0 gives the ECL `{{ M ... }}` member filter constraint's
+`memberFieldFilter` alternative its twenty-first column,
+`proximalPrimitiveRefinement` — `MrcmDomainRefsetMember`'s fourth
+column, sharing a row with `domainConstraint`/`parentDomain`/
+`proximalPrimitiveConstraint`, so no new store-side row-set check was
+needed. Purely additive: no public API removed or changed, existing
+code compiles unmodified. Full detail is in the
+[changelog](CHANGELOG.md).
 
 **Pre-1.0 caveat, stated up front because it affects anyone writing about
 adoption:** a minor version bump may include breaking API changes. The
@@ -65,6 +66,7 @@ project is young and says so.
 | 2026-09-07 | 0.33.0 — `{{ M ... }}`'s `memberFieldFilter`: `domainConstraint`, first column on `MrcmDomain`, ninth refset type outside the two map types |
 | 2026-09-07 | 0.34.0 — `{{ M ... }}`'s `memberFieldFilter`: `parentDomain`, `MrcmDomain`'s second column, no new row-set check |
 | 2026-09-07 | 0.35.0 — `{{ M ... }}`'s `memberFieldFilter`: `proximalPrimitiveConstraint`, `MrcmDomain`'s third column, no new row-set check |
+| 2026-09-07 | 0.36.0 — `{{ M ... }}`'s `memberFieldFilter`: `proximalPrimitiveRefinement`, `MrcmDomain`'s fourth column, no new row-set check |
 
 ## Following updates
 
@@ -150,7 +152,7 @@ remains licensed material obtained separately from SNOMED International.
 - **What it is not.** Not a terminology server, not an authoring platform, not
   a browser, and not a replacement for Snowstorm. [COMPARISONS.md](COMPARISONS.md)
   states the limitations at length and names the tools that do those jobs.
-- **Maturity.** Version 0.35.0, first published in September 2026, one
+- **Maturity.** Version 0.36.0, first published in September 2026, one
   maintainer, pre-1.0. [MAINTAINERS.md](MAINTAINERS.md) states the bus factor
   and the continuity position without softening, and is the right source for
   any risk framing.
