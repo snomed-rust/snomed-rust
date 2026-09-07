@@ -626,11 +626,16 @@ impl Parser {
                     value: Box::new(value),
                 }))
             }
+            TokenKind::Word(word) if word == "descriptionLength" => {
+                self.advance()?;
+                let filter = self.parse_numeric_field_filter()?;
+                Ok(MemberFilterKind::DescriptionLength(filter))
+            }
             _ => {
                 let tok = self.peek().clone();
                 Err(Self::unexpected(
                     &tok,
-                    "`moduleId`, `effectiveTime`, `active`, `mapTarget`, `correlationId`, `mapGroup`, `mapPriority`, `mapRule`, `mapAdvice`, `mapCategoryId`, `targetComponentId`, `valueId`, `owlExpression`, `order`, `mrcmRuleRefsetId`, `attributeDescription`, `attributeType`, `attributeOrder`, or `descriptionFormat`",
+                    "`moduleId`, `effectiveTime`, `active`, `mapTarget`, `correlationId`, `mapGroup`, `mapPriority`, `mapRule`, `mapAdvice`, `mapCategoryId`, `targetComponentId`, `valueId`, `owlExpression`, `order`, `mrcmRuleRefsetId`, `attributeDescription`, `attributeType`, `attributeOrder`, `descriptionFormat`, or `descriptionLength`",
                 ))
             }
         }
@@ -2063,6 +2068,30 @@ mod tests {
             panic!("expected a DescriptionFormat filter, got {:?}", filters[0]);
         };
         assert!(!negated);
+    }
+
+    /// `descriptionLength` (spec/10 rule 18) — the seventeenth
+    /// `memberFieldFilter` column, and `DescriptionTypeRefsetMember`'s
+    /// second and last. Back on the numeric shape, reusing
+    /// `mapGroup`/`mapPriority`/`order`/`attributeOrder`'s exact
+    /// grammar and `field_numeric_matches`.
+    #[test]
+    fn parses_member_filter_description_length() {
+        let EC::MemberFilter { filters, .. } =
+            parse("^ 900000000000456007 {{ M descriptionLength = #255 }}").unwrap()
+        else {
+            panic!("expected a member filter");
+        };
+        assert_eq!(filters.len(), 1);
+        let crate::ast::MemberFilterKind::DescriptionLength(crate::ast::NumericFieldFilter {
+            operator,
+            value,
+        }) = &filters[0]
+        else {
+            panic!("expected a DescriptionLength filter, got {:?}", filters[0]);
+        };
+        assert_eq!(*operator, crate::ast::NumericComparisonOp::Eq);
+        assert_eq!(value, "255");
     }
 
     /// `mapGroup` (spec/10 rule 18) — the third `memberFieldFilter`

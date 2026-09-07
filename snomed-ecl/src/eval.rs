@@ -302,6 +302,7 @@ fn member_row_matches(
                 | MemberFilterKind::AttributeType(_)
                 | MemberFilterKind::AttributeOrder(_)
                 | MemberFilterKind::DescriptionFormat(_)
+                | MemberFilterKind::DescriptionLength(_)
         )
     }) {
         return typed_field_row_matches(
@@ -348,7 +349,8 @@ fn member_row_matches(
 /// `target_component_id`/`order` have for
 /// `OrderedAssociationRefsetMember`). `description_format` is the first
 /// field from `DescriptionTypeRefsetMember`, an eighth refset type
-/// outside the two map types.
+/// outside the two map types; `description_length` is its second and
+/// last, populated from the same row.
 #[derive(Default)]
 struct TypedFields<'a> {
     map_target: Option<&'a str>,
@@ -367,6 +369,7 @@ struct TypedFields<'a> {
     attribute_type: Option<SctId>,
     attribute_order: Option<u32>,
     description_format: Option<SctId>,
+    description_length: Option<u32>,
 }
 
 /// The `mapTarget`/`correlationId`/`mapGroup`/`mapPriority`/`mapRule`/
@@ -619,6 +622,7 @@ fn typed_field_row_matches(
                         &row.core,
                         &TypedFields {
                             description_format: Some(row.description_format_id),
+                            description_length: Some(row.description_length),
                             ..TypedFields::default()
                         },
                     )
@@ -1016,6 +1020,15 @@ fn member_filter_matches(
                 return false;
             };
             values.contains(&description_format) != *negated
+        }
+        MemberFilterKind::DescriptionLength(NumericFieldFilter { operator, value }) => {
+            // No `description_length` on this row source (every source
+            // but `DescriptionType`'s own): never matches, same
+            // reasoning as `AttributeOrder`'s `None` case above.
+            let Some(description_length) = fields.description_length else {
+                return false;
+            };
+            field_numeric_matches(*operator, &description_length.to_string(), value)
         }
     }
 }
@@ -4868,6 +4881,144 @@ mod tests {
             "^ {description_type} {{{{ M moduleId = {module_a}, descriptionFormat = {plain_text} }}}}"
         );
         assert_eq!(eval(&matched, &store), HashSet::from([MI]));
+    }
+
+    /// `descriptionLength` (spec/10 rule 18) — the seventeenth
+    /// `memberFieldFilter` column, and `DescriptionTypeRefsetMember`'s
+    /// second and last (after `descriptionFormat`). Back on the numeric
+    /// shape, reusing `mapGroup`/`mapPriority`/`order`/`attributeOrder`'s
+    /// exact grammar and `field_numeric_matches`. Tested against the
+    /// same tenth typed row set `descriptionFormat` uses — no new
+    /// row-set check needed. Also proves `{{ M }}` after `^R` reaches
+    /// it.
+    #[test]
+    fn member_filter_description_length_matches_description_type_rows() {
+        let description_type = SctId::compose(9951, ComponentType::Concept, None).unwrap();
+        let plain_text = SctId::compose(9952, ComponentType::Concept, None).unwrap();
+        let mut b = SnapshotStore::builder();
+        b.add_concept(concept(MI));
+        b.add_concept(concept(plain_text));
+        b.add_description_type_member(DescriptionTypeRefsetMember {
+            core: RefsetMemberCore {
+                id: MemberId::parse("80000000-0000-4000-8000-000000000136").unwrap(),
+                effective_time: EffectiveTime::new_unchecked(20190731),
+                active: true,
+                module_id: constants::CORE_MODULE,
+                refset_id: description_type,
+                referenced_component_id: MI,
+            },
+            description_format_id: plain_text,
+            description_length: 255,
+        });
+        let store = b.build();
+
+        assert_eq!(
+            eval(
+                &format!("^ {description_type} {{{{ M descriptionLength = #1 }}}}"),
+                &store
+            ),
+            HashSet::new(),
+            "the row's own descriptionLength doesn't match"
+        );
+        assert_eq!(
+            eval(
+                &format!("^ {description_type} {{{{ M descriptionLength = #255 }}}}"),
+                &store
+            ),
+            HashSet::from([MI])
+        );
+        // `^R` reaches the same row, through the shared row-matching path.
+        assert_eq!(
+            eval(
+                &format!("^R {MI} {{{{ M descriptionLength = #255 }}}}"),
+                &store
+            ),
+            HashSet::from([description_type])
+        );
+    }
+
+    /// `RefsetDescriptorRefsetMember`/every other typed row source has no
+    /// `descriptionLength` column — a membership that exists only there
+    /// must never match, the same "column absent on this row source"
+    /// case every other field filter has for the row types it doesn't
+    /// apply to.
+    #[test]
+    fn member_filter_description_length_never_matches_refset_descriptor_rows() {
+        let refset_descriptor = SctId::compose(9953, ComponentType::Concept, None).unwrap();
+        let description = SctId::compose(9954, ComponentType::Concept, None).unwrap();
+        let attribute_type = SctId::compose(9955, ComponentType::Concept, None).unwrap();
+        let mut b = SnapshotStore::builder();
+        b.add_concept(concept(MI));
+        b.add_concept(concept(description));
+        b.add_concept(concept(attribute_type));
+        b.add_refset_descriptor_member(RefsetDescriptorRefsetMember {
+            core: RefsetMemberCore {
+                id: MemberId::parse("80000000-0000-4000-8000-000000000137").unwrap(),
+                effective_time: EffectiveTime::new_unchecked(20190731),
+                active: true,
+                module_id: constants::CORE_MODULE,
+                refset_id: refset_descriptor,
+                referenced_component_id: MI,
+            },
+            attribute_description_id: description,
+            attribute_type_id: attribute_type,
+            attribute_order: 1,
+        });
+        let store = b.build();
+
+        assert_eq!(
+            eval(
+                &format!("^ {refset_descriptor} {{{{ M descriptionLength = #1 }}}}"),
+                &store
+            ),
+            HashSet::new()
+        );
+    }
+
+    /// `descriptionFormat`/`descriptionLength` both live on the same
+    /// `DescriptionTypeRefsetMember` row (spec/08) — a block naming
+    /// both is satisfied by that one row, not by separate rows each
+    /// matching one filter.
+    #[test]
+    fn member_filter_description_format_and_description_length_conjoin_on_the_same_row() {
+        let description_type = SctId::compose(9956, ComponentType::Concept, None).unwrap();
+        let plain_text = SctId::compose(9957, ComponentType::Concept, None).unwrap();
+        let mut b = SnapshotStore::builder();
+        b.add_concept(concept(MI));
+        b.add_concept(concept(plain_text));
+        b.add_description_type_member(DescriptionTypeRefsetMember {
+            core: RefsetMemberCore {
+                id: MemberId::parse("80000000-0000-4000-8000-000000000138").unwrap(),
+                effective_time: EffectiveTime::new_unchecked(20190731),
+                active: true,
+                module_id: constants::CORE_MODULE,
+                refset_id: description_type,
+                referenced_component_id: MI,
+            },
+            description_format_id: plain_text,
+            description_length: 255,
+        });
+        let store = b.build();
+
+        assert_eq!(
+            eval(
+                &format!(
+                    "^ {description_type} {{{{ M descriptionFormat = {plain_text}, descriptionLength = #255 }}}}"
+                ),
+                &store
+            ),
+            HashSet::from([MI])
+        );
+        assert_eq!(
+            eval(
+                &format!(
+                    "^ {description_type} {{{{ M descriptionFormat = {plain_text}, descriptionLength = #256 }}}}"
+                ),
+                &store
+            ),
+            HashSet::new(),
+            "wrong descriptionLength on the only row rules it out"
+        );
     }
 
     /// `constraintOperator "(" expressionConstraint ")"` — the operator

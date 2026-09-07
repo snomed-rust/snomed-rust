@@ -13,6 +13,25 @@ together, in dependency order (`snomed-core` → `snomed-rf2` → `snomed-owl`
 
 ## [Unreleased]
 
+### Added
+
+- `snomed-ecl`: `{{ M descriptionLength = #255 }}` restricts to
+  `DescriptionType` member rows whose own `descriptionLength` column
+  matches — the same numeric grammar `mapGroup`/`mapPriority`/`order`/
+  `attributeOrder` use (reusing `NumericFieldFilter`'s exact shape and
+  `field_numeric_matches`). Works after both `^` and `^R`, and conjoins
+  with `descriptionFormat` and the other shared-column kinds on the
+  same member row — `descriptionFormat`/`descriptionLength` both live
+  on the same `DescriptionTypeRefsetMember` row, so a block naming both
+  is satisfied by that one row. Only `DescriptionTypeRefsetMember` rows
+  carry a `descriptionLength` column; every other row source never
+  matches. `memberFieldFilter`'s seventeenth column, and
+  `DescriptionTypeRefsetMember`'s second and last — completing that
+  refset type's column coverage. Needed a genuinely new
+  `MemberFilterKind` variant (no implemented column shares this RF2
+  field name) but no new row-set check, reusing
+  `descriptionFormat`'s `SnapshotStore::description_type_member_rows`.
+
 ## [0.31.0] — 2026-09-07
 
 **New ECL capability, additive.** `{{ M ... }}`'s `memberFieldFilter`

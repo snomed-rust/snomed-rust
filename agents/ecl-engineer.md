@@ -383,7 +383,16 @@ outside the two map types: back on the concept-reference shape, another
 genuinely new variant (`DescriptionFormat`, since no implemented column
 shares that field name), and this time a genuinely new tenth row-set
 check (`description_type_member_rows`) — the store already carried that
-accessor too, so again a parser/eval-only increment. `memberFieldFilter`
+accessor too, so again a parser/eval-only increment. `descriptionLength`
+(2026-09-07), `DescriptionTypeRefsetMember`'s second and last column,
+followed immediately: back on the numeric shape (reusing
+`mapGroup`/`mapPriority`/`order`/`attributeOrder`'s
+`field_numeric_matches`), another genuinely new variant
+(`DescriptionLength`, since no implemented column shares that field
+name), but this time no new row-set check — both of that type's
+columns share one row, the same "two fields, one row" shape
+`AttributeType`/`AttributeOrder` have on `RefsetDescriptorRefsetMember`.
+`memberFieldFilter`
 isn't one production but five in the official grammar, chosen by the
 named column's own semantic type
 (`expressionComparisonOperator ws subExpressionConstraint` for a concept

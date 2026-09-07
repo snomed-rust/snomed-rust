@@ -157,9 +157,10 @@ named column's own semantic type (confirmed against the official ABNF,
 subExpressionConstraint` (a concept reference), `numericComparisonOperator
 ws "#" numericValue`, `stringComparisonOperator ws (typedSearchTerm |
 typedSearchTermSet)`, `booleanComparisonOperator ws booleanValue`, or
-`timeComparisonOperator ws (timeValue | timeValueSet)`. Sixteen kinds are
+`timeComparisonOperator ws (timeValue | timeValueSet)`. Seventeen kinds
+are
 implemented, spanning three of the five shapes (string has four,
-concept reference has eight, numeric has four):
+concept reference has eight, numeric has five):
 
 - `mapTarget (=|!=) (typedSearchTerm | typedSearchTermSet)` — the same
   `match:`/`wild:`/`exact:` search-term grammar `{{ D term }}` uses,
@@ -286,10 +287,18 @@ concept reference has eight, numeric has four):
   directly. Like `mrcmRuleRefsetId`/`attributeDescription`/
   `attributeType`, no other implemented column shares this RF2 field
   name, so it's its own genuinely new `MemberFilterKind` variant too.
+- `descriptionLength (=|!=|<=|<|>=|>) "#" numericValue` — the same
+  numeric shape and the same `NumericFieldFilter`/`field_numeric_matches`
+  machinery as `mapGroup`/`mapPriority`/`order`/`attributeOrder`,
+  matched against the member row's own `descriptionLength` column (a
+  `u32`). `DescriptionTypeRefsetMember`'s second and last column, tested
+  against the same `SnapshotStore::description_type_member_rows` as
+  `descriptionFormat` — both live on one row, so a block naming both is
+  satisfied by that row alone, no new row-set check needed.
 
-All sixteen reuse the shared dispatch `mapTarget` introduced (renamed
+All seventeen reuse the shared dispatch `mapTarget` introduced (renamed
 `typed_field_row_matches` once a non-map type joined it): a block
-naming *any* of the sixteen kinds is tested against
+naming *any* of the seventeen kinds is tested against
 `SimpleMap`/`ExtendedMap`/`Association`/`AttributeValue`/`OwlExpression`/
 `OrderedComponent`/`OrderedAssociation`/`MrcmModuleScope`/
 `RefsetDescriptor`/`DescriptionType`
@@ -302,7 +311,7 @@ any of `correlationId`/
 `mapGroup`/`mapPriority`/`mapRule`/`mapAdvice`/`mapCategoryId`/
 `targetComponentId`/`valueId`/`owlExpression`/`order`/
 `mrcmRuleRefsetId`/`attributeDescription`/`attributeType`/
-`attributeOrder`/`descriptionFormat` (the column is
+`attributeOrder`/`descriptionFormat`/`descriptionLength` (the column is
 simply
 absent on that row source, the same "not this row's type" answer a
 shared-column filter gets from a row of the wrong refset type), so it

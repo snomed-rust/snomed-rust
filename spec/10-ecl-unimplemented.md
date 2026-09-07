@@ -81,7 +81,7 @@ token shape:
   `correlationId`/`mapGroup`/`mapPriority`/`mapRule`/`mapAdvice`/
   `mapCategoryId`/`targetComponentId`/`valueId`/`owlExpression`/`order`/
   `mrcmRuleRefsetId`/`attributeDescription`/`attributeType`/
-  `attributeOrder`/`descriptionFormat`
+  `attributeOrder`/`descriptionFormat`/`descriptionLength`
   — a refset-type-specific column (`domainConstraint`, `grouped`, …), as
   opposed to the three shared-column kinds
   (`moduleId`/`effectiveTime`/`active`) implemented 2026-09-01 after both
@@ -158,7 +158,11 @@ token shape:
   column, and the eighth outside the two map types
   (`DescriptionTypeRefsetMember`) — reuses `correlationId`'s grammar
   verbatim, needing a genuinely new tenth row-set check tested against
-  `SnapshotStore::description_type_member_rows`.
+  `SnapshotStore::description_type_member_rows`;
+  `descriptionLength` (2026-09-07) — a sixth numeric-shape column,
+  `DescriptionTypeRefsetMember`'s second and last (both columns share
+  one row) — reuses `mapGroup`'s grammar and `field_numeric_matches`
+  verbatim, no new row-set check needed.
   Boolean and time remain unimplemented, with no example yet. See
   `SnapshotStore::simple_map_member_rows`/`extended_map_member_rows`/
   `association_member_rows` and

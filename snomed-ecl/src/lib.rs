@@ -11,8 +11,8 @@
 //! `mapTarget`/`correlationId`/`mapGroup`/`mapPriority`/`mapRule`/
 //! `mapAdvice`/`mapCategoryId`/`targetComponentId`/`valueId`/
 //! `owlExpression`/`order`/`mrcmRuleRefsetId`/`attributeDescription`/
-//! `attributeType`/`attributeOrder`/`descriptionFormat`, the history
-//! supplement,
+//! `attributeType`/`attributeOrder`/`descriptionFormat`/
+//! `descriptionLength`, the history supplement,
 //! alternate identifiers, …) is listed in
 //! `spec/10-ecl-unimplemented.md`. Encountering one is a parse error,
 //! never a silently incomplete result.

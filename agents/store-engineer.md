@@ -204,10 +204,11 @@ its inactive rows.
 `snomed-ecl`'s `mapTarget`, `correlationId`, `mapGroup`, `mapPriority`,
 `mapRule`, `mapAdvice`, `mapCategoryId`, `targetComponentId`,
 `valueId`, `owlExpression`, `order`, `mrcmRuleRefsetId`,
-`attributeDescription`, `attributeType`, and `attributeOrder` filters
+`attributeDescription`, `attributeType`, `attributeOrder`, and
+`descriptionFormat` filters
 (`spec/10-ecl.md` rule
 18) are
-the first sixteen
+the first seventeen
 consumers: the first seven dispatch directly to
 `simple_map_member_rows`/`extended_map_member_rows`
 (`correlationId`/`mapGroup`/`mapPriority`/`mapRule`/`mapAdvice`/
@@ -215,8 +216,8 @@ consumers: the first seven dispatch directly to
 `simple_map_member_rows`' own type has no such columns), and
 `targetComponentId`/`valueId`/`owlExpression`/`order`/`mrcmRuleRefsetId`/
 `attributeDescription`/`attributeType`/`attributeOrder`/
-`descriptionFormat`
-— the first seven
+`descriptionFormat`/`descriptionLength`
+— the first eight
 outside
 the two map types — dispatch to `association_member_rows`/
 `attribute_value_member_rows`/`owl_expression_member_rows`/
@@ -233,7 +234,9 @@ existing `refset_descriptor_member_rows` set rather than a new one,
 since all three columns were already on that accessor's row type;
 `descriptionFormat` broke that reuse streak, needing a genuinely new
 tenth row-set check (`description_type_member_rows`) since it's the
-first filterable column on that type; all
+first filterable column on that type; `descriptionLength` then reused
+that same tenth row set — it's `descriptionFormat`'s second and last
+column, both on one row, no new row-set check needed. All
 row sets are still
 tested whenever any field-filter kind appears in a block, since a row
 missing the column simply fails that filter rather than needing its
