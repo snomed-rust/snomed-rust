@@ -11,7 +11,7 @@ human-readable layer above it.
 
 | | |
 |---|---|
-| Version | **0.32.0**, released 2026-09-07 |
+| Version | **0.33.0**, released 2026-09-07 |
 | Crates | nine, released together and sharing one version number |
 | Rust MSRV | 1.96 (current stable minus two) |
 | License | `Apache-2.0 OR MIT` |
@@ -19,14 +19,14 @@ human-readable layer above it.
 | Packages | <https://crates.io/crates/snomed> |
 | Documentation | <https://docs.rs/snomed> · <https://snomed-rust.github.io/> |
 
-0.32.0 gives the ECL `{{ M ... }}` member filter constraint's
-`memberFieldFilter` alternative its seventeenth column,
-`descriptionLength` — `DescriptionTypeRefsetMember`'s second and last
-column, completing that refset type's column coverage, the second
-refset type outside the two map types to reach that (after
-`RefsetDescriptorRefsetMember`). Purely additive: no public API removed
-or changed, existing code compiles unmodified. Full detail is in the
-[changelog](CHANGELOG.md).
+0.33.0 gives the ECL `{{ M ... }}` member filter constraint's
+`memberFieldFilter` alternative its eighteenth column,
+`domainConstraint` — the first filterable column on
+`MrcmDomainRefsetMember`, a ninth refset type outside the two map
+types, and the first of those nine whose first column is the
+string-search shape rather than concept-reference or numeric. Purely
+additive: no public API removed or changed, existing code compiles
+unmodified. Full detail is in the [changelog](CHANGELOG.md).
 
 **Pre-1.0 caveat, stated up front because it affects anyone writing about
 adoption:** a minor version bump may include breaking API changes. The
@@ -63,6 +63,7 @@ project is young and says so.
 | 2026-09-06 | 0.30.0 — `{{ M ... }}`'s `memberFieldFilter`: `attributeOrder`, `RefsetDescriptor`'s third and last column |
 | 2026-09-07 | 0.31.0 — `{{ M ... }}`'s `memberFieldFilter`: `descriptionFormat`, first column on `DescriptionType`, eighth refset type outside the two map types |
 | 2026-09-07 | 0.32.0 — `{{ M ... }}`'s `memberFieldFilter`: `descriptionLength`, `DescriptionType`'s second and last column, second refset type outside the two map types with full column coverage |
+| 2026-09-07 | 0.33.0 — `{{ M ... }}`'s `memberFieldFilter`: `domainConstraint`, first column on `MrcmDomain`, ninth refset type outside the two map types |
 
 ## Following updates
 
@@ -148,7 +149,7 @@ remains licensed material obtained separately from SNOMED International.
 - **What it is not.** Not a terminology server, not an authoring platform, not
   a browser, and not a replacement for Snowstorm. [COMPARISONS.md](COMPARISONS.md)
   states the limitations at length and names the tools that do those jobs.
-- **Maturity.** Version 0.32.0, first published in September 2026, one
+- **Maturity.** Version 0.33.0, first published in September 2026, one
   maintainer, pre-1.0. [MAINTAINERS.md](MAINTAINERS.md) states the bus factor
   and the continuity position without softening, and is the right source for
   any risk framing.
