@@ -207,20 +207,21 @@ its inactive rows.
 `attributeDescription`, `attributeType`, and `attributeOrder` filters
 (`spec/10-ecl.md` rule
 18) are
-the first fifteen
+the first sixteen
 consumers: the first seven dispatch directly to
 `simple_map_member_rows`/`extended_map_member_rows`
 (`correlationId`/`mapGroup`/`mapPriority`/`mapRule`/`mapAdvice`/
 `mapCategoryId` only ever match an `extended_map_member_rows` row —
 `simple_map_member_rows`' own type has no such columns), and
 `targetComponentId`/`valueId`/`owlExpression`/`order`/`mrcmRuleRefsetId`/
-`attributeDescription`/`attributeType`/`attributeOrder`
-— the first six
+`attributeDescription`/`attributeType`/`attributeOrder`/
+`descriptionFormat`
+— the first seven
 outside
 the two map types — dispatch to `association_member_rows`/
 `attribute_value_member_rows`/`owl_expression_member_rows`/
 `ordered_component_member_rows`/`mrcm_module_scope_member_rows`/
-`refset_descriptor_member_rows`
+`refset_descriptor_member_rows`/`description_type_member_rows`
 respectively, plus an eighth row set,
 `ordered_association_member_rows`, which both `targetComponentId` and
 `order` also dispatch to (one row there carries both columns, so both
@@ -229,7 +230,10 @@ respectively, plus an eighth row set,
 variants); `attributeDescription`/`attributeType`/`attributeOrder`
 share this same "several fields, one row" shape too, but on the
 existing `refset_descriptor_member_rows` set rather than a new one,
-since all three columns were already on that accessor's row type; all
+since all three columns were already on that accessor's row type;
+`descriptionFormat` broke that reuse streak, needing a genuinely new
+tenth row-set check (`description_type_member_rows`) since it's the
+first filterable column on that type; all
 row sets are still
 tested whenever any field-filter kind appears in a block, since a row
 missing the column simply fails that filter rather than needing its

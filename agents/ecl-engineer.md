@@ -377,7 +377,13 @@ same pattern once more: back on the numeric shape (reusing
 genuinely new variant (`AttributeOrder`, since no implemented column
 shares that field name), and again no new row-set check — the same
 `refset_descriptor_member_rows` block now populates all three
-`TypedFields` entries from one row. `memberFieldFilter`
+`TypedFields` entries from one row. `descriptionFormat` (2026-09-07),
+`DescriptionTypeRefsetMember`'s first column, is the eighth type
+outside the two map types: back on the concept-reference shape, another
+genuinely new variant (`DescriptionFormat`, since no implemented column
+shares that field name), and this time a genuinely new tenth row-set
+check (`description_type_member_rows`) — the store already carried that
+accessor too, so again a parser/eval-only increment. `memberFieldFilter`
 isn't one production but five in the official grammar, chosen by the
 named column's own semantic type
 (`expressionComparisonOperator ws subExpressionConstraint` for a concept

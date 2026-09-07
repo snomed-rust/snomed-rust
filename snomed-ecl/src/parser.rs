@@ -617,11 +617,20 @@ impl Parser {
                 let filter = self.parse_numeric_field_filter()?;
                 Ok(MemberFilterKind::AttributeOrder(filter))
             }
+            TokenKind::Word(word) if word == "descriptionFormat" => {
+                self.advance()?;
+                let negated = self.parse_boolean_comparison_operator()?;
+                let value = self.parse_sub_expression_constraint()?;
+                Ok(MemberFilterKind::DescriptionFormat(ModuleFilter {
+                    negated,
+                    value: Box::new(value),
+                }))
+            }
             _ => {
                 let tok = self.peek().clone();
                 Err(Self::unexpected(
                     &tok,
-                    "`moduleId`, `effectiveTime`, `active`, `mapTarget`, `correlationId`, `mapGroup`, `mapPriority`, `mapRule`, `mapAdvice`, `mapCategoryId`, `targetComponentId`, `valueId`, `owlExpression`, `order`, `mrcmRuleRefsetId`, `attributeDescription`, `attributeType`, or `attributeOrder`",
+                    "`moduleId`, `effectiveTime`, `active`, `mapTarget`, `correlationId`, `mapGroup`, `mapPriority`, `mapRule`, `mapAdvice`, `mapCategoryId`, `targetComponentId`, `valueId`, `owlExpression`, `order`, `mrcmRuleRefsetId`, `attributeDescription`, `attributeType`, `attributeOrder`, or `descriptionFormat`",
                 ))
             }
         }
@@ -2029,6 +2038,31 @@ mod tests {
         };
         assert_eq!(*operator, crate::ast::NumericComparisonOp::Eq);
         assert_eq!(value, "1");
+    }
+
+    /// `descriptionFormat` (spec/10 rule 18) — the sixteenth
+    /// `memberFieldFilter` column, and the first on
+    /// `DescriptionTypeRefsetMember`. Back on the concept-reference
+    /// shape, reusing `correlationId`/`mrcmRuleRefsetId`/
+    /// `attributeDescription`/`attributeType`'s exact grammar. No other
+    /// implemented column shares this RF2 field name, so it's a
+    /// genuinely new variant.
+    #[test]
+    fn parses_member_filter_description_format() {
+        let EC::MemberFilter { filters, .. } =
+            parse("^ 900000000000456007 {{ M descriptionFormat = 900000000000540000 }}").unwrap()
+        else {
+            panic!("expected a member filter");
+        };
+        assert_eq!(filters.len(), 1);
+        let crate::ast::MemberFilterKind::DescriptionFormat(crate::ast::ModuleFilter {
+            negated,
+            ..
+        }) = &filters[0]
+        else {
+            panic!("expected a DescriptionFormat filter, got {:?}", filters[0]);
+        };
+        assert!(!negated);
     }
 
     /// `mapGroup` (spec/10 rule 18) — the third `memberFieldFilter`

@@ -301,6 +301,7 @@ fn member_row_matches(
                 | MemberFilterKind::AttributeDescription(_)
                 | MemberFilterKind::AttributeType(_)
                 | MemberFilterKind::AttributeOrder(_)
+                | MemberFilterKind::DescriptionFormat(_)
         )
     }) {
         return typed_field_row_matches(
@@ -345,7 +346,9 @@ fn member_row_matches(
 /// three populated from the same `RefsetDescriptorRefsetMember` row,
 /// the same "several fields, one row" case
 /// `target_component_id`/`order` have for
-/// `OrderedAssociationRefsetMember`).
+/// `OrderedAssociationRefsetMember`). `description_format` is the first
+/// field from `DescriptionTypeRefsetMember`, an eighth refset type
+/// outside the two map types.
 #[derive(Default)]
 struct TypedFields<'a> {
     map_target: Option<&'a str>,
@@ -363,6 +366,7 @@ struct TypedFields<'a> {
     attribute_description: Option<SctId>,
     attribute_type: Option<SctId>,
     attribute_order: Option<u32>,
+    description_format: Option<SctId>,
 }
 
 /// The `mapTarget`/`correlationId`/`mapGroup`/`mapPriority`/`mapRule`/
@@ -390,12 +394,13 @@ struct TypedFields<'a> {
 /// (`SnapshotStore::association_member_rows`/
 /// `attribute_value_member_rows`/`owl_expression_member_rows`/
 /// `ordered_component_member_rows`/`ordered_association_member_rows`/
-/// `mrcm_module_scope_member_rows`/`refset_descriptor_member_rows`)
+/// `mrcm_module_scope_member_rows`/`refset_descriptor_member_rows`/
+/// `description_type_member_rows`)
 /// rather
 /// than either map type's.
 /// Renamed from `typed_map_row_matches` once it stopped being map-only.
 /// Whichever field-filter kind appears, a block naming it is
-/// tested against all nine typed row sets rather than `member_rows`.
+/// tested against all ten typed row sets rather than `member_rows`.
 /// Testing every set whenever *any* field-filter kind appears (rather
 /// than computing the exact type each filter needs) is deliberately
 /// simple, not merely convenient: a `SimpleMap` row tested against a
@@ -580,7 +585,7 @@ fn typed_field_row_matches(
     if matches_mrcm_module_scope {
         return true;
     }
-    store
+    let matches_refset_descriptor = store
         .refset_descriptor_member_rows(refset_id, component_id)
         .iter()
         .any(|row| {
@@ -594,6 +599,26 @@ fn typed_field_row_matches(
                             attribute_description: Some(row.attribute_description_id),
                             attribute_type: Some(row.attribute_type_id),
                             attribute_order: Some(row.attribute_order),
+                            ..TypedFields::default()
+                        },
+                    )
+                })
+        });
+    if matches_refset_descriptor {
+        return true;
+    }
+    store
+        .description_type_member_rows(refset_id, component_id)
+        .iter()
+        .any(|row| {
+            (states_active || row.core.active)
+                && filters.iter().zip(prepared).all(|(f, p)| {
+                    member_filter_matches(
+                        f,
+                        p,
+                        &row.core,
+                        &TypedFields {
+                            description_format: Some(row.description_format_id),
                             ..TypedFields::default()
                         },
                     )
@@ -741,7 +766,8 @@ fn prepare_member_filter(filter: &MemberFilterKind, store: &SnapshotStore) -> Pr
         | MemberFilterKind::ValueId(ModuleFilter { value, .. })
         | MemberFilterKind::MrcmRuleRefsetId(ModuleFilter { value, .. })
         | MemberFilterKind::AttributeDescription(ModuleFilter { value, .. })
-        | MemberFilterKind::AttributeType(ModuleFilter { value, .. }) => {
+        | MemberFilterKind::AttributeType(ModuleFilter { value, .. })
+        | MemberFilterKind::DescriptionFormat(ModuleFilter { value, .. }) => {
             PreparedMemberFilter::Concepts(evaluate(value, store))
         }
         MemberFilterKind::MapTarget(TermFilter { values, .. })
@@ -978,6 +1004,18 @@ fn member_filter_matches(
                 return false;
             };
             field_numeric_matches(*operator, &attribute_order.to_string(), value)
+        }
+        MemberFilterKind::DescriptionFormat(ModuleFilter { negated, .. }) => {
+            let PreparedMemberFilter::Concepts(values) = prepared else {
+                unreachable!("a descriptionFormat filter prepares to `Concepts`")
+            };
+            // No `description_format` on this row source (every source
+            // but `DescriptionType`'s own): never matches, same
+            // reasoning as `AttributeType`'s `None` case above.
+            let Some(description_format) = fields.description_format else {
+                return false;
+            };
+            values.contains(&description_format) != *negated
         }
     }
 }
@@ -1712,10 +1750,10 @@ mod tests {
     use snomed_core::sctid::ComponentType;
     use snomed_core::time::EffectiveTime;
     use snomed_rf2::refset::{
-        AssociationRefsetMember, AttributeValueRefsetMember, ExtendedMapRefsetMember,
-        LanguageRefsetMember, MrcmModuleScopeRefsetMember, OrderedAssociationRefsetMember,
-        OrderedComponentRefsetMember, OwlExpressionRefsetMember, RefsetDescriptorRefsetMember,
-        RefsetMemberCore, SimpleMapRefsetMember, SimpleRefsetMember,
+        AssociationRefsetMember, AttributeValueRefsetMember, DescriptionTypeRefsetMember,
+        ExtendedMapRefsetMember, LanguageRefsetMember, MrcmModuleScopeRefsetMember,
+        OrderedAssociationRefsetMember, OrderedComponentRefsetMember, OwlExpressionRefsetMember,
+        RefsetDescriptorRefsetMember, RefsetMemberCore, SimpleMapRefsetMember, SimpleRefsetMember,
     };
 
     const ROOT: SctId = constants::ROOT_CONCEPT;
@@ -4682,6 +4720,154 @@ mod tests {
             HashSet::new(),
             "wrong attributeOrder on the only row rules it out"
         );
+    }
+
+    /// `descriptionFormat` (spec/10 rule 18) — the sixteenth
+    /// `memberFieldFilter` column, and the first on
+    /// `DescriptionTypeRefsetMember`. Concept-reference shape, reusing
+    /// `correlationId`/`mrcmRuleRefsetId`/`attributeDescription`/
+    /// `attributeType`'s exact grammar, but tested against a tenth typed
+    /// row set, `description_type_member_rows` — a genuinely new
+    /// row-set check, unlike `attributeType`/`attributeOrder`'s reuse of
+    /// `attributeDescription`'s row set. Also proves `{{ M }}` after
+    /// `^R` reaches it.
+    #[test]
+    fn member_filter_description_format_matches_description_type_rows() {
+        let description_type = SctId::compose(9942, ComponentType::Concept, None).unwrap();
+        let plain_text = SctId::compose(9943, ComponentType::Concept, None).unwrap();
+        let other_format = SctId::compose(9944, ComponentType::Concept, None).unwrap();
+        let mut b = SnapshotStore::builder();
+        b.add_concept(concept(MI));
+        b.add_concept(concept(plain_text));
+        b.add_concept(concept(other_format));
+        b.add_description_type_member(DescriptionTypeRefsetMember {
+            core: RefsetMemberCore {
+                id: MemberId::parse("80000000-0000-4000-8000-000000000132").unwrap(),
+                effective_time: EffectiveTime::new_unchecked(20190731),
+                active: true,
+                module_id: constants::CORE_MODULE,
+                refset_id: description_type,
+                referenced_component_id: MI,
+            },
+            description_format_id: plain_text,
+            description_length: 255,
+        });
+        let store = b.build();
+
+        assert_eq!(
+            eval(
+                &format!("^ {description_type} {{{{ M descriptionFormat = {other_format} }}}}"),
+                &store
+            ),
+            HashSet::new(),
+            "the row's own descriptionFormat doesn't match"
+        );
+        assert_eq!(
+            eval(
+                &format!("^ {description_type} {{{{ M descriptionFormat = {plain_text} }}}}"),
+                &store
+            ),
+            HashSet::from([MI])
+        );
+        // `^R` reaches the same row, through the shared row-matching path.
+        assert_eq!(
+            eval(
+                &format!("^R {MI} {{{{ M descriptionFormat = {plain_text} }}}}"),
+                &store
+            ),
+            HashSet::from([description_type])
+        );
+    }
+
+    /// `RefsetDescriptorRefsetMember`/every other typed row source has no
+    /// `descriptionFormat` column — a membership that exists only there
+    /// must never match, the same "column absent on this row source"
+    /// case every other field filter has for the row types it doesn't
+    /// apply to.
+    #[test]
+    fn member_filter_description_format_never_matches_refset_descriptor_rows() {
+        let refset_descriptor = SctId::compose(9945, ComponentType::Concept, None).unwrap();
+        let description = SctId::compose(9946, ComponentType::Concept, None).unwrap();
+        let attribute_type = SctId::compose(9947, ComponentType::Concept, None).unwrap();
+        let mut b = SnapshotStore::builder();
+        b.add_concept(concept(MI));
+        b.add_concept(concept(description));
+        b.add_concept(concept(attribute_type));
+        b.add_refset_descriptor_member(RefsetDescriptorRefsetMember {
+            core: RefsetMemberCore {
+                id: MemberId::parse("80000000-0000-4000-8000-000000000133").unwrap(),
+                effective_time: EffectiveTime::new_unchecked(20190731),
+                active: true,
+                module_id: constants::CORE_MODULE,
+                refset_id: refset_descriptor,
+                referenced_component_id: MI,
+            },
+            attribute_description_id: description,
+            attribute_type_id: attribute_type,
+            attribute_order: 1,
+        });
+        let store = b.build();
+
+        assert_eq!(
+            eval(
+                &format!("^ {refset_descriptor} {{{{ M descriptionFormat = {description} }}}}"),
+                &store
+            ),
+            HashSet::new()
+        );
+    }
+
+    /// "One row, all filters" (spec/10 rule 18) for a block mixing a
+    /// shared-column filter with `descriptionFormat`: two separate rows,
+    /// each satisfying only one filter, must not satisfy the block
+    /// together.
+    #[test]
+    fn member_filter_description_format_conjoins_with_module_id_on_the_same_row() {
+        let description_type = SctId::compose(9948, ComponentType::Concept, None).unwrap();
+        let plain_text = SctId::compose(9949, ComponentType::Concept, None).unwrap();
+        let module_a = SctId::new_unchecked(900000000000012004);
+        let module_b = constants::CORE_MODULE;
+        let mut b = SnapshotStore::builder();
+        b.add_concept(concept(MI));
+        b.add_concept(concept(plain_text));
+        b.add_concept(concept(module_a));
+        b.add_concept(concept(module_b));
+        // Row 1: right descriptionFormat, wrong module.
+        b.add_description_type_member(DescriptionTypeRefsetMember {
+            core: RefsetMemberCore {
+                id: MemberId::parse("80000000-0000-4000-8000-000000000134").unwrap(),
+                effective_time: EffectiveTime::new_unchecked(20190731),
+                active: true,
+                module_id: module_a,
+                refset_id: description_type,
+                referenced_component_id: MI,
+            },
+            description_format_id: plain_text,
+            description_length: 255,
+        });
+        // Row 2: right module, wrong descriptionFormat.
+        b.add_description_type_member(DescriptionTypeRefsetMember {
+            core: RefsetMemberCore {
+                id: MemberId::parse("80000000-0000-4000-8000-000000000135").unwrap(),
+                effective_time: EffectiveTime::new_unchecked(20190731),
+                active: true,
+                module_id: module_b,
+                refset_id: description_type,
+                referenced_component_id: MI,
+            },
+            description_format_id: SctId::compose(9950, ComponentType::Concept, None).unwrap(),
+            description_length: 255,
+        });
+        let store = b.build();
+
+        let mismatched = format!(
+            "^ {description_type} {{{{ M moduleId = {module_b}, descriptionFormat = {plain_text} }}}}"
+        );
+        assert_eq!(eval(&mismatched, &store), HashSet::new());
+        let matched = format!(
+            "^ {description_type} {{{{ M moduleId = {module_a}, descriptionFormat = {plain_text} }}}}"
+        );
+        assert_eq!(eval(&matched, &store), HashSet::from([MI]));
     }
 
     /// `constraintOperator "(" expressionConstraint ")"` — the operator

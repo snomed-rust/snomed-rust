@@ -13,6 +13,25 @@ together, in dependency order (`snomed-core` → `snomed-rf2` → `snomed-owl`
 
 ## [Unreleased]
 
+### Added
+
+- `snomed-ecl`: `{{ M descriptionFormat = 900000000000540000 }}`
+  restricts to `DescriptionType` member rows whose own
+  `descriptionFormat` column matches — the same concept-reference
+  grammar `correlationId`/`mrcmRuleRefsetId`/`attributeDescription`/
+  `attributeType` use (reusing `ModuleFilter`'s exact shape). Works
+  after both `^` and `^R`, and conjoins with `moduleId` and the other
+  shared-column kinds on the same member row. Only
+  `DescriptionTypeRefsetMember` rows carry a `descriptionFormat`
+  column; every other row source (including `RefsetDescriptor`'s own
+  rows) never matches. `memberFieldFilter`'s sixteenth column, and the
+  first on `DescriptionTypeRefsetMember` — an eighth refset type
+  outside `SimpleMap`/`ExtendedMap`, needing a genuinely new
+  `MemberFilterKind` variant (no implemented column shares this RF2
+  field name) and a tenth typed row-set check
+  (`SnapshotStore::description_type_member_rows`, already present in
+  the store from the sixteen-type retention decision).
+
 ## [0.30.0] — 2026-09-06
 
 **New ECL capability, additive.** `{{ M ... }}`'s `memberFieldFilter`

@@ -253,9 +253,9 @@ and harmonizes it with the sibling repositories (`hl7-rust`, `er7-rust`,
   existing accessor's signature. `mapTarget`, `correlationId`, `mapGroup`,
   `mapPriority`, `mapRule`, `mapAdvice`, `mapCategoryId`,
   `targetComponentId`, `valueId`, `owlExpression`, `order`,
-  `mrcmRuleRefsetId`, `attributeDescription`, `attributeType`, and
-  `attributeOrder` are the
-  first fifteen
+  `mrcmRuleRefsetId`, `attributeDescription`, `attributeType`,
+  `attributeOrder`, and `descriptionFormat` are the
+  first sixteen
   concrete fields
   built on this retention (`snomed-ecl`, spec/10 rule 18): the
   `memberFieldFilter` grammar alternative, tested against
@@ -263,7 +263,7 @@ and harmonizes it with the sibling repositories (`hl7-rust`, `er7-rust`,
   `association_member_rows`/`attribute_value_member_rows`/
   `owl_expression_member_rows`/`ordered_component_member_rows`/
   `ordered_association_member_rows`/`mrcm_module_scope_member_rows`/
-  `refset_descriptor_member_rows`,
+  `refset_descriptor_member_rows`/`description_type_member_rows`,
   after
   both
   `^` and `^R` in one increment each since both reuse the same
@@ -273,7 +273,7 @@ and harmonizes it with the sibling repositories (`hl7-rust`, `er7-rust`,
   against the official ABNF): `mapTarget`/`mapRule`/`mapAdvice`/
   `owlExpression` the string-search shape, `correlationId`/`mapCategoryId`/
   `targetComponentId`/`valueId`/`mrcmRuleRefsetId`/`attributeDescription`/
-  `attributeType`
+  `attributeType`/`descriptionFormat`
   the concept-reference
   shape
   (`expressionComparisonOperator ws subExpressionConstraint`, reusing
@@ -288,15 +288,17 @@ and harmonizes it with the sibling repositories (`hl7-rust`, `er7-rust`,
   boolean and time shapes remain unimplemented. `mapCategoryId` completes
   `ExtendedMapRefsetMember`'s column coverage; `targetComponentId`/
   `valueId`/`owlExpression`/`order`/`mrcmRuleRefsetId`/
-  `attributeDescription`/`attributeType`/`attributeOrder` are the first
-  eight fields on refset
+  `attributeDescription`/`attributeType`/`attributeOrder`/
+  `descriptionFormat` are the first
+  nine fields on refset
   types
   other than the two
   map types (`AssociationRefsetMember`/`AttributeValueRefsetMember`/
   `OwlExpressionRefsetMember`/`OrderedComponentRefsetMember`/
-  `MrcmModuleScopeRefsetMember`/`RefsetDescriptorRefsetMember`, plus
+  `MrcmModuleScopeRefsetMember`/`RefsetDescriptorRefsetMember`/
+  `DescriptionTypeRefsetMember`, plus
   `OrderedAssociationRefsetMember`
-  as a seventh reusing two existing variants),
+  as an eighth reusing two existing variants),
   confirming the same store retention and dispatch pattern generalizes
   past `ExtendedMap`/`SimpleMap` across every grammar shape, not just
   the concept-reference one. Every
@@ -316,9 +318,9 @@ and harmonizes it with the sibling repositories (`hl7-rust`, `er7-rust`,
 ## Current status
 
 All eight phases above are closed. As of `memberFieldFilter`'s
-`attributeOrder` (2026-09-06, below) the
+`descriptionFormat` (2026-09-07, below) the
 workspace is 9 published
-crates with zero dependencies, 451 tests, a clean
+crates with zero dependencies, 455 tests, a clean
 `cargo clippy --all-targets`, 13 fuzz targets, and six criterion
 benchmark files. What is *not* done is tracked
 in two places and nowhere
@@ -388,7 +390,12 @@ entry, the same "two fields, one row" shape
 `RefsetDescriptorRefsetMember`'s third and last column, back on the
 numeric shape, another genuinely new variant, again needing no new
 row-set check — all three of that type's columns now populate from
-the same row. In between, the `ecl_parse` fuzz target's CI smoke run caught
+the same row; and `descriptionFormat` (2026-09-07) is an eighth type
+outside the two map types (`DescriptionTypeRefsetMember`, a tenth
+row-set check), back on the concept-reference shape, another genuinely
+new variant since no implemented column shares its RF2 field name —
+the store already carried the `description_type_member_rows` accessor,
+so this increment too needed no `snomed-store` change. In between, the `ecl_parse` fuzz target's CI smoke run caught
 a real stack overflow on pathologically deep `(`/refinement/
 attribute-set nesting (2026-09-04) — fixed with a shared `Parser::depth`
 counter and a 100-level cap (spec/10 rule 19,

@@ -374,7 +374,7 @@ pub enum ConceptFilterKind {
 /// `MapTarget`/`CorrelationId`/`MapGroup`/`MapPriority`/`MapRule`/
 /// `MapAdvice`/`MapCategoryId`/`TargetComponentId`/`ValueId`/
 /// `OwlExpression`/`Order`/`MrcmRuleRefsetId`/`AttributeDescription`/
-/// `AttributeType`/`AttributeOrder`
+/// `AttributeType`/`AttributeOrder`/`DescriptionFormat`
 /// are the official grammar's fourth kind, `memberFieldFilter`
 /// — a refset-type-specific column rather than a shared one. Its own
 /// grammar (confirmed against the official ABNF, `syntax/abnf-brief.txt`)
@@ -409,7 +409,11 @@ pub enum ConceptFilterKind {
 /// block naming both is satisfied by that one row); and `attributeOrder`
 /// (`RefsetDescriptorRefsetMember`'s third and last column, back on the
 /// numeric shape, another genuinely new variant — all three of that
-/// type's columns now come from the same row) — all
+/// type's columns now come from the same row); and `descriptionFormat`
+/// (`DescriptionTypeRefsetMember`, an eighth refset type outside the two
+/// map types, back to the concept-reference shape, another genuinely
+/// new variant, and a new row-set check since this is that type's first
+/// filterable column) — all
 /// decided 2026-09-03 (`plan.md`'s "Open decisions") to retain full rows
 /// — active and inactive — for all sixteen non-Simple/Language refset
 /// types, the same store change `moduleId`/`effectiveTime`/`active`
@@ -617,6 +621,22 @@ pub enum MemberFilterKind {
     /// needs its own variant too. A block naming it is tested against
     /// `SnapshotStore::refset_descriptor_member_rows` instead.
     AttributeOrder(NumericFieldFilter),
+    /// `descriptionFormat (=|!=) subExpressionConstraint` — a
+    /// `memberFieldFilter` (spec/10 rule 18):
+    /// `DescriptionTypeRefsetMember`'s own `descriptionFormat` column (a
+    /// concept reference — the format the description's text follows,
+    /// e.g. |Plain text|). Reuses [`ModuleFilter`]'s exact shape and
+    /// grammar again — the same concept-reference production
+    /// `correlationId`/`mapCategoryId`/`targetComponentId`/`valueId`/
+    /// `mrcmRuleRefsetId`/`attributeDescription`/`attributeType` use,
+    /// just a different refset type and RF2 column. The first
+    /// `memberFieldFilter` column implemented on
+    /// `DescriptionTypeRefsetMember`, so a block naming it needs a new
+    /// row-set check, tested against
+    /// `SnapshotStore::description_type_member_rows` instead. No other
+    /// implemented column shares the RF2 field name `descriptionFormat`,
+    /// so this needs its own variant too.
+    DescriptionFormat(ModuleFilter),
 }
 
 /// `numericComparisonOperator ws "#" numericValue` — a `memberFieldFilter`

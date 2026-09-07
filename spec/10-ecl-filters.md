@@ -157,9 +157,9 @@ named column's own semantic type (confirmed against the official ABNF,
 subExpressionConstraint` (a concept reference), `numericComparisonOperator
 ws "#" numericValue`, `stringComparisonOperator ws (typedSearchTerm |
 typedSearchTermSet)`, `booleanComparisonOperator ws booleanValue`, or
-`timeComparisonOperator ws (timeValue | timeValueSet)`. Twelve kinds are
+`timeComparisonOperator ws (timeValue | timeValueSet)`. Sixteen kinds are
 implemented, spanning three of the five shapes (string has four,
-concept reference has five, numeric has three):
+concept reference has eight, numeric has four):
 
 - `mapTarget (=|!=) (typedSearchTerm | typedSearchTermSet)` — the same
   `match:`/`wild:`/`exact:` search-term grammar `{{ D term }}` uses,
@@ -278,13 +278,21 @@ concept reference has five, numeric has three):
   `attributeDescription`/`attributeType` — all three live on one row,
   so a block naming any combination of the three is satisfied by that
   row alone.
+- `descriptionFormat (=|!=) subExpressionConstraint` — the same
+  concept-reference shape again, matched against the member row's own
+  `descriptionFormat` column. The first `memberFieldFilter` column on
+  `DescriptionTypeRefsetMember`, so it needed its own new row-set
+  check, tested against `SnapshotStore::description_type_member_rows`
+  directly. Like `mrcmRuleRefsetId`/`attributeDescription`/
+  `attributeType`, no other implemented column shares this RF2 field
+  name, so it's its own genuinely new `MemberFilterKind` variant too.
 
-All fifteen reuse the shared dispatch `mapTarget` introduced (renamed
+All sixteen reuse the shared dispatch `mapTarget` introduced (renamed
 `typed_field_row_matches` once a non-map type joined it): a block
-naming *any* of the fifteen kinds is tested against
+naming *any* of the sixteen kinds is tested against
 `SimpleMap`/`ExtendedMap`/`Association`/`AttributeValue`/`OwlExpression`/
 `OrderedComponent`/`OrderedAssociation`/`MrcmModuleScope`/
-`RefsetDescriptor`
+`RefsetDescriptor`/`DescriptionType`
 rows together
 rather than `member_rows`, and the "one row, all filters" and "active
 unless stated otherwise" rules above still hold across a block naming
@@ -294,7 +302,7 @@ any of `correlationId`/
 `mapGroup`/`mapPriority`/`mapRule`/`mapAdvice`/`mapCategoryId`/
 `targetComponentId`/`valueId`/`owlExpression`/`order`/
 `mrcmRuleRefsetId`/`attributeDescription`/`attributeType`/
-`attributeOrder` (the column is
+`attributeOrder`/`descriptionFormat` (the column is
 simply
 absent on that row source, the same "not this row's type" answer a
 shared-column filter gets from a row of the wrong refset type), so it
@@ -303,7 +311,7 @@ can never be a spurious match.
 **Not implemented:** every other `memberFieldFilter` column, and both
 remaining shapes — boolean, time (`domainConstraint`, `grouped`, and
 the rest — see `spec/10-ecl-unimplemented.md`); the store retention
-that made these ten columns possible already covers every non-Simple/
+that made these columns possible already covers every non-Simple/
 Language refset type (decided 2026-09-03, `plan.md`'s "Open decisions"),
 so each remaining column is a parser/eval increment only, not a further
 store decision.
