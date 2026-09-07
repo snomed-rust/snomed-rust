@@ -13,6 +13,18 @@ together, in dependency order (`snomed-core` → `snomed-rf2` → `snomed-owl`
 
 ## [Unreleased]
 
+## [0.31.0] — 2026-09-07
+
+**New ECL capability, additive.** `{{ M ... }}`'s `memberFieldFilter`
+gains its sixteenth column, `descriptionFormat` — the first filterable
+column on `DescriptionTypeRefsetMember`, an eighth refset type outside
+`SimpleMap`/`ExtendedMap`, after both `^` and `^R`. Concept-reference
+shape, reusing `correlationId`/`mrcmRuleRefsetId`/`attributeDescription`/
+`attributeType`'s exact grammar; needed a genuinely new
+`MemberFilterKind` variant (no implemented column shares this RF2 field
+name) and a genuinely new tenth typed row-set check. A minor bump: new
+public API, no removals or signature changes to anything existing.
+
 ### Added
 
 - `snomed-ecl`: `{{ M descriptionFormat = 900000000000540000 }}`
