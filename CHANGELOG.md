@@ -13,6 +13,17 @@ together, in dependency order (`snomed-core` → `snomed-rf2` → `snomed-owl`
 
 ## [Unreleased]
 
+## [0.34.0] — 2026-09-07
+
+**New ECL capability, additive.** `{{ M ... }}`'s `memberFieldFilter`
+gains its nineteenth column, `parentDomain` — `MrcmDomainRefsetMember`'s
+second column (after `domainConstraint`), after both `^` and `^R`.
+String-search shape, reusing `mapTarget`/`domainConstraint`'s exact
+grammar and `term_matches`; needed a genuinely new `MemberFilterKind`
+variant (no implemented column shares this RF2 field name) but no new
+row-set check, reusing `domainConstraint`'s row set. A minor bump: new
+public API, no removals or signature changes to anything existing.
+
 ### Added
 
 - `snomed-ecl`: `{{ M parentDomain = "<< 138875005" }}` restricts to
