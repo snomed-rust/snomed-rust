@@ -13,6 +13,21 @@ together, in dependency order (`snomed-core` → `snomed-rf2` → `snomed-owl`
 
 ## [Unreleased]
 
+## [0.32.0] — 2026-09-07
+
+**New ECL capability, additive.** `{{ M ... }}`'s `memberFieldFilter`
+gains its seventeenth column, `descriptionLength` —
+`DescriptionTypeRefsetMember`'s second and last column (after
+`descriptionFormat`), after both `^` and `^R`. Back on the numeric
+shape, reusing `mapGroup`/`mapPriority`/`order`/`attributeOrder`'s
+exact grammar and `field_numeric_matches`; needed a genuinely new
+`MemberFilterKind` variant (no implemented column shares this RF2
+field name) but no new row-set check, reusing `descriptionFormat`'s
+row set. Completes `DescriptionTypeRefsetMember`'s column coverage — the
+second refset type outside the two map types to reach that, after
+`RefsetDescriptorRefsetMember`. A minor bump: new public API, no
+removals or signature changes to anything existing.
+
 ### Added
 
 - `snomed-ecl`: `{{ M descriptionLength = #255 }}` restricts to
