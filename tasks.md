@@ -47,6 +47,43 @@ most recently on 2026-09-07, to keep this file inside the repository's
 40 KB per-document budget. Search both when asking "has this come up
 before".
 
+## Done (2026-09-07, Release 0.35.0 — `memberFieldFilter`'s `proximalPrimitiveConstraint`, twenty-third self-decided release)
+
+- [x] **Decided and executed the release itself**, per §1-5 of
+      `spec/ai-release-authority/`: §1 CI independently green on the
+      pushed merge commit (`d610ff3`, all jobs, confirmed via `gh run
+      view` on the exact commit); §2 `CHANGELOG.md`'s `[Unreleased]`
+      verified against the actual diff and moved under `## [0.35.0]`,
+      minor bump (purely additive: new
+      `MemberFilterKind::ProximalPrimitiveConstraint` variant, one new
+      `TypedFields` field, no new row-set check — nothing removed or
+      changed signature); §3 no rule oversteps — needed a genuinely new
+      variant (no existing column shares the RF2 field name
+      `proximalPrimitiveConstraint`), the same kind of routine
+      grammar-coverage call this authority already covers, not a
+      `plan.md` "Open decisions" item; §4 all nine crates, one version,
+      standard dependency order; §5 tagged `v0.35.0` (signed, verified
+      against the merge commit) and ran `cargo publish` for each crate
+      in order, all nine succeeding cleanly.
+- [x] **Verified against crates.io's own API afterward**: `GET
+      /api/v1/crates/<name>` for all nine names returns
+      `max_version: "0.35.0"`.
+- [x] Version bumped everywhere the 0.13.0-0.34.0 precedent bumped it:
+      `Cargo.toml` (workspace + seven pins), `CITATION.cff`, `NEWS.md`,
+      `INSTALL.md`, `SECURITY.md`.
+- [x] Same `release/0.35.0` branch/merge shape as 0.12.0-0.34.0, not a
+      direct commit to `main`; branch deleted locally once GitHub and
+      Codeberg confirmed the merge commit and CI came back green.
+- [x] **All three forges pushed cleanly via `git push origin` in one
+      command**, both for `main` and for the `v0.35.0` tag — the first
+      release since 0.29.0 with no GitLab connectivity issue at all,
+      confirming the multi-hour SSH outage documented in the
+      0.30.0-0.34.0 entries (and resolved earlier this session, see
+      the "GitLab SSH outage resolved" Done entry above) is genuinely
+      behind us, not a recurring pattern.
+- [x] Verified: build/clippy/fmt/test (471/471)/check-docs/
+      check-trademarks/spec_citations all clean before tagging.
+
 ## Done (2026-09-07, ECL `{{ M ... }}` `memberFieldFilter`: `proximalPrimitiveConstraint`, `MrcmDomain`'s third column, no new row-set check)
 
 - [x] **`snomed-ecl`**: `MemberFilterKind::ProximalPrimitiveConstraint(TermFilter)`
@@ -285,8 +322,7 @@ before".
 ## Next up
 
 - [ ] Nothing currently scoped beyond the `{{ M ... }}` remainder below.
-      State as of 2026-09-07: **0.34.0 released, `proximalPrimitiveConstraint`
-      implemented and pending its own release** — `mapTarget` (0.15.0),
+      State as of 2026-09-07: **0.35.0 released** — `mapTarget` (0.15.0),
       `correlationId` (0.16.0), `mapGroup` (0.17.0), `mapPriority`
       (0.18.0), `mapRule` (0.19.0), `mapAdvice` plus the `ecl_parse`
       fuzz-caught recursion-depth guard (spec/10 rule 19, 0.20.0),
@@ -319,7 +355,7 @@ before".
       `MrcmDomainRefsetMember`), `parentDomain` (0.34.0
       — `MrcmDomainRefsetMember`'s second column, another genuinely
       new variant, no new row-set check since both columns share one
-      row), and `proximalPrimitiveConstraint` (not yet released —
+      row), and `proximalPrimitiveConstraint` (0.35.0 —
       `MrcmDomainRefsetMember`'s third column, another genuinely new
       variant, no new row-set check since all three columns share one
       row),
@@ -346,7 +382,7 @@ before".
       column coverage.
       `{{ M ... }}` after `^`
       (0.13.0), after `^R` (0.14.0), and its `memberFieldFilter`
-      alternative (0.15.0-0.34.0, `proximalPrimitiveConstraint` pending release),
+      alternative (0.15.0-0.35.0),
       all decided and executed under
       `spec/ai-release-authority/`'s criteria rather than a fresh
       per-release maintainer go-ahead (see `CHANGELOG.md`). 9 crates, 471
