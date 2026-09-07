@@ -157,9 +157,9 @@ named column's own semantic type (confirmed against the official ABNF,
 subExpressionConstraint` (a concept reference), `numericComparisonOperator
 ws "#" numericValue`, `stringComparisonOperator ws (typedSearchTerm |
 typedSearchTermSet)`, `booleanComparisonOperator ws booleanValue`, or
-`timeComparisonOperator ws (timeValue | timeValueSet)`. Twenty kinds
-are
-implemented, spanning three of the five shapes (string has seven,
+`timeComparisonOperator ws (timeValue | timeValueSet)`. Twenty-one
+kinds are
+implemented, spanning three of the five shapes (string has eight,
 concept reference has eight, numeric has five):
 
 - `mapTarget (=|!=) (typedSearchTerm | typedSearchTermSet)` — the same
@@ -322,10 +322,19 @@ concept reference has eight, numeric has five):
   now live on the same row, tested against the same
   `SnapshotStore::mrcm_domain_member_rows`, no new row-set check
   needed.
+- `proximalPrimitiveRefinement (=|!=) (typedSearchTerm |
+  typedSearchTermSet)` — the same string-search shape and the same
+  `TermFilter`/`term_matches` machinery as
+  `mapTarget`/`domainConstraint`/`parentDomain`/
+  `proximalPrimitiveConstraint`, matched against the member row's own
+  `proximalPrimitiveRefinement` column. `MrcmDomainRefsetMember`'s
+  fourth column — all four of its columns now live on the same row,
+  tested against the same `SnapshotStore::mrcm_domain_member_rows`, no
+  new row-set check needed.
 
-All twenty reuse the shared dispatch `mapTarget` introduced (renamed
-`typed_field_row_matches` once a non-map type joined it): a block
-naming *any* of the twenty kinds is tested against
+All twenty-one reuse the shared dispatch `mapTarget` introduced
+(renamed `typed_field_row_matches` once a non-map type joined it): a
+block naming *any* of the twenty-one kinds is tested against
 `SimpleMap`/`ExtendedMap`/`Association`/`AttributeValue`/`OwlExpression`/
 `OrderedComponent`/`OrderedAssociation`/`MrcmModuleScope`/
 `RefsetDescriptor`/`DescriptionType`/`MrcmDomain`
@@ -339,7 +348,8 @@ any of `correlationId`/
 `targetComponentId`/`valueId`/`owlExpression`/`order`/
 `mrcmRuleRefsetId`/`attributeDescription`/`attributeType`/
 `attributeOrder`/`descriptionFormat`/`descriptionLength`/
-`domainConstraint`/`parentDomain`/`proximalPrimitiveConstraint` (the
+`domainConstraint`/`parentDomain`/`proximalPrimitiveConstraint`/
+`proximalPrimitiveRefinement` (the
 column is
 simply
 absent on that row source, the same "not this row's type" answer a
@@ -347,7 +357,8 @@ shared-column filter gets from a row of the wrong refset type), so it
 can never be a spurious match.
 
 **Not implemented:** every other `memberFieldFilter` column, and both
-remaining shapes — boolean, time (`domainConstraint`, `grouped`, and
+remaining shapes — boolean, time (`domainTemplateForPrecoordination`,
+`grouped`, and
 the rest — see `spec/10-ecl-unimplemented.md`); the store retention
 that made these columns possible already covers every non-Simple/
 Language refset type (decided 2026-09-03, `plan.md`'s "Open decisions"),

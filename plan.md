@@ -232,7 +232,7 @@ and harmonizes it with the sibling repositories (`hl7-rust`, `er7-rust`,
        Simple/Language types* — symmetric with the `member_rows` choice,
        but the per-row cost is no longer a uniform 48 bytes: MRCM/
        RefsetDescriptor rows carry several `String`s each
-       (`proximalPrimitiveRefinement`, `guideURL`, …), so the
+       (`domainTemplateForPrecoordination`, `guideURL`, …), so the
        ~300 MB precedent figure does not transfer without re-measuring
        each type. Answers every field, at a cost nobody has priced type
        by type yet.
@@ -255,9 +255,10 @@ and harmonizes it with the sibling repositories (`hl7-rust`, `er7-rust`,
   `targetComponentId`, `valueId`, `owlExpression`, `order`,
   `mrcmRuleRefsetId`, `attributeDescription`, `attributeType`,
   `attributeOrder`, `descriptionFormat`, `descriptionLength`,
-  `domainConstraint`, `parentDomain`, and
-  `proximalPrimitiveConstraint` are the
-  first twenty-one
+  `domainConstraint`, `parentDomain`,
+  `proximalPrimitiveConstraint`, and
+  `proximalPrimitiveRefinement` are the
+  first twenty-two
   concrete fields
   built on this retention (`snomed-ecl`, spec/10 rule 18): the
   `memberFieldFilter` grammar alternative, tested against
@@ -275,7 +276,8 @@ and harmonizes it with the sibling repositories (`hl7-rust`, `er7-rust`,
   five, chosen by the named column's own semantic type (confirmed
   against the official ABNF): `mapTarget`/`mapRule`/`mapAdvice`/
   `owlExpression`/`domainConstraint`/`parentDomain`/
-  `proximalPrimitiveConstraint` the string-search
+  `proximalPrimitiveConstraint`/`proximalPrimitiveRefinement` the
+  string-search
   shape, `correlationId`/`mapCategoryId`/
   `targetComponentId`/`valueId`/`mrcmRuleRefsetId`/`attributeDescription`/
   `attributeType`/`descriptionFormat`
@@ -295,8 +297,9 @@ and harmonizes it with the sibling repositories (`hl7-rust`, `er7-rust`,
   `valueId`/`owlExpression`/`order`/`mrcmRuleRefsetId`/
   `attributeDescription`/`attributeType`/`attributeOrder`/
   `descriptionFormat`/`descriptionLength`/`domainConstraint`/
-  `parentDomain`/`proximalPrimitiveConstraint` are the
-  first thirteen fields on refset
+  `parentDomain`/`proximalPrimitiveConstraint`/
+  `proximalPrimitiveRefinement` are the
+  first fourteen fields on refset
   types
   other than the two
   map types (`AssociationRefsetMember`/`AttributeValueRefsetMember`/
@@ -308,8 +311,8 @@ and harmonizes it with the sibling repositories (`hl7-rust`, `er7-rust`,
   confirming the same store retention and dispatch pattern generalizes
   past `ExtendedMap`/`SimpleMap` across every grammar shape, not just
   the concept-reference one. Every
-  other `memberFieldFilter` column (`proximalPrimitiveRefinement`,
-  `grouped`, …)
+  other `memberFieldFilter` column
+  (`domainTemplateForPrecoordination`, `grouped`, …)
   remains rejected generically —
   not by a fixed keyword list (`refsetFieldName` is `1*alpha`, confirmed
   against the official ABNF) — but each is now a free `snomed-ecl`
@@ -325,9 +328,9 @@ and harmonizes it with the sibling repositories (`hl7-rust`, `er7-rust`,
 ## Current status
 
 All eight phases above are closed. As of `memberFieldFilter`'s
-`proximalPrimitiveConstraint` (2026-09-07, below) the
+`proximalPrimitiveRefinement` (2026-09-07, below) the
 workspace is 9 published
-crates with zero dependencies, 471 tests, a clean
+crates with zero dependencies, 475 tests, a clean
 `cargo clippy --all-targets`, 13 fuzz targets, and six criterion
 benchmark files. What is *not* done is tracked
 in two places and nowhere
@@ -413,9 +416,12 @@ string-search shape this time, another genuinely new variant since no
 implemented column shares its RF2 field name; `parentDomain`
 (2026-09-07) is `MrcmDomainRefsetMember`'s second column, another
 genuinely new variant, needing no new row-set check since both columns
-share one row; and `proximalPrimitiveConstraint` (2026-09-07) is
+share one row; `proximalPrimitiveConstraint` (2026-09-07) is
 `MrcmDomainRefsetMember`'s third column, another genuinely new
 variant, again no new row-set check since all three columns share one
+row; and `proximalPrimitiveRefinement` (2026-09-07) is
+`MrcmDomainRefsetMember`'s fourth column, another genuinely new
+variant, again no new row-set check since all four columns share one
 row. In between, the `ecl_parse` fuzz target's CI smoke run caught
 a real stack overflow on pathologically deep `(`/refinement/
 attribute-set nesting (2026-09-04) — fixed with a shared `Parser::depth`

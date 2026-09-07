@@ -306,6 +306,7 @@ fn member_row_matches(
                 | MemberFilterKind::DomainConstraint(_)
                 | MemberFilterKind::ParentDomain(_)
                 | MemberFilterKind::ProximalPrimitiveConstraint(_)
+                | MemberFilterKind::ProximalPrimitiveRefinement(_)
         )
     }) {
         return typed_field_row_matches(
@@ -356,7 +357,8 @@ fn member_row_matches(
 /// last, populated from the same row. `domain_constraint` is the first
 /// field from `MrcmDomainRefsetMember`, a ninth refset type outside
 /// the two map types; `parent_domain` is its second,
-/// `proximal_primitive_constraint` its third, both populated from the
+/// `proximal_primitive_constraint` its third,
+/// `proximal_primitive_refinement` its fourth, all populated from the
 /// same row.
 #[derive(Default)]
 struct TypedFields<'a> {
@@ -380,6 +382,7 @@ struct TypedFields<'a> {
     domain_constraint: Option<&'a str>,
     parent_domain: Option<&'a str>,
     proximal_primitive_constraint: Option<&'a str>,
+    proximal_primitive_refinement: Option<&'a str>,
 }
 
 /// The `mapTarget`/`correlationId`/`mapGroup`/`mapPriority`/`mapRule`/
@@ -655,6 +658,7 @@ fn typed_field_row_matches(
                             domain_constraint: Some(&row.domain_constraint),
                             parent_domain: Some(&row.parent_domain),
                             proximal_primitive_constraint: Some(&row.proximal_primitive_constraint),
+                            proximal_primitive_refinement: Some(&row.proximal_primitive_refinement),
                             ..TypedFields::default()
                         },
                     )
@@ -812,7 +816,8 @@ fn prepare_member_filter(filter: &MemberFilterKind, store: &SnapshotStore) -> Pr
         | MemberFilterKind::OwlExpression(TermFilter { values, .. })
         | MemberFilterKind::DomainConstraint(TermFilter { values, .. })
         | MemberFilterKind::ParentDomain(TermFilter { values, .. })
-        | MemberFilterKind::ProximalPrimitiveConstraint(TermFilter { values, .. }) => {
+        | MemberFilterKind::ProximalPrimitiveConstraint(TermFilter { values, .. })
+        | MemberFilterKind::ProximalPrimitiveRefinement(TermFilter { values, .. }) => {
             PreparedMemberFilter::Term(
                 values
                     .iter()
@@ -1111,6 +1116,22 @@ fn member_filter_matches(
             };
             let matches = values.iter().zip(searches).any(|(search, prepared)| {
                 term_matches(proximal_primitive_constraint, search, prepared)
+            });
+            matches != *negated
+        }
+        MemberFilterKind::ProximalPrimitiveRefinement(TermFilter { negated, values }) => {
+            let PreparedMemberFilter::Term(searches) = prepared else {
+                unreachable!("a proximalPrimitiveRefinement filter prepares to `Term`")
+            };
+            // No `proximal_primitive_refinement` on this row source
+            // (every source but `MrcmDomain`'s own): never matches,
+            // same reasoning as `ProximalPrimitiveConstraint`'s `None`
+            // case above.
+            let Some(proximal_primitive_refinement) = fields.proximal_primitive_refinement else {
+                return false;
+            };
+            let matches = values.iter().zip(searches).any(|(search, prepared)| {
+                term_matches(proximal_primitive_refinement, search, prepared)
             });
             matches != *negated
         }
@@ -5539,6 +5560,151 @@ mod tests {
             ),
             HashSet::new(),
             "wrong proximalPrimitiveConstraint on the only row rules it out"
+        );
+    }
+
+    /// `proximalPrimitiveRefinement` (spec/10 rule 18) — the
+    /// twenty-first `memberFieldFilter` column, and
+    /// `MrcmDomainRefsetMember`'s fourth column (after
+    /// `domainConstraint`/`parentDomain`/`proximalPrimitiveConstraint`).
+    /// String-search shape, reusing `mapTarget`/`domainConstraint`'s
+    /// exact grammar and `term_matches`, tested against the same
+    /// eleventh typed row set the other three columns use — no new
+    /// row-set check needed. Also proves `{{ M }}` after `^R` reaches
+    /// it.
+    #[test]
+    fn member_filter_proximal_primitive_refinement_matches_mrcm_domain_rows() {
+        let mrcm_domain = SctId::compose(9970, ComponentType::Concept, None).unwrap();
+        let mut b = SnapshotStore::builder();
+        b.add_concept(concept(MI));
+        b.add_mrcm_domain_member(MrcmDomainRefsetMember {
+            core: RefsetMemberCore {
+                id: MemberId::parse("80000000-0000-4000-8000-000000000149").unwrap(),
+                effective_time: EffectiveTime::new_unchecked(20190731),
+                active: true,
+                module_id: constants::CORE_MODULE,
+                refset_id: mrcm_domain,
+                referenced_component_id: MI,
+            },
+            domain_constraint: "<< 404684003".to_string(),
+            parent_domain: "<< 138875005".to_string(),
+            proximal_primitive_constraint: "<< 71388002".to_string(),
+            proximal_primitive_refinement: "{ 116676008 = 415582006 }".to_string(),
+            domain_template_for_precoordination: String::new(),
+            domain_template_for_postcoordination: String::new(),
+            guide_url: String::new(),
+        });
+        let store = b.build();
+
+        assert_eq!(
+            eval(
+                &format!("^ {mrcm_domain} {{{{ M proximalPrimitiveRefinement = \"719989006\" }}}}"),
+                &store
+            ),
+            HashSet::new(),
+            "the row's own proximalPrimitiveRefinement doesn't match"
+        );
+        assert_eq!(
+            eval(
+                &format!("^ {mrcm_domain} {{{{ M proximalPrimitiveRefinement = \"116676008\" }}}}"),
+                &store
+            ),
+            HashSet::from([MI])
+        );
+        // `^R` reaches the same row, through the shared row-matching path.
+        assert_eq!(
+            eval(
+                &format!("^R {MI} {{{{ M proximalPrimitiveRefinement = \"116676008\" }}}}"),
+                &store
+            ),
+            HashSet::from([mrcm_domain])
+        );
+    }
+
+    /// `DescriptionTypeRefsetMember`/every other typed row source has no
+    /// `proximalPrimitiveRefinement` column — a membership that exists
+    /// only there must never match, the same "column absent on this
+    /// row source" case every other field filter has for the row types
+    /// it doesn't apply to.
+    #[test]
+    fn member_filter_proximal_primitive_refinement_never_matches_description_type_rows() {
+        let description_type = SctId::compose(9971, ComponentType::Concept, None).unwrap();
+        let plain_text = SctId::compose(9972, ComponentType::Concept, None).unwrap();
+        let mut b = SnapshotStore::builder();
+        b.add_concept(concept(MI));
+        b.add_concept(concept(plain_text));
+        b.add_description_type_member(DescriptionTypeRefsetMember {
+            core: RefsetMemberCore {
+                id: MemberId::parse("80000000-0000-4000-8000-000000000150").unwrap(),
+                effective_time: EffectiveTime::new_unchecked(20190731),
+                active: true,
+                module_id: constants::CORE_MODULE,
+                refset_id: description_type,
+                referenced_component_id: MI,
+            },
+            description_format_id: plain_text,
+            description_length: 255,
+        });
+        let store = b.build();
+
+        assert_eq!(
+            eval(
+                &format!(
+                    "^ {description_type} {{{{ M proximalPrimitiveRefinement = \"116676008\" }}}}"
+                ),
+                &store
+            ),
+            HashSet::new()
+        );
+    }
+
+    /// `domainConstraint`/`parentDomain`/`proximalPrimitiveConstraint`/
+    /// `proximalPrimitiveRefinement` all four live on the same
+    /// `MrcmDomainRefsetMember` row (spec/08) — a block naming any
+    /// combination of the four is satisfied by that one row, not by
+    /// separate rows each matching one filter.
+    #[test]
+    fn member_filter_all_four_mrcm_domain_string_columns_conjoin_on_the_same_row() {
+        let mrcm_domain = SctId::compose(9973, ComponentType::Concept, None).unwrap();
+        let mut b = SnapshotStore::builder();
+        b.add_concept(concept(MI));
+        b.add_mrcm_domain_member(MrcmDomainRefsetMember {
+            core: RefsetMemberCore {
+                id: MemberId::parse("80000000-0000-4000-8000-000000000151").unwrap(),
+                effective_time: EffectiveTime::new_unchecked(20190731),
+                active: true,
+                module_id: constants::CORE_MODULE,
+                refset_id: mrcm_domain,
+                referenced_component_id: MI,
+            },
+            domain_constraint: "<< 404684003".to_string(),
+            parent_domain: "<< 138875005".to_string(),
+            proximal_primitive_constraint: "<< 71388002".to_string(),
+            proximal_primitive_refinement: "{ 116676008 = 415582006 }".to_string(),
+            domain_template_for_precoordination: String::new(),
+            domain_template_for_postcoordination: String::new(),
+            guide_url: String::new(),
+        });
+        let store = b.build();
+
+        assert_eq!(
+            eval(
+                &format!(
+                    "^ {mrcm_domain} {{{{ M domainConstraint = \"404684003\", parentDomain = \"138875005\", proximalPrimitiveConstraint = \"71388002\", proximalPrimitiveRefinement = \"116676008\" }}}}"
+                ),
+                &store
+            ),
+            HashSet::from([MI])
+        );
+        assert_eq!(
+            eval(
+                &format!(
+                    "^ {mrcm_domain} {{{{ M domainConstraint = \"404684003\", proximalPrimitiveRefinement = \"719989006\" }}}}"
+                ),
+                &store
+            ),
+            HashSet::new(),
+            "wrong proximalPrimitiveRefinement on the only row rules it out"
         );
     }
 

@@ -13,6 +13,28 @@ together, in dependency order (`snomed-core` → `snomed-rf2` → `snomed-owl`
 
 ## [Unreleased]
 
+### Added
+
+- `snomed-ecl`: `{{ M proximalPrimitiveRefinement = "{ 116676008 =
+  415582006 }" }}` restricts to `MrcmDomain` member rows whose own
+  `proximalPrimitiveRefinement` column matches — the same
+  `match:`/`wild:`/`exact:` search-term grammar
+  `mapTarget`/`domainConstraint`/`parentDomain`/
+  `proximalPrimitiveConstraint` use (reusing `TermFilter`'s exact
+  shape and `term_matches`). Works after both `^` and `^R`, and
+  conjoins with `domainConstraint`/`parentDomain`/
+  `proximalPrimitiveConstraint` and the other shared-column kinds on
+  the same member row — all four `MrcmDomainRefsetMember` string
+  columns live on the same row, so a block naming any combination is
+  satisfied by that one row. Only `MrcmDomainRefsetMember` rows carry
+  a `proximalPrimitiveRefinement` column; every other row source never
+  matches. `memberFieldFilter`'s twenty-first column, and
+  `MrcmDomainRefsetMember`'s fourth. Needed a genuinely new
+  `MemberFilterKind` variant (no implemented column shares this RF2
+  field name) but no new row-set check, reusing
+  `domainConstraint`/`parentDomain`/`proximalPrimitiveConstraint`'s
+  `SnapshotStore::mrcm_domain_member_rows`.
+
 ## [0.35.0] — 2026-09-07
 
 **New ECL capability, additive.** `{{ M ... }}`'s `memberFieldFilter`

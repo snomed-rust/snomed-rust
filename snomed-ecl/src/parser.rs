@@ -658,11 +658,20 @@ impl Parser {
                     values,
                 }))
             }
+            TokenKind::Word(word) if word == "proximalPrimitiveRefinement" => {
+                self.advance()?;
+                let negated = self.parse_boolean_comparison_operator()?;
+                let values = self.parse_typed_search_term_set()?;
+                Ok(MemberFilterKind::ProximalPrimitiveRefinement(TermFilter {
+                    negated,
+                    values,
+                }))
+            }
             _ => {
                 let tok = self.peek().clone();
                 Err(Self::unexpected(
                     &tok,
-                    "`moduleId`, `effectiveTime`, `active`, `mapTarget`, `correlationId`, `mapGroup`, `mapPriority`, `mapRule`, `mapAdvice`, `mapCategoryId`, `targetComponentId`, `valueId`, `owlExpression`, `order`, `mrcmRuleRefsetId`, `attributeDescription`, `attributeType`, `attributeOrder`, `descriptionFormat`, `descriptionLength`, `domainConstraint`, `parentDomain`, or `proximalPrimitiveConstraint`",
+                    "`moduleId`, `effectiveTime`, `active`, `mapTarget`, `correlationId`, `mapGroup`, `mapPriority`, `mapRule`, `mapAdvice`, `mapCategoryId`, `targetComponentId`, `valueId`, `owlExpression`, `order`, `mrcmRuleRefsetId`, `attributeDescription`, `attributeType`, `attributeOrder`, `descriptionFormat`, `descriptionLength`, `domainConstraint`, `parentDomain`, `proximalPrimitiveConstraint`, or `proximalPrimitiveRefinement`",
                 ))
             }
         }
@@ -2203,6 +2212,38 @@ mod tests {
         assert_eq!(values[0].search_type, crate::ast::SearchType::Match);
     }
 
+    /// `proximalPrimitiveRefinement` (spec/10 rule 18) — the
+    /// twenty-first `memberFieldFilter` column, and
+    /// `MrcmDomainRefsetMember`'s fourth column (after
+    /// `domainConstraint`/`parentDomain`/`proximalPrimitiveConstraint`).
+    /// String-search shape, reusing `mapTarget`/`domainConstraint`'s
+    /// exact grammar. No other implemented column shares this RF2
+    /// field name, so it's a genuinely new variant.
+    #[test]
+    fn parses_member_filter_proximal_primitive_refinement() {
+        let EC::MemberFilter { filters, .. } = parse(
+            "^ 723592007 {{ M proximalPrimitiveRefinement = \"{ 116676008 = 415582006 }\" }}",
+        )
+        .unwrap() else {
+            panic!("expected a member filter");
+        };
+        assert_eq!(filters.len(), 1);
+        let crate::ast::MemberFilterKind::ProximalPrimitiveRefinement(crate::ast::TermFilter {
+            negated,
+            values,
+        }) = &filters[0]
+        else {
+            panic!(
+                "expected a ProximalPrimitiveRefinement filter, got {:?}",
+                filters[0]
+            );
+        };
+        assert!(!negated);
+        assert_eq!(values.len(), 1);
+        assert_eq!(values[0].text, "{ 116676008 = 415582006 }");
+        assert_eq!(values[0].search_type, crate::ast::SearchType::Match);
+    }
+
     /// `mapGroup` (spec/10 rule 18) — the third `memberFieldFilter`
     /// column implemented, and the first to use the numeric grammar
     /// shape (`numericComparisonOperator ws "#" numericValue`, the same
@@ -2308,7 +2349,7 @@ mod tests {
     #[test]
     fn rejects_an_unrecognized_member_field_filter_generically() {
         assert!(matches!(
-            parse("^ 447562003 {{ M proximalPrimitiveRefinement = \"x\" }}"),
+            parse("^ 447562003 {{ M domainTemplateForPrecoordination = \"x\" }}"),
             Err(EclError::UnexpectedKeyword { .. })
         ));
     }
