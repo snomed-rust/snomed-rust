@@ -45,12 +45,46 @@ release 0.32.0, `memberFieldFilter`'s `descriptionLength` column
 `domainConstraint` column (2026-09-07), release 0.34.0,
 `memberFieldFilter`'s `parentDomain` column (2026-09-07),
 `memberFieldFilter`'s `proximalPrimitiveRefinement` column
-(2026-09-07), and the GitLab SSH outage that spanned releases
-0.30.0-0.34.0 (resolved 2026-09-07), live in
+(2026-09-07), the GitLab SSH outage that spanned releases
+0.30.0-0.34.0 (resolved 2026-09-07), release 0.37.0, and
+`memberFieldFilter`'s `domainTemplateForPrecoordination` column
+(2026-09-08), live in
 [`docs/tasks-archive.md`](docs/tasks-archive.md) — moved there verbatim,
 most recently on 2026-09-08, to keep this file inside the repository's
 40 KB per-document budget. Search both when asking "has this come up
 before".
+
+## Done (2026-09-08, Release 0.39.0 — `memberFieldFilter`'s `guideURL`, completes `MrcmDomain`'s column coverage, twenty-seventh self-decided release)
+
+- [x] **Decided and executed the release itself**, per §1-5 of
+      `spec/ai-release-authority/`: §1 CI independently green on the
+      pushed merge commit (`35b7781`, all jobs, confirmed via `gh run
+      view` on the exact commit); §2 `CHANGELOG.md`'s `[Unreleased]`
+      verified against the actual diff and moved under `## [0.39.0]`,
+      minor bump (purely additive: new `MemberFilterKind::GuideUrl`
+      variant, one new `TypedFields` field, no new row-set check —
+      nothing removed or changed signature); §3 no rule oversteps —
+      needed a genuinely new variant (no existing column shares the
+      RF2 field name `guideURL`), the same kind of routine
+      grammar-coverage call this authority already covers, not a
+      `plan.md` "Open decisions" item; §4 all nine crates, one
+      version, standard dependency order; §5 tagged `v0.39.0` (signed,
+      verified against the merge commit) and ran `cargo publish` for
+      each crate in order, all nine succeeding cleanly.
+- [x] **Verified against crates.io's own API afterward**: `GET
+      /api/v1/crates/<name>` for all nine names returns
+      `max_version: "0.39.0"`.
+- [x] Version bumped everywhere the 0.13.0-0.38.0 precedent bumped it:
+      `Cargo.toml` (workspace + seven pins), `CITATION.cff`, `NEWS.md`,
+      `INSTALL.md`, `SECURITY.md`.
+- [x] Same `release/0.39.0` branch/merge shape as 0.12.0-0.38.0, not a
+      direct commit to `main`; branch deleted locally once GitHub and
+      Codeberg confirmed the merge commit and CI came back green.
+- [x] All three forges pushed cleanly via `git push origin` in one
+      command, for both `main` and the `v0.39.0` tag — the fifth
+      release in a row with no GitLab connectivity issue.
+- [x] Verified: build/clippy/fmt/test (485/485)/check-docs/
+      check-trademarks/spec_citations all clean before tagging.
 
 ## Done (2026-09-08, ECL `{{ M ... }}` `memberFieldFilter`: `guideURL`, `MrcmDomain`'s seventh and last column, no new row-set check, completes column coverage)
 
@@ -192,78 +226,6 @@ before".
 - [x] Verified: build/clippy/fmt/test (482/482)/check-docs/
       check-trademarks/spec_citations all clean.
 
-## Done (2026-09-08, Release 0.37.0 — `memberFieldFilter`'s `domainTemplateForPrecoordination`, twenty-fifth self-decided release)
-
-- [x] **Decided and executed the release itself**, per §1-5 of
-      `spec/ai-release-authority/`: §1 CI independently green on the
-      pushed merge commit (`5e90198`, all jobs, confirmed via `gh run
-      view` on the exact commit); §2 `CHANGELOG.md`'s `[Unreleased]`
-      verified against the actual diff and moved under `## [0.37.0]`,
-      minor bump (purely additive: new
-      `MemberFilterKind::DomainTemplateForPrecoordination` variant,
-      one new `TypedFields` field, no new row-set check — nothing
-      removed or changed signature); §3 no rule oversteps — needed a
-      genuinely new variant (no existing column shares the RF2 field
-      name `domainTemplateForPrecoordination`), the same kind of
-      routine grammar-coverage call this authority already covers, not
-      a `plan.md` "Open decisions" item; §4 all nine crates, one
-      version, standard dependency order; §5 tagged `v0.37.0` (signed,
-      verified against the merge commit) and ran `cargo publish` for
-      each crate in order, all nine succeeding cleanly.
-- [x] **Verified against crates.io's own API afterward**: `GET
-      /api/v1/crates/<name>` for all nine names returns
-      `max_version: "0.37.0"`.
-- [x] Version bumped everywhere the 0.13.0-0.36.0 precedent bumped it:
-      `Cargo.toml` (workspace + seven pins), `CITATION.cff`, `NEWS.md`,
-      `INSTALL.md`, `SECURITY.md`.
-- [x] Same `release/0.37.0` branch/merge shape as 0.12.0-0.36.0, not a
-      direct commit to `main`; branch deleted locally once GitHub and
-      Codeberg confirmed the merge commit and CI came back green.
-- [x] All three forges pushed cleanly via `git push origin` in one
-      command, for both `main` and the `v0.37.0` tag — the third
-      release in a row with no GitLab connectivity issue.
-- [x] Verified: build/clippy/fmt/test (479/479)/check-docs/
-      check-trademarks/spec_citations all clean before tagging.
-
-## Done (2026-09-08, ECL `{{ M ... }}` `memberFieldFilter`: `domainTemplateForPrecoordination`, `MrcmDomain`'s fifth column, no new row-set check)
-
-- [x] **`snomed-ecl`**: `MemberFilterKind::DomainTemplateForPrecoordination(TermFilter)`
-      — `domainTemplateForPrecoordination (=|!=) (typedSearchTerm |
-      typedSearchTermSet)`, reusing `mapTarget`/`domainConstraint`/
-      `parentDomain`/`proximalPrimitiveConstraint`/
-      `proximalPrimitiveRefinement`'s exact string-search grammar and
-      `term_matches` verbatim, on `MrcmDomainRefsetMember` again (its
-      fifth column) — the twenty-second `memberFieldFilter` column. No
-      implemented column shares the RF2 field name
-      `domainTemplateForPrecoordination`, so this genuinely needed a
-      new variant. Like the type's other three non-first columns, no
-      new row-set check was needed — all five of
-      `MrcmDomainRefsetMember`'s columns now live on the same row, so
-      the existing `mrcm_domain_member_rows` block just grew a fifth
-      `TypedFields` entry.
-- [x] 4 new tests (parser: one shape test; eval: matches `MrcmDomain`
-      rows after both `^` and `^R`, never matches `DescriptionType`
-      rows, and — updated for this "five fields, one row" case — a new
-      test proving all five of `MrcmDomainRefsetMember`'s columns
-      conjoin on the same row together) — 479/479 total, up from 475.
-      Also fixed `rejects_an_unrecognized_member_field_filter_generically`
-      a fifth time, which had used `domainTemplateForPrecoordination`
-      itself as its unrecognized-keyword example — switched to
-      `domainTemplateForPostcoordination` (still unimplemented,
-      `MrcmDomainRefsetMember`'s sixth column).
-- [x] Updated: `spec/10-ecl-filters.md` (new bullet, dispatch-list and
-      shape-count updates — twenty-two kinds, string-search now nine
-      of them), `spec/10-ecl-unimplemented.md` (keyword list, narrative
-      history, swapped the unimplemented-column example a third time,
-      to `domainTemplateForPostcoordination`), `snomed-ecl/src/lib.rs`,
-      `snomed-ecl/README.md` (table row, not-yet-implemented list, same
-      example swap), `agents/ecl-engineer.md`, `agents/store-engineer.md`
-      (ten consumers outside the map types, still eleven row-set checks
-      total), `plan.md` (Open decisions paragraph, Current status test
-      count, Since 0.9.0 narrative), `CHANGELOG.md`.
-- [x] Verified: build/clippy/fmt/test (479/479)/check-docs/
-      check-trademarks/spec_citations all clean.
-
 ## Done (2026-09-07, Release 0.36.0 — `memberFieldFilter`'s `proximalPrimitiveRefinement`, twenty-fourth self-decided release)
 
 - [x] **Decided and executed the release itself**, per §1-5 of
@@ -308,7 +270,7 @@ before".
 ## Next up
 
 - [ ] Nothing currently scoped beyond the `{{ M ... }}` remainder below.
-      State as of 2026-09-08: **0.38.0 released** — `mapTarget` (0.15.0),
+      State as of 2026-09-08: **0.39.0 released** — `mapTarget` (0.15.0),
       `correlationId` (0.16.0), `mapGroup` (0.17.0), `mapPriority`
       (0.18.0), `mapRule` (0.19.0), `mapAdvice` plus the `ecl_parse`
       fuzz-caught recursion-depth guard (spec/10 rule 19, 0.20.0),
@@ -353,7 +315,7 @@ before".
       row), `domainTemplateForPostcoordination` (0.38.0 —
       `MrcmDomainRefsetMember`'s sixth column, another genuinely new
       variant, no new row-set check since all six columns share one
-      row), and `guideURL` (see Done above,
+      row), and `guideURL` (0.39.0 —
       `MrcmDomainRefsetMember`'s seventh and last column, another
       genuinely new variant, no new row-set check since all seven
       columns share one row — completing that type's column coverage,
@@ -384,8 +346,7 @@ before".
       outside the two map types with full column coverage.
       `{{ M ... }}` after `^`
       (0.13.0), after `^R` (0.14.0), and its `memberFieldFilter`
-      alternative (0.15.0-0.38.0, plus `guideURL` implemented and
-      committed but not yet released),
+      alternative (0.15.0-0.39.0),
       all decided and executed under
       `spec/ai-release-authority/`'s criteria rather than a fresh
       per-release maintainer go-ahead (see `CHANGELOG.md`). 9 crates, 485

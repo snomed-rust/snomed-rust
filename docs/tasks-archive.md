@@ -1,7 +1,7 @@
 # Tasks archive — index
 
 [`tasks.md`](../tasks.md) keeps the current checklist and the recent
-entries; everything older lives here, split into thirty-seven files
+entries; everything older lives here, split into thirty-eight files
 that each
 stay inside the repository's 40 KB per-document budget. Entries were moved
 verbatim — this is a historical record, not a summary, and it is worth
@@ -49,6 +49,7 @@ so the paths quoted here still resolve.
 | [`tasks-archive-35.md`](tasks-archive-35.md) | 2026-09-07 | Release 0.35.0 (the first release in a row with no GitLab connectivity issue); `memberFieldFilter`'s `proximalPrimitiveConstraint` column (`MrcmDomainRefsetMember`'s third column) |
 | [`tasks-archive-36.md`](tasks-archive-36.md) | 2026-09-07 | Release 0.34.0; `memberFieldFilter`'s `parentDomain` column (`MrcmDomainRefsetMember`'s second column) |
 | [`tasks-archive-37.md`](tasks-archive-37.md) | 2026-09-07 | `memberFieldFilter`'s `proximalPrimitiveRefinement` column (`MrcmDomainRefsetMember`'s fourth column); the GitLab SSH outage resolved (releases 0.30.0-0.34.0, all three forges back in sync) |
+| [`tasks-archive-38.md`](tasks-archive-38.md) | 2026-09-08 | Release 0.37.0; `memberFieldFilter`'s `domainTemplateForPrecoordination` column (`MrcmDomainRefsetMember`'s fifth column) |
 
 Older entries are shorter and more granular than recent ones: they were
 written a change at a time while the workspace was being built from
