@@ -1,7 +1,7 @@
 # Tasks archive — index
 
 [`tasks.md`](../tasks.md) keeps the current checklist and the recent
-entries; everything older lives here, split into thirty-five files
+entries; everything older lives here, split into thirty-six files
 that each
 stay inside the repository's 40 KB per-document budget. Entries were moved
 verbatim — this is a historical record, not a summary, and it is worth
@@ -47,6 +47,7 @@ so the paths quoted here still resolve.
 | [`tasks-archive-33.md`](tasks-archive-33.md) | 2026-09-07 | Release 0.32.0; `memberFieldFilter`'s `descriptionLength` column (`DescriptionTypeRefsetMember`'s second and last column, the second refset type outside the two map types with full column coverage) |
 | [`tasks-archive-34.md`](tasks-archive-34.md) | 2026-09-07 | Release 0.33.0; `memberFieldFilter`'s `domainConstraint` column (the first filterable column on `MrcmDomainRefsetMember`, a ninth refset type outside the two map types, and the first of those nine on the string-search shape) |
 | [`tasks-archive-35.md`](tasks-archive-35.md) | 2026-09-07 | Release 0.35.0 (the first release in a row with no GitLab connectivity issue); `memberFieldFilter`'s `proximalPrimitiveConstraint` column (`MrcmDomainRefsetMember`'s third column) |
+| [`tasks-archive-36.md`](tasks-archive-36.md) | 2026-09-07 | Release 0.34.0; `memberFieldFilter`'s `parentDomain` column (`MrcmDomainRefsetMember`'s second column) |
 
 Older entries are shorter and more granular than recent ones: they were
 written a change at a time while the workspace was being built from

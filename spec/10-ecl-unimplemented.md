@@ -83,8 +83,9 @@ token shape:
   `mrcmRuleRefsetId`/`attributeDescription`/`attributeType`/
   `attributeOrder`/`descriptionFormat`/`descriptionLength`/
   `domainConstraint`/`parentDomain`/`proximalPrimitiveConstraint`/
-  `proximalPrimitiveRefinement`/`domainTemplateForPrecoordination`
-  — a refset-type-specific column (`domainTemplateForPostcoordination`,
+  `proximalPrimitiveRefinement`/`domainTemplateForPrecoordination`/
+  `domainTemplateForPostcoordination`
+  — a refset-type-specific column (`guideURL`,
   `grouped`, …), as
   opposed to the three shared-column kinds
   (`moduleId`/`effectiveTime`/`active`) implemented 2026-09-01 after both
@@ -186,7 +187,12 @@ token shape:
   `domainTemplateForPrecoordination` (2026-09-08) — the ninth
   string-search-shape column, `MrcmDomainRefsetMember`'s fifth column
   (all five columns share one row) — reuses `mapTarget`'s grammar
-  verbatim, no new row-set check needed.
+  verbatim, no new row-set check needed;
+  `domainTemplateForPostcoordination` (2026-09-08) — the tenth
+  string-search-shape column, `MrcmDomainRefsetMember`'s sixth column
+  (all six columns share one row) — reuses `mapTarget`'s grammar
+  verbatim, no new row-set check needed. `guideURL` is the one
+  remaining `MrcmDomainRefsetMember` column.
   Boolean and time remain unimplemented, with no example yet. See
   `SnapshotStore::simple_map_member_rows`/`extended_map_member_rows`/
   `association_member_rows` and

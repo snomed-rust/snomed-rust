@@ -416,6 +416,10 @@ row. `domainTemplateForPrecoordination` (2026-09-08),
 `MrcmDomainRefsetMember`'s fifth column, followed immediately too:
 another genuinely new variant (`DomainTemplateForPrecoordination`),
 again no new row-set check — all five of that type's columns now
+share one row. `domainTemplateForPostcoordination` (2026-09-08),
+`MrcmDomainRefsetMember`'s sixth column, followed immediately too:
+another genuinely new variant (`DomainTemplateForPostcoordination`),
+again no new row-set check — all six of that type's columns now
 share one row. `memberFieldFilter`
 isn't one production but five in the official grammar, chosen by the
 named column's own semantic type
@@ -439,7 +443,7 @@ inspection. `mapPriority` reused that same numeric shape and
 `TermFilter`/`term_matches` verbatim. With the store side now done for
 all sixteen types, every
 *remaining* `memberFieldFilter` column
-(`domainTemplateForPostcoordination`, `grouped`, …)
+(`guideURL`, `grouped`, …)
 IS a free next increment — the cadence below applies to them cleanly,
 the same as any other filter kind. See `spec/10-ecl-unimplemented.md`.
 

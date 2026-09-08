@@ -207,11 +207,12 @@ its inactive rows.
 `attributeDescription`, `attributeType`, `attributeOrder`, and
 `descriptionFormat`/`descriptionLength`/`domainConstraint`/
 `parentDomain`/`proximalPrimitiveConstraint`/
-`proximalPrimitiveRefinement`/`domainTemplateForPrecoordination`
+`proximalPrimitiveRefinement`/`domainTemplateForPrecoordination`/
+`domainTemplateForPostcoordination`
 filters
 (`spec/10-ecl.md` rule
 18) are
-the first twenty-three
+the first twenty-four
 consumers: the first seven dispatch directly to
 `simple_map_member_rows`/`extended_map_member_rows`
 (`correlationId`/`mapGroup`/`mapPriority`/`mapRule`/`mapAdvice`/
@@ -221,8 +222,8 @@ consumers: the first seven dispatch directly to
 `attributeDescription`/`attributeType`/`attributeOrder`/
 `descriptionFormat`/`descriptionLength`/`domainConstraint`/
 `parentDomain`/`proximalPrimitiveConstraint`/`proximalPrimitiveRefinement`/
-`domainTemplateForPrecoordination`
-— the first ten
+`domainTemplateForPrecoordination`/`domainTemplateForPostcoordination`
+— the first eleven
 outside
 the two map types — dispatch to `association_member_rows`/
 `attribute_value_member_rows`/`owl_expression_member_rows`/
@@ -246,8 +247,9 @@ column, both on one row, no new row-set check needed;
 `domainConstraint` needed its own new eleventh row-set check
 (`mrcm_domain_member_rows`) since it's `MrcmDomainRefsetMember`'s
 first filterable column; `parentDomain`/`proximalPrimitiveConstraint`/
-`proximalPrimitiveRefinement`/`domainTemplateForPrecoordination` then
-all reused that same eleventh row set — all five of
+`proximalPrimitiveRefinement`/`domainTemplateForPrecoordination`/
+`domainTemplateForPostcoordination` then
+all reused that same eleventh row set — all six of
 `MrcmDomainRefsetMember`'s columns now share one row, no new row-set
 check needed for any of them. All
 row sets are still

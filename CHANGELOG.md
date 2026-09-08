@@ -13,6 +13,40 @@ together, in dependency order (`snomed-core` → `snomed-rf2` → `snomed-owl`
 
 ## [Unreleased]
 
+**New ECL capability, additive.** `{{ M ... }}`'s `memberFieldFilter`
+gains its twenty-third column, `domainTemplateForPostcoordination` —
+`MrcmDomainRefsetMember`'s sixth column (after
+`domainConstraint`/`parentDomain`/`proximalPrimitiveConstraint`/
+`proximalPrimitiveRefinement`/`domainTemplateForPrecoordination`), after
+both `^` and `^R`. String-search shape, reusing
+`mapTarget`/`domainConstraint`'s exact grammar and `term_matches`;
+needed a genuinely new `MemberFilterKind` variant (no implemented
+column shares this RF2 field name) but no new row-set check, reusing
+the type's existing row set. A minor bump: new public API, no removals
+or signature changes to anything existing.
+
+### Added
+
+- `snomed-ecl`: `{{ M domainTemplateForPostcoordination = "405815000" }}`
+  restricts to `MrcmDomain` member rows whose own
+  `domainTemplateForPostcoordination` column matches — the same
+  `match:`/`wild:`/`exact:` search-term grammar
+  `mapTarget`/`domainConstraint`/`parentDomain`/
+  `proximalPrimitiveConstraint`/`proximalPrimitiveRefinement`/
+  `domainTemplateForPrecoordination` use (reusing `TermFilter`'s exact
+  shape and `term_matches`). Works after both `^` and `^R`, and
+  conjoins with the type's other five columns and the other
+  shared-column kinds on the same member row — all six
+  `MrcmDomainRefsetMember` string columns live on the same row, so a
+  block naming any combination is satisfied by that one row. Only
+  `MrcmDomainRefsetMember` rows carry a
+  `domainTemplateForPostcoordination` column; every other row source
+  never matches. `memberFieldFilter`'s twenty-third column, and
+  `MrcmDomainRefsetMember`'s sixth. Needed a genuinely new
+  `MemberFilterKind` variant (no implemented column shares this RF2
+  field name) but no new row-set check, reusing the type's existing
+  `SnapshotStore::mrcm_domain_member_rows`.
+
 ## [0.37.0] — 2026-09-08
 
 **New ECL capability, additive.** `{{ M ... }}`'s `memberFieldFilter`
@@ -817,43 +851,7 @@ entry; this entry was written afterwards, in 0.11.3.
   descriptions carry two typos ("NOMED®" in `snomed-cli` and
   `snomed-classify`; a trailing ".." in all nine), fixed in 0.11.3.
 
-## [0.11.1] — 2026-08-26
-
-No behavior changes and no API changes: a documentation-only patch release
-that replaces the trademark notice everywhere it appears.
-
-### Changed
-
-- **The trademark notice wording was replaced** with the text specified by
-  the project owner on 2026-08-26:
-
-  > SNOMED®, SNOMED CT®, and IHTSDO® are registered trademarks of
-  > International Health Terminology Standards Development Organisation
-  > (IHTSDO). Use of the trademarks does not constitute endorsement of
-  > this product by IHTSDO.
-
-  The previous wording ("SNOMED® and SNOMED CT® are registered trademarks
-  of the International Health Terminology Standards Development Organisation
-  (IHTSDO), trading as SNOMED International. This project is an independent
-  work: …") is retired; the independent-work sentence ("This project is an
-  independent work: it is not affiliated with, endorsed by, or certified by
-  SNOMED International, and it ships no SNOMED CT content.") is kept
-  alongside the new notice wherever the notice appears. Every notice site
-  changed in step: the root and `help/` markdown documents, the nine
-  crates' rustdoc `# Trademarks` sections, `bin/check-trademarks`'s
-  enforced constant, rule 5 of `spec/professionalization/index.md`, and
-  the outreach draft's quotation.
-- **Each crate's packaged `README.md` now carries a `## Trademarks`
-  section**, so the notice renders on the crates.io page of every crate,
-  not only in the repository and on docs.rs.
-
-### Notes for consumers
-
-- Version 0.11.0 as published on crates.io carries the old notice wording;
-  0.11.1 is the first published version with the owner-specified text.
-  Upgrading is a version-number edit.
-
-Entries for 0.11.0 and earlier live in
+Entries for 0.11.1 and earlier live in
 [`docs/changelog-archive.md`](docs/changelog-archive.md) — moved there
 verbatim to keep this file inside the repository's 40 KB per-document
 budget (rule 1 of `spec/docs-budget-and-links/index.md`).

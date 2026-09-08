@@ -308,6 +308,7 @@ fn member_row_matches(
                 | MemberFilterKind::ProximalPrimitiveConstraint(_)
                 | MemberFilterKind::ProximalPrimitiveRefinement(_)
                 | MemberFilterKind::DomainTemplateForPrecoordination(_)
+                | MemberFilterKind::DomainTemplateForPostcoordination(_)
         )
     }) {
         return typed_field_row_matches(
@@ -360,8 +361,9 @@ fn member_row_matches(
 /// the two map types; `parent_domain` is its second,
 /// `proximal_primitive_constraint` its third,
 /// `proximal_primitive_refinement` its fourth,
-/// `domain_template_for_precoordination` its fifth, all populated from
-/// the same row.
+/// `domain_template_for_precoordination` its fifth,
+/// `domain_template_for_postcoordination` its sixth, all populated
+/// from the same row.
 #[derive(Default)]
 struct TypedFields<'a> {
     map_target: Option<&'a str>,
@@ -386,6 +388,7 @@ struct TypedFields<'a> {
     proximal_primitive_constraint: Option<&'a str>,
     proximal_primitive_refinement: Option<&'a str>,
     domain_template_for_precoordination: Option<&'a str>,
+    domain_template_for_postcoordination: Option<&'a str>,
 }
 
 /// The `mapTarget`/`correlationId`/`mapGroup`/`mapPriority`/`mapRule`/
@@ -665,6 +668,9 @@ fn typed_field_row_matches(
                             domain_template_for_precoordination: Some(
                                 &row.domain_template_for_precoordination,
                             ),
+                            domain_template_for_postcoordination: Some(
+                                &row.domain_template_for_postcoordination,
+                            ),
                             ..TypedFields::default()
                         },
                     )
@@ -824,7 +830,8 @@ fn prepare_member_filter(filter: &MemberFilterKind, store: &SnapshotStore) -> Pr
         | MemberFilterKind::ParentDomain(TermFilter { values, .. })
         | MemberFilterKind::ProximalPrimitiveConstraint(TermFilter { values, .. })
         | MemberFilterKind::ProximalPrimitiveRefinement(TermFilter { values, .. })
-        | MemberFilterKind::DomainTemplateForPrecoordination(TermFilter { values, .. }) => {
+        | MemberFilterKind::DomainTemplateForPrecoordination(TermFilter { values, .. })
+        | MemberFilterKind::DomainTemplateForPostcoordination(TermFilter { values, .. }) => {
             PreparedMemberFilter::Term(
                 values
                     .iter()
@@ -1157,6 +1164,24 @@ fn member_filter_matches(
             };
             let matches = values.iter().zip(searches).any(|(search, prepared)| {
                 term_matches(domain_template_for_precoordination, search, prepared)
+            });
+            matches != *negated
+        }
+        MemberFilterKind::DomainTemplateForPostcoordination(TermFilter { negated, values }) => {
+            let PreparedMemberFilter::Term(searches) = prepared else {
+                unreachable!("a domainTemplateForPostcoordination filter prepares to `Term`")
+            };
+            // No `domain_template_for_postcoordination` on this row
+            // source (every source but `MrcmDomain`'s own): never
+            // matches, same reasoning as
+            // `DomainTemplateForPrecoordination`'s `None` case above.
+            let Some(domain_template_for_postcoordination) =
+                fields.domain_template_for_postcoordination
+            else {
+                return false;
+            };
+            let matches = values.iter().zip(searches).any(|(search, prepared)| {
+                term_matches(domain_template_for_postcoordination, search, prepared)
             });
             matches != *negated
         }
@@ -5833,14 +5858,115 @@ mod tests {
         );
     }
 
+    /// `domainTemplateForPostcoordination` (spec/10 rule 18) — the
+    /// twenty-third `memberFieldFilter` column, and
+    /// `MrcmDomainRefsetMember`'s sixth column (after
     /// `domainConstraint`/`parentDomain`/`proximalPrimitiveConstraint`/
-    /// `proximalPrimitiveRefinement`/`domainTemplateForPrecoordination`
-    /// all five live on the same `MrcmDomainRefsetMember` row
-    /// (spec/08) — a block naming any combination of the five is
-    /// satisfied by that one row, not by separate rows each matching
-    /// one filter.
+    /// `proximalPrimitiveRefinement`/`domainTemplateForPrecoordination`).
+    /// String-search shape, reusing `mapTarget`/`domainConstraint`'s
+    /// exact grammar and `term_matches`, tested against the same
+    /// eleventh typed row set the other five columns use — no new
+    /// row-set check needed. Also proves `{{ M }}` after `^R` reaches
+    /// it.
     #[test]
-    fn member_filter_all_five_mrcm_domain_string_columns_conjoin_on_the_same_row() {
+    fn member_filter_domain_template_for_postcoordination_matches_mrcm_domain_rows() {
+        let mrcm_domain = SctId::compose(9978, ComponentType::Concept, None).unwrap();
+        let mut b = SnapshotStore::builder();
+        b.add_concept(concept(MI));
+        b.add_mrcm_domain_member(MrcmDomainRefsetMember {
+            core: RefsetMemberCore {
+                id: MemberId::parse("80000000-0000-4000-8000-000000000155").unwrap(),
+                effective_time: EffectiveTime::new_unchecked(20190731),
+                active: true,
+                module_id: constants::CORE_MODULE,
+                refset_id: mrcm_domain,
+                referenced_component_id: MI,
+            },
+            domain_constraint: "<< 404684003".to_string(),
+            parent_domain: "<< 138875005".to_string(),
+            proximal_primitive_constraint: "<< 71388002".to_string(),
+            proximal_primitive_refinement: "{ 116676008 = 415582006 }".to_string(),
+            domain_template_for_precoordination: String::new(),
+            domain_template_for_postcoordination:
+                "[[+id(<< 71388002)]]: [[0..*]] { [[0..1]] 405815000 = [[+id]] }".to_string(),
+            guide_url: String::new(),
+        });
+        let store = b.build();
+
+        assert_eq!(
+            eval(
+                &format!(
+                    "^ {mrcm_domain} {{{{ M domainTemplateForPostcoordination = \"719989006\" }}}}"
+                ),
+                &store
+            ),
+            HashSet::new(),
+            "the row's own domainTemplateForPostcoordination doesn't match"
+        );
+        assert_eq!(
+            eval(
+                &format!(
+                    "^ {mrcm_domain} {{{{ M domainTemplateForPostcoordination = \"405815000\" }}}}"
+                ),
+                &store
+            ),
+            HashSet::from([MI])
+        );
+        // `^R` reaches the same row, through the shared row-matching path.
+        assert_eq!(
+            eval(
+                &format!("^R {MI} {{{{ M domainTemplateForPostcoordination = \"405815000\" }}}}"),
+                &store
+            ),
+            HashSet::from([mrcm_domain])
+        );
+    }
+
+    /// `DescriptionTypeRefsetMember`/every other typed row source has no
+    /// `domainTemplateForPostcoordination` column — a membership that
+    /// exists only there must never match, the same "column absent on
+    /// this row source" case every other field filter has for the row
+    /// types it doesn't apply to.
+    #[test]
+    fn member_filter_domain_template_for_postcoordination_never_matches_description_type_rows() {
+        let description_type = SctId::compose(9979, ComponentType::Concept, None).unwrap();
+        let plain_text = SctId::compose(9980, ComponentType::Concept, None).unwrap();
+        let mut b = SnapshotStore::builder();
+        b.add_concept(concept(MI));
+        b.add_concept(concept(plain_text));
+        b.add_description_type_member(DescriptionTypeRefsetMember {
+            core: RefsetMemberCore {
+                id: MemberId::parse("80000000-0000-4000-8000-000000000156").unwrap(),
+                effective_time: EffectiveTime::new_unchecked(20190731),
+                active: true,
+                module_id: constants::CORE_MODULE,
+                refset_id: description_type,
+                referenced_component_id: MI,
+            },
+            description_format_id: plain_text,
+            description_length: 255,
+        });
+        let store = b.build();
+
+        assert_eq!(
+            eval(
+                &format!(
+                    "^ {description_type} {{{{ M domainTemplateForPostcoordination = \"405815000\" }}}}"
+                ),
+                &store
+            ),
+            HashSet::new()
+        );
+    }
+
+    /// `domainConstraint`/`parentDomain`/`proximalPrimitiveConstraint`/
+    /// `proximalPrimitiveRefinement`/`domainTemplateForPrecoordination`/
+    /// `domainTemplateForPostcoordination` all six live on the same
+    /// `MrcmDomainRefsetMember` row (spec/08) — a block naming any
+    /// combination of the six is satisfied by that one row, not by
+    /// separate rows each matching one filter.
+    #[test]
+    fn member_filter_all_six_mrcm_domain_string_columns_conjoin_on_the_same_row() {
         let mrcm_domain = SctId::compose(9977, ComponentType::Concept, None).unwrap();
         let mut b = SnapshotStore::builder();
         b.add_concept(concept(MI));
@@ -5859,7 +5985,8 @@ mod tests {
             proximal_primitive_refinement: "{ 116676008 = 415582006 }".to_string(),
             domain_template_for_precoordination:
                 "[[+id(<< 71388002)]]: [[0..*]] { [[0..1]] 405815000 = [[+id]] }".to_string(),
-            domain_template_for_postcoordination: String::new(),
+            domain_template_for_postcoordination:
+                "[[+id(<< 71388002)]]: [[0..*]] { [[0..1]] 405815000 = [[+id]] }".to_string(),
             guide_url: String::new(),
         });
         let store = b.build();
@@ -5867,7 +5994,7 @@ mod tests {
         assert_eq!(
             eval(
                 &format!(
-                    "^ {mrcm_domain} {{{{ M domainConstraint = \"404684003\", parentDomain = \"138875005\", proximalPrimitiveConstraint = \"71388002\", proximalPrimitiveRefinement = \"116676008\", domainTemplateForPrecoordination = \"405815000\" }}}}"
+                    "^ {mrcm_domain} {{{{ M domainConstraint = \"404684003\", parentDomain = \"138875005\", proximalPrimitiveConstraint = \"71388002\", proximalPrimitiveRefinement = \"116676008\", domainTemplateForPrecoordination = \"405815000\", domainTemplateForPostcoordination = \"405815000\" }}}}"
                 ),
                 &store
             ),
@@ -5876,12 +6003,12 @@ mod tests {
         assert_eq!(
             eval(
                 &format!(
-                    "^ {mrcm_domain} {{{{ M domainConstraint = \"404684003\", domainTemplateForPrecoordination = \"719989006\" }}}}"
+                    "^ {mrcm_domain} {{{{ M domainConstraint = \"404684003\", domainTemplateForPostcoordination = \"719989006\" }}}}"
                 ),
                 &store
             ),
             HashSet::new(),
-            "wrong domainTemplateForPrecoordination on the only row rules it out"
+            "wrong domainTemplateForPostcoordination on the only row rules it out"
         );
     }
 

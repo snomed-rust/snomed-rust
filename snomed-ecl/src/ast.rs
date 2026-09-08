@@ -377,7 +377,7 @@ pub enum ConceptFilterKind {
 /// `AttributeType`/`AttributeOrder`/`DescriptionFormat`/
 /// `DescriptionLength`/`DomainConstraint`/`ParentDomain`/
 /// `ProximalPrimitiveConstraint`/`ProximalPrimitiveRefinement`/
-/// `DomainTemplateForPrecoordination`
+/// `DomainTemplateForPrecoordination`/`DomainTemplateForPostcoordination`
 /// are the official grammar's fourth kind, `memberFieldFilter`
 /// — a refset-type-specific column rather than a shared one. Its own
 /// grammar (confirmed against the official ABNF, `syntax/abnf-brief.txt`)
@@ -432,9 +432,12 @@ pub enum ConceptFilterKind {
 /// from the same row); `proximalPrimitiveRefinement`
 /// (`MrcmDomainRefsetMember`'s fourth column, another genuinely new
 /// variant, again no new row-set check since all four columns come
-/// from the same row); and `domainTemplateForPrecoordination`
+/// from the same row); `domainTemplateForPrecoordination`
 /// (`MrcmDomainRefsetMember`'s fifth column, another genuinely new
 /// variant, again no new row-set check since all five columns come
+/// from the same row); and `domainTemplateForPostcoordination`
+/// (`MrcmDomainRefsetMember`'s sixth column, another genuinely new
+/// variant, again no new row-set check since all six columns come
 /// from the same row) — all
 /// decided 2026-09-03 (`plan.md`'s "Open decisions") to retain full rows
 /// — active and inactive — for all sixteen non-Simple/Language refset
@@ -766,6 +769,26 @@ pub enum MemberFilterKind {
     /// field name `domainTemplateForPrecoordination`, so this needs
     /// its own variant too.
     DomainTemplateForPrecoordination(TermFilter),
+    /// `domainTemplateForPostcoordination (=|!=) (typedSearchTerm |
+    /// typedSearchTermSet)` — a `memberFieldFilter` (spec/10 rule 18):
+    /// `MrcmDomainRefsetMember`'s own
+    /// `domainTemplateForPostcoordination` column (free text — the
+    /// concept model template expected when postcoordinating within
+    /// this domain, stored as an unparsed string like the type's other
+    /// five columns). Reuses [`TermFilter`]'s exact shape and grammar
+    /// — the same string production
+    /// `mapTarget`/`mapRule`/`mapAdvice`/`owlExpression`/
+    /// `domainConstraint`/`parentDomain`/`proximalPrimitiveConstraint`/
+    /// `proximalPrimitiveRefinement`/`domainTemplateForPrecoordination`
+    /// use, just a different RF2 column. `MrcmDomainRefsetMember`'s
+    /// sixth column: all six live on the same row, so a block naming
+    /// any combination is satisfied by that one row, no new row-set
+    /// check needed — tested against the same
+    /// `SnapshotStore::mrcm_domain_member_rows` as the type's other
+    /// columns. No other implemented column shares the RF2 field name
+    /// `domainTemplateForPostcoordination`, so this needs its own
+    /// variant too.
+    DomainTemplateForPostcoordination(TermFilter),
 }
 
 /// `numericComparisonOperator ws "#" numericValue` — a `memberFieldFilter`

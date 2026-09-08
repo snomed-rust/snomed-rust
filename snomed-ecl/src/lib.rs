@@ -14,7 +14,8 @@
 //! `attributeType`/`attributeOrder`/`descriptionFormat`/
 //! `descriptionLength`/`domainConstraint`/`parentDomain`/
 //! `proximalPrimitiveConstraint`/`proximalPrimitiveRefinement`/
-//! `domainTemplateForPrecoordination`, the history supplement,
+//! `domainTemplateForPrecoordination`/`domainTemplateForPostcoordination`,
+//! the history supplement,
 //! alternate identifiers, …) is listed in
 //! `spec/10-ecl-unimplemented.md`. Encountering one is a parse error,
 //! never a silently incomplete result.

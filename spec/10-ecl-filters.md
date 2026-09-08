@@ -341,10 +341,21 @@ concept reference has eight, numeric has five):
   columns now live on the same row, tested against the same
   `SnapshotStore::mrcm_domain_member_rows`, no new row-set check
   needed.
+- `domainTemplateForPostcoordination (=|!=) (typedSearchTerm |
+  typedSearchTermSet)` — the same string-search shape and the same
+  `TermFilter`/`term_matches` machinery as
+  `mapTarget`/`domainConstraint`/`parentDomain`/
+  `proximalPrimitiveConstraint`/`proximalPrimitiveRefinement`/
+  `domainTemplateForPrecoordination`, matched against the member row's
+  own `domainTemplateForPostcoordination` column.
+  `MrcmDomainRefsetMember`'s sixth column — all six of its columns now
+  live on the same row, tested against the same
+  `SnapshotStore::mrcm_domain_member_rows`, no new row-set check
+  needed.
 
-All twenty-two reuse the shared dispatch `mapTarget` introduced
+All twenty-three reuse the shared dispatch `mapTarget` introduced
 (renamed `typed_field_row_matches` once a non-map type joined it): a
-block naming *any* of the twenty-two kinds is tested against
+block naming *any* of the twenty-three kinds is tested against
 `SimpleMap`/`ExtendedMap`/`Association`/`AttributeValue`/`OwlExpression`/
 `OrderedComponent`/`OrderedAssociation`/`MrcmModuleScope`/
 `RefsetDescriptor`/`DescriptionType`/`MrcmDomain`
@@ -359,15 +370,15 @@ any of `correlationId`/
 `mrcmRuleRefsetId`/`attributeDescription`/`attributeType`/
 `attributeOrder`/`descriptionFormat`/`descriptionLength`/
 `domainConstraint`/`parentDomain`/`proximalPrimitiveConstraint`/
-`proximalPrimitiveRefinement`/`domainTemplateForPrecoordination` (the
-column is
+`proximalPrimitiveRefinement`/`domainTemplateForPrecoordination`/
+`domainTemplateForPostcoordination` (the column is
 simply
 absent on that row source, the same "not this row's type" answer a
 shared-column filter gets from a row of the wrong refset type), so it
 can never be a spurious match.
 
 **Not implemented:** every other `memberFieldFilter` column, and both
-remaining shapes — boolean, time (`domainTemplateForPostcoordination`,
+remaining shapes — boolean, time (`guideURL`,
 `grouped`, and
 the rest — see `spec/10-ecl-unimplemented.md`); the store retention
 that made these columns possible already covers every non-Simple/
