@@ -49,6 +49,39 @@ most recently on 2026-09-08, to keep this file inside the repository's
 40 KB per-document budget. Search both when asking "has this come up
 before".
 
+## Done (2026-09-08, Release 0.38.0 — `memberFieldFilter`'s `domainTemplateForPostcoordination`, twenty-sixth self-decided release)
+
+- [x] **Decided and executed the release itself**, per §1-5 of
+      `spec/ai-release-authority/`: §1 CI independently green on the
+      pushed merge commit (`ec165f0`, all jobs, confirmed via `gh run
+      view` on the exact commit); §2 `CHANGELOG.md`'s `[Unreleased]`
+      verified against the actual diff and moved under `## [0.38.0]`,
+      minor bump (purely additive: new
+      `MemberFilterKind::DomainTemplateForPostcoordination` variant,
+      one new `TypedFields` field, no new row-set check — nothing
+      removed or changed signature); §3 no rule oversteps — needed a
+      genuinely new variant (no existing column shares the RF2 field
+      name `domainTemplateForPostcoordination`), the same kind of
+      routine grammar-coverage call this authority already covers, not
+      a `plan.md` "Open decisions" item; §4 all nine crates, one
+      version, standard dependency order; §5 tagged `v0.38.0` (signed,
+      verified against the merge commit) and ran `cargo publish` for
+      each crate in order, all nine succeeding cleanly.
+- [x] **Verified against crates.io's own API afterward**: `GET
+      /api/v1/crates/<name>` for all nine names returns
+      `max_version: "0.38.0"`.
+- [x] Version bumped everywhere the 0.13.0-0.37.0 precedent bumped it:
+      `Cargo.toml` (workspace + seven pins), `CITATION.cff`, `NEWS.md`,
+      `INSTALL.md`, `SECURITY.md`.
+- [x] Same `release/0.38.0` branch/merge shape as 0.12.0-0.37.0, not a
+      direct commit to `main`; branch deleted locally once GitHub and
+      Codeberg confirmed the merge commit and CI came back green.
+- [x] All three forges pushed cleanly via `git push origin` in one
+      command, for both `main` and the `v0.38.0` tag — the fourth
+      release in a row with no GitLab connectivity issue.
+- [x] Verified: build/clippy/fmt/test (482/482)/check-docs/
+      check-trademarks/spec_citations all clean before tagging.
+
 ## Done (2026-09-08, ECL `{{ M ... }}` `memberFieldFilter`: `domainTemplateForPostcoordination`, `MrcmDomain`'s sixth column, no new row-set check)
 
 - [x] **`snomed-ecl`**: `MemberFilterKind::DomainTemplateForPostcoordination(TermFilter)`
@@ -286,7 +319,7 @@ before".
 ## Next up
 
 - [ ] Nothing currently scoped beyond the `{{ M ... }}` remainder below.
-      State as of 2026-09-08: **0.37.0 released** — `mapTarget` (0.15.0),
+      State as of 2026-09-08: **0.38.0 released** — `mapTarget` (0.15.0),
       `correlationId` (0.16.0), `mapGroup` (0.17.0), `mapPriority`
       (0.18.0), `mapRule` (0.19.0), `mapAdvice` plus the `ecl_parse`
       fuzz-caught recursion-depth guard (spec/10 rule 19, 0.20.0),
@@ -325,9 +358,12 @@ before".
       row), `proximalPrimitiveRefinement` (0.36.0 —
       `MrcmDomainRefsetMember`'s fourth column, another genuinely new
       variant, no new row-set check since all four columns share one
-      row), and `domainTemplateForPrecoordination` (0.37.0 —
+      row), `domainTemplateForPrecoordination` (0.37.0 —
       `MrcmDomainRefsetMember`'s fifth column, another genuinely new
       variant, no new row-set check since all five columns share one
+      row), and `domainTemplateForPostcoordination` (0.38.0 —
+      `MrcmDomainRefsetMember`'s sixth column, another genuinely new
+      variant, no new row-set check since all six columns share one
       row),
       all after both `^` and
       `^R`.
@@ -338,9 +374,10 @@ before".
       `attributeDescription`/`attributeType`/`attributeOrder`/
       `descriptionFormat`/`descriptionLength`/`domainConstraint`/
       `parentDomain`/`proximalPrimitiveConstraint`/
-      `proximalPrimitiveRefinement`/`domainTemplateForPrecoordination`
+      `proximalPrimitiveRefinement`/`domainTemplateForPrecoordination`/
+      `domainTemplateForPostcoordination`
       are the
-      first fifteen columns
+      first sixteen columns
       implemented
       outside the two map types
       (`AssociationRefsetMember`/`AttributeValueRefsetMember`/
@@ -354,13 +391,10 @@ before".
       column coverage.
       `{{ M ... }}` after `^`
       (0.13.0), after `^R` (0.14.0), and its `memberFieldFilter`
-      alternative (0.15.0-0.37.0),
+      alternative (0.15.0-0.38.0),
       all decided and executed under
       `spec/ai-release-authority/`'s criteria rather than a fresh
-      per-release maintainer go-ahead (see `CHANGELOG.md`).
-      `domainTemplateForPostcoordination` (see Done above,
-      `MrcmDomainRefsetMember`'s sixth column) is implemented and
-      committed but not yet released. 9 crates, 482
+      per-release maintainer go-ahead (see `CHANGELOG.md`). 9 crates, 482
       tests,
       clippy/fmt clean on stable, MSRV 1.96 (current
       stable minus two, `spec/rust-msrv-n-minus-2/index.md`), `fuzz/`,
