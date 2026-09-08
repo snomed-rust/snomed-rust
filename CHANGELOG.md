@@ -13,6 +13,19 @@ together, in dependency order (`snomed-core` → `snomed-rf2` → `snomed-owl`
 
 ## [Unreleased]
 
+## [0.37.0] — 2026-09-08
+
+**New ECL capability, additive.** `{{ M ... }}`'s `memberFieldFilter`
+gains its twenty-second column, `domainTemplateForPrecoordination` —
+`MrcmDomainRefsetMember`'s fifth column (after
+`domainConstraint`/`parentDomain`/`proximalPrimitiveConstraint`/
+`proximalPrimitiveRefinement`), after both `^` and `^R`. String-search
+shape, reusing `mapTarget`/`domainConstraint`'s exact grammar and
+`term_matches`; needed a genuinely new `MemberFilterKind` variant (no
+implemented column shares this RF2 field name) but no new row-set
+check, reusing the type's existing row set. A minor bump: new public
+API, no removals or signature changes to anything existing.
+
 ### Added
 
 - `snomed-ecl`: `{{ M domainTemplateForPrecoordination = "405815000" }}`
