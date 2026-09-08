@@ -48,6 +48,39 @@ most recently on 2026-09-07, to keep this file inside the repository's
 40 KB per-document budget. Search both when asking "has this come up
 before".
 
+## Done (2026-09-08, Release 0.37.0 — `memberFieldFilter`'s `domainTemplateForPrecoordination`, twenty-fifth self-decided release)
+
+- [x] **Decided and executed the release itself**, per §1-5 of
+      `spec/ai-release-authority/`: §1 CI independently green on the
+      pushed merge commit (`5e90198`, all jobs, confirmed via `gh run
+      view` on the exact commit); §2 `CHANGELOG.md`'s `[Unreleased]`
+      verified against the actual diff and moved under `## [0.37.0]`,
+      minor bump (purely additive: new
+      `MemberFilterKind::DomainTemplateForPrecoordination` variant,
+      one new `TypedFields` field, no new row-set check — nothing
+      removed or changed signature); §3 no rule oversteps — needed a
+      genuinely new variant (no existing column shares the RF2 field
+      name `domainTemplateForPrecoordination`), the same kind of
+      routine grammar-coverage call this authority already covers, not
+      a `plan.md` "Open decisions" item; §4 all nine crates, one
+      version, standard dependency order; §5 tagged `v0.37.0` (signed,
+      verified against the merge commit) and ran `cargo publish` for
+      each crate in order, all nine succeeding cleanly.
+- [x] **Verified against crates.io's own API afterward**: `GET
+      /api/v1/crates/<name>` for all nine names returns
+      `max_version: "0.37.0"`.
+- [x] Version bumped everywhere the 0.13.0-0.36.0 precedent bumped it:
+      `Cargo.toml` (workspace + seven pins), `CITATION.cff`, `NEWS.md`,
+      `INSTALL.md`, `SECURITY.md`.
+- [x] Same `release/0.37.0` branch/merge shape as 0.12.0-0.36.0, not a
+      direct commit to `main`; branch deleted locally once GitHub and
+      Codeberg confirmed the merge commit and CI came back green.
+- [x] All three forges pushed cleanly via `git push origin` in one
+      command, for both `main` and the `v0.37.0` tag — the third
+      release in a row with no GitLab connectivity issue.
+- [x] Verified: build/clippy/fmt/test (479/479)/check-docs/
+      check-trademarks/spec_citations all clean before tagging.
+
 ## Done (2026-09-08, ECL `{{ M ... }}` `memberFieldFilter`: `domainTemplateForPrecoordination`, `MrcmDomain`'s fifth column, no new row-set check)
 
 - [x] **`snomed-ecl`**: `MemberFilterKind::DomainTemplateForPrecoordination(TermFilter)`
@@ -286,8 +319,7 @@ before".
 ## Next up
 
 - [ ] Nothing currently scoped beyond the `{{ M ... }}` remainder below.
-      State as of 2026-09-08: **0.36.0 released, `domainTemplateForPrecoordination`
-      implemented and pending its own release** — `mapTarget` (0.15.0),
+      State as of 2026-09-08: **0.37.0 released** — `mapTarget` (0.15.0),
       `correlationId` (0.16.0), `mapGroup` (0.17.0), `mapPriority`
       (0.18.0), `mapRule` (0.19.0), `mapAdvice` plus the `ecl_parse`
       fuzz-caught recursion-depth guard (spec/10 rule 19, 0.20.0),
@@ -326,7 +358,7 @@ before".
       row), `proximalPrimitiveRefinement` (0.36.0 —
       `MrcmDomainRefsetMember`'s fourth column, another genuinely new
       variant, no new row-set check since all four columns share one
-      row), and `domainTemplateForPrecoordination` (not yet released —
+      row), and `domainTemplateForPrecoordination` (0.37.0 —
       `MrcmDomainRefsetMember`'s fifth column, another genuinely new
       variant, no new row-set check since all five columns share one
       row),
@@ -355,7 +387,7 @@ before".
       column coverage.
       `{{ M ... }}` after `^`
       (0.13.0), after `^R` (0.14.0), and its `memberFieldFilter`
-      alternative (0.15.0-0.36.0, `domainTemplateForPrecoordination` pending release),
+      alternative (0.15.0-0.37.0),
       all decided and executed under
       `spec/ai-release-authority/`'s criteria rather than a fresh
       per-release maintainer go-ahead (see `CHANGELOG.md`). 9 crates, 479
