@@ -683,11 +683,17 @@ impl Parser {
                     TermFilter { negated, values },
                 ))
             }
+            TokenKind::Word(word) if word == "guideURL" => {
+                self.advance()?;
+                let negated = self.parse_boolean_comparison_operator()?;
+                let values = self.parse_typed_search_term_set()?;
+                Ok(MemberFilterKind::GuideUrl(TermFilter { negated, values }))
+            }
             _ => {
                 let tok = self.peek().clone();
                 Err(Self::unexpected(
                     &tok,
-                    "`moduleId`, `effectiveTime`, `active`, `mapTarget`, `correlationId`, `mapGroup`, `mapPriority`, `mapRule`, `mapAdvice`, `mapCategoryId`, `targetComponentId`, `valueId`, `owlExpression`, `order`, `mrcmRuleRefsetId`, `attributeDescription`, `attributeType`, `attributeOrder`, `descriptionFormat`, `descriptionLength`, `domainConstraint`, `parentDomain`, `proximalPrimitiveConstraint`, `proximalPrimitiveRefinement`, `domainTemplateForPrecoordination`, or `domainTemplateForPostcoordination`",
+                    "`moduleId`, `effectiveTime`, `active`, `mapTarget`, `correlationId`, `mapGroup`, `mapPriority`, `mapRule`, `mapAdvice`, `mapCategoryId`, `targetComponentId`, `valueId`, `owlExpression`, `order`, `mrcmRuleRefsetId`, `attributeDescription`, `attributeType`, `attributeOrder`, `descriptionFormat`, `descriptionLength`, `domainConstraint`, `parentDomain`, `proximalPrimitiveConstraint`, `proximalPrimitiveRefinement`, `domainTemplateForPrecoordination`, `domainTemplateForPostcoordination`, or `guideURL`",
                 ))
             }
         }
@@ -2330,6 +2336,34 @@ mod tests {
         assert_eq!(values[0].search_type, crate::ast::SearchType::Match);
     }
 
+    /// `guideURL` (spec/10 rule 18) — the twenty-fourth `memberFieldFilter`
+    /// column, and `MrcmDomainRefsetMember`'s seventh and last column
+    /// (after `domainConstraint`/`parentDomain`/
+    /// `proximalPrimitiveConstraint`/`proximalPrimitiveRefinement`/
+    /// `domainTemplateForPrecoordination`/`domainTemplateForPostcoordination`).
+    /// String-search shape, reusing `mapTarget`/`domainConstraint`'s
+    /// exact grammar. No other implemented column shares this RF2
+    /// field name, so it's a genuinely new variant. Completes
+    /// `MrcmDomainRefsetMember`'s column coverage.
+    #[test]
+    fn parses_member_filter_guide_url() {
+        let EC::MemberFilter { filters, .. } =
+            parse("^ 723592007 {{ M guideURL = \"http://snomed.org/dom71388002\" }}").unwrap()
+        else {
+            panic!("expected a member filter");
+        };
+        assert_eq!(filters.len(), 1);
+        let crate::ast::MemberFilterKind::GuideUrl(crate::ast::TermFilter { negated, values }) =
+            &filters[0]
+        else {
+            panic!("expected a GuideUrl filter, got {:?}", filters[0]);
+        };
+        assert!(!negated);
+        assert_eq!(values.len(), 1);
+        assert_eq!(values[0].text, "http://snomed.org/dom71388002");
+        assert_eq!(values[0].search_type, crate::ast::SearchType::Match);
+    }
+
     /// `mapGroup` (spec/10 rule 18) — the third `memberFieldFilter`
     /// column implemented, and the first to use the numeric grammar
     /// shape (`numericComparisonOperator ws "#" numericValue`, the same
@@ -2435,7 +2469,7 @@ mod tests {
     #[test]
     fn rejects_an_unrecognized_member_field_filter_generically() {
         assert!(matches!(
-            parse("^ 447562003 {{ M guideURL = \"x\" }}"),
+            parse("^ 447562003 {{ M domainId = \"x\" }}"),
             Err(EclError::UnexpectedKeyword { .. })
         ));
     }

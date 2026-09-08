@@ -13,6 +13,42 @@ together, in dependency order (`snomed-core` → `snomed-rf2` → `snomed-owl`
 
 ## [Unreleased]
 
+**New ECL capability, additive.** `{{ M ... }}`'s `memberFieldFilter`
+gains its twenty-fourth column, `guideURL` — `MrcmDomainRefsetMember`'s
+seventh and last column (after
+`domainConstraint`/`parentDomain`/`proximalPrimitiveConstraint`/
+`proximalPrimitiveRefinement`/`domainTemplateForPrecoordination`/
+`domainTemplateForPostcoordination`), after both `^` and `^R`.
+String-search shape, reusing `mapTarget`/`domainConstraint`'s exact
+grammar and `term_matches`; needed a genuinely new `MemberFilterKind`
+variant (no implemented column shares this RF2 field name) but no new
+row-set check, reusing the type's existing row set. Completes
+`MrcmDomainRefsetMember`'s column coverage — the third refset type
+outside the two map types, after `RefsetDescriptorRefsetMember` and
+`DescriptionTypeRefsetMember`, to reach it. A minor bump: new public
+API, no removals or signature changes to anything existing.
+
+### Added
+
+- `snomed-ecl`: `{{ M guideURL = "snomed.org" }}` restricts to
+  `MrcmDomain` member rows whose own `guideURL` column matches — the
+  same `match:`/`wild:`/`exact:` search-term grammar
+  `mapTarget`/`domainConstraint`/`parentDomain`/
+  `proximalPrimitiveConstraint`/`proximalPrimitiveRefinement`/
+  `domainTemplateForPrecoordination`/`domainTemplateForPostcoordination`
+  use (reusing `TermFilter`'s exact shape and `term_matches`). Works
+  after both `^` and `^R`, and conjoins with the type's other six
+  columns and the other shared-column kinds on the same member row —
+  all seven `MrcmDomainRefsetMember` string columns live on the same
+  row, so a block naming any combination is satisfied by that one row.
+  Only `MrcmDomainRefsetMember` rows carry a `guideURL` column; every
+  other row source never matches. `memberFieldFilter`'s twenty-fourth
+  column, and `MrcmDomainRefsetMember`'s seventh and last — completing
+  that type's column coverage. Needed a genuinely new
+  `MemberFilterKind` variant (no implemented column shares this RF2
+  field name) but no new row-set check, reusing the type's existing
+  `SnapshotStore::mrcm_domain_member_rows`.
+
 ## [0.38.0] — 2026-09-08
 
 **New ECL capability, additive.** `{{ M ... }}`'s `memberFieldFilter`
@@ -782,78 +818,7 @@ existing.
   `snomed-ecl`, so this does not add a new crate to a typical dependency
   tree.
 
-## [0.12.0] — 2026-08-29
-
-**Breaking for consumers on an older toolchain, not to the API.** The
-Minimum Supported Rust Version policy tightened from current-stable-minus-3
-to current-stable-minus-2 (`spec/rust-msrv-n-minus-2/index.md`, superseding
-`spec/rust-msrv-n-minus-3.md`); no public signature changed, but the
-`rust-version` field every published crate carries did, and `cargo` enforces
-it. A minor bump because this workspace's own policy treats a floor change
-as belonging with additions rather than with the patch-only manifest fixes
-in 0.11.1–0.11.3.
-
-### Changed
-
-- MSRV raised from 1.95 to **1.96** — current stable (1.98) minus two,
-  rather than minus three. Set in `[workspace.package].rust-version`,
-  inherited by every crate; `benches/`'s own `rust-version` moved in step,
-  per its own policy of tracking the workspace value.
-- The CI `msrv` job's pinned toolchain moved from `dtolnay/rust-toolchain@1.95`
-  to `@1.96`.
-- Verified before publishing, not assumed: `cargo +1.96 check --all-targets
-  --workspace` and, separately, `cargo +1.96 check --all-targets
-  --manifest-path benches/Cargo.toml` both compile clean with no code
-  changes required — the workspace already met the tighter floor.
-
-### Notes for consumers
-
-- **If you build on Rust 1.95, this release will not compile for you.**
-  Update to 1.96 or newer, or pin your dependency to `0.11.3`.
-- No public API changed. `snomed-store 0.12.0` and `snomed-ecl 0.11.3` are
-  API-compatible; only the toolchain floor moved.
-
-## [0.11.3] — 2026-08-26
-
-No behavior changes and no API changes: a manifest-and-tooling patch that
-completes what 0.11.2 started and fixes its two published typos.
-
-### Changed
-
-- **Every crate's Cargo.toml `description` now carries the trademark
-  notice verbatim**, in the owner's canonical three-part shape: the short
-  description with ® on the marks, then the notice, then "This project is
-  an independent work." 0.11.2 introduced the notice into the
-  descriptions but its published form carries two typos, both fixed here:
-  "NOMED®" for "SNOMED®" at the start of the notice in `snomed-cli` and
-  `snomed-classify`, and a trailing double period ("independent work..")
-  in all nine.
-- **`bin/check-trademarks` now enforces description coverage**: every
-  `crates/*/Cargo.toml` that does not set `publish = false` must carry
-  the notice verbatim in its `description`, alongside the existing
-  markdown and rustdoc checks. Rule 5 of
-  `spec/professionalization/index.md` records the extended scope.
-
-### Notes for consumers
-
-- 0.11.2 as published carries the description typos above; 0.11.3 is the
-  first version whose crates.io descriptions show the notice exactly.
-  Upgrading is a version-number edit.
-
-## [0.11.2] — 2026-08-26
-
-No behavior changes and no API changes. Published without a changelog
-entry; this entry was written afterwards, in 0.11.3.
-
-### Added
-
-- The trademark notice at the top of each crate's packaged `README.md`
-  and — for the first time — in each crate's Cargo.toml `description`,
-  so it shows in crates.io listings and search results. The published
-  descriptions carry two typos ("NOMED®" in `snomed-cli` and
-  `snomed-classify`; a trailing ".." in all nine), fixed in 0.11.3.
-
-Entries for 0.11.1 and earlier live in
+Entries for 0.12.0 and earlier live in
 [`docs/changelog-archive.md`](docs/changelog-archive.md) — moved there
 verbatim to keep this file inside the repository's 40 KB per-document
 budget (rule 1 of `spec/docs-budget-and-links/index.md`).

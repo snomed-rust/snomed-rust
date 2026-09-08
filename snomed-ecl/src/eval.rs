@@ -309,6 +309,7 @@ fn member_row_matches(
                 | MemberFilterKind::ProximalPrimitiveRefinement(_)
                 | MemberFilterKind::DomainTemplateForPrecoordination(_)
                 | MemberFilterKind::DomainTemplateForPostcoordination(_)
+                | MemberFilterKind::GuideUrl(_)
         )
     }) {
         return typed_field_row_matches(
@@ -362,8 +363,8 @@ fn member_row_matches(
 /// `proximal_primitive_constraint` its third,
 /// `proximal_primitive_refinement` its fourth,
 /// `domain_template_for_precoordination` its fifth,
-/// `domain_template_for_postcoordination` its sixth, all populated
-/// from the same row.
+/// `domain_template_for_postcoordination` its sixth, `guide_url` its
+/// seventh and last, all populated from the same row.
 #[derive(Default)]
 struct TypedFields<'a> {
     map_target: Option<&'a str>,
@@ -389,6 +390,7 @@ struct TypedFields<'a> {
     proximal_primitive_refinement: Option<&'a str>,
     domain_template_for_precoordination: Option<&'a str>,
     domain_template_for_postcoordination: Option<&'a str>,
+    guide_url: Option<&'a str>,
 }
 
 /// The `mapTarget`/`correlationId`/`mapGroup`/`mapPriority`/`mapRule`/
@@ -671,6 +673,7 @@ fn typed_field_row_matches(
                             domain_template_for_postcoordination: Some(
                                 &row.domain_template_for_postcoordination,
                             ),
+                            guide_url: Some(&row.guide_url),
                             ..TypedFields::default()
                         },
                     )
@@ -831,18 +834,17 @@ fn prepare_member_filter(filter: &MemberFilterKind, store: &SnapshotStore) -> Pr
         | MemberFilterKind::ProximalPrimitiveConstraint(TermFilter { values, .. })
         | MemberFilterKind::ProximalPrimitiveRefinement(TermFilter { values, .. })
         | MemberFilterKind::DomainTemplateForPrecoordination(TermFilter { values, .. })
-        | MemberFilterKind::DomainTemplateForPostcoordination(TermFilter { values, .. }) => {
-            PreparedMemberFilter::Term(
-                values
-                    .iter()
-                    .map(|search| match search.search_type {
-                        SearchType::Match => PreparedSearch::Match(words(&search.text)),
-                        SearchType::Wild => PreparedSearch::Wild(search.text.to_lowercase()),
-                        SearchType::Exact => PreparedSearch::Exact,
-                    })
-                    .collect(),
-            )
-        }
+        | MemberFilterKind::DomainTemplateForPostcoordination(TermFilter { values, .. })
+        | MemberFilterKind::GuideUrl(TermFilter { values, .. }) => PreparedMemberFilter::Term(
+            values
+                .iter()
+                .map(|search| match search.search_type {
+                    SearchType::Match => PreparedSearch::Match(words(&search.text)),
+                    SearchType::Wild => PreparedSearch::Wild(search.text.to_lowercase()),
+                    SearchType::Exact => PreparedSearch::Exact,
+                })
+                .collect(),
+        ),
         _ => PreparedMemberFilter::Literal,
     }
 }
@@ -1183,6 +1185,22 @@ fn member_filter_matches(
             let matches = values.iter().zip(searches).any(|(search, prepared)| {
                 term_matches(domain_template_for_postcoordination, search, prepared)
             });
+            matches != *negated
+        }
+        MemberFilterKind::GuideUrl(TermFilter { negated, values }) => {
+            let PreparedMemberFilter::Term(searches) = prepared else {
+                unreachable!("a guideURL filter prepares to `Term`")
+            };
+            // No `guide_url` on this row source (every source but
+            // `MrcmDomain`'s own): never matches, same reasoning as
+            // `DomainTemplateForPostcoordination`'s `None` case above.
+            let Some(guide_url) = fields.guide_url else {
+                return false;
+            };
+            let matches = values
+                .iter()
+                .zip(searches)
+                .any(|(search, prepared)| term_matches(guide_url, search, prepared));
             matches != *negated
         }
     }
@@ -5959,14 +5977,111 @@ mod tests {
         );
     }
 
+    /// `guideURL` (spec/10 rule 18) — the twenty-fourth
+    /// `memberFieldFilter` column, and `MrcmDomainRefsetMember`'s
+    /// seventh and last column (after
     /// `domainConstraint`/`parentDomain`/`proximalPrimitiveConstraint`/
     /// `proximalPrimitiveRefinement`/`domainTemplateForPrecoordination`/
-    /// `domainTemplateForPostcoordination` all six live on the same
-    /// `MrcmDomainRefsetMember` row (spec/08) — a block naming any
-    /// combination of the six is satisfied by that one row, not by
-    /// separate rows each matching one filter.
+    /// `domainTemplateForPostcoordination`). String-search shape,
+    /// reusing `mapTarget`/`domainConstraint`'s exact grammar and
+    /// `term_matches`, tested against the same eleventh typed row set
+    /// the other six columns use — no new row-set check needed. Also
+    /// proves `{{ M }}` after `^R` reaches it. Completes
+    /// `MrcmDomainRefsetMember`'s column coverage — the third refset
+    /// type outside the two map types, after `RefsetDescriptorRefsetMember`
+    /// and `DescriptionTypeRefsetMember`, to reach it.
     #[test]
-    fn member_filter_all_six_mrcm_domain_string_columns_conjoin_on_the_same_row() {
+    fn member_filter_guide_url_matches_mrcm_domain_rows() {
+        let mrcm_domain = SctId::compose(9981, ComponentType::Concept, None).unwrap();
+        let mut b = SnapshotStore::builder();
+        b.add_concept(concept(MI));
+        b.add_mrcm_domain_member(MrcmDomainRefsetMember {
+            core: RefsetMemberCore {
+                id: MemberId::parse("80000000-0000-4000-8000-000000000157").unwrap(),
+                effective_time: EffectiveTime::new_unchecked(20190731),
+                active: true,
+                module_id: constants::CORE_MODULE,
+                refset_id: mrcm_domain,
+                referenced_component_id: MI,
+            },
+            domain_constraint: "<< 404684003".to_string(),
+            parent_domain: "<< 138875005".to_string(),
+            proximal_primitive_constraint: "<< 71388002".to_string(),
+            proximal_primitive_refinement: "{ 116676008 = 415582006 }".to_string(),
+            domain_template_for_precoordination: String::new(),
+            domain_template_for_postcoordination: String::new(),
+            guide_url: "http://snomed.org/dom71388002".to_string(),
+        });
+        let store = b.build();
+
+        assert_eq!(
+            eval(
+                &format!("^ {mrcm_domain} {{{{ M guideURL = \"example.org\" }}}}"),
+                &store
+            ),
+            HashSet::new(),
+            "the row's own guideURL doesn't match"
+        );
+        assert_eq!(
+            eval(
+                &format!("^ {mrcm_domain} {{{{ M guideURL = \"snomed.org\" }}}}"),
+                &store
+            ),
+            HashSet::from([MI])
+        );
+        // `^R` reaches the same row, through the shared row-matching path.
+        assert_eq!(
+            eval(
+                &format!("^R {MI} {{{{ M guideURL = \"snomed.org\" }}}}"),
+                &store
+            ),
+            HashSet::from([mrcm_domain])
+        );
+    }
+
+    /// `DescriptionTypeRefsetMember`/every other typed row source has no
+    /// `guideURL` column — a membership that exists only there must
+    /// never match, the same "column absent on this row source" case
+    /// every other field filter has for the row types it doesn't apply
+    /// to.
+    #[test]
+    fn member_filter_guide_url_never_matches_description_type_rows() {
+        let description_type = SctId::compose(9982, ComponentType::Concept, None).unwrap();
+        let plain_text = SctId::compose(9983, ComponentType::Concept, None).unwrap();
+        let mut b = SnapshotStore::builder();
+        b.add_concept(concept(MI));
+        b.add_concept(concept(plain_text));
+        b.add_description_type_member(DescriptionTypeRefsetMember {
+            core: RefsetMemberCore {
+                id: MemberId::parse("80000000-0000-4000-8000-000000000158").unwrap(),
+                effective_time: EffectiveTime::new_unchecked(20190731),
+                active: true,
+                module_id: constants::CORE_MODULE,
+                refset_id: description_type,
+                referenced_component_id: MI,
+            },
+            description_format_id: plain_text,
+            description_length: 255,
+        });
+        let store = b.build();
+
+        assert_eq!(
+            eval(
+                &format!("^ {description_type} {{{{ M guideURL = \"snomed.org\" }}}}"),
+                &store
+            ),
+            HashSet::new()
+        );
+    }
+
+    /// `domainConstraint`/`parentDomain`/`proximalPrimitiveConstraint`/
+    /// `proximalPrimitiveRefinement`/`domainTemplateForPrecoordination`/
+    /// `domainTemplateForPostcoordination`/`guideURL` all seven live on
+    /// the same `MrcmDomainRefsetMember` row (spec/08) — a block naming
+    /// any combination of the seven is satisfied by that one row, not
+    /// by separate rows each matching one filter.
+    #[test]
+    fn member_filter_all_seven_mrcm_domain_string_columns_conjoin_on_the_same_row() {
         let mrcm_domain = SctId::compose(9977, ComponentType::Concept, None).unwrap();
         let mut b = SnapshotStore::builder();
         b.add_concept(concept(MI));
@@ -5987,14 +6102,14 @@ mod tests {
                 "[[+id(<< 71388002)]]: [[0..*]] { [[0..1]] 405815000 = [[+id]] }".to_string(),
             domain_template_for_postcoordination:
                 "[[+id(<< 71388002)]]: [[0..*]] { [[0..1]] 405815000 = [[+id]] }".to_string(),
-            guide_url: String::new(),
+            guide_url: "http://snomed.org/dom71388002".to_string(),
         });
         let store = b.build();
 
         assert_eq!(
             eval(
                 &format!(
-                    "^ {mrcm_domain} {{{{ M domainConstraint = \"404684003\", parentDomain = \"138875005\", proximalPrimitiveConstraint = \"71388002\", proximalPrimitiveRefinement = \"116676008\", domainTemplateForPrecoordination = \"405815000\", domainTemplateForPostcoordination = \"405815000\" }}}}"
+                    "^ {mrcm_domain} {{{{ M domainConstraint = \"404684003\", parentDomain = \"138875005\", proximalPrimitiveConstraint = \"71388002\", proximalPrimitiveRefinement = \"116676008\", domainTemplateForPrecoordination = \"405815000\", domainTemplateForPostcoordination = \"405815000\", guideURL = \"snomed.org\" }}}}"
                 ),
                 &store
             ),
@@ -6003,12 +6118,12 @@ mod tests {
         assert_eq!(
             eval(
                 &format!(
-                    "^ {mrcm_domain} {{{{ M domainConstraint = \"404684003\", domainTemplateForPostcoordination = \"719989006\" }}}}"
+                    "^ {mrcm_domain} {{{{ M domainConstraint = \"404684003\", guideURL = \"example.org\" }}}}"
                 ),
                 &store
             ),
             HashSet::new(),
-            "wrong domainTemplateForPostcoordination on the only row rules it out"
+            "wrong guideURL on the only row rules it out"
         );
     }
 

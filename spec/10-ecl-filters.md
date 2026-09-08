@@ -352,10 +352,23 @@ concept reference has eight, numeric has five):
   live on the same row, tested against the same
   `SnapshotStore::mrcm_domain_member_rows`, no new row-set check
   needed.
+- `guideURL (=|!=) (typedSearchTerm | typedSearchTermSet)` — the same
+  string-search shape and the same `TermFilter`/`term_matches`
+  machinery as `mapTarget`/`domainConstraint`/`parentDomain`/
+  `proximalPrimitiveConstraint`/`proximalPrimitiveRefinement`/
+  `domainTemplateForPrecoordination`/`domainTemplateForPostcoordination`,
+  matched against the member row's own `guideURL` column.
+  `MrcmDomainRefsetMember`'s seventh and last column — all seven of its
+  columns now live on the same row, tested against the same
+  `SnapshotStore::mrcm_domain_member_rows`, no new row-set check
+  needed. Completes `MrcmDomainRefsetMember`'s column coverage — the
+  third refset type outside the two map types, after
+  `RefsetDescriptorRefsetMember` and `DescriptionTypeRefsetMember`, to
+  reach it.
 
-All twenty-three reuse the shared dispatch `mapTarget` introduced
+All twenty-four reuse the shared dispatch `mapTarget` introduced
 (renamed `typed_field_row_matches` once a non-map type joined it): a
-block naming *any* of the twenty-three kinds is tested against
+block naming *any* of the twenty-four kinds is tested against
 `SimpleMap`/`ExtendedMap`/`Association`/`AttributeValue`/`OwlExpression`/
 `OrderedComponent`/`OrderedAssociation`/`MrcmModuleScope`/
 `RefsetDescriptor`/`DescriptionType`/`MrcmDomain`
@@ -371,14 +384,14 @@ any of `correlationId`/
 `attributeOrder`/`descriptionFormat`/`descriptionLength`/
 `domainConstraint`/`parentDomain`/`proximalPrimitiveConstraint`/
 `proximalPrimitiveRefinement`/`domainTemplateForPrecoordination`/
-`domainTemplateForPostcoordination` (the column is
+`domainTemplateForPostcoordination`/`guideURL` (the column is
 simply
 absent on that row source, the same "not this row's type" answer a
 shared-column filter gets from a row of the wrong refset type), so it
 can never be a spurious match.
 
 **Not implemented:** every other `memberFieldFilter` column, and both
-remaining shapes — boolean, time (`guideURL`,
+remaining shapes — boolean, time (`domainId`,
 `grouped`, and
 the rest — see `spec/10-ecl-unimplemented.md`); the store retention
 that made these columns possible already covers every non-Simple/

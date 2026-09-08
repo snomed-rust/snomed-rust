@@ -208,11 +208,11 @@ its inactive rows.
 `descriptionFormat`/`descriptionLength`/`domainConstraint`/
 `parentDomain`/`proximalPrimitiveConstraint`/
 `proximalPrimitiveRefinement`/`domainTemplateForPrecoordination`/
-`domainTemplateForPostcoordination`
+`domainTemplateForPostcoordination`/`guideURL`
 filters
 (`spec/10-ecl.md` rule
 18) are
-the first twenty-four
+the first twenty-five
 consumers: the first seven dispatch directly to
 `simple_map_member_rows`/`extended_map_member_rows`
 (`correlationId`/`mapGroup`/`mapPriority`/`mapRule`/`mapAdvice`/
@@ -222,8 +222,9 @@ consumers: the first seven dispatch directly to
 `attributeDescription`/`attributeType`/`attributeOrder`/
 `descriptionFormat`/`descriptionLength`/`domainConstraint`/
 `parentDomain`/`proximalPrimitiveConstraint`/`proximalPrimitiveRefinement`/
-`domainTemplateForPrecoordination`/`domainTemplateForPostcoordination`
-— the first eleven
+`domainTemplateForPrecoordination`/`domainTemplateForPostcoordination`/
+`guideURL`
+— the first twelve
 outside
 the two map types — dispatch to `association_member_rows`/
 `attribute_value_member_rows`/`owl_expression_member_rows`/
@@ -248,10 +249,13 @@ column, both on one row, no new row-set check needed;
 (`mrcm_domain_member_rows`) since it's `MrcmDomainRefsetMember`'s
 first filterable column; `parentDomain`/`proximalPrimitiveConstraint`/
 `proximalPrimitiveRefinement`/`domainTemplateForPrecoordination`/
-`domainTemplateForPostcoordination` then
-all reused that same eleventh row set — all six of
+`domainTemplateForPostcoordination`/`guideURL` then
+all reused that same eleventh row set — all seven of
 `MrcmDomainRefsetMember`'s columns now share one row, no new row-set
-check needed for any of them. All
+check needed for any of them, completing that type's column coverage
+(the third refset type outside the two map types, after
+`RefsetDescriptorRefsetMember` and `DescriptionTypeRefsetMember`, to
+reach it). All
 row sets are still
 tested whenever any field-filter kind appears in a block, since a row
 missing the column simply fails that filter rather than needing its

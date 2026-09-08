@@ -377,7 +377,8 @@ pub enum ConceptFilterKind {
 /// `AttributeType`/`AttributeOrder`/`DescriptionFormat`/
 /// `DescriptionLength`/`DomainConstraint`/`ParentDomain`/
 /// `ProximalPrimitiveConstraint`/`ProximalPrimitiveRefinement`/
-/// `DomainTemplateForPrecoordination`/`DomainTemplateForPostcoordination`
+/// `DomainTemplateForPrecoordination`/`DomainTemplateForPostcoordination`/
+/// `GuideUrl`
 /// are the official grammar's fourth kind, `memberFieldFilter`
 /// — a refset-type-specific column rather than a shared one. Its own
 /// grammar (confirmed against the official ABNF, `syntax/abnf-brief.txt`)
@@ -438,7 +439,12 @@ pub enum ConceptFilterKind {
 /// from the same row); and `domainTemplateForPostcoordination`
 /// (`MrcmDomainRefsetMember`'s sixth column, another genuinely new
 /// variant, again no new row-set check since all six columns come
-/// from the same row) — all
+/// from the same row); and `guideURL`
+/// (`MrcmDomainRefsetMember`'s seventh and last column, another
+/// genuinely new variant, again no new row-set check since all seven
+/// columns come from the same row — the third refset type outside the
+/// two map types, after `RefsetDescriptorRefsetMember` and
+/// `DescriptionTypeRefsetMember`, with full column coverage) — all
 /// decided 2026-09-03 (`plan.md`'s "Open decisions") to retain full rows
 /// — active and inactive — for all sixteen non-Simple/Language refset
 /// types, the same store change `moduleId`/`effectiveTime`/`active`
@@ -789,6 +795,28 @@ pub enum MemberFilterKind {
     /// `domainTemplateForPostcoordination`, so this needs its own
     /// variant too.
     DomainTemplateForPostcoordination(TermFilter),
+    /// `guideURL (=|!=) (typedSearchTerm | typedSearchTermSet)` — a
+    /// `memberFieldFilter` (spec/10 rule 18): `MrcmDomainRefsetMember`'s
+    /// own `guideURL` column (free text — a URL pointing at
+    /// human-readable guidance for this domain, stored as an unparsed
+    /// string like the type's other six columns). Reuses
+    /// [`TermFilter`]'s exact shape and grammar — the same string
+    /// production
+    /// `mapTarget`/`mapRule`/`mapAdvice`/`owlExpression`/
+    /// `domainConstraint`/`parentDomain`/`proximalPrimitiveConstraint`/
+    /// `proximalPrimitiveRefinement`/`domainTemplateForPrecoordination`/
+    /// `domainTemplateForPostcoordination` use, just a different RF2
+    /// column. `MrcmDomainRefsetMember`'s seventh and last column: all
+    /// seven live on the same row, so a block naming any combination is
+    /// satisfied by that one row, no new row-set check needed — tested
+    /// against the same `SnapshotStore::mrcm_domain_member_rows` as the
+    /// type's other columns. No other implemented column shares the
+    /// RF2 field name `guideURL`, so this needs its own variant too.
+    /// Completes `MrcmDomainRefsetMember`'s column coverage — the third
+    /// refset type outside the two map types, after
+    /// `RefsetDescriptorRefsetMember` and `DescriptionTypeRefsetMember`,
+    /// to reach it.
+    GuideUrl(TermFilter),
 }
 
 /// `numericComparisonOperator ws "#" numericValue` — a `memberFieldFilter`
