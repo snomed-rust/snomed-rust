@@ -13,6 +13,8 @@ together, in dependency order (`snomed-core` → `snomed-rf2` → `snomed-owl`
 
 ## [Unreleased]
 
+## [0.39.0] — 2026-09-08
+
 **New ECL capability, additive.** `{{ M ... }}`'s `memberFieldFilter`
 gains its twenty-fourth column, `guideURL` — `MrcmDomainRefsetMember`'s
 seventh and last column (after
