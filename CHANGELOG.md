@@ -13,6 +13,27 @@ together, in dependency order (`snomed-core` → `snomed-rf2` → `snomed-owl`
 
 ## [Unreleased]
 
+### Added
+
+- `snomed-ecl`: `{{ M domainTemplateForPrecoordination = "405815000" }}`
+  restricts to `MrcmDomain` member rows whose own
+  `domainTemplateForPrecoordination` column matches — the same
+  `match:`/`wild:`/`exact:` search-term grammar
+  `mapTarget`/`domainConstraint`/`parentDomain`/
+  `proximalPrimitiveConstraint`/`proximalPrimitiveRefinement` use
+  (reusing `TermFilter`'s exact shape and `term_matches`). Works after
+  both `^` and `^R`, and conjoins with the type's other four columns
+  and the other shared-column kinds on the same member row — all five
+  `MrcmDomainRefsetMember` string columns live on the same row, so a
+  block naming any combination is satisfied by that one row. Only
+  `MrcmDomainRefsetMember` rows carry a
+  `domainTemplateForPrecoordination` column; every other row source
+  never matches. `memberFieldFilter`'s twenty-second column, and
+  `MrcmDomainRefsetMember`'s fifth. Needed a genuinely new
+  `MemberFilterKind` variant (no implemented column shares this RF2
+  field name) but no new row-set check, reusing the type's existing
+  `SnapshotStore::mrcm_domain_member_rows`.
+
 ## [0.36.0] — 2026-09-07
 
 **New ECL capability, additive.** `{{ M ... }}`'s `memberFieldFilter`

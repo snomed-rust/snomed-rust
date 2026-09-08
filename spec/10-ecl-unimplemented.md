@@ -83,8 +83,8 @@ token shape:
   `mrcmRuleRefsetId`/`attributeDescription`/`attributeType`/
   `attributeOrder`/`descriptionFormat`/`descriptionLength`/
   `domainConstraint`/`parentDomain`/`proximalPrimitiveConstraint`/
-  `proximalPrimitiveRefinement`
-  — a refset-type-specific column (`domainTemplateForPrecoordination`,
+  `proximalPrimitiveRefinement`/`domainTemplateForPrecoordination`
+  — a refset-type-specific column (`domainTemplateForPostcoordination`,
   `grouped`, …), as
   opposed to the three shared-column kinds
   (`moduleId`/`effectiveTime`/`active`) implemented 2026-09-01 after both
@@ -182,6 +182,10 @@ token shape:
   `proximalPrimitiveRefinement` (2026-09-07) — the eighth
   string-search-shape column, `MrcmDomainRefsetMember`'s fourth column
   (all four columns share one row) — reuses `mapTarget`'s grammar
+  verbatim, no new row-set check needed;
+  `domainTemplateForPrecoordination` (2026-09-08) — the ninth
+  string-search-shape column, `MrcmDomainRefsetMember`'s fifth column
+  (all five columns share one row) — reuses `mapTarget`'s grammar
   verbatim, no new row-set check needed.
   Boolean and time remain unimplemented, with no example yet. See
   `SnapshotStore::simple_map_member_rows`/`extended_map_member_rows`/
