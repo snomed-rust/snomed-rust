@@ -13,6 +13,42 @@ together, in dependency order (`snomed-core` → `snomed-rf2` → `snomed-owl`
 
 ## [Unreleased]
 
+**New ECL capability, additive.** `{{ M ... }}`'s `memberFieldFilter`
+gains its twenty-eighth column, `grouped` —
+`MrcmAttributeDomainRefsetMember`'s fourth column (after
+`domainId`/`ruleStrengthId`/`contentTypeId`), after both `^` and
+`^R`. The first `memberFieldFilter` column to use the boolean shape
+(`booleanComparisonOperator ws booleanValue`, confirmed against the
+official ABNF), via a new `BooleanFieldFilter` — distinct from
+`active`'s own `activeTrueValue / activeFalseValue / wildCard`
+production, which carries a wildcard alternative this one doesn't.
+Needed a genuinely new `MemberFilterKind` variant (no implemented
+column shares this RF2 field name) but no new row-set check, reusing
+the type's existing row set. A minor bump: new public API, no
+removals or signature changes to anything existing.
+
+### Added
+
+- `snomed-ecl`: `{{ M grouped = true }}` restricts to
+  `MrcmAttributeDomain` member rows whose own `grouped` column
+  matches — the first `memberFieldFilter` column on the boolean
+  shape, reusing the same `TokenKind::True`/`TokenKind::False` tokens
+  `active`'s own parsing already lexes (via the new
+  `BooleanFieldFilter`), but without `active`'s `*` wildcard
+  alternative, since `booleanValue` has no such production. Works
+  after both `^` and `^R`, and conjoins with
+  `domainId`/`ruleStrengthId`/`contentTypeId` and the other
+  shared-column kinds on the same member row — all four
+  `MrcmAttributeDomainRefsetMember` columns implemented so far live
+  on the same row, so a block naming any combination is satisfied by
+  that one row. Only `MrcmAttributeDomainRefsetMember` rows carry a
+  `grouped` column; every other row source never matches.
+  `memberFieldFilter`'s twenty-eighth column, and
+  `MrcmAttributeDomainRefsetMember`'s fourth. Needed a genuinely new
+  `MemberFilterKind` variant (no implemented column shares this RF2
+  field name) but no new row-set check, reusing the type's existing
+  `SnapshotStore::mrcm_attribute_domain_member_rows`.
+
 ## [0.42.0] — 2026-09-09
 
 **New ECL capability, additive.** `{{ M ... }}`'s `memberFieldFilter`
@@ -774,53 +810,7 @@ existing.
 - No public API removed or changed signature; existing code compiles
   unmodified against this release.
 
-## [0.17.0] — 2026-09-03
-
-**New ECL capability, additive.** `{{ M ... }}`'s `memberFieldFilter`
-gains its third column, `mapGroup` — after both `^` and `^R`. A minor
-bump: new public API, no removals or signature changes to anything
-existing.
-
-### Added
-
-- `snomed-ecl`: `{{ M mapGroup >= #1 }}` restricts to `ExtendedMap`
-  member rows whose own `mapGroup` column satisfies the comparison —
-  `=`, `!=`, `<=`, `<`, `>=`, or `>`. Works after both `^` and `^R`, and
-  conjoins with `mapTarget`/`correlationId` and the shared-column kinds
-  on the same member row. Only `ExtendedMapRefsetMember` rows carry a
-  `mapGroup` column; `SimpleMapRefsetMember` and every other refset type
-  never match this filter. New public API: `MemberFilterKind::MapGroup`,
-  `NumericFieldFilter`.
-
-### Notes for consumers
-
-- No public API removed or changed signature; existing code compiles
-  unmodified against this release.
-
-## [0.16.0] — 2026-09-03
-
-**New ECL capability, additive.** `{{ M ... }}`'s `memberFieldFilter`
-gains its second column, `correlationId` — after both `^` and `^R`. A
-minor bump: new public API, no removals or signature changes to anything
-existing.
-
-### Added
-
-- `snomed-ecl`: `{{ M correlationId = 116680003 }}` restricts to
-  `ExtendedMap` member rows whose own `correlationId` column is in the
-  evaluated set — the same `subExpressionConstraint`-value grammar
-  `moduleId`'s own filter uses. Works after both `^` and `^R`, and
-  conjoins with `mapTarget` and the shared-column kinds on the same
-  member row. Only `ExtendedMapRefsetMember` rows carry a `correlationId`
-  column; `SimpleMapRefsetMember` and every other refset type never
-  match this filter. New public API: `MemberFilterKind::CorrelationId`.
-
-### Notes for consumers
-
-- No public API removed or changed signature; existing code compiles
-  unmodified against this release.
-
-Entries for 0.15.0 and earlier live in
+Entries for 0.17.0 and earlier live in
 [`docs/changelog-archive.md`](docs/changelog-archive.md) — moved there
 verbatim to keep this file inside the repository's 40 KB per-document
 budget (rule 1 of `spec/docs-budget-and-links/index.md`).

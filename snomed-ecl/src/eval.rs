@@ -14,11 +14,12 @@ use snomed_rf2::refset::RefsetMemberCore;
 
 use crate::ast::{
     AcceptabilityValue, ActiveFilter, ActiveValue, AttributeComparison, AttributeConstraint,
-    Cardinality, ConceptFilterKind, DefinitionStatusFilter, DefinitionStatusValue,
-    DescriptionFilterKind, DescriptionTypeValue, DialectFilter, EffectiveTimeFilter,
-    ExpressionConstraint, FocusConcept, HierarchyOp, LanguageFilter, MemberFilterKind,
-    ModuleFilter, NumericComparisonOp, NumericFieldFilter, RefinementConstraint, RefsetOperand,
-    SearchTerm, SearchType, SimpleExpressionConstraint, TermFilter, TimeComparisonOp, TypeFilter,
+    BooleanFieldFilter, Cardinality, ConceptFilterKind, DefinitionStatusFilter,
+    DefinitionStatusValue, DescriptionFilterKind, DescriptionTypeValue, DialectFilter,
+    EffectiveTimeFilter, ExpressionConstraint, FocusConcept, HierarchyOp, LanguageFilter,
+    MemberFilterKind, ModuleFilter, NumericComparisonOp, NumericFieldFilter, RefinementConstraint,
+    RefsetOperand, SearchTerm, SearchType, SimpleExpressionConstraint, TermFilter,
+    TimeComparisonOp, TypeFilter,
 };
 
 /// Evaluates `expr` against `store`, returning the matching concept ids.
@@ -313,6 +314,7 @@ fn member_row_matches(
                 | MemberFilterKind::DomainId(_)
                 | MemberFilterKind::RuleStrengthId(_)
                 | MemberFilterKind::ContentTypeId(_)
+                | MemberFilterKind::Grouped(_)
         )
     }) {
         return typed_field_row_matches(
@@ -370,8 +372,8 @@ fn member_row_matches(
 /// seventh and last, all populated from the same row. `domain_id` is
 /// the first field from `MrcmAttributeDomainRefsetMember`, a tenth
 /// refset type outside the two map types; `rule_strength_id` is its
-/// second, `content_type_id` its third, both populated from the same
-/// row.
+/// second, `content_type_id` its third, `grouped` its fourth, all
+/// populated from the same row.
 #[derive(Default)]
 struct TypedFields<'a> {
     map_target: Option<&'a str>,
@@ -401,6 +403,7 @@ struct TypedFields<'a> {
     domain_id: Option<SctId>,
     rule_strength_id: Option<SctId>,
     content_type_id: Option<SctId>,
+    grouped: Option<bool>,
 }
 
 /// The `mapTarget`/`correlationId`/`mapGroup`/`mapPriority`/`mapRule`/
@@ -707,6 +710,7 @@ fn typed_field_row_matches(
                             domain_id: Some(row.domain_id),
                             rule_strength_id: Some(row.rule_strength_id),
                             content_type_id: Some(row.content_type_id),
+                            grouped: Some(row.grouped),
                             ..TypedFields::default()
                         },
                     )
@@ -1274,6 +1278,15 @@ fn member_filter_matches(
                 return false;
             };
             values.contains(&content_type_id) != *negated
+        }
+        MemberFilterKind::Grouped(BooleanFieldFilter { negated, value }) => {
+            // No `grouped` on this row source (every source but
+            // `MrcmAttributeDomain`'s own): never matches, same
+            // reasoning as `ContentTypeId`'s `None` case above.
+            let Some(grouped) = fields.grouped else {
+                return false;
+            };
+            (grouped == *value) != *negated
         }
     }
 }
@@ -6496,12 +6509,103 @@ mod tests {
         );
     }
 
-    /// `domainId`/`ruleStrengthId`/`contentTypeId` all three live on
-    /// the same `MrcmAttributeDomainRefsetMember` row (spec/08) — a
-    /// block naming any combination of the three is satisfied by that
-    /// one row, not by separate rows each matching one filter.
+    /// `grouped` (spec/10 rule 18) — the twenty-eighth
+    /// `memberFieldFilter` column, and the first to use the boolean
+    /// shape (`booleanComparisonOperator ws booleanValue`, confirmed
+    /// against the official ABNF). `MrcmAttributeDomainRefsetMember`'s
+    /// fourth column (after `domainId`/`ruleStrengthId`/`contentTypeId`),
+    /// but tested against the same twelfth typed row set those three
+    /// use — no new row-set check needed. Also proves `{{ M }}` after
+    /// `^R` reaches it.
     #[test]
-    fn member_filter_domain_id_rule_strength_id_and_content_type_id_conjoin_on_the_same_row() {
+    fn member_filter_grouped_matches_mrcm_attribute_domain_rows() {
+        let mrcm_attribute_domain = SctId::compose(10005, ComponentType::Concept, None).unwrap();
+        let mut b = SnapshotStore::builder();
+        b.add_concept(concept(MI));
+        b.add_mrcm_attribute_domain_member(MrcmAttributeDomainRefsetMember {
+            core: RefsetMemberCore {
+                id: MemberId::parse("80000000-0000-4000-8000-000000000166").unwrap(),
+                effective_time: EffectiveTime::new_unchecked(20190731),
+                active: true,
+                module_id: constants::CORE_MODULE,
+                refset_id: mrcm_attribute_domain,
+                referenced_component_id: MI,
+            },
+            domain_id: constants::CORE_MODULE,
+            grouped: true,
+            attribute_cardinality: String::new(),
+            attribute_in_group_cardinality: String::new(),
+            rule_strength_id: constants::CORE_MODULE,
+            content_type_id: constants::CORE_MODULE,
+        });
+        let store = b.build();
+
+        assert_eq!(
+            eval(
+                &format!("^ {mrcm_attribute_domain} {{{{ M grouped = false }}}}"),
+                &store
+            ),
+            HashSet::new(),
+            "the row's own grouped doesn't match"
+        );
+        assert_eq!(
+            eval(
+                &format!("^ {mrcm_attribute_domain} {{{{ M grouped = true }}}}"),
+                &store
+            ),
+            HashSet::from([MI])
+        );
+        // `^R` reaches the same row, through the shared row-matching path.
+        assert_eq!(
+            eval(&format!("^R {MI} {{{{ M grouped = true }}}}"), &store),
+            HashSet::from([mrcm_attribute_domain])
+        );
+    }
+
+    /// `MrcmDomainRefsetMember`/every other typed row source has no
+    /// `grouped` column — a membership that exists only there must
+    /// never match, the same "column absent on this row source" case
+    /// every other field filter has for the row types it doesn't
+    /// apply to.
+    #[test]
+    fn member_filter_grouped_never_matches_mrcm_domain_rows() {
+        let mrcm_domain = SctId::compose(10006, ComponentType::Concept, None).unwrap();
+        let mut b = SnapshotStore::builder();
+        b.add_concept(concept(MI));
+        b.add_mrcm_domain_member(MrcmDomainRefsetMember {
+            core: RefsetMemberCore {
+                id: MemberId::parse("80000000-0000-4000-8000-000000000167").unwrap(),
+                effective_time: EffectiveTime::new_unchecked(20190731),
+                active: true,
+                module_id: constants::CORE_MODULE,
+                refset_id: mrcm_domain,
+                referenced_component_id: MI,
+            },
+            domain_constraint: String::new(),
+            parent_domain: String::new(),
+            proximal_primitive_constraint: String::new(),
+            proximal_primitive_refinement: String::new(),
+            domain_template_for_precoordination: String::new(),
+            domain_template_for_postcoordination: String::new(),
+            guide_url: String::new(),
+        });
+        let store = b.build();
+
+        assert_eq!(
+            eval(
+                &format!("^ {mrcm_domain} {{{{ M grouped = true }}}}"),
+                &store
+            ),
+            HashSet::new()
+        );
+    }
+
+    /// `domainId`/`ruleStrengthId`/`contentTypeId`/`grouped` all four
+    /// live on the same `MrcmAttributeDomainRefsetMember` row (spec/08)
+    /// — a block naming any combination of the four is satisfied by
+    /// that one row, not by separate rows each matching one filter.
+    #[test]
+    fn member_filter_all_four_mrcm_attribute_domain_columns_conjoin_on_the_same_row() {
         let mrcm_attribute_domain = SctId::compose(9995, ComponentType::Concept, None).unwrap();
         let domain = SctId::compose(9996, ComponentType::Concept, None).unwrap();
         let mandatory = SctId::compose(9997, ComponentType::Concept, None).unwrap();
@@ -6521,7 +6625,7 @@ mod tests {
                 referenced_component_id: MI,
             },
             domain_id: domain,
-            grouped: false,
+            grouped: true,
             attribute_cardinality: String::new(),
             attribute_in_group_cardinality: String::new(),
             rule_strength_id: mandatory,
@@ -6532,7 +6636,7 @@ mod tests {
         assert_eq!(
             eval(
                 &format!(
-                    "^ {mrcm_attribute_domain} {{{{ M domainId = {domain}, ruleStrengthId = {mandatory}, contentTypeId = {all_content} }}}}"
+                    "^ {mrcm_attribute_domain} {{{{ M domainId = {domain}, ruleStrengthId = {mandatory}, contentTypeId = {all_content}, grouped = true }}}}"
                 ),
                 &store
             ),
@@ -6541,12 +6645,12 @@ mod tests {
         assert_eq!(
             eval(
                 &format!(
-                    "^ {mrcm_attribute_domain} {{{{ M domainId = {domain}, contentTypeId = {domain} }}}}"
+                    "^ {mrcm_attribute_domain} {{{{ M domainId = {domain}, grouped = false }}}}"
                 ),
                 &store
             ),
             HashSet::new(),
-            "wrong contentTypeId on the only row rules it out"
+            "wrong grouped on the only row rules it out"
         );
     }
 

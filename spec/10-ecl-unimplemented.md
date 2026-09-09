@@ -84,9 +84,9 @@ token shape:
   `attributeOrder`/`descriptionFormat`/`descriptionLength`/
   `domainConstraint`/`parentDomain`/`proximalPrimitiveConstraint`/
   `proximalPrimitiveRefinement`/`domainTemplateForPrecoordination`/
-  `domainTemplateForPostcoordination`/`guideURL`/`domainId`/`ruleStrengthId`/`contentTypeId`
-  — a refset-type-specific column (`grouped`,
-  `attributeCardinality`, …), as
+  `domainTemplateForPostcoordination`/`guideURL`/`domainId`/`ruleStrengthId`/`contentTypeId`/`grouped`
+  — a refset-type-specific column (`attributeCardinality`,
+  `sourceEffectiveTime`, …), as
   opposed to the three shared-column kinds
   (`moduleId`/`effectiveTime`/`active`) implemented 2026-09-01 after both
   `^` and `^R`. `refsetFieldName` is `1*alpha` in the official grammar
@@ -216,8 +216,16 @@ token shape:
   columns share one row) — reuses `correlationId`'s grammar verbatim,
   no new row-set check needed. Not yet extended to
   `MrcmAttributeRangeRefsetMember`, which has its own `contentTypeId`
-  column.
-  Boolean and time remain unimplemented, with no example yet. See
+  column;
+  `grouped` (2026-09-09) — the first boolean-shape column
+  (`booleanComparisonOperator ws booleanValue`, confirmed against the
+  official ABNF), `MrcmAttributeDomainRefsetMember`'s fourth column
+  (all four columns share one row) — new `BooleanFieldFilter`
+  (reusing the `TokenKind::True`/`TokenKind::False` tokens
+  `ActiveValue`'s own parsing already lexes, but without `active`'s
+  wildcard alternative, since `booleanValue` has none), no new
+  row-set check needed.
+  Time remains unimplemented, with no example yet. See
   `SnapshotStore::simple_map_member_rows`/`extended_map_member_rows`/
   `association_member_rows` and
   spec/09 rule 4. Decided 2026-09-03 in `plan.md`'s "Open decisions":

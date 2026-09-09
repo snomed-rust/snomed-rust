@@ -378,7 +378,7 @@ pub enum ConceptFilterKind {
 /// `DescriptionLength`/`DomainConstraint`/`ParentDomain`/
 /// `ProximalPrimitiveConstraint`/`ProximalPrimitiveRefinement`/
 /// `DomainTemplateForPrecoordination`/`DomainTemplateForPostcoordination`/
-/// `GuideUrl`/`DomainId`/`RuleStrengthId`/`ContentTypeId`
+/// `GuideUrl`/`DomainId`/`RuleStrengthId`/`ContentTypeId`/`Grouped`
 /// are the official grammar's fourth kind, `memberFieldFilter`
 /// — a refset-type-specific column rather than a shared one. Its own
 /// grammar (confirmed against the official ABNF, `syntax/abnf-brief.txt`)
@@ -450,15 +450,19 @@ pub enum ConceptFilterKind {
 /// new row-set check since this is that type's first filterable
 /// column); `ruleStrengthId` (`MrcmAttributeDomainRefsetMember`'s
 /// second column, another genuinely new variant, again no new
-/// row-set check since both columns come from the same row); and
+/// row-set check since both columns come from the same row);
 /// `contentTypeId` (`MrcmAttributeDomainRefsetMember`'s third column,
 /// another genuinely new variant, again no new row-set check since
-/// all three columns come from the same row) — all
+/// all three columns come from the same row); and `grouped` (the
+/// first `memberFieldFilter` column on the boolean shape,
+/// `MrcmAttributeDomainRefsetMember`'s fourth column, again no new
+/// row-set check since all four columns come from the same row) —
+/// all
 /// decided 2026-09-03 (`plan.md`'s "Open decisions") to retain full rows
 /// — active and inactive — for all sixteen non-Simple/Language refset
 /// types, the same store change `moduleId`/`effectiveTime`/`active`
 /// needed for the six shared columns. Every other `memberFieldFilter`
-/// column, and the boolean and time shapes, are still rejected — see
+/// column, and the time shape, are still rejected — see
 /// [`ExpressionConstraint::MemberFilter`] and
 /// `spec/10-ecl-unimplemented.md`.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -881,6 +885,25 @@ pub enum MemberFilterKind {
     /// own variant too. `MrcmAttributeRangeRefsetMember` also has a
     /// `contentTypeId` column of its own, not yet extended to.
     ContentTypeId(ModuleFilter),
+    /// `grouped (=|!=) booleanValue` — a `memberFieldFilter` (spec/10
+    /// rule 18): `MrcmAttributeDomainRefsetMember`'s own `grouped`
+    /// column (whether this attribute, for this domain, must appear
+    /// inside a relationship group). The first `memberFieldFilter`
+    /// column to use the boolean shape
+    /// (`booleanComparisonOperator ws booleanValue`, confirmed
+    /// against the official ABNF) — reuses [`BooleanFieldFilter`]'s
+    /// exact shape, distinct from [`ActiveFilter`]'s own
+    /// `activeTrueValue / activeFalseValue / wildCard` production
+    /// (`active`'s wildcard alternative has no equivalent here).
+    /// `MrcmAttributeDomainRefsetMember`'s fourth column: all four
+    /// columns live on the same row, so a block naming any
+    /// combination is satisfied by that one row, no new row-set check
+    /// needed — tested against the same
+    /// `SnapshotStore::mrcm_attribute_domain_member_rows` as
+    /// `domainId`/`ruleStrengthId`/`contentTypeId`. No other
+    /// implemented column shares the RF2 field name `grouped`, so
+    /// this needs its own variant too.
+    Grouped(BooleanFieldFilter),
 }
 
 /// `numericComparisonOperator ws "#" numericValue` — a `memberFieldFilter`
@@ -895,6 +918,22 @@ pub enum MemberFilterKind {
 pub struct NumericFieldFilter {
     pub operator: NumericComparisonOp,
     pub value: String,
+}
+
+/// `booleanComparisonOperator ws booleanValue` — a `memberFieldFilter`
+/// value form (spec/10 rule 18), confirmed against the official ABNF:
+/// `booleanComparisonOperator = "=" / "!="`, `booleanValue = true /
+/// false`. The first `memberFieldFilter` column to use this shape
+/// (`grouped`) — distinct from [`ActiveFilter`]'s own
+/// `activeTrueValue / activeFalseValue / wildCard` production, which
+/// carries a third, wildcard alternative this one doesn't. Reuses the
+/// same `TokenKind::True`/`TokenKind::False` tokens `ActiveValue`'s
+/// own parsing already lexes.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct BooleanFieldFilter {
+    /// `true` for `!=`.
+    pub negated: bool,
+    pub value: bool,
 }
 
 /// `activeKeyword ws booleanComparisonOperator ws activeValue`.

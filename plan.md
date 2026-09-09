@@ -262,9 +262,10 @@ and harmonizes it with the sibling repositories (`hl7-rust`, `er7-rust`,
   `domainTemplateForPostcoordination`,
   `guideURL`,
   `domainId`,
-  `ruleStrengthId`, and
-  `contentTypeId` are the
-  first twenty-eight
+  `ruleStrengthId`,
+  `contentTypeId`, and
+  `grouped` are the
+  first twenty-nine
   concrete fields
   built on this retention (`snomed-ecl`, spec/10 rule 18): the
   `memberFieldFilter` grammar alternative, tested against
@@ -299,17 +300,22 @@ and harmonizes it with the sibling repositories (`hl7-rust`, `er7-rust`,
   `NumericFieldFilter`) — which caught a real bug: the existing
   `numeric_matches` (built for `eclAttribute`'s cardinality-negated `!=`)
   silently inverts `!=` into `=`, wrong for a direct field comparison,
-  fixed with a dedicated `field_numeric_matches` before it shipped — the
-  boolean and time shapes remain unimplemented. `mapCategoryId` completes
+  fixed with a dedicated `field_numeric_matches` before it shipped —
+  `grouped` the boolean
+  shape (`booleanComparisonOperator ws booleanValue`, confirmed
+  against the official ABNF, new `BooleanFieldFilter`, reusing the
+  `TokenKind::True`/`TokenKind::False` tokens `ActiveValue`'s own
+  parsing already lexes but without its wildcard alternative) — the
+  time shape remains unimplemented. `mapCategoryId` completes
   `ExtendedMapRefsetMember`'s column coverage; `targetComponentId`/
   `valueId`/`owlExpression`/`order`/`mrcmRuleRefsetId`/
   `attributeDescription`/`attributeType`/`attributeOrder`/
   `descriptionFormat`/`descriptionLength`/`domainConstraint`/
   `parentDomain`/`proximalPrimitiveConstraint`/
   `proximalPrimitiveRefinement`/`domainTemplateForPrecoordination`/
-  `domainTemplateForPostcoordination`/`guideURL`/`domainId`/`ruleStrengthId`/`contentTypeId`
+  `domainTemplateForPostcoordination`/`guideURL`/`domainId`/`ruleStrengthId`/`contentTypeId`/`grouped`
   are the
-  first twenty fields on refset
+  first twenty-one fields on refset
   types
   other than the two
   map types (`AssociationRefsetMember`/`AttributeValueRefsetMember`/
@@ -326,7 +332,7 @@ and harmonizes it with the sibling repositories (`hl7-rust`, `er7-rust`,
   past `ExtendedMap`/`SimpleMap` across every grammar shape, not just
   the concept-reference one. Every
   other `memberFieldFilter` column
-  (`grouped`, `attributeCardinality`, …)
+  (`attributeCardinality`, `sourceEffectiveTime`, …)
   remains rejected generically —
   not by a fixed keyword list (`refsetFieldName` is `1*alpha`, confirmed
   against the official ABNF) — but each is now a free `snomed-ecl`
@@ -342,9 +348,9 @@ and harmonizes it with the sibling repositories (`hl7-rust`, `er7-rust`,
 ## Current status
 
 All eight phases above are closed. As of `memberFieldFilter`'s
-`contentTypeId` (2026-09-09, below) the
+`grouped` (2026-09-09, below) the
 workspace is 9 published
-crates with zero dependencies, 495 tests, a clean
+crates with zero dependencies, 498 tests, a clean
 `cargo clippy --all-targets`, 13 fuzz targets, and six criterion
 benchmark files. What is *not* done is tracked
 in two places and nowhere
@@ -455,10 +461,16 @@ variant, and a genuinely new twelfth row-set check
 since it's that type's first filterable column; `ruleStrengthId`
 (2026-09-09) is `MrcmAttributeDomainRefsetMember`'s second column,
 another genuinely new variant, again no new row-set check since both
-columns share one row; and `contentTypeId` (2026-09-09) is
+columns share one row; `contentTypeId` (2026-09-09) is
 `MrcmAttributeDomainRefsetMember`'s third column, another genuinely
 new variant, again no new row-set check since all three columns
-share one row. In between, the
+share one row; and `grouped` (2026-09-09) is
+`MrcmAttributeDomainRefsetMember`'s fourth column — the first
+`memberFieldFilter` column on the boolean shape
+(`booleanComparisonOperator ws booleanValue`, confirmed against the
+official ABNF before writing any Rust), new `BooleanFieldFilter`,
+again no new row-set check since all four columns share one row. In
+between, the
 `ecl_parse` fuzz target's CI smoke run caught
 a real stack overflow on pathologically deep `(`/refinement/
 attribute-set nesting (2026-09-04) — fixed with a shared `Parser::depth`

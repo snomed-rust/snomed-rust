@@ -1,10 +1,56 @@
 # Changelog archive
 
-Entries for versions 0.15.0 and earlier, moved verbatim from
+Entries for versions 0.17.0 and earlier, moved verbatim from
 [`CHANGELOG.md`](../CHANGELOG.md) to keep that file inside the
 repository's 40 KB per-document budget
 (rule 1 of `spec/docs-budget-and-links/index.md`). Newer entries live
 there.
+
+## [0.17.0] — 2026-09-03
+
+**New ECL capability, additive.** `{{ M ... }}`'s `memberFieldFilter`
+gains its third column, `mapGroup` — after both `^` and `^R`. A minor
+bump: new public API, no removals or signature changes to anything
+existing.
+
+### Added
+
+- `snomed-ecl`: `{{ M mapGroup >= #1 }}` restricts to `ExtendedMap`
+  member rows whose own `mapGroup` column satisfies the comparison —
+  `=`, `!=`, `<=`, `<`, `>=`, or `>`. Works after both `^` and `^R`, and
+  conjoins with `mapTarget`/`correlationId` and the shared-column kinds
+  on the same member row. Only `ExtendedMapRefsetMember` rows carry a
+  `mapGroup` column; `SimpleMapRefsetMember` and every other refset type
+  never match this filter. New public API: `MemberFilterKind::MapGroup`,
+  `NumericFieldFilter`.
+
+### Notes for consumers
+
+- No public API removed or changed signature; existing code compiles
+  unmodified against this release.
+
+## [0.16.0] — 2026-09-03
+
+**New ECL capability, additive.** `{{ M ... }}`'s `memberFieldFilter`
+gains its second column, `correlationId` — after both `^` and `^R`. A
+minor bump: new public API, no removals or signature changes to anything
+existing.
+
+### Added
+
+- `snomed-ecl`: `{{ M correlationId = 116680003 }}` restricts to
+  `ExtendedMap` member rows whose own `correlationId` column is in the
+  evaluated set — the same `subExpressionConstraint`-value grammar
+  `moduleId`'s own filter uses. Works after both `^` and `^R`, and
+  conjoins with `mapTarget` and the shared-column kinds on the same
+  member row. Only `ExtendedMapRefsetMember` rows carry a `correlationId`
+  column; `SimpleMapRefsetMember` and every other refset type never
+  match this filter. New public API: `MemberFilterKind::CorrelationId`.
+
+### Notes for consumers
+
+- No public API removed or changed signature; existing code compiles
+  unmodified against this release.
 
 ## [0.15.0] — 2026-09-03
 

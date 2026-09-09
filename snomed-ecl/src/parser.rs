@@ -5,11 +5,12 @@ use snomed_core::time::EffectiveTime;
 
 use crate::ast::{
     AcceptabilityValue, ActiveFilter, ActiveValue, AttributeComparison, AttributeConstraint,
-    AttributeGroup, Cardinality, ConceptFilterKind, DefinitionStatusFilter, DefinitionStatusValue,
-    DescriptionFilterKind, DescriptionTypeValue, DialectFilter, EffectiveTimeFilter,
-    ExpressionConstraint, FocusConcept, HierarchyOp, LanguageFilter, MemberFilterKind,
-    ModuleFilter, NumericComparisonOp, NumericFieldFilter, RefinementConstraint, RefsetOperand,
-    SearchTerm, SearchType, SimpleExpressionConstraint, TermFilter, TimeComparisonOp, TypeFilter,
+    AttributeGroup, BooleanFieldFilter, Cardinality, ConceptFilterKind, DefinitionStatusFilter,
+    DefinitionStatusValue, DescriptionFilterKind, DescriptionTypeValue, DialectFilter,
+    EffectiveTimeFilter, ExpressionConstraint, FocusConcept, HierarchyOp, LanguageFilter,
+    MemberFilterKind, ModuleFilter, NumericComparisonOp, NumericFieldFilter, RefinementConstraint,
+    RefsetOperand, SearchTerm, SearchType, SimpleExpressionConstraint, TermFilter,
+    TimeComparisonOp, TypeFilter,
 };
 use crate::error::EclError;
 use crate::lexer::{describe, Lexer, Token, TokenKind};
@@ -716,11 +717,20 @@ impl Parser {
                     value: Box::new(value),
                 }))
             }
+            TokenKind::Word(word) if word == "grouped" => {
+                self.advance()?;
+                let negated = self.parse_boolean_comparison_operator()?;
+                let value = self.parse_boolean_field_value()?;
+                Ok(MemberFilterKind::Grouped(BooleanFieldFilter {
+                    negated,
+                    value,
+                }))
+            }
             _ => {
                 let tok = self.peek().clone();
                 Err(Self::unexpected(
                     &tok,
-                    "`moduleId`, `effectiveTime`, `active`, `mapTarget`, `correlationId`, `mapGroup`, `mapPriority`, `mapRule`, `mapAdvice`, `mapCategoryId`, `targetComponentId`, `valueId`, `owlExpression`, `order`, `mrcmRuleRefsetId`, `attributeDescription`, `attributeType`, `attributeOrder`, `descriptionFormat`, `descriptionLength`, `domainConstraint`, `parentDomain`, `proximalPrimitiveConstraint`, `proximalPrimitiveRefinement`, `domainTemplateForPrecoordination`, `domainTemplateForPostcoordination`, `guideURL`, `domainId`, `ruleStrengthId`, or `contentTypeId`",
+                    "`moduleId`, `effectiveTime`, `active`, `mapTarget`, `correlationId`, `mapGroup`, `mapPriority`, `mapRule`, `mapAdvice`, `mapCategoryId`, `targetComponentId`, `valueId`, `owlExpression`, `order`, `mrcmRuleRefsetId`, `attributeDescription`, `attributeType`, `attributeOrder`, `descriptionFormat`, `descriptionLength`, `domainConstraint`, `parentDomain`, `proximalPrimitiveConstraint`, `proximalPrimitiveRefinement`, `domainTemplateForPrecoordination`, `domainTemplateForPostcoordination`, `guideURL`, `domainId`, `ruleStrengthId`, `contentTypeId`, or `grouped`",
                 ))
             }
         }
@@ -764,6 +774,25 @@ impl Parser {
             _ => {
                 let tok = self.peek().clone();
                 return Err(Self::unexpected(&tok, "`true`, `false`, or `*`"));
+            }
+        };
+        self.advance()?;
+        Ok(value)
+    }
+
+    /// `booleanValue = true / false` — a `memberFieldFilter` value form
+    /// (spec/10 rule 18), confirmed against the official ABNF. Reuses
+    /// the same `TokenKind::True`/`TokenKind::False` tokens
+    /// [`Self::parse_active_value`] lexes, but without `active`'s `*`
+    /// wildcard alternative, since `booleanValue` has no such
+    /// production.
+    fn parse_boolean_field_value(&mut self) -> Result<bool, EclError> {
+        let value = match &self.peek().kind {
+            TokenKind::True => true,
+            TokenKind::False => false,
+            _ => {
+                let tok = self.peek().clone();
+                return Err(Self::unexpected(&tok, "`true` or `false`"));
             }
         };
         self.advance()?;
@@ -2463,6 +2492,32 @@ mod tests {
         assert!(!negated);
     }
 
+    /// `grouped` (spec/10 rule 18) — the twenty-eighth
+    /// `memberFieldFilter` column, and the first to use the boolean
+    /// grammar shape (`booleanComparisonOperator ws booleanValue`,
+    /// confirmed against the official ABNF). `MrcmAttributeDomainRefsetMember`'s
+    /// fourth column (after `domainId`/`ruleStrengthId`/`contentTypeId`).
+    /// No other implemented column shares this RF2 field name, so it's
+    /// a genuinely new variant, but — since all four columns share one
+    /// row — no new row-set check.
+    #[test]
+    fn parses_member_filter_grouped() {
+        let EC::MemberFilter { filters, .. } = parse("^ 723592007 {{ M grouped = true }}").unwrap()
+        else {
+            panic!("expected a member filter");
+        };
+        assert_eq!(filters.len(), 1);
+        let crate::ast::MemberFilterKind::Grouped(crate::ast::BooleanFieldFilter {
+            negated,
+            value,
+        }) = &filters[0]
+        else {
+            panic!("expected a Grouped filter, got {:?}", filters[0]);
+        };
+        assert!(!negated);
+        assert!(value);
+    }
+
     /// `mapGroup` (spec/10 rule 18) — the third `memberFieldFilter`
     /// column implemented, and the first to use the numeric grammar
     /// shape (`numericComparisonOperator ws "#" numericValue`, the same
@@ -2568,7 +2623,7 @@ mod tests {
     #[test]
     fn rejects_an_unrecognized_member_field_filter_generically() {
         assert!(matches!(
-            parse("^ 447562003 {{ M grouped = \"x\" }}"),
+            parse("^ 447562003 {{ M attributeCardinality = \"x\" }}"),
             Err(EclError::UnexpectedKeyword { .. })
         ));
     }

@@ -440,16 +440,28 @@ one row. `contentTypeId` (2026-09-09),
 `MrcmAttributeDomainRefsetMember`'s third column, followed
 immediately too: another genuinely new variant (`ContentTypeId`),
 again no new row-set check — all three of that type's columns now
-share one row. `memberFieldFilter`
+share one row. `grouped` (2026-09-09),
+`MrcmAttributeDomainRefsetMember`'s fourth column, followed
+immediately too — but the first to break the concept-reference streak,
+needing a genuinely new *shape*: `booleanComparisonOperator ws
+booleanValue`, confirmed against the ABNF before writing any Rust
+(the standing rule below), and distinct from `active`'s own
+`activeTrueValue / activeFalseValue / wildCard` production, which
+carries a wildcard alternative this one doesn't. New
+`BooleanFieldFilter` (reusing the `TokenKind::True`/`TokenKind::False`
+tokens `ActiveValue`'s own parsing already lexes) and
+`MemberFilterKind::Grouped`, again no new row-set check — all four of
+that type's columns now share one row. `memberFieldFilter`
 isn't one production but five in the official grammar, chosen by the
 named column's own semantic type
 (`expressionComparisonOperator ws subExpressionConstraint` for a concept
 reference — `correlationId`'s shape, reusing `ModuleFilter` verbatim —
 vs. `mapTarget`'s `stringComparisonOperator ws (typedSearchTerm |
 typedSearchTermSet)` vs. `mapGroup`'s `numericComparisonOperator ws "#"
-numericValue`; also `booleanComparisonOperator ws booleanValue` and
+numericValue` vs. `grouped`'s `booleanComparisonOperator ws
+booleanValue`; also
 `timeComparisonOperator ws (timeValue | timeValueSet)`, confirmed against
-the ABNF, neither implemented yet). Confirm which shape a column
+the ABNF, not implemented yet). Confirm which shape a column
 actually uses before implementing it — do not assume every remaining
 column reuses `mapTarget`'s string grammar just because it was first.
 `mapGroup` also caught a real bug this way: the existing `numeric_matches`
@@ -463,7 +475,7 @@ inspection. `mapPriority` reused that same numeric shape and
 `TermFilter`/`term_matches` verbatim. With the store side now done for
 all sixteen types, every
 *remaining* `memberFieldFilter` column
-(`grouped`, `attributeCardinality`, …)
+(`attributeCardinality`, `sourceEffectiveTime`, …)
 IS a free next increment — the cadence below applies to them cleanly,
 the same as any other filter kind. See `spec/10-ecl-unimplemented.md`.
 

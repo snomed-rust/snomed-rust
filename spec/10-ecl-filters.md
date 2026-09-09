@@ -393,10 +393,27 @@ concept reference has eight, numeric has five):
   the same `SnapshotStore::mrcm_attribute_domain_member_rows`, no new
   row-set check needed. `MrcmAttributeRangeRefsetMember` also has a
   `contentTypeId` column of its own, not yet extended to.
+- `grouped (=|!=) booleanValue` — the boolean shape
+  (`booleanComparisonOperator ws booleanValue`, confirmed against the
+  official ABNF — `booleanComparisonOperator = "=" / "!="`,
+  `booleanValue = true / false`), the first implemented column to use
+  it: none of `mapTarget`/`correlationId`/`mapGroup` and the rest are
+  this shape, since `active`'s own `true`/`false`/`*` grammar
+  (`ActiveValue`) is a *different* production
+  (`activeTrueValue / activeFalseValue / wildCard`) with no wildcard
+  alternative here. New `BooleanFieldFilter { negated, value: bool }`,
+  reusing the `TokenKind::True`/`TokenKind::False` tokens
+  `ActiveValue`'s own parsing already lexes. Matched against the
+  member row's own `grouped` column (whether this attribute, for this
+  domain, must appear inside a relationship group).
+  `MrcmAttributeDomainRefsetMember`'s fourth column (after `domainId`/
+  `ruleStrengthId`/`contentTypeId`) — all four live on the same row,
+  tested against the same `SnapshotStore::mrcm_attribute_domain_member_rows`,
+  no new row-set check needed.
 
-All twenty-seven reuse the shared dispatch `mapTarget` introduced
+All twenty-eight reuse the shared dispatch `mapTarget` introduced
 (renamed `typed_field_row_matches` once a non-map type joined it): a
-block naming *any* of the twenty-seven kinds is tested against
+block naming *any* of the twenty-eight kinds is tested against
 `SimpleMap`/`ExtendedMap`/`Association`/`AttributeValue`/`OwlExpression`/
 `OrderedComponent`/`OrderedAssociation`/`MrcmModuleScope`/
 `RefsetDescriptor`/`DescriptionType`/`MrcmDomain`/`MrcmAttributeDomain`
@@ -412,15 +429,16 @@ any of `correlationId`/
 `attributeOrder`/`descriptionFormat`/`descriptionLength`/
 `domainConstraint`/`parentDomain`/`proximalPrimitiveConstraint`/
 `proximalPrimitiveRefinement`/`domainTemplateForPrecoordination`/
-`domainTemplateForPostcoordination`/`guideURL`/`domainId`/`ruleStrengthId`/`contentTypeId`
+`domainTemplateForPostcoordination`/`guideURL`/`domainId`/`ruleStrengthId`/`contentTypeId`/`grouped`
 (the column is
 simply
 absent on that row source, the same "not this row's type" answer a
 shared-column filter gets from a row of the wrong refset type), so it
 can never be a spurious match.
 
-**Not implemented:** every other `memberFieldFilter` column, and both
-remaining shapes — boolean, time (`grouped`, and
+**Not implemented:** every other `memberFieldFilter` column, and the
+remaining shape — time (`sourceEffectiveTime`/`targetEffectiveTime`
+on `ModuleDependencyRefsetMember`, and
 the rest — see `spec/10-ecl-unimplemented.md`); the store retention
 that made these columns possible already covers every non-Simple/
 Language refset type (decided 2026-09-03, `plan.md`'s "Open decisions"),
