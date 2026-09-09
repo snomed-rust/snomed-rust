@@ -378,7 +378,7 @@ pub enum ConceptFilterKind {
 /// `DescriptionLength`/`DomainConstraint`/`ParentDomain`/
 /// `ProximalPrimitiveConstraint`/`ProximalPrimitiveRefinement`/
 /// `DomainTemplateForPrecoordination`/`DomainTemplateForPostcoordination`/
-/// `GuideUrl`/`DomainId`/`RuleStrengthId`
+/// `GuideUrl`/`DomainId`/`RuleStrengthId`/`ContentTypeId`
 /// are the official grammar's fourth kind, `memberFieldFilter`
 /// — a refset-type-specific column rather than a shared one. Its own
 /// grammar (confirmed against the official ABNF, `syntax/abnf-brief.txt`)
@@ -448,9 +448,12 @@ pub enum ConceptFilterKind {
 /// `domainId` (`MrcmAttributeDomainRefsetMember`, a tenth refset type
 /// outside the two map types, another genuinely new variant, and a
 /// new row-set check since this is that type's first filterable
-/// column); and `ruleStrengthId` (`MrcmAttributeDomainRefsetMember`'s
+/// column); `ruleStrengthId` (`MrcmAttributeDomainRefsetMember`'s
 /// second column, another genuinely new variant, again no new
-/// row-set check since both columns come from the same row) — all
+/// row-set check since both columns come from the same row); and
+/// `contentTypeId` (`MrcmAttributeDomainRefsetMember`'s third column,
+/// another genuinely new variant, again no new row-set check since
+/// all three columns come from the same row) — all
 /// decided 2026-09-03 (`plan.md`'s "Open decisions") to retain full rows
 /// — active and inactive — for all sixteen non-Simple/Language refset
 /// types, the same store change `moduleId`/`effectiveTime`/`active`
@@ -858,6 +861,26 @@ pub enum MemberFilterKind {
     /// `MrcmAttributeRangeRefsetMember` also has a `ruleStrengthId`
     /// column of its own, not yet extended to.
     RuleStrengthId(ModuleFilter),
+    /// `contentTypeId (=|!=) subExpressionConstraint` — a
+    /// `memberFieldFilter` (spec/10 rule 18):
+    /// `MrcmAttributeDomainRefsetMember`'s own `contentTypeId` column
+    /// (a concept reference — which content type(s) this rule applies
+    /// to, e.g. |All content|). Reuses [`ModuleFilter`]'s exact shape
+    /// and grammar again — the same concept-reference production
+    /// `correlationId`/`mapCategoryId`/`targetComponentId`/`valueId`/
+    /// `mrcmRuleRefsetId`/`attributeDescription`/`attributeType`/
+    /// `descriptionFormat`/`domainId`/`ruleStrengthId` use, just a
+    /// different refset type and RF2 column.
+    /// `MrcmAttributeDomainRefsetMember`'s third column: all three
+    /// columns live on the same row, so a block naming any
+    /// combination is satisfied by that one row, no new row-set check
+    /// needed — tested against the same
+    /// `SnapshotStore::mrcm_attribute_domain_member_rows` as
+    /// `domainId`/`ruleStrengthId`. No other implemented column
+    /// shares the RF2 field name `contentTypeId`, so this needs its
+    /// own variant too. `MrcmAttributeRangeRefsetMember` also has a
+    /// `contentTypeId` column of its own, not yet extended to.
+    ContentTypeId(ModuleFilter),
 }
 
 /// `numericComparisonOperator ws "#" numericValue` — a `memberFieldFilter`

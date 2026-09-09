@@ -312,6 +312,7 @@ fn member_row_matches(
                 | MemberFilterKind::GuideUrl(_)
                 | MemberFilterKind::DomainId(_)
                 | MemberFilterKind::RuleStrengthId(_)
+                | MemberFilterKind::ContentTypeId(_)
         )
     }) {
         return typed_field_row_matches(
@@ -369,7 +370,8 @@ fn member_row_matches(
 /// seventh and last, all populated from the same row. `domain_id` is
 /// the first field from `MrcmAttributeDomainRefsetMember`, a tenth
 /// refset type outside the two map types; `rule_strength_id` is its
-/// second, populated from the same row.
+/// second, `content_type_id` its third, both populated from the same
+/// row.
 #[derive(Default)]
 struct TypedFields<'a> {
     map_target: Option<&'a str>,
@@ -398,6 +400,7 @@ struct TypedFields<'a> {
     guide_url: Option<&'a str>,
     domain_id: Option<SctId>,
     rule_strength_id: Option<SctId>,
+    content_type_id: Option<SctId>,
 }
 
 /// The `mapTarget`/`correlationId`/`mapGroup`/`mapPriority`/`mapRule`/
@@ -703,6 +706,7 @@ fn typed_field_row_matches(
                         &TypedFields {
                             domain_id: Some(row.domain_id),
                             rule_strength_id: Some(row.rule_strength_id),
+                            content_type_id: Some(row.content_type_id),
                             ..TypedFields::default()
                         },
                     )
@@ -853,7 +857,8 @@ fn prepare_member_filter(filter: &MemberFilterKind, store: &SnapshotStore) -> Pr
         | MemberFilterKind::AttributeType(ModuleFilter { value, .. })
         | MemberFilterKind::DescriptionFormat(ModuleFilter { value, .. })
         | MemberFilterKind::DomainId(ModuleFilter { value, .. })
-        | MemberFilterKind::RuleStrengthId(ModuleFilter { value, .. }) => {
+        | MemberFilterKind::RuleStrengthId(ModuleFilter { value, .. })
+        | MemberFilterKind::ContentTypeId(ModuleFilter { value, .. }) => {
             PreparedMemberFilter::Concepts(evaluate(value, store))
         }
         MemberFilterKind::MapTarget(TermFilter { values, .. })
@@ -1257,6 +1262,18 @@ fn member_filter_matches(
                 return false;
             };
             values.contains(&rule_strength_id) != *negated
+        }
+        MemberFilterKind::ContentTypeId(ModuleFilter { negated, .. }) => {
+            let PreparedMemberFilter::Concepts(values) = prepared else {
+                unreachable!("a contentTypeId filter prepares to `Concepts`")
+            };
+            // No `content_type_id` on this row source (every source
+            // but `MrcmAttributeDomain`'s own): never matches, same
+            // reasoning as `RuleStrengthId`'s `None` case above.
+            let Some(content_type_id) = fields.content_type_id else {
+                return false;
+            };
+            values.contains(&content_type_id) != *negated
         }
     }
 }
@@ -6379,19 +6396,121 @@ mod tests {
         );
     }
 
-    /// `domainId`/`ruleStrengthId` both live on the same
-    /// `MrcmAttributeDomainRefsetMember` row (spec/08) — a block naming
-    /// both is satisfied by that one row, not by separate rows each
-    /// matching one filter.
+    /// `contentTypeId` (spec/10 rule 18) — the twenty-seventh
+    /// `memberFieldFilter` column, and `MrcmAttributeDomainRefsetMember`'s
+    /// third column (after `domainId`/`ruleStrengthId`).
+    /// Concept-reference shape, reusing `correlationId`/`domainId`'s
+    /// exact grammar, but tested against the same twelfth typed row
+    /// set `domainId`/`ruleStrengthId` use — no new row-set check
+    /// needed. Also proves `{{ M }}` after `^R` reaches it.
     #[test]
-    fn member_filter_domain_id_and_rule_strength_id_conjoin_on_the_same_row() {
+    fn member_filter_content_type_id_matches_mrcm_attribute_domain_rows() {
+        let mrcm_attribute_domain = SctId::compose(9998, ComponentType::Concept, None).unwrap();
+        let domain = SctId::compose(9999, ComponentType::Concept, None).unwrap();
+        let all_content = SctId::compose(10000, ComponentType::Concept, None).unwrap();
+        let some_content = SctId::compose(10001, ComponentType::Concept, None).unwrap();
+        let mut b = SnapshotStore::builder();
+        b.add_concept(concept(MI));
+        b.add_concept(concept(domain));
+        b.add_concept(concept(all_content));
+        b.add_concept(concept(some_content));
+        b.add_mrcm_attribute_domain_member(MrcmAttributeDomainRefsetMember {
+            core: RefsetMemberCore {
+                id: MemberId::parse("80000000-0000-4000-8000-000000000164").unwrap(),
+                effective_time: EffectiveTime::new_unchecked(20190731),
+                active: true,
+                module_id: constants::CORE_MODULE,
+                refset_id: mrcm_attribute_domain,
+                referenced_component_id: MI,
+            },
+            domain_id: domain,
+            grouped: false,
+            attribute_cardinality: String::new(),
+            attribute_in_group_cardinality: String::new(),
+            rule_strength_id: constants::CORE_MODULE,
+            content_type_id: all_content,
+        });
+        let store = b.build();
+
+        assert_eq!(
+            eval(
+                &format!("^ {mrcm_attribute_domain} {{{{ M contentTypeId = {some_content} }}}}"),
+                &store
+            ),
+            HashSet::new(),
+            "the row's own contentTypeId doesn't match"
+        );
+        assert_eq!(
+            eval(
+                &format!("^ {mrcm_attribute_domain} {{{{ M contentTypeId = {all_content} }}}}"),
+                &store
+            ),
+            HashSet::from([MI])
+        );
+        // `^R` reaches the same row, through the shared row-matching path.
+        assert_eq!(
+            eval(
+                &format!("^R {MI} {{{{ M contentTypeId = {all_content} }}}}"),
+                &store
+            ),
+            HashSet::from([mrcm_attribute_domain])
+        );
+    }
+
+    /// `MrcmDomainRefsetMember`/every other typed row source has no
+    /// `contentTypeId` column — a membership that exists only there
+    /// must never match, the same "column absent on this row source"
+    /// case every other field filter has for the row types it doesn't
+    /// apply to.
+    #[test]
+    fn member_filter_content_type_id_never_matches_mrcm_domain_rows() {
+        let mrcm_domain = SctId::compose(10002, ComponentType::Concept, None).unwrap();
+        let all_content = SctId::compose(10003, ComponentType::Concept, None).unwrap();
+        let mut b = SnapshotStore::builder();
+        b.add_concept(concept(MI));
+        b.add_mrcm_domain_member(MrcmDomainRefsetMember {
+            core: RefsetMemberCore {
+                id: MemberId::parse("80000000-0000-4000-8000-000000000165").unwrap(),
+                effective_time: EffectiveTime::new_unchecked(20190731),
+                active: true,
+                module_id: constants::CORE_MODULE,
+                refset_id: mrcm_domain,
+                referenced_component_id: MI,
+            },
+            domain_constraint: String::new(),
+            parent_domain: String::new(),
+            proximal_primitive_constraint: String::new(),
+            proximal_primitive_refinement: String::new(),
+            domain_template_for_precoordination: String::new(),
+            domain_template_for_postcoordination: String::new(),
+            guide_url: String::new(),
+        });
+        let store = b.build();
+
+        assert_eq!(
+            eval(
+                &format!("^ {mrcm_domain} {{{{ M contentTypeId = {all_content} }}}}"),
+                &store
+            ),
+            HashSet::new()
+        );
+    }
+
+    /// `domainId`/`ruleStrengthId`/`contentTypeId` all three live on
+    /// the same `MrcmAttributeDomainRefsetMember` row (spec/08) — a
+    /// block naming any combination of the three is satisfied by that
+    /// one row, not by separate rows each matching one filter.
+    #[test]
+    fn member_filter_domain_id_rule_strength_id_and_content_type_id_conjoin_on_the_same_row() {
         let mrcm_attribute_domain = SctId::compose(9995, ComponentType::Concept, None).unwrap();
         let domain = SctId::compose(9996, ComponentType::Concept, None).unwrap();
         let mandatory = SctId::compose(9997, ComponentType::Concept, None).unwrap();
+        let all_content = SctId::compose(10004, ComponentType::Concept, None).unwrap();
         let mut b = SnapshotStore::builder();
         b.add_concept(concept(MI));
         b.add_concept(concept(domain));
         b.add_concept(concept(mandatory));
+        b.add_concept(concept(all_content));
         b.add_mrcm_attribute_domain_member(MrcmAttributeDomainRefsetMember {
             core: RefsetMemberCore {
                 id: MemberId::parse("80000000-0000-4000-8000-000000000163").unwrap(),
@@ -6406,14 +6525,14 @@ mod tests {
             attribute_cardinality: String::new(),
             attribute_in_group_cardinality: String::new(),
             rule_strength_id: mandatory,
-            content_type_id: constants::CORE_MODULE,
+            content_type_id: all_content,
         });
         let store = b.build();
 
         assert_eq!(
             eval(
                 &format!(
-                    "^ {mrcm_attribute_domain} {{{{ M domainId = {domain}, ruleStrengthId = {mandatory} }}}}"
+                    "^ {mrcm_attribute_domain} {{{{ M domainId = {domain}, ruleStrengthId = {mandatory}, contentTypeId = {all_content} }}}}"
                 ),
                 &store
             ),
@@ -6422,12 +6541,12 @@ mod tests {
         assert_eq!(
             eval(
                 &format!(
-                    "^ {mrcm_attribute_domain} {{{{ M domainId = {domain}, ruleStrengthId = {domain} }}}}"
+                    "^ {mrcm_attribute_domain} {{{{ M domainId = {domain}, contentTypeId = {domain} }}}}"
                 ),
                 &store
             ),
             HashSet::new(),
-            "wrong ruleStrengthId on the only row rules it out"
+            "wrong contentTypeId on the only row rules it out"
         );
     }
 

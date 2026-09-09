@@ -15,7 +15,7 @@
 //! `descriptionLength`/`domainConstraint`/`parentDomain`/
 //! `proximalPrimitiveConstraint`/`proximalPrimitiveRefinement`/
 //! `domainTemplateForPrecoordination`/`domainTemplateForPostcoordination`/
-//! `guideURL`/`domainId`/`ruleStrengthId`,
+//! `guideURL`/`domainId`/`ruleStrengthId`/`contentTypeId`,
 //! the history supplement,
 //! alternate identifiers, …) is listed in
 //! `spec/10-ecl-unimplemented.md`. Encountering one is a parse error,

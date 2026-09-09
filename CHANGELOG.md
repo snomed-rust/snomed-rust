@@ -13,6 +13,38 @@ together, in dependency order (`snomed-core` → `snomed-rf2` → `snomed-owl`
 
 ## [Unreleased]
 
+**New ECL capability, additive.** `{{ M ... }}`'s `memberFieldFilter`
+gains its twenty-seventh column, `contentTypeId` —
+`MrcmAttributeDomainRefsetMember`'s third column (after
+`domainId`/`ruleStrengthId`), after both `^` and `^R`.
+Concept-reference shape, reusing `correlationId`'s exact grammar and
+`ModuleFilter`; needed a genuinely new `MemberFilterKind` variant (no
+implemented column shares this RF2 field name) but no new row-set
+check, reusing the type's existing row set. A minor bump: new public
+API, no removals or signature changes to anything existing.
+
+### Added
+
+- `snomed-ecl`: `{{ M contentTypeId = 723596005 }}` restricts to
+  `MrcmAttributeDomain` member rows whose own `contentTypeId` column
+  matches — the same concept-reference grammar
+  `correlationId`/`mrcmRuleRefsetId`/`attributeDescription`/
+  `attributeType`/`descriptionFormat`/`domainId`/`ruleStrengthId` use
+  (reusing `ModuleFilter`'s exact shape). Works after both `^` and
+  `^R`, and conjoins with `domainId`/`ruleStrengthId` and the other
+  shared-column kinds on the same member row — all three
+  `MrcmAttributeDomainRefsetMember` columns implemented so far live
+  on the same row, so a block naming any combination is satisfied by
+  that one row. Only `MrcmAttributeDomainRefsetMember` rows carry a
+  `contentTypeId` column; every other row source never matches.
+  `memberFieldFilter`'s twenty-seventh column, and
+  `MrcmAttributeDomainRefsetMember`'s third. Needed a genuinely new
+  `MemberFilterKind` variant (no implemented column shares this RF2
+  field name) but no new row-set check, reusing the type's existing
+  `SnapshotStore::mrcm_attribute_domain_member_rows`.
+  `MrcmAttributeRangeRefsetMember` also has a `contentTypeId` column
+  of its own, not yet extended to.
+
 ## [0.41.0] — 2026-09-09
 
 **New ECL capability, additive.** `{{ M ... }}`'s `memberFieldFilter`
@@ -786,37 +818,7 @@ existing.
 - No public API removed or changed signature; existing code compiles
   unmodified against this release.
 
-## [0.15.0] — 2026-09-03
-
-**New ECL capability, additive.** `{{ M ... }}` gains its fourth grammar
-alternative, `memberFieldFilter`, starting with `mapTarget` — after both
-`^` and `^R`. A minor bump: new public API, no removals or signature
-changes to anything existing.
-
-### Added
-
-- `snomed-ecl`: `{{ M mapTarget = "22.9" }}` restricts to member rows
-  whose own `mapTarget` column matches — the same `match:`/`wild:`/
-  `exact:` search-term grammar `{{ D term }}` uses. Works after both `^`
-  and `^R`, and conjoins with the existing shared-column kinds
-  (`moduleId`/`effectiveTime`/`active`) on the same member row, per the
-  existing "one row, all filters" rule. Only `SimpleMap`/`ExtendedMap`
-  rows carry a `mapTarget`; other refset types never match this filter.
-  New public API: `MemberFilterKind::MapTarget`.
-- `snomed-store`: sixteen new typed, active-and-inactive accessors — one
-  per non-Simple/Language refset type (`association_member_rows`,
-  `simple_map_member_rows`, `extended_map_member_rows`, …) — alongside
-  the existing active-only accessors of the same names minus `_rows`.
-  Decided 2026-08-30's `member_rows` precedent, generalized: pay once for
-  every type up front rather than adding a per-field index later. Purely
-  additive; every existing accessor unchanged.
-
-### Notes for consumers
-
-- No public API removed or changed signature; existing code compiles
-  unmodified against this release.
-
-Entries for 0.14.0 and earlier live in
+Entries for 0.15.0 and earlier live in
 [`docs/changelog-archive.md`](docs/changelog-archive.md) — moved there
 verbatim to keep this file inside the repository's 40 KB per-document
 budget (rule 1 of `spec/docs-budget-and-links/index.md`).

@@ -707,11 +707,20 @@ impl Parser {
                     value: Box::new(value),
                 }))
             }
+            TokenKind::Word(word) if word == "contentTypeId" => {
+                self.advance()?;
+                let negated = self.parse_boolean_comparison_operator()?;
+                let value = self.parse_sub_expression_constraint()?;
+                Ok(MemberFilterKind::ContentTypeId(ModuleFilter {
+                    negated,
+                    value: Box::new(value),
+                }))
+            }
             _ => {
                 let tok = self.peek().clone();
                 Err(Self::unexpected(
                     &tok,
-                    "`moduleId`, `effectiveTime`, `active`, `mapTarget`, `correlationId`, `mapGroup`, `mapPriority`, `mapRule`, `mapAdvice`, `mapCategoryId`, `targetComponentId`, `valueId`, `owlExpression`, `order`, `mrcmRuleRefsetId`, `attributeDescription`, `attributeType`, `attributeOrder`, `descriptionFormat`, `descriptionLength`, `domainConstraint`, `parentDomain`, `proximalPrimitiveConstraint`, `proximalPrimitiveRefinement`, `domainTemplateForPrecoordination`, `domainTemplateForPostcoordination`, `guideURL`, `domainId`, or `ruleStrengthId`",
+                    "`moduleId`, `effectiveTime`, `active`, `mapTarget`, `correlationId`, `mapGroup`, `mapPriority`, `mapRule`, `mapAdvice`, `mapCategoryId`, `targetComponentId`, `valueId`, `owlExpression`, `order`, `mrcmRuleRefsetId`, `attributeDescription`, `attributeType`, `attributeOrder`, `descriptionFormat`, `descriptionLength`, `domainConstraint`, `parentDomain`, `proximalPrimitiveConstraint`, `proximalPrimitiveRefinement`, `domainTemplateForPrecoordination`, `domainTemplateForPostcoordination`, `guideURL`, `domainId`, `ruleStrengthId`, or `contentTypeId`",
                 ))
             }
         }
@@ -2430,6 +2439,30 @@ mod tests {
         assert!(!negated);
     }
 
+    /// `contentTypeId` (spec/10 rule 18) — the twenty-seventh
+    /// `memberFieldFilter` column, and `MrcmAttributeDomainRefsetMember`'s
+    /// third column (after `domainId`/`ruleStrengthId`).
+    /// Concept-reference shape, reusing `correlationId`/`domainId`'s
+    /// exact grammar. No other implemented column shares this RF2
+    /// field name, so it's a genuinely new variant, but — since all
+    /// three columns share one row — no new row-set check.
+    #[test]
+    fn parses_member_filter_content_type_id() {
+        let EC::MemberFilter { filters, .. } =
+            parse("^ 723592007 {{ M contentTypeId = 723596005 }}").unwrap()
+        else {
+            panic!("expected a member filter");
+        };
+        assert_eq!(filters.len(), 1);
+        let crate::ast::MemberFilterKind::ContentTypeId(crate::ast::ModuleFilter {
+            negated, ..
+        }) = &filters[0]
+        else {
+            panic!("expected a ContentTypeId filter, got {:?}", filters[0]);
+        };
+        assert!(!negated);
+    }
+
     /// `mapGroup` (spec/10 rule 18) — the third `memberFieldFilter`
     /// column implemented, and the first to use the numeric grammar
     /// shape (`numericComparisonOperator ws "#" numericValue`, the same
@@ -2535,7 +2568,7 @@ mod tests {
     #[test]
     fn rejects_an_unrecognized_member_field_filter_generically() {
         assert!(matches!(
-            parse("^ 447562003 {{ M contentTypeId = \"x\" }}"),
+            parse("^ 447562003 {{ M grouped = \"x\" }}"),
             Err(EclError::UnexpectedKeyword { .. })
         ));
     }
