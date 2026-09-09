@@ -13,6 +13,8 @@ together, in dependency order (`snomed-core` → `snomed-rf2` → `snomed-owl`
 
 ## [Unreleased]
 
+## [0.40.0] — 2026-09-09
+
 **New ECL capability, additive.** `{{ M ... }}`'s `memberFieldFilter`
 gains its twenty-fifth column, `domainId` — the first filterable
 column on `MrcmAttributeDomainRefsetMember`, a tenth refset type
