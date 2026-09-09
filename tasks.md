@@ -58,6 +58,38 @@ most recently on 2026-09-09, to keep this file inside the repository's
 40 KB per-document budget. Search both when asking "has this come up
 before".
 
+## Done (2026-09-09, Release 0.41.0 — `memberFieldFilter`'s `ruleStrengthId`, `MrcmAttributeDomain`'s second column, twenty-ninth self-decided release)
+
+- [x] **Decided and executed the release itself**, per §1-5 of
+      `spec/ai-release-authority/`: §1 CI independently green on the
+      pushed merge commit (`184e078`, all jobs, confirmed via `gh run
+      view` on the exact commit); §2 `CHANGELOG.md`'s `[Unreleased]`
+      verified against the actual diff and moved under `## [0.41.0]`,
+      minor bump (purely additive: new
+      `MemberFilterKind::RuleStrengthId` variant, no new row-set check
+      — nothing removed or changed signature); §3 no rule oversteps —
+      needed a genuinely new variant (no existing column shares the
+      RF2 field name `ruleStrengthId`), the same kind of routine
+      grammar-coverage call this authority already covers, not a
+      `plan.md` "Open decisions" item; §4 all nine crates, one
+      version, standard dependency order; §5 tagged `v0.41.0` (signed,
+      verified against the merge commit) and ran `cargo publish` for
+      each crate in order, all nine succeeding cleanly.
+- [x] **Verified against crates.io's own API afterward**: `GET
+      /api/v1/crates/<name>` for all nine names returns
+      `max_version: "0.41.0"`.
+- [x] Version bumped everywhere the 0.13.0-0.40.0 precedent bumped it:
+      `Cargo.toml` (workspace + seven pins), `CITATION.cff`, `NEWS.md`,
+      `INSTALL.md`, `SECURITY.md`.
+- [x] Same `release/0.41.0` branch/merge shape as 0.12.0-0.40.0, not a
+      direct commit to `main`; branch deleted locally once GitHub and
+      Codeberg confirmed the merge commit and CI came back green.
+- [x] All three forges pushed cleanly via `git push origin` in one
+      command, for both `main` and the `v0.41.0` tag — the seventh
+      release in a row with no GitLab connectivity issue.
+- [x] Verified: build/clippy/fmt/test (492/492)/check-docs/
+      check-trademarks/spec_citations all clean before tagging.
+
 ## Done (2026-09-09, ECL `{{ M ... }}` `memberFieldFilter`: `ruleStrengthId`, `MrcmAttributeDomain`'s second column, no new row-set check)
 
 - [x] **`snomed-ecl`**: `MemberFilterKind::RuleStrengthId(ModuleFilter)`
@@ -212,7 +244,7 @@ before".
 ## Next up
 
 - [ ] Nothing currently scoped beyond the `{{ M ... }}` remainder below.
-      State as of 2026-09-09: **0.40.0 released** — `mapTarget` (0.15.0),
+      State as of 2026-09-09: **0.41.0 released** — `mapTarget` (0.15.0),
       `correlationId` (0.16.0), `mapGroup` (0.17.0), `mapPriority`
       (0.18.0), `mapRule` (0.19.0), `mapAdvice` plus the `ecl_parse`
       fuzz-caught recursion-depth guard (spec/10 rule 19, 0.20.0),
@@ -266,7 +298,7 @@ before".
       `MrcmAttributeDomainRefsetMember`, a tenth refset type outside
       the two map types, another genuinely new variant, and a
       genuinely new twelfth row-set check since it's that type's first
-      filterable column), and `ruleStrengthId` (see Done above —
+      filterable column), and `ruleStrengthId` (0.41.0 —
       `MrcmAttributeDomainRefsetMember`'s second column, another
       genuinely new variant, no new row-set check since both columns
       share one row),
@@ -297,8 +329,7 @@ before".
       outside the two map types with full column coverage.
       `{{ M ... }}` after `^`
       (0.13.0), after `^R` (0.14.0), and its `memberFieldFilter`
-      alternative (0.15.0-0.40.0, plus `ruleStrengthId` implemented
-      and committed but not yet released),
+      alternative (0.15.0-0.41.0),
       all decided and executed under
       `spec/ai-release-authority/`'s criteria rather than a fresh
       per-release maintainer go-ahead (see `CHANGELOG.md`). 9 crates, 492
