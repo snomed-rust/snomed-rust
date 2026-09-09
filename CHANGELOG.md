@@ -13,6 +13,37 @@ together, in dependency order (`snomed-core` → `snomed-rf2` → `snomed-owl`
 
 ## [Unreleased]
 
+**New ECL capability, additive.** `{{ M ... }}`'s `memberFieldFilter`
+gains its twenty-sixth column, `ruleStrengthId` —
+`MrcmAttributeDomainRefsetMember`'s second column (after `domainId`),
+after both `^` and `^R`. Concept-reference shape, reusing
+`correlationId`'s exact grammar and `ModuleFilter`; needed a
+genuinely new `MemberFilterKind` variant (no implemented column
+shares this RF2 field name) but no new row-set check, reusing the
+type's existing row set. A minor bump: new public API, no removals or
+signature changes to anything existing.
+
+### Added
+
+- `snomed-ecl`: `{{ M ruleStrengthId = 723589008 }}` restricts to
+  `MrcmAttributeDomain` member rows whose own `ruleStrengthId` column
+  matches — the same concept-reference grammar
+  `correlationId`/`mrcmRuleRefsetId`/`attributeDescription`/
+  `attributeType`/`descriptionFormat`/`domainId` use (reusing
+  `ModuleFilter`'s exact shape). Works after both `^` and `^R`, and
+  conjoins with `domainId` and the other shared-column kinds on the
+  same member row — both `MrcmAttributeDomainRefsetMember` columns
+  implemented so far live on the same row, so a block naming both is
+  satisfied by that one row. Only `MrcmAttributeDomainRefsetMember`
+  rows carry a `ruleStrengthId` column; every other row source never
+  matches. `memberFieldFilter`'s twenty-sixth column, and
+  `MrcmAttributeDomainRefsetMember`'s second. Needed a genuinely new
+  `MemberFilterKind` variant (no implemented column shares this RF2
+  field name) but no new row-set check, reusing the type's existing
+  `SnapshotStore::mrcm_attribute_domain_member_rows`.
+  `MrcmAttributeRangeRefsetMember` also has a `ruleStrengthId` column
+  of its own, not yet extended to.
+
 ## [0.40.0] — 2026-09-09
 
 **New ECL capability, additive.** `{{ M ... }}`'s `memberFieldFilter`
@@ -783,33 +814,7 @@ changes to anything existing.
 - No public API removed or changed signature; existing code compiles
   unmodified against this release.
 
-## [0.14.0] — 2026-09-02
-
-**New ECL capability, additive.** `{{ M ... }}` after `^R` closes the
-second half of the `{{ M ... }}` decision's scope (`plan.md`,
-2026-08-30). A minor bump: new public API, no removals or signature
-changes to anything existing.
-
-### Added
-
-- `snomed-ecl`: the ECL `{{ M ... }}` member filter constraint now also
-  works after `^R` (`refsetContainingAny`), not only after `^` (0.13.0).
-  `^R concepts {{ M moduleId = ... }}` restricts `^R`'s result refsets to
-  those whose row referencing `concepts` also satisfies the filter — the
-  same `moduleId`/`effectiveTime`/`active` kinds, same "one row, all
-  filters" and "active unless stated otherwise" rules. New public API:
-  `ExpressionConstraint::RefsetContainingFilter`.
-- `snomed-store`: `SnapshotStore::member_refsets`/`all_member_concepts`,
-  the inactive-inclusive reverse of `refsets_containing` (Concept
-  referenced components only, matching its scope) — the store-side
-  support `^R`'s `{{ M ... }}` needed. Purely additive.
-
-### Notes for consumers
-
-- No public API removed or changed signature; existing code compiles
-  unmodified against `0.14.0`.
-
-Entries for 0.13.0 and earlier live in
+Entries for 0.14.0 and earlier live in
 [`docs/changelog-archive.md`](docs/changelog-archive.md) — moved there
 verbatim to keep this file inside the repository's 40 KB per-document
 budget (rule 1 of `spec/docs-budget-and-links/index.md`).

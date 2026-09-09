@@ -1,10 +1,36 @@
 # Changelog archive
 
-Entries for versions 0.13.0 and earlier, moved verbatim from
+Entries for versions 0.14.0 and earlier, moved verbatim from
 [`CHANGELOG.md`](../CHANGELOG.md) to keep that file inside the
 repository's 40 KB per-document budget
 (rule 1 of `spec/docs-budget-and-links/index.md`). Newer entries live
 there.
+
+## [0.14.0] — 2026-09-02
+
+**New ECL capability, additive.** `{{ M ... }}` after `^R` closes the
+second half of the `{{ M ... }}` decision's scope (`plan.md`,
+2026-08-30). A minor bump: new public API, no removals or signature
+changes to anything existing.
+
+### Added
+
+- `snomed-ecl`: the ECL `{{ M ... }}` member filter constraint now also
+  works after `^R` (`refsetContainingAny`), not only after `^` (0.13.0).
+  `^R concepts {{ M moduleId = ... }}` restricts `^R`'s result refsets to
+  those whose row referencing `concepts` also satisfies the filter — the
+  same `moduleId`/`effectiveTime`/`active` kinds, same "one row, all
+  filters" and "active unless stated otherwise" rules. New public API:
+  `ExpressionConstraint::RefsetContainingFilter`.
+- `snomed-store`: `SnapshotStore::member_refsets`/`all_member_concepts`,
+  the inactive-inclusive reverse of `refsets_containing` (Concept
+  referenced components only, matching its scope) — the store-side
+  support `^R`'s `{{ M ... }}` needed. Purely additive.
+
+### Notes for consumers
+
+- No public API removed or changed signature; existing code compiles
+  unmodified against `0.14.0`.
 
 ## [0.13.0] — 2026-09-02
 

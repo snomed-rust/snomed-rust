@@ -84,9 +84,9 @@ token shape:
   `attributeOrder`/`descriptionFormat`/`descriptionLength`/
   `domainConstraint`/`parentDomain`/`proximalPrimitiveConstraint`/
   `proximalPrimitiveRefinement`/`domainTemplateForPrecoordination`/
-  `domainTemplateForPostcoordination`/`guideURL`/`domainId`
+  `domainTemplateForPostcoordination`/`guideURL`/`domainId`/`ruleStrengthId`
   — a refset-type-specific column (`grouped`,
-  `ruleStrengthId`, …), as
+  `contentTypeId`, …), as
   opposed to the three shared-column kinds
   (`moduleId`/`effectiveTime`/`active`) implemented 2026-09-01 after both
   `^` and `^R`. `refsetFieldName` is `1*alpha` in the official grammar
@@ -204,7 +204,13 @@ token shape:
   (`MrcmAttributeDomainRefsetMember`) — reuses `correlationId`'s
   grammar verbatim, needing a genuinely new twelfth row-set check
   tested against `SnapshotStore::mrcm_attribute_domain_member_rows`
-  (already present in the store).
+  (already present in the store);
+  `ruleStrengthId` (2026-09-09) — the tenth concept-reference-shape
+  column, `MrcmAttributeDomainRefsetMember`'s second column (both
+  columns share one row) — reuses `correlationId`'s grammar verbatim,
+  no new row-set check needed. Not yet extended to
+  `MrcmAttributeRangeRefsetMember`, which has its own `ruleStrengthId`
+  column.
   Boolean and time remain unimplemented, with no example yet. See
   `SnapshotStore::simple_map_member_rows`/`extended_map_member_rows`/
   `association_member_rows` and

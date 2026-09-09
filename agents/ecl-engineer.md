@@ -432,7 +432,11 @@ refset type outside the two map types — followed: another genuinely
 new variant (`DomainId`), needing a genuinely new row-set check since
 it's that type's first filterable column, tested against
 `SnapshotStore::mrcm_attribute_domain_member_rows` (already present
-in the store). `memberFieldFilter`
+in the store). `ruleStrengthId` (2026-09-09),
+`MrcmAttributeDomainRefsetMember`'s second column, followed
+immediately too: another genuinely new variant (`RuleStrengthId`),
+again no new row-set check — both of that type's columns now share
+one row. `memberFieldFilter`
 isn't one production but five in the official grammar, chosen by the
 named column's own semantic type
 (`expressionComparisonOperator ws subExpressionConstraint` for a concept
@@ -455,7 +459,7 @@ inspection. `mapPriority` reused that same numeric shape and
 `TermFilter`/`term_matches` verbatim. With the store side now done for
 all sixteen types, every
 *remaining* `memberFieldFilter` column
-(`grouped`, `ruleStrengthId`, …)
+(`grouped`, `contentTypeId`, …)
 IS a free next increment — the cadence below applies to them cleanly,
 the same as any other filter kind. See `spec/10-ecl-unimplemented.md`.
 

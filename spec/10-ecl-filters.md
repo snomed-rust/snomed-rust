@@ -374,10 +374,19 @@ concept reference has eight, numeric has five):
   two map types — so it needed its own new row-set check, tested
   against `SnapshotStore::mrcm_attribute_domain_member_rows` directly
   (already present in the store).
+- `ruleStrengthId (=|!=) subExpressionConstraint` — the same
+  concept-reference shape and the same `ModuleFilter` machinery as
+  `correlationId`/`mrcmRuleRefsetId`/`attributeDescription`/
+  `attributeType`/`descriptionFormat`/`domainId`, matched against the
+  member row's own `ruleStrengthId` column. `MrcmAttributeDomainRefsetMember`'s
+  second column (after `domainId`) — both live on the same row, tested
+  against the same `SnapshotStore::mrcm_attribute_domain_member_rows`,
+  no new row-set check needed. `MrcmAttributeRangeRefsetMember` also
+  has a `ruleStrengthId` column of its own, not yet extended to.
 
-All twenty-five reuse the shared dispatch `mapTarget` introduced
+All twenty-six reuse the shared dispatch `mapTarget` introduced
 (renamed `typed_field_row_matches` once a non-map type joined it): a
-block naming *any* of the twenty-five kinds is tested against
+block naming *any* of the twenty-six kinds is tested against
 `SimpleMap`/`ExtendedMap`/`Association`/`AttributeValue`/`OwlExpression`/
 `OrderedComponent`/`OrderedAssociation`/`MrcmModuleScope`/
 `RefsetDescriptor`/`DescriptionType`/`MrcmDomain`/`MrcmAttributeDomain`
@@ -393,7 +402,8 @@ any of `correlationId`/
 `attributeOrder`/`descriptionFormat`/`descriptionLength`/
 `domainConstraint`/`parentDomain`/`proximalPrimitiveConstraint`/
 `proximalPrimitiveRefinement`/`domainTemplateForPrecoordination`/
-`domainTemplateForPostcoordination`/`guideURL`/`domainId` (the column is
+`domainTemplateForPostcoordination`/`guideURL`/`domainId`/`ruleStrengthId`
+(the column is
 simply
 absent on that row source, the same "not this row's type" answer a
 shared-column filter gets from a row of the wrong refset type), so it

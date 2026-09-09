@@ -311,6 +311,7 @@ fn member_row_matches(
                 | MemberFilterKind::DomainTemplateForPostcoordination(_)
                 | MemberFilterKind::GuideUrl(_)
                 | MemberFilterKind::DomainId(_)
+                | MemberFilterKind::RuleStrengthId(_)
         )
     }) {
         return typed_field_row_matches(
@@ -367,7 +368,8 @@ fn member_row_matches(
 /// `domain_template_for_postcoordination` its sixth, `guide_url` its
 /// seventh and last, all populated from the same row. `domain_id` is
 /// the first field from `MrcmAttributeDomainRefsetMember`, a tenth
-/// refset type outside the two map types.
+/// refset type outside the two map types; `rule_strength_id` is its
+/// second, populated from the same row.
 #[derive(Default)]
 struct TypedFields<'a> {
     map_target: Option<&'a str>,
@@ -395,6 +397,7 @@ struct TypedFields<'a> {
     domain_template_for_postcoordination: Option<&'a str>,
     guide_url: Option<&'a str>,
     domain_id: Option<SctId>,
+    rule_strength_id: Option<SctId>,
 }
 
 /// The `mapTarget`/`correlationId`/`mapGroup`/`mapPriority`/`mapRule`/
@@ -699,6 +702,7 @@ fn typed_field_row_matches(
                         &row.core,
                         &TypedFields {
                             domain_id: Some(row.domain_id),
+                            rule_strength_id: Some(row.rule_strength_id),
                             ..TypedFields::default()
                         },
                     )
@@ -848,7 +852,8 @@ fn prepare_member_filter(filter: &MemberFilterKind, store: &SnapshotStore) -> Pr
         | MemberFilterKind::AttributeDescription(ModuleFilter { value, .. })
         | MemberFilterKind::AttributeType(ModuleFilter { value, .. })
         | MemberFilterKind::DescriptionFormat(ModuleFilter { value, .. })
-        | MemberFilterKind::DomainId(ModuleFilter { value, .. }) => {
+        | MemberFilterKind::DomainId(ModuleFilter { value, .. })
+        | MemberFilterKind::RuleStrengthId(ModuleFilter { value, .. }) => {
             PreparedMemberFilter::Concepts(evaluate(value, store))
         }
         MemberFilterKind::MapTarget(TermFilter { values, .. })
@@ -1240,6 +1245,18 @@ fn member_filter_matches(
                 return false;
             };
             values.contains(&domain_id) != *negated
+        }
+        MemberFilterKind::RuleStrengthId(ModuleFilter { negated, .. }) => {
+            let PreparedMemberFilter::Concepts(values) = prepared else {
+                unreachable!("a ruleStrengthId filter prepares to `Concepts`")
+            };
+            // No `rule_strength_id` on this row source (every source
+            // but `MrcmAttributeDomain`'s own): never matches, same
+            // reasoning as `DomainId`'s `None` case above.
+            let Some(rule_strength_id) = fields.rule_strength_id else {
+                return false;
+            };
+            values.contains(&rule_strength_id) != *negated
         }
     }
 }
@@ -6259,6 +6276,158 @@ mod tests {
                 &store
             ),
             HashSet::new()
+        );
+    }
+
+    /// `ruleStrengthId` (spec/10 rule 18) — the twenty-sixth
+    /// `memberFieldFilter` column, and `MrcmAttributeDomainRefsetMember`'s
+    /// second column (after `domainId`). Concept-reference shape,
+    /// reusing `correlationId`/`domainId`'s exact grammar, but tested
+    /// against the same twelfth typed row set `domainId` uses — no new
+    /// row-set check needed. Also proves `{{ M }}` after `^R` reaches
+    /// it.
+    #[test]
+    fn member_filter_rule_strength_id_matches_mrcm_attribute_domain_rows() {
+        let mrcm_attribute_domain = SctId::compose(9989, ComponentType::Concept, None).unwrap();
+        let domain = SctId::compose(9990, ComponentType::Concept, None).unwrap();
+        let mandatory = SctId::compose(9991, ComponentType::Concept, None).unwrap();
+        let optional = SctId::compose(9992, ComponentType::Concept, None).unwrap();
+        let mut b = SnapshotStore::builder();
+        b.add_concept(concept(MI));
+        b.add_concept(concept(domain));
+        b.add_concept(concept(mandatory));
+        b.add_concept(concept(optional));
+        b.add_mrcm_attribute_domain_member(MrcmAttributeDomainRefsetMember {
+            core: RefsetMemberCore {
+                id: MemberId::parse("80000000-0000-4000-8000-000000000161").unwrap(),
+                effective_time: EffectiveTime::new_unchecked(20190731),
+                active: true,
+                module_id: constants::CORE_MODULE,
+                refset_id: mrcm_attribute_domain,
+                referenced_component_id: MI,
+            },
+            domain_id: domain,
+            grouped: false,
+            attribute_cardinality: String::new(),
+            attribute_in_group_cardinality: String::new(),
+            rule_strength_id: mandatory,
+            content_type_id: constants::CORE_MODULE,
+        });
+        let store = b.build();
+
+        assert_eq!(
+            eval(
+                &format!("^ {mrcm_attribute_domain} {{{{ M ruleStrengthId = {optional} }}}}"),
+                &store
+            ),
+            HashSet::new(),
+            "the row's own ruleStrengthId doesn't match"
+        );
+        assert_eq!(
+            eval(
+                &format!("^ {mrcm_attribute_domain} {{{{ M ruleStrengthId = {mandatory} }}}}"),
+                &store
+            ),
+            HashSet::from([MI])
+        );
+        // `^R` reaches the same row, through the shared row-matching path.
+        assert_eq!(
+            eval(
+                &format!("^R {MI} {{{{ M ruleStrengthId = {mandatory} }}}}"),
+                &store
+            ),
+            HashSet::from([mrcm_attribute_domain])
+        );
+    }
+
+    /// `MrcmDomainRefsetMember`/every other typed row source has no
+    /// `ruleStrengthId` column — a membership that exists only there
+    /// must never match, the same "column absent on this row source"
+    /// case every other field filter has for the row types it doesn't
+    /// apply to.
+    #[test]
+    fn member_filter_rule_strength_id_never_matches_mrcm_domain_rows() {
+        let mrcm_domain = SctId::compose(9993, ComponentType::Concept, None).unwrap();
+        let mandatory = SctId::compose(9994, ComponentType::Concept, None).unwrap();
+        let mut b = SnapshotStore::builder();
+        b.add_concept(concept(MI));
+        b.add_mrcm_domain_member(MrcmDomainRefsetMember {
+            core: RefsetMemberCore {
+                id: MemberId::parse("80000000-0000-4000-8000-000000000162").unwrap(),
+                effective_time: EffectiveTime::new_unchecked(20190731),
+                active: true,
+                module_id: constants::CORE_MODULE,
+                refset_id: mrcm_domain,
+                referenced_component_id: MI,
+            },
+            domain_constraint: String::new(),
+            parent_domain: String::new(),
+            proximal_primitive_constraint: String::new(),
+            proximal_primitive_refinement: String::new(),
+            domain_template_for_precoordination: String::new(),
+            domain_template_for_postcoordination: String::new(),
+            guide_url: String::new(),
+        });
+        let store = b.build();
+
+        assert_eq!(
+            eval(
+                &format!("^ {mrcm_domain} {{{{ M ruleStrengthId = {mandatory} }}}}"),
+                &store
+            ),
+            HashSet::new()
+        );
+    }
+
+    /// `domainId`/`ruleStrengthId` both live on the same
+    /// `MrcmAttributeDomainRefsetMember` row (spec/08) — a block naming
+    /// both is satisfied by that one row, not by separate rows each
+    /// matching one filter.
+    #[test]
+    fn member_filter_domain_id_and_rule_strength_id_conjoin_on_the_same_row() {
+        let mrcm_attribute_domain = SctId::compose(9995, ComponentType::Concept, None).unwrap();
+        let domain = SctId::compose(9996, ComponentType::Concept, None).unwrap();
+        let mandatory = SctId::compose(9997, ComponentType::Concept, None).unwrap();
+        let mut b = SnapshotStore::builder();
+        b.add_concept(concept(MI));
+        b.add_concept(concept(domain));
+        b.add_concept(concept(mandatory));
+        b.add_mrcm_attribute_domain_member(MrcmAttributeDomainRefsetMember {
+            core: RefsetMemberCore {
+                id: MemberId::parse("80000000-0000-4000-8000-000000000163").unwrap(),
+                effective_time: EffectiveTime::new_unchecked(20190731),
+                active: true,
+                module_id: constants::CORE_MODULE,
+                refset_id: mrcm_attribute_domain,
+                referenced_component_id: MI,
+            },
+            domain_id: domain,
+            grouped: false,
+            attribute_cardinality: String::new(),
+            attribute_in_group_cardinality: String::new(),
+            rule_strength_id: mandatory,
+            content_type_id: constants::CORE_MODULE,
+        });
+        let store = b.build();
+
+        assert_eq!(
+            eval(
+                &format!(
+                    "^ {mrcm_attribute_domain} {{{{ M domainId = {domain}, ruleStrengthId = {mandatory} }}}}"
+                ),
+                &store
+            ),
+            HashSet::from([MI])
+        );
+        assert_eq!(
+            eval(
+                &format!(
+                    "^ {mrcm_attribute_domain} {{{{ M domainId = {domain}, ruleStrengthId = {domain} }}}}"
+                ),
+                &store
+            ),
+            HashSet::new(),
+            "wrong ruleStrengthId on the only row rules it out"
         );
     }
 
