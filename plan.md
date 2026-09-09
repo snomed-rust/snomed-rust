@@ -259,9 +259,10 @@ and harmonizes it with the sibling repositories (`hl7-rust`, `er7-rust`,
   `proximalPrimitiveConstraint`,
   `proximalPrimitiveRefinement`,
   `domainTemplateForPrecoordination`,
-  `domainTemplateForPostcoordination`, and
-  `guideURL` are the
-  first twenty-five
+  `domainTemplateForPostcoordination`,
+  `guideURL`, and
+  `domainId` are the
+  first twenty-six
   concrete fields
   built on this retention (`snomed-ecl`, spec/10 rule 18): the
   `memberFieldFilter` grammar alternative, tested against
@@ -270,7 +271,7 @@ and harmonizes it with the sibling repositories (`hl7-rust`, `er7-rust`,
   `owl_expression_member_rows`/`ordered_component_member_rows`/
   `ordered_association_member_rows`/`mrcm_module_scope_member_rows`/
   `refset_descriptor_member_rows`/`description_type_member_rows`/
-  `mrcm_domain_member_rows`,
+  `mrcm_domain_member_rows`/`mrcm_attribute_domain_member_rows`,
   after
   both
   `^` and `^R` in one increment each since both reuse the same
@@ -285,7 +286,7 @@ and harmonizes it with the sibling repositories (`hl7-rust`, `er7-rust`,
   the string-search
   shape, `correlationId`/`mapCategoryId`/
   `targetComponentId`/`valueId`/`mrcmRuleRefsetId`/`attributeDescription`/
-  `attributeType`/`descriptionFormat`
+  `attributeType`/`descriptionFormat`/`domainId`
   the concept-reference
   shape
   (`expressionComparisonOperator ws subExpressionConstraint`, reusing
@@ -304,25 +305,26 @@ and harmonizes it with the sibling repositories (`hl7-rust`, `er7-rust`,
   `descriptionFormat`/`descriptionLength`/`domainConstraint`/
   `parentDomain`/`proximalPrimitiveConstraint`/
   `proximalPrimitiveRefinement`/`domainTemplateForPrecoordination`/
-  `domainTemplateForPostcoordination`/`guideURL`
+  `domainTemplateForPostcoordination`/`guideURL`/`domainId`
   are the
-  first seventeen fields on refset
+  first eighteen fields on refset
   types
   other than the two
   map types (`AssociationRefsetMember`/`AttributeValueRefsetMember`/
   `OwlExpressionRefsetMember`/`OrderedComponentRefsetMember`/
   `MrcmModuleScopeRefsetMember`/`RefsetDescriptorRefsetMember`/
-  `DescriptionTypeRefsetMember`/`MrcmDomainRefsetMember`, plus
+  `DescriptionTypeRefsetMember`/`MrcmDomainRefsetMember`/
+  `MrcmAttributeDomainRefsetMember`, plus
   `OrderedAssociationRefsetMember`
-  as an eighth reusing two existing variants) — `RefsetDescriptorRefsetMember`,
-  `DescriptionTypeRefsetMember`, and now `MrcmDomainRefsetMember` each
+  as a ninth reusing two existing variants) — `RefsetDescriptorRefsetMember`,
+  `DescriptionTypeRefsetMember`, and `MrcmDomainRefsetMember` each
   carry every column they have, the first three refset types outside
   the two map types with full column coverage,
   confirming the same store retention and dispatch pattern generalizes
   past `ExtendedMap`/`SimpleMap` across every grammar shape, not just
   the concept-reference one. Every
   other `memberFieldFilter` column
-  (`domainId`, `grouped`, …)
+  (`grouped`, `ruleStrengthId`, …)
   remains rejected generically —
   not by a fixed keyword list (`refsetFieldName` is `1*alpha`, confirmed
   against the official ABNF) — but each is now a free `snomed-ecl`
@@ -338,9 +340,9 @@ and harmonizes it with the sibling repositories (`hl7-rust`, `er7-rust`,
 ## Current status
 
 All eight phases above are closed. As of `memberFieldFilter`'s
-`guideURL` (2026-09-08, below) the
+`domainId` (2026-09-09, below) the
 workspace is 9 published
-crates with zero dependencies, 485 tests, a clean
+crates with zero dependencies, 488 tests, a clean
 `cargo clippy --all-targets`, 13 fuzz targets, and six criterion
 benchmark files. What is *not* done is tracked
 in two places and nowhere
@@ -438,12 +440,17 @@ variant, again no new row-set check since all five columns share one
 row; `domainTemplateForPostcoordination` (2026-09-08) is
 `MrcmDomainRefsetMember`'s sixth column, another genuinely new
 variant, again no new row-set check since all six columns share one
-row; and `guideURL` (2026-09-08) is `MrcmDomainRefsetMember`'s
+row; `guideURL` (2026-09-08) is `MrcmDomainRefsetMember`'s
 seventh and last column, another genuinely new variant, again no new
 row-set check since all seven columns share one row — completing that
 type's column coverage, the third refset type outside the two map
 types (after `RefsetDescriptorRefsetMember` and
-`DescriptionTypeRefsetMember`) to reach it. In between, the
+`DescriptionTypeRefsetMember`) to reach it; and `domainId` (2026-09-09)
+is the first column on `MrcmAttributeDomainRefsetMember`, a tenth
+refset type outside the two map types — another genuinely new
+variant, and a genuinely new twelfth row-set check
+(`mrcm_attribute_domain_member_rows`, already present in the store)
+since it's that type's first filterable column. In between, the
 `ecl_parse` fuzz target's CI smoke run caught
 a real stack overflow on pathologically deep `(`/refinement/
 attribute-set nesting (2026-09-04) — fixed with a shared `Parser::depth`

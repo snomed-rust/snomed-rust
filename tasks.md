@@ -46,13 +46,58 @@ release 0.32.0, `memberFieldFilter`'s `descriptionLength` column
 `memberFieldFilter`'s `parentDomain` column (2026-09-07),
 `memberFieldFilter`'s `proximalPrimitiveRefinement` column
 (2026-09-07), the GitLab SSH outage that spanned releases
-0.30.0-0.34.0 (resolved 2026-09-07), release 0.37.0, and
+0.30.0-0.34.0 (resolved 2026-09-07), release 0.37.0,
 `memberFieldFilter`'s `domainTemplateForPrecoordination` column
-(2026-09-08), live in
+(2026-09-08), release 0.36.0, and `memberFieldFilter`'s
+`domainTemplateForPostcoordination` column (2026-09-08), live in
 [`docs/tasks-archive.md`](docs/tasks-archive.md) — moved there verbatim,
-most recently on 2026-09-08, to keep this file inside the repository's
+most recently on 2026-09-09, to keep this file inside the repository's
 40 KB per-document budget. Search both when asking "has this come up
 before".
+
+## Done (2026-09-09, ECL `{{ M ... }}` `memberFieldFilter`: `domainId`, first column on `MrcmAttributeDomain`, a tenth refset type outside the two map types, genuinely new row-set check)
+
+- [x] **`snomed-ecl`**: `MemberFilterKind::DomainId(ModuleFilter)` —
+      `domainId (=|!=) subExpressionConstraint`, reusing
+      `correlationId`/`mrcmRuleRefsetId`/`attributeDescription`/
+      `attributeType`/`descriptionFormat`'s exact concept-reference
+      grammar and `ModuleFilter` verbatim, on
+      `MrcmAttributeDomainRefsetMember` — a tenth refset type outside
+      the two map types — the twenty-fifth `memberFieldFilter` column.
+      No implemented column shares the RF2 field name `domainId`, so
+      this genuinely needed a new variant. Since this is
+      `MrcmAttributeDomainRefsetMember`'s first filterable column, it
+      also needed a genuinely new twelfth row-set check, tested
+      against `SnapshotStore::mrcm_attribute_domain_member_rows` —
+      already present in the store (decided 2026-09-03), so this
+      increment needed no `snomed-store` change.
+- [x] 3 new tests (parser: one shape test; eval: matches `MrcmAttributeDomain`
+      rows after both `^` and `^R`, never matches `MrcmDomain` rows) —
+      488/488 total, up from 485. Also fixed
+      `rejects_an_unrecognized_member_field_filter_generically` an
+      eighth time, which had used `domainId` itself as its
+      unrecognized-keyword example — switched to `ruleStrengthId`
+      (`MrcmAttributeDomainRefsetMember`'s own second/fourth column,
+      still unimplemented).
+- [x] Updated: `spec/10-ecl-filters.md` (new bullet, dispatch-list and
+      shape-count updates — twenty-five kinds, concept-reference now
+      nine of them), `spec/10-ecl-unimplemented.md` (keyword list,
+      narrative history, swapped the unimplemented-column example to
+      `ruleStrengthId`), `snomed-ecl/src/lib.rs`, `snomed-ecl/README.md`
+      (table row, not-yet-implemented list, same example swap),
+      `agents/ecl-engineer.md`, `agents/store-engineer.md` (thirteen
+      consumers outside the map types, twelve row-set checks total —
+      up from eleven), `plan.md` (Open decisions paragraph, Current
+      status test count, Since 0.9.0 narrative), `CHANGELOG.md`.
+- [x] **`CHANGELOG.md` crossed its own 40 KB budget a sixth time**
+      (41165 bytes, caught by `bin/check-docs` immediately) once this
+      entry's `[Unreleased]` section was added — the fifth time was at
+      `guideURL`/0.39.0. Fixed the same way: moved the oldest
+      remaining section, `[0.13.0]`, verbatim into
+      `docs/changelog-archive.md` ahead of `[0.12.0]`, updated both
+      files' footer/intro text from "0.12.0" to "0.13.0".
+- [x] Verified: build/clippy/fmt/test (488/488)/check-docs/
+      check-trademarks/spec_citations all clean.
 
 ## Done (2026-09-08, Release 0.39.0 — `memberFieldFilter`'s `guideURL`, completes `MrcmDomain`'s column coverage, twenty-seventh self-decided release)
 
@@ -174,99 +219,6 @@ before".
 - [x] Verified: build/clippy/fmt/test (482/482)/check-docs/
       check-trademarks/spec_citations all clean before tagging.
 
-## Done (2026-09-08, ECL `{{ M ... }}` `memberFieldFilter`: `domainTemplateForPostcoordination`, `MrcmDomain`'s sixth column, no new row-set check)
-
-- [x] **`snomed-ecl`**: `MemberFilterKind::DomainTemplateForPostcoordination(TermFilter)`
-      — `domainTemplateForPostcoordination (=|!=) (typedSearchTerm |
-      typedSearchTermSet)`, reusing `mapTarget`/`domainConstraint`/
-      `parentDomain`/`proximalPrimitiveConstraint`/
-      `proximalPrimitiveRefinement`/`domainTemplateForPrecoordination`'s
-      exact string-search grammar and `term_matches` verbatim, on
-      `MrcmDomainRefsetMember` again (its sixth column) — the
-      twenty-third `memberFieldFilter` column. No implemented column
-      shares the RF2 field name `domainTemplateForPostcoordination`, so
-      this genuinely needed a new variant. Like the type's other four
-      non-first columns, no new row-set check was needed — all six of
-      `MrcmDomainRefsetMember`'s columns now live on the same row, so
-      the existing `mrcm_domain_member_rows` block just grew a sixth
-      `TypedFields` entry.
-- [x] 3 new tests (parser: one shape test; eval: matches `MrcmDomain`
-      rows after both `^` and `^R`, never matches `DescriptionType`
-      rows, and — updated for this "six fields, one row" case — a new
-      test proving all six of `MrcmDomainRefsetMember`'s columns
-      conjoin on the same row together) — 482/482 total, up from 479.
-      Also fixed `rejects_an_unrecognized_member_field_filter_generically`
-      a sixth time, which had used `domainTemplateForPostcoordination`
-      itself as its unrecognized-keyword example — switched to
-      `guideURL`, the last remaining unimplemented `MrcmDomainRefsetMember`
-      column.
-- [x] Updated: `spec/10-ecl-filters.md` (new bullet, dispatch-list and
-      shape-count updates — twenty-three kinds, string-search now ten
-      of them), `spec/10-ecl-unimplemented.md` (keyword list, narrative
-      history, swapped the unimplemented-column example a fourth time,
-      to `guideURL`), `snomed-ecl/src/lib.rs`,
-      `snomed-ecl/README.md` (table row, not-yet-implemented list, same
-      example swap), `agents/ecl-engineer.md`, `agents/store-engineer.md`
-      (eleven consumers outside the map types, still eleven row-set checks
-      total), `plan.md` (Open decisions paragraph, Current status test
-      count, Since 0.9.0 narrative), `CHANGELOG.md`.
-- [x] **`CHANGELOG.md` crossed its own 40 KB budget a fourth time**
-      (42411 bytes, caught by `bin/check-docs` immediately) once this
-      entry's `[Unreleased]` section was added — the third time was at
-      `proximalPrimitiveRefinement`/0.36.0. Fixed the same way: moved
-      the oldest remaining section, `## [0.11.1]`, verbatim into
-      `docs/changelog-archive.md` ahead of `## [0.11.0]`, updated both
-      files' footer/intro text from "0.11.0" to "0.11.1".
-- [x] **`tasks.md` crossed its own 40 KB budget too** once this entry
-      and the pending release entry above it were both present. Fixed
-      by moving the two oldest remaining Done sections — Release
-      0.34.0 and `parentDomain`'s implementation — verbatim into
-      `docs/tasks-archive-36.md`, updating `docs/tasks-archive.md`'s
-      index table and file count, and this file's own intro paragraph.
-- [x] Verified: build/clippy/fmt/test (482/482)/check-docs/
-      check-trademarks/spec_citations all clean.
-
-## Done (2026-09-07, Release 0.36.0 — `memberFieldFilter`'s `proximalPrimitiveRefinement`, twenty-fourth self-decided release)
-
-- [x] **Decided and executed the release itself**, per §1-5 of
-      `spec/ai-release-authority/`: §1 CI independently green on the
-      pushed merge commit (`a98464a`, all jobs, confirmed via `gh run
-      view` on the exact commit); §2 `CHANGELOG.md`'s `[Unreleased]`
-      verified against the actual diff and moved under `## [0.36.0]`,
-      minor bump (purely additive: new
-      `MemberFilterKind::ProximalPrimitiveRefinement` variant, one new
-      `TypedFields` field, no new row-set check — nothing removed or
-      changed signature); §3 no rule oversteps — needed a genuinely new
-      variant (no existing column shares the RF2 field name
-      `proximalPrimitiveRefinement`), the same kind of routine
-      grammar-coverage call this authority already covers, not a
-      `plan.md` "Open decisions" item; §4 all nine crates, one version,
-      standard dependency order; §5 tagged `v0.36.0` (signed, verified
-      against the merge commit) and ran `cargo publish` for each crate
-      in order, all nine succeeding cleanly.
-- [x] **Verified against crates.io's own API afterward**: `GET
-      /api/v1/crates/<name>` for all nine names returns
-      `max_version: "0.36.0"`.
-- [x] Version bumped everywhere the 0.13.0-0.35.0 precedent bumped it:
-      `Cargo.toml` (workspace + seven pins), `CITATION.cff`, `NEWS.md`,
-      `INSTALL.md`, `SECURITY.md`.
-- [x] Same `release/0.36.0` branch/merge shape as 0.12.0-0.35.0, not a
-      direct commit to `main`; branch deleted locally once GitHub and
-      Codeberg confirmed the merge commit and CI came back green.
-- [x] **`CHANGELOG.md` crossed its own 40 KB budget a third time**
-      (41501 bytes, caught by `bin/check-docs` immediately) once this
-      entry's `[Unreleased]` section was added — the first two times
-      were at `valueId` (2026-09-06) and `mrcmRuleRefsetId`
-      (2026-09-06). Fixed the same way: moved the oldest remaining
-      section, `## [0.11.0]`, verbatim into `docs/changelog-archive.md`
-      ahead of `## [0.10.0]`, updated both files' footer/intro text
-      from "0.10.0" to "0.11.0".
-- [x] All three forges pushed cleanly via `git push origin` in one
-      command, for both `main` and the `v0.36.0` tag — the second
-      release in a row with no GitLab connectivity issue.
-- [x] Verified: build/clippy/fmt/test (475/475)/check-docs/
-      check-trademarks/spec_citations all clean before tagging.
-
 ## Next up
 
 - [ ] Nothing currently scoped beyond the `{{ M ... }}` remainder below.
@@ -315,11 +267,16 @@ before".
       row), `domainTemplateForPostcoordination` (0.38.0 —
       `MrcmDomainRefsetMember`'s sixth column, another genuinely new
       variant, no new row-set check since all six columns share one
-      row), and `guideURL` (0.39.0 —
+      row), `guideURL` (0.39.0 —
       `MrcmDomainRefsetMember`'s seventh and last column, another
       genuinely new variant, no new row-set check since all seven
       columns share one row — completing that type's column coverage,
       the third refset type outside the two map types to reach it),
+      and `domainId` (see Done above — the first column on
+      `MrcmAttributeDomainRefsetMember`, a tenth refset type outside
+      the two map types, another genuinely new variant, and a
+      genuinely new twelfth row-set check since it's that type's first
+      filterable column),
       all after both `^` and
       `^R`.
       Together `mapAdvice`/`mapCategoryId` complete `ExtendedMap`'s
@@ -330,26 +287,28 @@ before".
       `descriptionFormat`/`descriptionLength`/`domainConstraint`/
       `parentDomain`/`proximalPrimitiveConstraint`/
       `proximalPrimitiveRefinement`/`domainTemplateForPrecoordination`/
-      `domainTemplateForPostcoordination`/`guideURL`
+      `domainTemplateForPostcoordination`/`guideURL`/`domainId`
       are the
-      first seventeen columns
+      first eighteen columns
       implemented
       outside the two map types
       (`AssociationRefsetMember`/`AttributeValueRefsetMember`/
       `OwlExpressionRefsetMember`/`OrderedComponentRefsetMember`/
       `MrcmModuleScopeRefsetMember`/`RefsetDescriptorRefsetMember`/
-      `DescriptionTypeRefsetMember`/`MrcmDomainRefsetMember`, plus
-      `OrderedAssociationRefsetMember` as an eighth type reusing the
+      `DescriptionTypeRefsetMember`/`MrcmDomainRefsetMember`/
+      `MrcmAttributeDomainRefsetMember`, plus
+      `OrderedAssociationRefsetMember` as a ninth type reusing the
       first two of those columns) — `RefsetDescriptorRefsetMember`,
-      `DescriptionTypeRefsetMember`, and now `MrcmDomainRefsetMember`
+      `DescriptionTypeRefsetMember`, and `MrcmDomainRefsetMember`
       each carry every column they have, the first three refset types
       outside the two map types with full column coverage.
       `{{ M ... }}` after `^`
       (0.13.0), after `^R` (0.14.0), and its `memberFieldFilter`
-      alternative (0.15.0-0.39.0),
+      alternative (0.15.0-0.39.0, plus `domainId` implemented and
+      committed but not yet released),
       all decided and executed under
       `spec/ai-release-authority/`'s criteria rather than a fresh
-      per-release maintainer go-ahead (see `CHANGELOG.md`). 9 crates, 485
+      per-release maintainer go-ahead (see `CHANGELOG.md`). 9 crates, 488
       tests,
       clippy/fmt clean on stable, MSRV 1.96 (current
       stable minus two, `spec/rust-msrv-n-minus-2/index.md`), `fuzz/`,
@@ -522,11 +481,16 @@ before".
           columns share one row) cover every column this type has, the
           third refset type outside the two map types with full
           column coverage.
-        - MrcmAttributeDomain: `domainId`, `ruleStrengthId`,
-          `contentTypeId` (`SctId` — concept-reference shape); `grouped`
+        - MrcmAttributeDomain: `domainId` (2026-09-09, `SctId` —
+          concept-reference shape, reused `correlationId`'s exact
+          grammar, tested against a new twelfth typed row set,
+          `mrcm_attribute_domain_member_rows`, already present in the
+          store) is done — `ruleStrengthId`, `contentTypeId` (`SctId`
+          — concept-reference shape, same grammar, no new row-set
+          check needed since they'd share the same row); `grouped`
           (`bool` — boolean shape, no implemented example yet);
           `attributeCardinality`, `attributeInGroupCardinality`
-          (`String` — string shape).
+          (`String` — string shape) remain.
         - MrcmAttributeRange: `rangeConstraint`, `attributeRule`
           (`String` — string shape); `ruleStrengthId`, `contentTypeId`
           (`SctId` — concept-reference shape).

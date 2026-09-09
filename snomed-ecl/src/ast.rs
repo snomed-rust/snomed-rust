@@ -378,7 +378,7 @@ pub enum ConceptFilterKind {
 /// `DescriptionLength`/`DomainConstraint`/`ParentDomain`/
 /// `ProximalPrimitiveConstraint`/`ProximalPrimitiveRefinement`/
 /// `DomainTemplateForPrecoordination`/`DomainTemplateForPostcoordination`/
-/// `GuideUrl`
+/// `GuideUrl`/`DomainId`
 /// are the official grammar's fourth kind, `memberFieldFilter`
 /// — a refset-type-specific column rather than a shared one. Its own
 /// grammar (confirmed against the official ABNF, `syntax/abnf-brief.txt`)
@@ -436,15 +436,19 @@ pub enum ConceptFilterKind {
 /// from the same row); `domainTemplateForPrecoordination`
 /// (`MrcmDomainRefsetMember`'s fifth column, another genuinely new
 /// variant, again no new row-set check since all five columns come
-/// from the same row); and `domainTemplateForPostcoordination`
+/// from the same row); `domainTemplateForPostcoordination`
 /// (`MrcmDomainRefsetMember`'s sixth column, another genuinely new
 /// variant, again no new row-set check since all six columns come
-/// from the same row); and `guideURL`
+/// from the same row); `guideURL`
 /// (`MrcmDomainRefsetMember`'s seventh and last column, another
 /// genuinely new variant, again no new row-set check since all seven
 /// columns come from the same row — the third refset type outside the
 /// two map types, after `RefsetDescriptorRefsetMember` and
-/// `DescriptionTypeRefsetMember`, with full column coverage) — all
+/// `DescriptionTypeRefsetMember`, with full column coverage); and
+/// `domainId` (`MrcmAttributeDomainRefsetMember`, a tenth refset type
+/// outside the two map types, another genuinely new variant, and a
+/// new row-set check since this is that type's first filterable
+/// column) — all
 /// decided 2026-09-03 (`plan.md`'s "Open decisions") to retain full rows
 /// — active and inactive — for all sixteen non-Simple/Language refset
 /// types, the same store change `moduleId`/`effectiveTime`/`active`
@@ -817,6 +821,22 @@ pub enum MemberFilterKind {
     /// `RefsetDescriptorRefsetMember` and `DescriptionTypeRefsetMember`,
     /// to reach it.
     GuideUrl(TermFilter),
+    /// `domainId (=|!=) subExpressionConstraint` — a `memberFieldFilter`
+    /// (spec/10 rule 18): `MrcmAttributeDomainRefsetMember`'s own
+    /// `domainId` column (a concept reference — the domain this
+    /// attribute/domain association applies to). Reuses
+    /// [`ModuleFilter`]'s exact shape and grammar again — the same
+    /// concept-reference production
+    /// `correlationId`/`mapCategoryId`/`targetComponentId`/`valueId`/
+    /// `mrcmRuleRefsetId`/`attributeDescription`/`attributeType`/
+    /// `descriptionFormat` use, just a different refset type and RF2
+    /// column. The first `memberFieldFilter` column implemented on
+    /// `MrcmAttributeDomainRefsetMember`, so a block naming it needs a
+    /// new row-set check, tested against
+    /// `SnapshotStore::mrcm_attribute_domain_member_rows` instead. No
+    /// other implemented column shares this RF2 field name, so this
+    /// needs its own variant too.
+    DomainId(ModuleFilter),
 }
 
 /// `numericComparisonOperator ws "#" numericValue` — a `memberFieldFilter`

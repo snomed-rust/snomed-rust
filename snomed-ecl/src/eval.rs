@@ -310,6 +310,7 @@ fn member_row_matches(
                 | MemberFilterKind::DomainTemplateForPrecoordination(_)
                 | MemberFilterKind::DomainTemplateForPostcoordination(_)
                 | MemberFilterKind::GuideUrl(_)
+                | MemberFilterKind::DomainId(_)
         )
     }) {
         return typed_field_row_matches(
@@ -364,7 +365,9 @@ fn member_row_matches(
 /// `proximal_primitive_refinement` its fourth,
 /// `domain_template_for_precoordination` its fifth,
 /// `domain_template_for_postcoordination` its sixth, `guide_url` its
-/// seventh and last, all populated from the same row.
+/// seventh and last, all populated from the same row. `domain_id` is
+/// the first field from `MrcmAttributeDomainRefsetMember`, a tenth
+/// refset type outside the two map types.
 #[derive(Default)]
 struct TypedFields<'a> {
     map_target: Option<&'a str>,
@@ -391,6 +394,7 @@ struct TypedFields<'a> {
     domain_template_for_precoordination: Option<&'a str>,
     domain_template_for_postcoordination: Option<&'a str>,
     guide_url: Option<&'a str>,
+    domain_id: Option<SctId>,
 }
 
 /// The `mapTarget`/`correlationId`/`mapGroup`/`mapPriority`/`mapRule`/
@@ -419,12 +423,13 @@ struct TypedFields<'a> {
 /// `attribute_value_member_rows`/`owl_expression_member_rows`/
 /// `ordered_component_member_rows`/`ordered_association_member_rows`/
 /// `mrcm_module_scope_member_rows`/`refset_descriptor_member_rows`/
-/// `description_type_member_rows`/`mrcm_domain_member_rows`)
+/// `description_type_member_rows`/`mrcm_domain_member_rows`/
+/// `mrcm_attribute_domain_member_rows`)
 /// rather
 /// than either map type's.
 /// Renamed from `typed_map_row_matches` once it stopped being map-only.
 /// Whichever field-filter kind appears, a block naming it is
-/// tested against all eleven typed row sets rather than `member_rows`.
+/// tested against all twelve typed row sets rather than `member_rows`.
 /// Testing every set whenever *any* field-filter kind appears (rather
 /// than computing the exact type each filter needs) is deliberately
 /// simple, not merely convenient: a `SimpleMap` row tested against a
@@ -652,7 +657,7 @@ fn typed_field_row_matches(
     if matches_description_type {
         return true;
     }
-    store
+    let matches_mrcm_domain = store
         .mrcm_domain_member_rows(refset_id, component_id)
         .iter()
         .any(|row| {
@@ -674,6 +679,26 @@ fn typed_field_row_matches(
                                 &row.domain_template_for_postcoordination,
                             ),
                             guide_url: Some(&row.guide_url),
+                            ..TypedFields::default()
+                        },
+                    )
+                })
+        });
+    if matches_mrcm_domain {
+        return true;
+    }
+    store
+        .mrcm_attribute_domain_member_rows(refset_id, component_id)
+        .iter()
+        .any(|row| {
+            (states_active || row.core.active)
+                && filters.iter().zip(prepared).all(|(f, p)| {
+                    member_filter_matches(
+                        f,
+                        p,
+                        &row.core,
+                        &TypedFields {
+                            domain_id: Some(row.domain_id),
                             ..TypedFields::default()
                         },
                     )
@@ -822,7 +847,8 @@ fn prepare_member_filter(filter: &MemberFilterKind, store: &SnapshotStore) -> Pr
         | MemberFilterKind::MrcmRuleRefsetId(ModuleFilter { value, .. })
         | MemberFilterKind::AttributeDescription(ModuleFilter { value, .. })
         | MemberFilterKind::AttributeType(ModuleFilter { value, .. })
-        | MemberFilterKind::DescriptionFormat(ModuleFilter { value, .. }) => {
+        | MemberFilterKind::DescriptionFormat(ModuleFilter { value, .. })
+        | MemberFilterKind::DomainId(ModuleFilter { value, .. }) => {
             PreparedMemberFilter::Concepts(evaluate(value, store))
         }
         MemberFilterKind::MapTarget(TermFilter { values, .. })
@@ -1202,6 +1228,18 @@ fn member_filter_matches(
                 .zip(searches)
                 .any(|(search, prepared)| term_matches(guide_url, search, prepared));
             matches != *negated
+        }
+        MemberFilterKind::DomainId(ModuleFilter { negated, .. }) => {
+            let PreparedMemberFilter::Concepts(values) = prepared else {
+                unreachable!("a domainId filter prepares to `Concepts`")
+            };
+            // No `domain_id` on this row source (every source but
+            // `MrcmAttributeDomain`'s own): never matches, same
+            // reasoning as `GuideUrl`'s `None` case above.
+            let Some(domain_id) = fields.domain_id else {
+                return false;
+            };
+            values.contains(&domain_id) != *negated
         }
     }
 }
@@ -1937,10 +1975,10 @@ mod tests {
     use snomed_core::time::EffectiveTime;
     use snomed_rf2::refset::{
         AssociationRefsetMember, AttributeValueRefsetMember, DescriptionTypeRefsetMember,
-        ExtendedMapRefsetMember, LanguageRefsetMember, MrcmDomainRefsetMember,
-        MrcmModuleScopeRefsetMember, OrderedAssociationRefsetMember, OrderedComponentRefsetMember,
-        OwlExpressionRefsetMember, RefsetDescriptorRefsetMember, RefsetMemberCore,
-        SimpleMapRefsetMember, SimpleRefsetMember,
+        ExtendedMapRefsetMember, LanguageRefsetMember, MrcmAttributeDomainRefsetMember,
+        MrcmDomainRefsetMember, MrcmModuleScopeRefsetMember, OrderedAssociationRefsetMember,
+        OrderedComponentRefsetMember, OwlExpressionRefsetMember, RefsetDescriptorRefsetMember,
+        RefsetMemberCore, SimpleMapRefsetMember, SimpleRefsetMember,
     };
 
     const ROOT: SctId = constants::ROOT_CONCEPT;
@@ -6124,6 +6162,103 @@ mod tests {
             ),
             HashSet::new(),
             "wrong guideURL on the only row rules it out"
+        );
+    }
+
+    /// `domainId` (spec/10 rule 18) — the twenty-fifth `memberFieldFilter`
+    /// column, and the first on `MrcmAttributeDomainRefsetMember`.
+    /// Concept-reference shape, reusing
+    /// `correlationId`/`mrcmRuleRefsetId`/`attributeDescription`/
+    /// `attributeType`/`descriptionFormat`'s exact grammar, but tested
+    /// against a genuinely new twelfth typed row set,
+    /// `mrcm_attribute_domain_member_rows` — a genuinely new row-set
+    /// check, since it's this type's first filterable column. Also
+    /// proves `{{ M }}` after `^R` reaches it.
+    #[test]
+    fn member_filter_domain_id_matches_mrcm_attribute_domain_rows() {
+        let mrcm_attribute_domain = SctId::compose(9984, ComponentType::Concept, None).unwrap();
+        let domain = SctId::compose(9985, ComponentType::Concept, None).unwrap();
+        let other_domain = SctId::compose(9986, ComponentType::Concept, None).unwrap();
+        let mut b = SnapshotStore::builder();
+        b.add_concept(concept(MI));
+        b.add_concept(concept(domain));
+        b.add_concept(concept(other_domain));
+        b.add_mrcm_attribute_domain_member(MrcmAttributeDomainRefsetMember {
+            core: RefsetMemberCore {
+                id: MemberId::parse("80000000-0000-4000-8000-000000000159").unwrap(),
+                effective_time: EffectiveTime::new_unchecked(20190731),
+                active: true,
+                module_id: constants::CORE_MODULE,
+                refset_id: mrcm_attribute_domain,
+                referenced_component_id: MI,
+            },
+            domain_id: domain,
+            grouped: false,
+            attribute_cardinality: String::new(),
+            attribute_in_group_cardinality: String::new(),
+            rule_strength_id: constants::CORE_MODULE,
+            content_type_id: constants::CORE_MODULE,
+        });
+        let store = b.build();
+
+        assert_eq!(
+            eval(
+                &format!("^ {mrcm_attribute_domain} {{{{ M domainId = {other_domain} }}}}"),
+                &store
+            ),
+            HashSet::new(),
+            "the row's own domainId doesn't match"
+        );
+        assert_eq!(
+            eval(
+                &format!("^ {mrcm_attribute_domain} {{{{ M domainId = {domain} }}}}"),
+                &store
+            ),
+            HashSet::from([MI])
+        );
+        // `^R` reaches the same row, through the shared row-matching path.
+        assert_eq!(
+            eval(&format!("^R {MI} {{{{ M domainId = {domain} }}}}"), &store),
+            HashSet::from([mrcm_attribute_domain])
+        );
+    }
+
+    /// `MrcmDomainRefsetMember`/every other typed row source has no
+    /// `domainId` column — a membership that exists only there must
+    /// never match, the same "column absent on this row source" case
+    /// every other field filter has for the row types it doesn't apply
+    /// to.
+    #[test]
+    fn member_filter_domain_id_never_matches_mrcm_domain_rows() {
+        let mrcm_domain = SctId::compose(9987, ComponentType::Concept, None).unwrap();
+        let domain = SctId::compose(9988, ComponentType::Concept, None).unwrap();
+        let mut b = SnapshotStore::builder();
+        b.add_concept(concept(MI));
+        b.add_mrcm_domain_member(MrcmDomainRefsetMember {
+            core: RefsetMemberCore {
+                id: MemberId::parse("80000000-0000-4000-8000-000000000160").unwrap(),
+                effective_time: EffectiveTime::new_unchecked(20190731),
+                active: true,
+                module_id: constants::CORE_MODULE,
+                refset_id: mrcm_domain,
+                referenced_component_id: MI,
+            },
+            domain_constraint: String::new(),
+            parent_domain: String::new(),
+            proximal_primitive_constraint: String::new(),
+            proximal_primitive_refinement: String::new(),
+            domain_template_for_precoordination: String::new(),
+            domain_template_for_postcoordination: String::new(),
+            guide_url: String::new(),
+        });
+        let store = b.build();
+
+        assert_eq!(
+            eval(
+                &format!("^ {mrcm_domain} {{{{ M domainId = {domain} }}}}"),
+                &store
+            ),
+            HashSet::new()
         );
     }
 

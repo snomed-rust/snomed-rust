@@ -208,11 +208,11 @@ its inactive rows.
 `descriptionFormat`/`descriptionLength`/`domainConstraint`/
 `parentDomain`/`proximalPrimitiveConstraint`/
 `proximalPrimitiveRefinement`/`domainTemplateForPrecoordination`/
-`domainTemplateForPostcoordination`/`guideURL`
+`domainTemplateForPostcoordination`/`guideURL`/`domainId`
 filters
 (`spec/10-ecl.md` rule
 18) are
-the first twenty-five
+the first twenty-six
 consumers: the first seven dispatch directly to
 `simple_map_member_rows`/`extended_map_member_rows`
 (`correlationId`/`mapGroup`/`mapPriority`/`mapRule`/`mapAdvice`/
@@ -223,8 +223,8 @@ consumers: the first seven dispatch directly to
 `descriptionFormat`/`descriptionLength`/`domainConstraint`/
 `parentDomain`/`proximalPrimitiveConstraint`/`proximalPrimitiveRefinement`/
 `domainTemplateForPrecoordination`/`domainTemplateForPostcoordination`/
-`guideURL`
-— the first twelve
+`guideURL`/`domainId`
+— the first thirteen
 outside
 the two map types — dispatch to `association_member_rows`/
 `attribute_value_member_rows`/`owl_expression_member_rows`/
@@ -255,7 +255,11 @@ all reused that same eleventh row set — all seven of
 check needed for any of them, completing that type's column coverage
 (the third refset type outside the two map types, after
 `RefsetDescriptorRefsetMember` and `DescriptionTypeRefsetMember`, to
-reach it). All
+reach it); `domainId` needed its own new twelfth row-set check
+(`mrcm_attribute_domain_member_rows`) since it's
+`MrcmAttributeDomainRefsetMember`'s first filterable column — a
+tenth refset type outside the two map types, and the accessor was
+already present in the store. All
 row sets are still
 tested whenever any field-filter kind appears in a block, since a row
 missing the column simply fails that filter rather than needing its

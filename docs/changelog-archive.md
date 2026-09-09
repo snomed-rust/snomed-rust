@@ -1,10 +1,52 @@
 # Changelog archive
 
-Entries for versions 0.12.0 and earlier, moved verbatim from
+Entries for versions 0.13.0 and earlier, moved verbatim from
 [`CHANGELOG.md`](../CHANGELOG.md) to keep that file inside the
 repository's 40 KB per-document budget
 (rule 1 of `spec/docs-budget-and-links/index.md`). Newer entries live
 there.
+
+## [0.13.0] — 2026-09-02
+
+**New ECL capability, additive.** The `{{ M ... }}` member filter constraint
+closes the decision recorded in `plan.md` on 2026-08-30 (retain rows for
+all eighteen refset types rather than make `evaluate()` fallible). A minor
+bump: new public API, no removals or signature changes to anything
+existing.
+
+### Added
+
+- `snomed-ecl`: the ECL `{{ M ... }}` member filter constraint, for the
+  three filter kinds every refset member type shares —
+  `moduleId`/`effectiveTime`/`active` — attached directly to `^`
+  (`^ refsetId {{ M active = false }}`, say). New public API:
+  `ExpressionConstraint::MemberFilter`, `MemberFilterKind`. Closes the
+  `{{ M ... }}` decision recorded in `plan.md` on 2026-08-30. Its
+  refset-type-specific `memberFieldFilter` kind (e.g. `mapTarget`) and
+  its combination with `^R` remain unimplemented — see
+  `spec/10-ecl-unimplemented.md`.
+- `snomed-store`: `SnapshotStore::member_rows`/`member_components`, a new
+  index retaining every refset member's shared six columns
+  (`RefsetMemberCore`), active **and** inactive, across all eighteen
+  refset types — the store-side support `{{ M ... }}` needed, since every
+  existing refset-member accessor is active-only and per-type. Purely
+  additive: no existing accessor's behavior changed.
+
+### Changed
+
+- `snomed-ecl` now depends on `snomed-rf2` directly (previously a
+  dev-dependency only), since `SnapshotStore::member_rows` returns an
+  RF2 type (`RefsetMemberCore`) the evaluator now consumes.
+
+### Notes for consumers
+
+- No public API removed or changed signature; existing code compiles
+  unmodified against `0.13.0`.
+- `snomed-ecl` gaining a direct (non-dev) dependency on `snomed-rf2` is
+  visible only if you inspect `Cargo.lock`/dependency trees — `snomed-rf2`
+  was already pulled in transitively via `snomed-store` for anyone using
+  `snomed-ecl`, so this does not add a new crate to a typical dependency
+  tree.
 
 ## [0.12.0] — 2026-08-29
 

@@ -13,6 +13,35 @@ together, in dependency order (`snomed-core` → `snomed-rf2` → `snomed-owl`
 
 ## [Unreleased]
 
+**New ECL capability, additive.** `{{ M ... }}`'s `memberFieldFilter`
+gains its twenty-fifth column, `domainId` — the first filterable
+column on `MrcmAttributeDomainRefsetMember`, a tenth refset type
+outside the two map types, after both `^` and `^R`.
+Concept-reference shape, reusing `correlationId`'s exact grammar and
+`ModuleFilter`; needed a genuinely new `MemberFilterKind` variant (no
+implemented column shares this RF2 field name) and a genuinely new
+row-set check (`SnapshotStore::mrcm_attribute_domain_member_rows`,
+already present in the store) since it's this type's first filterable
+column. A minor bump: new public API, no removals or signature
+changes to anything existing.
+
+### Added
+
+- `snomed-ecl`: `{{ M domainId = 404684003 }}` restricts to
+  `MrcmAttributeDomain` member rows whose own `domainId` column
+  matches — the same concept-reference grammar
+  `correlationId`/`mrcmRuleRefsetId`/`attributeDescription`/
+  `attributeType`/`descriptionFormat` use (reusing `ModuleFilter`'s
+  exact shape). Works after both `^` and `^R`. Only
+  `MrcmAttributeDomainRefsetMember` rows carry a `domainId` column;
+  every other row source never matches. `memberFieldFilter`'s
+  twenty-fifth column, and the first on `MrcmAttributeDomainRefsetMember`
+  — a tenth refset type outside the two map types. Needed a genuinely
+  new `MemberFilterKind` variant (no implemented column shares this
+  RF2 field name) and a genuinely new twelfth row-set check
+  (`SnapshotStore::mrcm_attribute_domain_member_rows`, already present
+  in the store).
+
 ## [0.39.0] — 2026-09-08
 
 **New ECL capability, additive.** `{{ M ... }}`'s `memberFieldFilter`
@@ -778,49 +807,7 @@ changes to anything existing.
 - No public API removed or changed signature; existing code compiles
   unmodified against `0.14.0`.
 
-## [0.13.0] — 2026-09-02
-
-**New ECL capability, additive.** The `{{ M ... }}` member filter constraint
-closes the decision recorded in `plan.md` on 2026-08-30 (retain rows for
-all eighteen refset types rather than make `evaluate()` fallible). A minor
-bump: new public API, no removals or signature changes to anything
-existing.
-
-### Added
-
-- `snomed-ecl`: the ECL `{{ M ... }}` member filter constraint, for the
-  three filter kinds every refset member type shares —
-  `moduleId`/`effectiveTime`/`active` — attached directly to `^`
-  (`^ refsetId {{ M active = false }}`, say). New public API:
-  `ExpressionConstraint::MemberFilter`, `MemberFilterKind`. Closes the
-  `{{ M ... }}` decision recorded in `plan.md` on 2026-08-30. Its
-  refset-type-specific `memberFieldFilter` kind (e.g. `mapTarget`) and
-  its combination with `^R` remain unimplemented — see
-  `spec/10-ecl-unimplemented.md`.
-- `snomed-store`: `SnapshotStore::member_rows`/`member_components`, a new
-  index retaining every refset member's shared six columns
-  (`RefsetMemberCore`), active **and** inactive, across all eighteen
-  refset types — the store-side support `{{ M ... }}` needed, since every
-  existing refset-member accessor is active-only and per-type. Purely
-  additive: no existing accessor's behavior changed.
-
-### Changed
-
-- `snomed-ecl` now depends on `snomed-rf2` directly (previously a
-  dev-dependency only), since `SnapshotStore::member_rows` returns an
-  RF2 type (`RefsetMemberCore`) the evaluator now consumes.
-
-### Notes for consumers
-
-- No public API removed or changed signature; existing code compiles
-  unmodified against `0.13.0`.
-- `snomed-ecl` gaining a direct (non-dev) dependency on `snomed-rf2` is
-  visible only if you inspect `Cargo.lock`/dependency trees — `snomed-rf2`
-  was already pulled in transitively via `snomed-store` for anyone using
-  `snomed-ecl`, so this does not add a new crate to a typical dependency
-  tree.
-
-Entries for 0.12.0 and earlier live in
+Entries for 0.13.0 and earlier live in
 [`docs/changelog-archive.md`](docs/changelog-archive.md) — moved there
 verbatim to keep this file inside the repository's 40 KB per-document
 budget (rule 1 of `spec/docs-budget-and-links/index.md`).

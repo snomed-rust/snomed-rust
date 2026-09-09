@@ -365,13 +365,22 @@ concept reference has eight, numeric has five):
   third refset type outside the two map types, after
   `RefsetDescriptorRefsetMember` and `DescriptionTypeRefsetMember`, to
   reach it.
+- `domainId (=|!=) subExpressionConstraint` — the same
+  concept-reference shape and the same `ModuleFilter` machinery as
+  `correlationId`/`mrcmRuleRefsetId`/`attributeDescription`/
+  `attributeType`/`descriptionFormat`, matched against the member
+  row's own `domainId` column. The first `memberFieldFilter` column on
+  `MrcmAttributeDomainRefsetMember` — a tenth refset type outside the
+  two map types — so it needed its own new row-set check, tested
+  against `SnapshotStore::mrcm_attribute_domain_member_rows` directly
+  (already present in the store).
 
-All twenty-four reuse the shared dispatch `mapTarget` introduced
+All twenty-five reuse the shared dispatch `mapTarget` introduced
 (renamed `typed_field_row_matches` once a non-map type joined it): a
-block naming *any* of the twenty-four kinds is tested against
+block naming *any* of the twenty-five kinds is tested against
 `SimpleMap`/`ExtendedMap`/`Association`/`AttributeValue`/`OwlExpression`/
 `OrderedComponent`/`OrderedAssociation`/`MrcmModuleScope`/
-`RefsetDescriptor`/`DescriptionType`/`MrcmDomain`
+`RefsetDescriptor`/`DescriptionType`/`MrcmDomain`/`MrcmAttributeDomain`
 rows together
 rather than `member_rows`, and the "one row, all filters" and "active
 unless stated otherwise" rules above still hold across a block naming
@@ -384,15 +393,14 @@ any of `correlationId`/
 `attributeOrder`/`descriptionFormat`/`descriptionLength`/
 `domainConstraint`/`parentDomain`/`proximalPrimitiveConstraint`/
 `proximalPrimitiveRefinement`/`domainTemplateForPrecoordination`/
-`domainTemplateForPostcoordination`/`guideURL` (the column is
+`domainTemplateForPostcoordination`/`guideURL`/`domainId` (the column is
 simply
 absent on that row source, the same "not this row's type" answer a
 shared-column filter gets from a row of the wrong refset type), so it
 can never be a spurious match.
 
 **Not implemented:** every other `memberFieldFilter` column, and both
-remaining shapes — boolean, time (`domainId`,
-`grouped`, and
+remaining shapes — boolean, time (`grouped`, and
 the rest — see `spec/10-ecl-unimplemented.md`); the store retention
 that made these columns possible already covers every non-Simple/
 Language refset type (decided 2026-09-03, `plan.md`'s "Open decisions"),
