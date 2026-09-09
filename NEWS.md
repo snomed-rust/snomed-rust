@@ -11,7 +11,7 @@ human-readable layer above it.
 
 | | |
 |---|---|
-| Version | **0.40.0**, released 2026-09-09 |
+| Version | **0.41.0**, released 2026-09-09 |
 | Crates | nine, released together and sharing one version number |
 | Rust MSRV | 1.96 (current stable minus two) |
 | License | `Apache-2.0 OR MIT` |
@@ -19,14 +19,12 @@ human-readable layer above it.
 | Packages | <https://crates.io/crates/snomed> |
 | Documentation | <https://docs.rs/snomed> · <https://snomed-rust.github.io/> |
 
-0.40.0 gives the ECL `{{ M ... }}` member filter constraint's
-`memberFieldFilter` alternative its twenty-fifth column, `domainId` —
-the first filterable column on `MrcmAttributeDomainRefsetMember`, a
-tenth refset type outside the two map types, needing a genuinely new
-store-side row-set check
-(`SnapshotStore::mrcm_attribute_domain_member_rows`, already present
-in the store). Purely additive: no public API removed or changed,
-existing code compiles unmodified. Full detail is in the
+0.41.0 gives the ECL `{{ M ... }}` member filter constraint's
+`memberFieldFilter` alternative its twenty-sixth column,
+`ruleStrengthId` — `MrcmAttributeDomainRefsetMember`'s second column,
+sharing a row with `domainId`, so no new store-side row-set check was
+needed. Purely additive: no public API removed or changed, existing
+code compiles unmodified. Full detail is in the
 [changelog](CHANGELOG.md).
 
 **Pre-1.0 caveat, stated up front because it affects anyone writing about
@@ -72,6 +70,7 @@ project is young and says so.
 | 2026-09-08 | 0.38.0 — `{{ M ... }}`'s `memberFieldFilter`: `domainTemplateForPostcoordination`, `MrcmDomain`'s sixth column, no new row-set check |
 | 2026-09-08 | 0.39.0 — `{{ M ... }}`'s `memberFieldFilter`: `guideURL`, `MrcmDomain`'s seventh and last column, completing its column coverage |
 | 2026-09-09 | 0.40.0 — `{{ M ... }}`'s `memberFieldFilter`: `domainId`, first column on `MrcmAttributeDomain`, a tenth refset type outside the two map types |
+| 2026-09-09 | 0.41.0 — `{{ M ... }}`'s `memberFieldFilter`: `ruleStrengthId`, `MrcmAttributeDomain`'s second column, no new row-set check |
 
 ## Following updates
 
@@ -157,7 +156,7 @@ remains licensed material obtained separately from SNOMED International.
 - **What it is not.** Not a terminology server, not an authoring platform, not
   a browser, and not a replacement for Snowstorm. [COMPARISONS.md](COMPARISONS.md)
   states the limitations at length and names the tools that do those jobs.
-- **Maturity.** Version 0.40.0, first published in September 2026, one
+- **Maturity.** Version 0.41.0, first published in September 2026, one
   maintainer, pre-1.0. [MAINTAINERS.md](MAINTAINERS.md) states the bus factor
   and the continuity position without softening, and is the right source for
   any risk framing.
