@@ -318,6 +318,7 @@ fn member_row_matches(
                 | MemberFilterKind::AttributeCardinality(_)
                 | MemberFilterKind::AttributeInGroupCardinality(_)
                 | MemberFilterKind::SourceEffectiveTime(_)
+                | MemberFilterKind::TargetEffectiveTime(_)
         )
     }) {
         return typed_field_row_matches(
@@ -380,7 +381,9 @@ fn member_row_matches(
 /// its sixth and last, all populated from the same row.
 /// `source_effective_time` is the first field from
 /// `ModuleDependencyRefsetMember`, an eleventh refset type outside the
-/// two map types — the time shape's first implemented column.
+/// two map types — the time shape's first implemented column;
+/// `target_effective_time` is its second and last, populated from the
+/// same row.
 #[derive(Default)]
 struct TypedFields<'a> {
     map_target: Option<&'a str>,
@@ -414,6 +417,7 @@ struct TypedFields<'a> {
     attribute_cardinality: Option<&'a str>,
     attribute_in_group_cardinality: Option<&'a str>,
     source_effective_time: Option<EffectiveTime>,
+    target_effective_time: Option<EffectiveTime>,
 }
 
 /// The `mapTarget`/`correlationId`/`mapGroup`/`mapPriority`/`mapRule`/
@@ -745,6 +749,7 @@ fn typed_field_row_matches(
                         &row.core,
                         &TypedFields {
                             source_effective_time: Some(row.source_effective_time),
+                            target_effective_time: Some(row.target_effective_time),
                             ..TypedFields::default()
                         },
                     )
@@ -1369,6 +1374,18 @@ fn member_filter_matches(
             values
                 .iter()
                 .any(|v| time_comparison_matches(*operator, source_effective_time, *v))
+        }
+        MemberFilterKind::TargetEffectiveTime(EffectiveTimeFilter { operator, values }) => {
+            // No `target_effective_time` on this row source (every
+            // source but `ModuleDependency`'s own): never matches,
+            // same reasoning as `SourceEffectiveTime`'s `None` case
+            // above.
+            let Some(target_effective_time) = fields.target_effective_time else {
+                return false;
+            };
+            values
+                .iter()
+                .any(|v| time_comparison_matches(*operator, target_effective_time, *v))
         }
     }
 }
@@ -7036,6 +7053,152 @@ mod tests {
                 &store
             ),
             HashSet::new()
+        );
+    }
+
+    /// `targetEffectiveTime` (spec/10 rule 18) — the thirty-second
+    /// `memberFieldFilter` column, and `ModuleDependencyRefsetMember`'s
+    /// second and last column, tested against the same eleventh typed
+    /// row set `sourceEffectiveTime` uses — no new row-set check
+    /// needed. Also proves `{{ M }}` after `^R` reaches it.
+    #[test]
+    fn member_filter_target_effective_time_matches_module_dependency_rows() {
+        let module_dependency = SctId::compose(10013, ComponentType::Concept, None).unwrap();
+        let mut b = SnapshotStore::builder();
+        b.add_concept(concept(MI));
+        b.add_module_dependency_member(ModuleDependencyRefsetMember {
+            core: RefsetMemberCore {
+                id: MemberId::parse("80000000-0000-4000-8000-000000000174").unwrap(),
+                effective_time: EffectiveTime::new_unchecked(20190731),
+                active: true,
+                module_id: constants::CORE_MODULE,
+                refset_id: module_dependency,
+                referenced_component_id: MI,
+            },
+            source_effective_time: EffectiveTime::new_unchecked(20190731),
+            target_effective_time: EffectiveTime::new_unchecked(20190731),
+        });
+        let store = b.build();
+
+        assert_eq!(
+            eval(
+                &format!("^ {module_dependency} {{{{ M targetEffectiveTime = \"20200101\" }}}}"),
+                &store
+            ),
+            HashSet::new(),
+            "the row's own targetEffectiveTime doesn't match"
+        );
+        assert_eq!(
+            eval(
+                &format!("^ {module_dependency} {{{{ M targetEffectiveTime = \"20190731\" }}}}"),
+                &store
+            ),
+            HashSet::from([MI])
+        );
+        assert_eq!(
+            eval(
+                &format!("^ {module_dependency} {{{{ M targetEffectiveTime <= \"20200101\" }}}}"),
+                &store
+            ),
+            HashSet::from([MI])
+        );
+        assert_eq!(
+            eval(
+                &format!("^ {module_dependency} {{{{ M targetEffectiveTime > \"20200101\" }}}}"),
+                &store
+            ),
+            HashSet::new()
+        );
+        // `^R` reaches the same row, through the shared row-matching path.
+        assert_eq!(
+            eval(
+                &format!("^R {MI} {{{{ M targetEffectiveTime = \"20190731\" }}}}"),
+                &store
+            ),
+            HashSet::from([module_dependency])
+        );
+    }
+
+    /// `MrcmDomainRefsetMember`/every other typed row source has no
+    /// `targetEffectiveTime` column — a membership that exists only
+    /// there must never match, the same "column absent on this row
+    /// source" case every other field filter has for the row types it
+    /// doesn't apply to.
+    #[test]
+    fn member_filter_target_effective_time_never_matches_mrcm_domain_rows() {
+        let mrcm_domain = SctId::compose(10014, ComponentType::Concept, None).unwrap();
+        let mut b = SnapshotStore::builder();
+        b.add_concept(concept(MI));
+        b.add_mrcm_domain_member(MrcmDomainRefsetMember {
+            core: RefsetMemberCore {
+                id: MemberId::parse("80000000-0000-4000-8000-000000000175").unwrap(),
+                effective_time: EffectiveTime::new_unchecked(20190731),
+                active: true,
+                module_id: constants::CORE_MODULE,
+                refset_id: mrcm_domain,
+                referenced_component_id: MI,
+            },
+            domain_constraint: String::new(),
+            parent_domain: String::new(),
+            proximal_primitive_constraint: String::new(),
+            proximal_primitive_refinement: String::new(),
+            domain_template_for_precoordination: String::new(),
+            domain_template_for_postcoordination: String::new(),
+            guide_url: String::new(),
+        });
+        let store = b.build();
+
+        assert_eq!(
+            eval(
+                &format!("^ {mrcm_domain} {{{{ M targetEffectiveTime = \"20190731\" }}}}"),
+                &store
+            ),
+            HashSet::new()
+        );
+    }
+
+    /// `sourceEffectiveTime`/`targetEffectiveTime` both live on the
+    /// same `ModuleDependencyRefsetMember` row (spec/08) — a block
+    /// naming both is satisfied by that one row, not by separate rows
+    /// each matching one filter. Completes
+    /// `ModuleDependencyRefsetMember`'s column coverage.
+    #[test]
+    fn member_filter_both_module_dependency_columns_conjoin_on_the_same_row() {
+        let module_dependency = SctId::compose(10015, ComponentType::Concept, None).unwrap();
+        let mut b = SnapshotStore::builder();
+        b.add_concept(concept(MI));
+        b.add_module_dependency_member(ModuleDependencyRefsetMember {
+            core: RefsetMemberCore {
+                id: MemberId::parse("80000000-0000-4000-8000-000000000176").unwrap(),
+                effective_time: EffectiveTime::new_unchecked(20190731),
+                active: true,
+                module_id: constants::CORE_MODULE,
+                refset_id: module_dependency,
+                referenced_component_id: MI,
+            },
+            source_effective_time: EffectiveTime::new_unchecked(20190731),
+            target_effective_time: EffectiveTime::new_unchecked(20200131),
+        });
+        let store = b.build();
+
+        assert_eq!(
+            eval(
+                &format!(
+                    "^ {module_dependency} {{{{ M sourceEffectiveTime = \"20190731\", targetEffectiveTime = \"20200131\" }}}}"
+                ),
+                &store
+            ),
+            HashSet::from([MI])
+        );
+        assert_eq!(
+            eval(
+                &format!(
+                    "^ {module_dependency} {{{{ M sourceEffectiveTime = \"20190731\", targetEffectiveTime = \"20190731\" }}}}"
+                ),
+                &store
+            ),
+            HashSet::new(),
+            "wrong targetEffectiveTime on the only row rules it out"
         );
     }
 

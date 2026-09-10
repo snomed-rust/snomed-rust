@@ -84,8 +84,9 @@ token shape:
   `attributeOrder`/`descriptionFormat`/`descriptionLength`/
   `domainConstraint`/`parentDomain`/`proximalPrimitiveConstraint`/
   `proximalPrimitiveRefinement`/`domainTemplateForPrecoordination`/
-  `domainTemplateForPostcoordination`/`guideURL`/`domainId`/`ruleStrengthId`/`contentTypeId`/`grouped`/`attributeCardinality`/`attributeInGroupCardinality`/`sourceEffectiveTime`
-  — a refset-type-specific column (`targetEffectiveTime`, …), as
+  `domainTemplateForPostcoordination`/`guideURL`/`domainId`/`ruleStrengthId`/`contentTypeId`/`grouped`/`attributeCardinality`/`attributeInGroupCardinality`/`sourceEffectiveTime`/`targetEffectiveTime`
+  — a refset-type-specific column (`rangeConstraint`, `attributeRule`,
+  …), as
   opposed to the three shared-column kinds
   (`moduleId`/`effectiveTime`/`active`) implemented 2026-09-01 after both
   `^` and `^R`. `refsetFieldName` is `1*alpha` in the official grammar
@@ -249,9 +250,18 @@ token shape:
   was purely a `typed_field_row_matches` dispatch wiring plus a new
   `MemberFilterKind` variant, since no implemented column shares the
   RF2 field name `sourceEffectiveTime`.
-  `targetEffectiveTime` remains unimplemented, with no example yet
-  beyond it — `ModuleDependencyRefsetMember`'s second and last
-  column, the same time shape. See
+  `targetEffectiveTime` (2026-09-10) — the time shape's second
+  implemented column, still reusing
+  `EffectiveTimeFilter`/`time_comparison_matches` verbatim,
+  `ModuleDependencyRefsetMember`'s second and last column (both
+  columns share one row, so no new row-set check needed) —
+  completing that type's column coverage: the fifth refset type
+  outside the two map types (after `RefsetDescriptorRefsetMember`,
+  `DescriptionTypeRefsetMember`, `MrcmDomainRefsetMember`, and
+  `MrcmAttributeDomainRefsetMember`) to reach it.
+  `rangeConstraint`/`attributeRule` (`MrcmAttributeRangeRefsetMember`'s
+  own two string columns) remain unimplemented, with no example yet.
+  See
   `SnapshotStore::simple_map_member_rows`/`extended_map_member_rows`/
   `association_member_rows` and
   spec/09 rule 4. Decided 2026-09-03 in `plan.md`'s "Open decisions":

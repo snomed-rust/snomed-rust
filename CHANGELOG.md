@@ -13,6 +13,41 @@ together, in dependency order (`snomed-core` → `snomed-rf2` → `snomed-owl`
 
 ## [Unreleased]
 
+**New ECL capability, additive.** `{{ M ... }}`'s `memberFieldFilter`
+gains its thirty-second and final `ModuleDependencyRefsetMember`
+column, `targetEffectiveTime` — `ModuleDependencyRefsetMember`'s
+second and last column (after `sourceEffectiveTime`), after both `^`
+and `^R`. Still the time shape, reusing `EffectiveTimeFilter`/
+`time_comparison_matches` verbatim; needed a genuinely new
+`MemberFilterKind` variant (no implemented column shares this RF2
+field name) but no new row-set check, reusing the type's existing row
+set. Completes `ModuleDependencyRefsetMember`'s column coverage — the
+fifth refset type outside the two map types (after
+`RefsetDescriptorRefsetMember`, `DescriptionTypeRefsetMember`,
+`MrcmDomainRefsetMember`, and `MrcmAttributeDomainRefsetMember`) to
+reach it. A minor bump: new public API, no removals or signature
+changes to anything existing.
+
+### Added
+
+- `snomed-ecl`: `{{ M targetEffectiveTime >= "20240101" }}` restricts
+  to `ModuleDependency` member rows whose own `targetEffectiveTime`
+  column satisfies the comparison — the same
+  `timeComparisonOperator`/`timeValue`/`timeValueSet` grammar
+  `{{ M effectiveTime }}`/`sourceEffectiveTime` use (reusing
+  `EffectiveTimeFilter`'s exact shape and `time_comparison_matches`).
+  Works after both `^` and `^R`, and conjoins with
+  `moduleId`/`effectiveTime`/`active`/`sourceEffectiveTime` and any
+  other filter in the same block on the same member row — both
+  `ModuleDependencyRefsetMember` columns implemented so far live on
+  the same row. Only `ModuleDependencyRefsetMember` rows carry a
+  `targetEffectiveTime` column; every other row source never matches.
+  `memberFieldFilter`'s thirty-second column, and
+  `ModuleDependencyRefsetMember`'s second and last. Needed a
+  genuinely new `MemberFilterKind` variant but no new `snomed-store`
+  change, reusing the already-present
+  `SnapshotStore::module_dependency_member_rows`.
+
 ## [0.46.0] — 2026-09-10
 
 **New ECL capability, additive.** `{{ M ... }}`'s `memberFieldFilter`
@@ -743,32 +778,7 @@ existing.
 - No public API removed or changed signature; existing code compiles
   unmodified against this release.
 
-## [0.24.0] — 2026-09-06
-
-**New ECL capability, additive.** `{{ M ... }}`'s `memberFieldFilter`
-gains its tenth column, `owlExpression` — the third column outside the
-two map types (`OwlExpressionRefsetMember`), and the first of those
-three on the string-search shape, after both `^` and `^R`. A minor
-bump: new public API, no removals or signature changes to anything
-existing.
-
-### Added
-
-- `snomed-ecl`: `{{ M owlExpression = "SubClassOf" }}` restricts to
-  `OwlExpression` member rows whose own `owlExpression` column matches
-  — the same `match:`/`wild:`/`exact:` search-term grammar
-  `mapTarget`/`mapRule`/`mapAdvice` use. Works after both `^` and `^R`,
-  and conjoins with `moduleId` and the other shared-column kinds on the
-  same member row. Only `OwlExpressionRefsetMember` rows carry an
-  `owlExpression` column; every other refset type never matches this
-  filter. New public API: `MemberFilterKind::OwlExpression`.
-
-### Notes for consumers
-
-- No public API removed or changed signature; existing code compiles
-  unmodified against this release.
-
-Entries for 0.23.0 and earlier live in
+Entries for 0.24.0 and earlier live in
 [`docs/changelog-archive.md`](docs/changelog-archive.md) — moved there
 verbatim to keep this file inside the repository's 40 KB per-document
 budget (rule 1 of `spec/docs-budget-and-links/index.md`).

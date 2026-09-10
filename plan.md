@@ -266,9 +266,10 @@ and harmonizes it with the sibling repositories (`hl7-rust`, `er7-rust`,
   `contentTypeId`,
   `grouped`,
   `attributeCardinality`,
-  `attributeInGroupCardinality`, and
-  `sourceEffectiveTime` are the
-  first thirty-one
+  `attributeInGroupCardinality`,
+  `sourceEffectiveTime`, and
+  `targetEffectiveTime` are the
+  first thirty-two
   concrete fields
   built on this retention (`snomed-ecl`, spec/10 rule 18): the
   `memberFieldFilter` grammar alternative, tested against
@@ -310,11 +311,12 @@ and harmonizes it with the sibling repositories (`hl7-rust`, `er7-rust`,
   against the official ABNF, new `BooleanFieldFilter`, reusing the
   `TokenKind::True`/`TokenKind::False` tokens `ActiveValue`'s own
   parsing already lexes but without its wildcard alternative), and
-  `sourceEffectiveTime` the time
+  `sourceEffectiveTime`/`targetEffectiveTime` the time
   shape (`timeComparisonOperator ws (timeValue | timeValueSet)`,
   confirmed against the official ABNF, reusing `EffectiveTimeFilter`/
   `time_comparison_matches` verbatim — the same machinery
-  `{{ M effectiveTime }}`'s shared-column filter already has) — all
+  `{{ M effectiveTime }}`'s shared-column filter already has, both
+  columns sharing one `ModuleDependencyRefsetMember` row) — all
   five shapes now have at least one implemented column.
   `mapCategoryId` completes
   `ExtendedMapRefsetMember`'s column coverage; `targetComponentId`/
@@ -323,10 +325,10 @@ and harmonizes it with the sibling repositories (`hl7-rust`, `er7-rust`,
   `descriptionFormat`/`descriptionLength`/`domainConstraint`/
   `parentDomain`/`proximalPrimitiveConstraint`/
   `proximalPrimitiveRefinement`/`domainTemplateForPrecoordination`/
-  `domainTemplateForPostcoordination`/`guideURL`/`domainId`/`ruleStrengthId`/`contentTypeId`/`grouped`/`attributeCardinality`/`attributeInGroupCardinality`,
-  and `sourceEffectiveTime`
+  `domainTemplateForPostcoordination`/`guideURL`/`domainId`/`ruleStrengthId`/`contentTypeId`/`grouped`/`attributeCardinality`/`attributeInGroupCardinality`/`sourceEffectiveTime`,
+  and `targetEffectiveTime`
   are the
-  first twenty-four fields on refset
+  first twenty-five fields on refset
   types
   other than the two
   map types (`AssociationRefsetMember`/`AttributeValueRefsetMember`/
@@ -336,16 +338,16 @@ and harmonizes it with the sibling repositories (`hl7-rust`, `er7-rust`,
   `MrcmAttributeDomainRefsetMember`/`ModuleDependencyRefsetMember`, plus
   `OrderedAssociationRefsetMember`
   as a tenth reusing two existing variants) — `RefsetDescriptorRefsetMember`,
-  `DescriptionTypeRefsetMember`, `MrcmDomainRefsetMember`, and
-  `MrcmAttributeDomainRefsetMember`
+  `DescriptionTypeRefsetMember`, `MrcmDomainRefsetMember`,
+  `MrcmAttributeDomainRefsetMember`, and `ModuleDependencyRefsetMember`
   each
-  carry every column they have, the first four refset types outside
+  carry every column they have, the first five refset types outside
   the two map types with full column coverage,
   confirming the same store retention and dispatch pattern generalizes
   past `ExtendedMap`/`SimpleMap` across every grammar shape, not just
   the concept-reference one. Every
   other `memberFieldFilter` column
-  (`targetEffectiveTime`, …)
+  (`rangeConstraint`, `attributeRule`, …)
   remains rejected generically —
   not by a fixed keyword list (`refsetFieldName` is `1*alpha`, confirmed
   against the official ABNF) — but each is now a free `snomed-ecl`
@@ -361,9 +363,9 @@ and harmonizes it with the sibling repositories (`hl7-rust`, `er7-rust`,
 ## Current status
 
 All eight phases above are closed. As of `memberFieldFilter`'s
-`sourceEffectiveTime` (2026-09-10, below) the
+`targetEffectiveTime` (2026-09-10, below) the
 workspace is 9 published
-crates with zero dependencies, 507 tests, a clean
+crates with zero dependencies, 511 tests, a clean
 `cargo clippy --all-targets`, 13 fuzz targets, and six criterion
 benchmark files. What is *not* done is tracked
 in two places and nowhere
@@ -492,7 +494,7 @@ row-set check since all five columns share one row; and
 string-search shape, another genuinely new variant, again no new
 row-set check since all six columns share one row — completing that
 type's column coverage, the fourth refset type outside the two map
-types to reach it; and `sourceEffectiveTime` (2026-09-10) is
+types to reach it; `sourceEffectiveTime` (2026-09-10) is
 `ModuleDependencyRefsetMember`'s first filterable column — an
 eleventh refset type outside the two map types — and the time
 shape's first implemented column (`timeComparisonOperator ws
@@ -502,7 +504,12 @@ same machinery `{{ M effectiveTime }}`'s shared-column filter already
 has); needed a genuinely new `MemberFilterKind` variant and a new
 thirteenth `typed_field_row_matches` dispatch arm, but no
 `snomed-store` change, since `module_dependency_member_rows` was
-already present. In
+already present; and `targetEffectiveTime` (2026-09-10) is
+`ModuleDependencyRefsetMember`'s second and last column, still the
+time shape, another genuinely new variant, again no new row-set
+check since both columns share one row — completing that type's
+column coverage, the fifth refset type outside the two map types to
+reach it. In
 between, the
 `ecl_parse` fuzz target's CI smoke run caught
 a real stack overflow on pathologically deep `(`/refinement/

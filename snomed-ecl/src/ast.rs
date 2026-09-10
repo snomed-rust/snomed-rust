@@ -379,7 +379,8 @@ pub enum ConceptFilterKind {
 /// `ProximalPrimitiveConstraint`/`ProximalPrimitiveRefinement`/
 /// `DomainTemplateForPrecoordination`/`DomainTemplateForPostcoordination`/
 /// `GuideUrl`/`DomainId`/`RuleStrengthId`/`ContentTypeId`/`Grouped`/
-/// `AttributeCardinality`/`AttributeInGroupCardinality`/`SourceEffectiveTime`
+/// `AttributeCardinality`/`AttributeInGroupCardinality`/`SourceEffectiveTime`/
+/// `TargetEffectiveTime`
 /// are the official grammar's fourth kind, `memberFieldFilter`
 /// — a refset-type-specific column rather than a shared one. Its own
 /// grammar (confirmed against the official ABNF, `syntax/abnf-brief.txt`)
@@ -475,14 +476,19 @@ pub enum ConceptFilterKind {
 /// same machinery [`Self::EffectiveTime`] already has, just against a
 /// different row's own column; the `module_dependency_member_rows`
 /// accessor was already present, so this needed no `snomed-store`
-/// change) —
+/// change); and `targetEffectiveTime`
+/// (`ModuleDependencyRefsetMember`'s second and last column, the same
+/// time shape and machinery, again no new row-set check since both
+/// columns come from the same row — the fifth refset type outside the
+/// two map types, after `RefsetDescriptorRefsetMember`,
+/// `DescriptionTypeRefsetMember`, `MrcmDomainRefsetMember`, and
+/// `MrcmAttributeDomainRefsetMember`, with full column coverage) —
 /// all
 /// decided 2026-09-03 (`plan.md`'s "Open decisions") to retain full rows
 /// — active and inactive — for all sixteen non-Simple/Language refset
 /// types, the same store change `moduleId`/`effectiveTime`/`active`
 /// needed for the six shared columns. Every other `memberFieldFilter`
-/// column, including `targetEffectiveTime` (the time shape's second
-/// and last column), is still rejected — see
+/// column is still rejected — see
 /// [`ExpressionConstraint::MemberFilter`] and
 /// `spec/10-ecl-unimplemented.md`.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -987,6 +993,27 @@ pub enum MemberFilterKind {
     /// column shares the RF2 field name `sourceEffectiveTime`, so
     /// this needs its own variant too.
     SourceEffectiveTime(EffectiveTimeFilter),
+    /// `targetEffectiveTime (=|!=|<=|<|>=|>) (timeValue | timeValueSet)`
+    /// — a `memberFieldFilter` (spec/10 rule 18), the same time shape
+    /// as [`Self::SourceEffectiveTime`]. Reuses
+    /// [`EffectiveTimeFilter`]'s exact shape and grammar — the same
+    /// production `{{ M effectiveTime }}`'s shared-column filter
+    /// ([`Self::EffectiveTime`]) and `sourceEffectiveTime` already
+    /// have — just matched against `ModuleDependencyRefsetMember`'s
+    /// own `targetEffectiveTime` column (spec/08) instead.
+    /// `ModuleDependencyRefsetMember`'s second and last column: both
+    /// columns live on the same row, so a block naming either or
+    /// both is satisfied by that one row, no new row-set check
+    /// needed — tested against the same
+    /// `SnapshotStore::module_dependency_member_rows` as
+    /// `sourceEffectiveTime`. No other implemented column shares the
+    /// RF2 field name `targetEffectiveTime`, so this needs its own
+    /// variant too. Completes `ModuleDependencyRefsetMember`'s
+    /// column coverage — the fifth refset type outside the two map
+    /// types (after `RefsetDescriptorRefsetMember`,
+    /// `DescriptionTypeRefsetMember`, `MrcmDomainRefsetMember`, and
+    /// `MrcmAttributeDomainRefsetMember`) to reach it.
+    TargetEffectiveTime(EffectiveTimeFilter),
 }
 
 /// `numericComparisonOperator ws "#" numericValue` — a `memberFieldFilter`

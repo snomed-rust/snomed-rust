@@ -208,11 +208,11 @@ its inactive rows.
 `descriptionFormat`/`descriptionLength`/`domainConstraint`/
 `parentDomain`/`proximalPrimitiveConstraint`/
 `proximalPrimitiveRefinement`/`domainTemplateForPrecoordination`/
-`domainTemplateForPostcoordination`/`guideURL`/`domainId`/`ruleStrengthId`/`contentTypeId`/`grouped`/`attributeCardinality`/`attributeInGroupCardinality`/`sourceEffectiveTime`
+`domainTemplateForPostcoordination`/`guideURL`/`domainId`/`ruleStrengthId`/`contentTypeId`/`grouped`/`attributeCardinality`/`attributeInGroupCardinality`/`sourceEffectiveTime`/`targetEffectiveTime`
 filters
 (`spec/10-ecl.md` rule
 18) are
-the first thirty-one
+the first thirty-two
 consumers: the first seven dispatch directly to
 `simple_map_member_rows`/`extended_map_member_rows`
 (`correlationId`/`mapGroup`/`mapPriority`/`mapRule`/`mapAdvice`/
@@ -223,8 +223,8 @@ consumers: the first seven dispatch directly to
 `descriptionFormat`/`descriptionLength`/`domainConstraint`/
 `parentDomain`/`proximalPrimitiveConstraint`/`proximalPrimitiveRefinement`/
 `domainTemplateForPrecoordination`/`domainTemplateForPostcoordination`/
-`guideURL`/`domainId`/`ruleStrengthId`/`contentTypeId`/`grouped`/`attributeCardinality`/`attributeInGroupCardinality`/`sourceEffectiveTime`
-— the first twenty-four
+`guideURL`/`domainId`/`ruleStrengthId`/`contentTypeId`/`grouped`/`attributeCardinality`/`attributeInGroupCardinality`/`sourceEffectiveTime`/`targetEffectiveTime`
+— the first twenty-five
 outside
 the two map types — dispatch to `association_member_rows`/
 `attribute_value_member_rows`/`owl_expression_member_rows`/
@@ -280,7 +280,13 @@ filter for it yet), so this was purely a `snomed-ecl` dispatch wiring
 change, no `snomed-store` change. It's also the time shape's first
 implemented column, confirming the pattern generalizes to that shape
 too — every `memberFieldFilter` grammar shape now has at least one
-implemented column. All
+implemented column. `targetEffectiveTime` then reused that same
+thirteenth row set — it's `ModuleDependencyRefsetMember`'s second and
+last column, both on one row, no new row-set check needed, completing
+that type's column coverage (the fifth refset type outside the two
+map types, after `RefsetDescriptorRefsetMember`,
+`DescriptionTypeRefsetMember`, `MrcmDomainRefsetMember`, and
+`MrcmAttributeDomainRefsetMember`, to reach it). All
 row sets are still
 tested whenever any field-filter kind appears in a block, since a row
 missing the column simply fails that filter rather than needing its

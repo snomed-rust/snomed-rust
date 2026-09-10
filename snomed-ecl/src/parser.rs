@@ -753,11 +753,20 @@ impl Parser {
                     values,
                 }))
             }
+            TokenKind::Word(word) if word == "targetEffectiveTime" => {
+                self.advance()?;
+                let operator = self.parse_time_comparison_operator()?;
+                let values = self.parse_time_value_set()?;
+                Ok(MemberFilterKind::TargetEffectiveTime(EffectiveTimeFilter {
+                    operator,
+                    values,
+                }))
+            }
             _ => {
                 let tok = self.peek().clone();
                 Err(Self::unexpected(
                     &tok,
-                    "`moduleId`, `effectiveTime`, `active`, `mapTarget`, `correlationId`, `mapGroup`, `mapPriority`, `mapRule`, `mapAdvice`, `mapCategoryId`, `targetComponentId`, `valueId`, `owlExpression`, `order`, `mrcmRuleRefsetId`, `attributeDescription`, `attributeType`, `attributeOrder`, `descriptionFormat`, `descriptionLength`, `domainConstraint`, `parentDomain`, `proximalPrimitiveConstraint`, `proximalPrimitiveRefinement`, `domainTemplateForPrecoordination`, `domainTemplateForPostcoordination`, `guideURL`, `domainId`, `ruleStrengthId`, `contentTypeId`, `grouped`, `attributeCardinality`, `attributeInGroupCardinality`, or `sourceEffectiveTime`",
+                    "`moduleId`, `effectiveTime`, `active`, `mapTarget`, `correlationId`, `mapGroup`, `mapPriority`, `mapRule`, `mapAdvice`, `mapCategoryId`, `targetComponentId`, `valueId`, `owlExpression`, `order`, `mrcmRuleRefsetId`, `attributeDescription`, `attributeType`, `attributeOrder`, `descriptionFormat`, `descriptionLength`, `domainConstraint`, `parentDomain`, `proximalPrimitiveConstraint`, `proximalPrimitiveRefinement`, `domainTemplateForPrecoordination`, `domainTemplateForPostcoordination`, `guideURL`, `domainId`, `ruleStrengthId`, `contentTypeId`, `grouped`, `attributeCardinality`, `attributeInGroupCardinality`, `sourceEffectiveTime`, or `targetEffectiveTime`",
                 ))
             }
         }
@@ -2645,6 +2654,35 @@ mod tests {
         assert_eq!(values, &[EffectiveTime::new_unchecked(20240101)]);
     }
 
+    /// `targetEffectiveTime` (spec/10 rule 18) — the thirty-second
+    /// `memberFieldFilter` column, and `ModuleDependencyRefsetMember`'s
+    /// second and last column. Still the time shape, reusing
+    /// `parse_time_comparison_operator`/`parse_time_value_set`
+    /// verbatim — the same parsing `sourceEffectiveTime` already has.
+    /// Completes `ModuleDependencyRefsetMember`'s column coverage: no
+    /// new row-set check needed since both columns share one row.
+    #[test]
+    fn parses_member_filter_target_effective_time() {
+        let EC::MemberFilter { filters, .. } =
+            parse("^ 900000000000534007 {{ M targetEffectiveTime >= \"20240101\" }}").unwrap()
+        else {
+            panic!("expected a member filter");
+        };
+        assert_eq!(filters.len(), 1);
+        let crate::ast::MemberFilterKind::TargetEffectiveTime(crate::ast::EffectiveTimeFilter {
+            operator,
+            values,
+        }) = &filters[0]
+        else {
+            panic!(
+                "expected a TargetEffectiveTime filter, got {:?}",
+                filters[0]
+            );
+        };
+        assert!(matches!(operator, crate::ast::TimeComparisonOp::Ge));
+        assert_eq!(values, &[EffectiveTime::new_unchecked(20240101)]);
+    }
+
     /// `mapGroup` (spec/10 rule 18) — the third `memberFieldFilter`
     /// column implemented, and the first to use the numeric grammar
     /// shape (`numericComparisonOperator ws "#" numericValue`, the same
@@ -2743,15 +2781,15 @@ mod tests {
         assert_eq!(values[0].search_type, crate::ast::SearchType::Wild);
     }
 
-    /// A field name this crate doesn't recognize (`targetEffectiveTime`,
-    /// say — `ModuleDependencyRefsetMember`'s second and last
-    /// time-shape column, still unimplemented) falls to the generic
-    /// bucket, not `NotYetImplemented` — the same "genuinely
-    /// unimplemented" distinction rule 9 draws elsewhere.
+    /// A field name this crate doesn't recognize (`rangeConstraint`,
+    /// say — one of `MrcmAttributeRangeRefsetMember`'s own two string
+    /// columns, still unimplemented) falls to the generic bucket, not
+    /// `NotYetImplemented` — the same "genuinely unimplemented"
+    /// distinction rule 9 draws elsewhere.
     #[test]
     fn rejects_an_unrecognized_member_field_filter_generically() {
         assert!(matches!(
-            parse("^ 447562003 {{ M targetEffectiveTime = \"20200101\" }}"),
+            parse("^ 447562003 {{ M rangeConstraint = \"x\" }}"),
             Err(EclError::UnexpectedKeyword { .. })
         ));
     }

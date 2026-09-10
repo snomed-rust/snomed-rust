@@ -475,7 +475,13 @@ and a `typed_field_row_matches` dispatch arm; the store's
 `module_dependency_member_rows` accessor was already present (every
 non-Simple/Language type was retained 2026-09-03 regardless of
 whether a filter existed for it yet), so no `snomed-store` change was
-needed. `memberFieldFilter`
+needed. `targetEffectiveTime` (2026-09-10),
+`ModuleDependencyRefsetMember`'s second and last column, followed
+immediately too — still the time shape, another genuinely new
+variant, again no new row-set check since both columns share one row
+— completing that type's column coverage (the fifth refset type
+outside the two map types to reach it, and the first to reach it on
+the time shape). `memberFieldFilter`
 isn't one production but five in the official grammar, chosen by the
 named column's own semantic type
 (`expressionComparisonOperator ws subExpressionConstraint` for a concept
@@ -500,7 +506,7 @@ inspection. `mapPriority` reused that same numeric shape and
 `TermFilter`/`term_matches` verbatim. With the store side now done for
 all sixteen types, every
 *remaining* `memberFieldFilter` column
-(`targetEffectiveTime`, …)
+(`rangeConstraint`, `attributeRule`, …)
 IS a free next increment — the cadence below applies to them cleanly,
 the same as any other filter kind. See `spec/10-ecl-unimplemented.md`.
 
