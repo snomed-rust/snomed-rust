@@ -762,11 +762,20 @@ impl Parser {
                     values,
                 }))
             }
+            TokenKind::Word(word) if word == "rangeConstraint" => {
+                self.advance()?;
+                let negated = self.parse_boolean_comparison_operator()?;
+                let values = self.parse_typed_search_term_set()?;
+                Ok(MemberFilterKind::RangeConstraint(TermFilter {
+                    negated,
+                    values,
+                }))
+            }
             _ => {
                 let tok = self.peek().clone();
                 Err(Self::unexpected(
                     &tok,
-                    "`moduleId`, `effectiveTime`, `active`, `mapTarget`, `correlationId`, `mapGroup`, `mapPriority`, `mapRule`, `mapAdvice`, `mapCategoryId`, `targetComponentId`, `valueId`, `owlExpression`, `order`, `mrcmRuleRefsetId`, `attributeDescription`, `attributeType`, `attributeOrder`, `descriptionFormat`, `descriptionLength`, `domainConstraint`, `parentDomain`, `proximalPrimitiveConstraint`, `proximalPrimitiveRefinement`, `domainTemplateForPrecoordination`, `domainTemplateForPostcoordination`, `guideURL`, `domainId`, `ruleStrengthId`, `contentTypeId`, `grouped`, `attributeCardinality`, `attributeInGroupCardinality`, `sourceEffectiveTime`, or `targetEffectiveTime`",
+                    "`moduleId`, `effectiveTime`, `active`, `mapTarget`, `correlationId`, `mapGroup`, `mapPriority`, `mapRule`, `mapAdvice`, `mapCategoryId`, `targetComponentId`, `valueId`, `owlExpression`, `order`, `mrcmRuleRefsetId`, `attributeDescription`, `attributeType`, `attributeOrder`, `descriptionFormat`, `descriptionLength`, `domainConstraint`, `parentDomain`, `proximalPrimitiveConstraint`, `proximalPrimitiveRefinement`, `domainTemplateForPrecoordination`, `domainTemplateForPostcoordination`, `guideURL`, `domainId`, `ruleStrengthId`, `contentTypeId`, `grouped`, `attributeCardinality`, `attributeInGroupCardinality`, `sourceEffectiveTime`, `targetEffectiveTime`, or `rangeConstraint`",
                 ))
             }
         }
@@ -2683,6 +2692,34 @@ mod tests {
         assert_eq!(values, &[EffectiveTime::new_unchecked(20240101)]);
     }
 
+    /// `rangeConstraint` (spec/10 rule 18) — the thirty-third
+    /// `memberFieldFilter` column, back on the string-search shape,
+    /// reusing `mapTarget`/`attributeCardinality`'s exact grammar.
+    /// `MrcmAttributeRangeRefsetMember`'s first column of its own
+    /// (after `ruleStrengthId`/`contentTypeId` extended to it) — no
+    /// new row-set check since all four columns implemented so far
+    /// share one row.
+    #[test]
+    fn parses_member_filter_range_constraint() {
+        let EC::MemberFilter { filters, .. } =
+            parse("^ 723562003 {{ M rangeConstraint = \"<< 27113001\" }}").unwrap()
+        else {
+            panic!("expected a member filter");
+        };
+        assert_eq!(filters.len(), 1);
+        let crate::ast::MemberFilterKind::RangeConstraint(crate::ast::TermFilter {
+            negated,
+            values,
+        }) = &filters[0]
+        else {
+            panic!("expected a RangeConstraint filter, got {:?}", filters[0]);
+        };
+        assert!(!negated);
+        assert_eq!(values.len(), 1);
+        assert_eq!(values[0].text, "<< 27113001");
+        assert_eq!(values[0].search_type, crate::ast::SearchType::Match);
+    }
+
     /// `mapGroup` (spec/10 rule 18) — the third `memberFieldFilter`
     /// column implemented, and the first to use the numeric grammar
     /// shape (`numericComparisonOperator ws "#" numericValue`, the same
@@ -2781,15 +2818,15 @@ mod tests {
         assert_eq!(values[0].search_type, crate::ast::SearchType::Wild);
     }
 
-    /// A field name this crate doesn't recognize (`rangeConstraint`,
-    /// say — one of `MrcmAttributeRangeRefsetMember`'s own two string
-    /// columns, still unimplemented) falls to the generic bucket, not
-    /// `NotYetImplemented` — the same "genuinely unimplemented"
-    /// distinction rule 9 draws elsewhere.
+    /// A field name this crate doesn't recognize (`attributeRule`,
+    /// say — `MrcmAttributeRangeRefsetMember`'s own second and last
+    /// string column, still unimplemented) falls to the generic
+    /// bucket, not `NotYetImplemented` — the same "genuinely
+    /// unimplemented" distinction rule 9 draws elsewhere.
     #[test]
     fn rejects_an_unrecognized_member_field_filter_generically() {
         assert!(matches!(
-            parse("^ 447562003 {{ M rangeConstraint = \"x\" }}"),
+            parse("^ 447562003 {{ M attributeRule = \"x\" }}"),
             Err(EclError::UnexpectedKeyword { .. })
         ));
     }

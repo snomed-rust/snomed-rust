@@ -13,6 +13,36 @@ together, in dependency order (`snomed-core` → `snomed-rf2` → `snomed-owl`
 
 ## [Unreleased]
 
+**New ECL capability, additive.** `{{ M ... }}`'s `memberFieldFilter`
+gains its thirty-third column, `rangeConstraint` —
+`MrcmAttributeRangeRefsetMember`'s first column of its own (after
+`ruleStrengthId`/`contentTypeId` extended to that type), after both
+`^` and `^R`. Back on the string-search shape, reusing
+`TermFilter`/`term_matches` verbatim — the same grammar
+`mapTarget`/`domainConstraint`/`attributeCardinality` already have.
+Needed a genuinely new `MemberFilterKind` variant (no implemented
+column shares this RF2 field name) but no new row-set check, reusing
+the type's existing row set. A minor bump: new public API, no
+removals or signature changes to anything existing.
+
+### Added
+
+- `snomed-ecl`: `{{ M rangeConstraint = "<< 27113001" }}` restricts to
+  `MrcmAttributeRange` member rows whose own `rangeConstraint` column
+  matches — the same `match:`/`wild:`/`exact:` search-term grammar
+  `mapTarget`/`domainConstraint`/`attributeCardinality` use (reusing
+  `TermFilter`'s exact shape and `term_matches`). Works after both `^`
+  and `^R`, and conjoins with `ruleStrengthId`/`contentTypeId` and the
+  other shared-column kinds on the same `MrcmAttributeRange` row —
+  all four columns implemented so far on that type live on the same
+  row. Only `MrcmAttributeRangeRefsetMember` rows carry a
+  `rangeConstraint` column; every other row source never matches.
+  `memberFieldFilter`'s thirty-third column, and
+  `MrcmAttributeRangeRefsetMember`'s first column of its own. Needed a
+  genuinely new `MemberFilterKind` variant but no new row-set change,
+  reusing the already-present
+  `SnapshotStore::mrcm_attribute_range_member_rows`.
+
 ## [0.48.0] — 2026-09-10
 
 **New ECL capability, additive.** `{{ M ... }}`'s `memberFieldFilter`'s
@@ -732,35 +762,7 @@ anything existing.
 - No public API removed or changed signature; existing code compiles
   unmodified against this release.
 
-## [0.27.0] — 2026-09-06
-
-**New ECL capability, additive.** `{{ M ... }}`'s `memberFieldFilter`
-gains its twelfth column, `mrcmRuleRefsetId` — the sixth column outside
-the two map types (`MrcmModuleScopeRefsetMember`), after both `^` and
-`^R`. Unlike `targetComponentId`/`order`, no other implemented column
-shares this RF2 field name, so this is a genuinely new
-`MemberFilterKind` variant rather than an extension of an existing
-one. A minor bump: new public API, no removals or signature changes to
-anything existing.
-
-### Added
-
-- `snomed-ecl`: `{{ M mrcmRuleRefsetId = 116680003 }}` restricts to
-  `MrcmModuleScope` member rows whose own `mrcmRuleRefsetId` column
-  matches — the same concept-reference grammar `correlationId`/
-  `mapCategoryId`/`targetComponentId`/`valueId` use (reusing
-  `ModuleFilter`'s exact shape). Works after both `^` and `^R`, and
-  conjoins with `moduleId` and the other shared-column kinds on the
-  same member row. Only `MrcmModuleScopeRefsetMember` rows carry an
-  `mrcmRuleRefsetId` column; every other refset type never matches
-  this filter. New public API: `MemberFilterKind::MrcmRuleRefsetId`.
-
-### Notes for consumers
-
-- No public API removed or changed signature; existing code compiles
-  unmodified against this release.
-
-Entries for 0.26.0 and earlier live in
+Entries for 0.27.0 and earlier live in
 [`docs/changelog-archive.md`](docs/changelog-archive.md) — moved there
 verbatim to keep this file inside the repository's 40 KB per-document
 budget (rule 1 of `spec/docs-budget-and-links/index.md`).

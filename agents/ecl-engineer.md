@@ -494,7 +494,13 @@ just a new `mrcm_attribute_range_member_rows` row-set check in
 type this time rather than two columns already spanning two types.
 Confirm a field name reuse is genuine (same RF2 column, same
 semantics) before skipping the new-variant step — it is not a
-shortcut to take by default. `memberFieldFilter`
+shortcut to take by default. `rangeConstraint` (2026-09-10),
+`MrcmAttributeRangeRefsetMember`'s first column of its own, followed
+immediately too — back on the string-search shape (reusing
+`mapTarget`'s grammar and `term_matches` verbatim), a genuinely new
+variant this time (no implemented column shares this RF2 field name),
+again no new row-set check — all four columns implemented so far on
+that type share one row. `memberFieldFilter`
 isn't one production but five in the official grammar, chosen by the
 named column's own semantic type
 (`expressionComparisonOperator ws subExpressionConstraint` for a concept
@@ -519,7 +525,7 @@ inspection. `mapPriority` reused that same numeric shape and
 `TermFilter`/`term_matches` verbatim. With the store side now done for
 all sixteen types, every
 *remaining* `memberFieldFilter` column
-(`rangeConstraint`, `attributeRule`, …)
+(`attributeRule`, …)
 IS a free next increment — the cadence below applies to them cleanly,
 the same as any other filter kind. See `spec/10-ecl-unimplemented.md`.
 

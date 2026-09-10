@@ -208,11 +208,11 @@ its inactive rows.
 `descriptionFormat`/`descriptionLength`/`domainConstraint`/
 `parentDomain`/`proximalPrimitiveConstraint`/
 `proximalPrimitiveRefinement`/`domainTemplateForPrecoordination`/
-`domainTemplateForPostcoordination`/`guideURL`/`domainId`/`ruleStrengthId`/`contentTypeId`/`grouped`/`attributeCardinality`/`attributeInGroupCardinality`/`sourceEffectiveTime`/`targetEffectiveTime`
+`domainTemplateForPostcoordination`/`guideURL`/`domainId`/`ruleStrengthId`/`contentTypeId`/`grouped`/`attributeCardinality`/`attributeInGroupCardinality`/`sourceEffectiveTime`/`targetEffectiveTime`/`rangeConstraint`
 filters
 (`spec/10-ecl.md` rule
 18) are
-the first thirty-two
+the first thirty-three
 consumers: the first seven dispatch directly to
 `simple_map_member_rows`/`extended_map_member_rows`
 (`correlationId`/`mapGroup`/`mapPriority`/`mapRule`/`mapAdvice`/
@@ -223,8 +223,8 @@ consumers: the first seven dispatch directly to
 `descriptionFormat`/`descriptionLength`/`domainConstraint`/
 `parentDomain`/`proximalPrimitiveConstraint`/`proximalPrimitiveRefinement`/
 `domainTemplateForPrecoordination`/`domainTemplateForPostcoordination`/
-`guideURL`/`domainId`/`ruleStrengthId`/`contentTypeId`/`grouped`/`attributeCardinality`/`attributeInGroupCardinality`/`sourceEffectiveTime`/`targetEffectiveTime`
-— the first twenty-five
+`guideURL`/`domainId`/`ruleStrengthId`/`contentTypeId`/`grouped`/`attributeCardinality`/`attributeInGroupCardinality`/`sourceEffectiveTime`/`targetEffectiveTime`/`rangeConstraint`
+— the first twenty-six
 outside
 the two map types — dispatch to `association_member_rows`/
 `attribute_value_member_rows`/`owl_expression_member_rows`/
@@ -299,7 +299,12 @@ correctly once this row set is tested too. The same "reuse the
 variant, add the row-set check" shape `targetComponentId`/`order` had
 extending to `OrderedAssociationRefsetMember`, just two columns from
 one type at once rather than the same one column extending to a
-second type. All
+second type. `rangeConstraint` then reused that same fourteenth row
+set — `MrcmAttributeRangeRefsetMember`'s first column of its own, no
+new row-set check needed since all four columns implemented so far
+share one row; back to needing a genuinely new `MemberFilterKind`
+variant, since (unlike `ruleStrengthId`/`contentTypeId`) no
+implemented column shares the RF2 field name `rangeConstraint`. All
 row sets are still
 tested whenever any field-filter kind appears in a block, since a row
 missing the column simply fails that filter rather than needing its

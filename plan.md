@@ -267,9 +267,10 @@ and harmonizes it with the sibling repositories (`hl7-rust`, `er7-rust`,
   `grouped`,
   `attributeCardinality`,
   `attributeInGroupCardinality`,
-  `sourceEffectiveTime`, and
-  `targetEffectiveTime` are the
-  first thirty-two
+  `sourceEffectiveTime`,
+  `targetEffectiveTime`, and
+  `rangeConstraint` are the
+  first thirty-three
   concrete fields
   built on this retention (`snomed-ecl`, spec/10 rule 18): the
   `memberFieldFilter` grammar alternative, tested against
@@ -279,7 +280,7 @@ and harmonizes it with the sibling repositories (`hl7-rust`, `er7-rust`,
   `ordered_association_member_rows`/`mrcm_module_scope_member_rows`/
   `refset_descriptor_member_rows`/`description_type_member_rows`/
   `mrcm_domain_member_rows`/`mrcm_attribute_domain_member_rows`/
-  `module_dependency_member_rows`,
+  `module_dependency_member_rows`/`mrcm_attribute_range_member_rows`,
   after
   both
   `^` and `^R` in one increment each since both reuse the same
@@ -290,7 +291,7 @@ and harmonizes it with the sibling repositories (`hl7-rust`, `er7-rust`,
   `owlExpression`/`domainConstraint`/`parentDomain`/
   `proximalPrimitiveConstraint`/`proximalPrimitiveRefinement`/
   `domainTemplateForPrecoordination`/`domainTemplateForPostcoordination`/
-  `guideURL`/`attributeCardinality`/`attributeInGroupCardinality`
+  `guideURL`/`attributeCardinality`/`attributeInGroupCardinality`/`rangeConstraint`
   the string-search
   shape, `correlationId`/`mapCategoryId`/
   `targetComponentId`/`valueId`/`mrcmRuleRefsetId`/`attributeDescription`/
@@ -325,21 +326,20 @@ and harmonizes it with the sibling repositories (`hl7-rust`, `er7-rust`,
   `descriptionFormat`/`descriptionLength`/`domainConstraint`/
   `parentDomain`/`proximalPrimitiveConstraint`/
   `proximalPrimitiveRefinement`/`domainTemplateForPrecoordination`/
-  `domainTemplateForPostcoordination`/`guideURL`/`domainId`/`ruleStrengthId`/`contentTypeId`/`grouped`/`attributeCardinality`/`attributeInGroupCardinality`/`sourceEffectiveTime`,
-  and `targetEffectiveTime`
+  `domainTemplateForPostcoordination`/`guideURL`/`domainId`/`ruleStrengthId`/`contentTypeId`/`grouped`/`attributeCardinality`/`attributeInGroupCardinality`/`sourceEffectiveTime`/`targetEffectiveTime`,
+  and `rangeConstraint`
   are the
-  first twenty-five fields on refset
+  first twenty-six fields on refset
   types
   other than the two
   map types (`AssociationRefsetMember`/`AttributeValueRefsetMember`/
   `OwlExpressionRefsetMember`/`OrderedComponentRefsetMember`/
   `MrcmModuleScopeRefsetMember`/`RefsetDescriptorRefsetMember`/
   `DescriptionTypeRefsetMember`/`MrcmDomainRefsetMember`/
-  `MrcmAttributeDomainRefsetMember`/`ModuleDependencyRefsetMember`, plus
+  `MrcmAttributeDomainRefsetMember`/`ModuleDependencyRefsetMember`/
+  `MrcmAttributeRangeRefsetMember`, plus
   `OrderedAssociationRefsetMember` as a tenth reusing two existing
-  variants, and `MrcmAttributeRangeRefsetMember` as a twelfth (below)
-  reusing the same two `ruleStrengthId`/`contentTypeId` variants
-  `MrcmAttributeDomainRefsetMember` already has) — `RefsetDescriptorRefsetMember`,
+  variants) — `RefsetDescriptorRefsetMember`,
   `DescriptionTypeRefsetMember`, `MrcmDomainRefsetMember`,
   `MrcmAttributeDomainRefsetMember`, and `ModuleDependencyRefsetMember`
   each
@@ -349,7 +349,7 @@ and harmonizes it with the sibling repositories (`hl7-rust`, `er7-rust`,
   past `ExtendedMap`/`SimpleMap` across every grammar shape, not just
   the concept-reference one. Every
   other `memberFieldFilter` column
-  (`rangeConstraint`, `attributeRule`, …)
+  (`attributeRule`, …)
   remains rejected generically —
   not by a fixed keyword list (`refsetFieldName` is `1*alpha`, confirmed
   against the official ABNF) — but each is now a free `snomed-ecl`
@@ -365,10 +365,9 @@ and harmonizes it with the sibling repositories (`hl7-rust`, `er7-rust`,
 ## Current status
 
 All eight phases above are closed. As of `memberFieldFilter`'s
-`ruleStrengthId`/`contentTypeId` extending to
-`MrcmAttributeRangeRefsetMember` (2026-09-10, below) the
+`rangeConstraint` (2026-09-10, below) the
 workspace is 9 published
-crates with zero dependencies, 513 tests, a clean
+crates with zero dependencies, 516 tests, a clean
 `cargo clippy --all-targets`, 13 fuzz targets, and six criterion
 benchmark files. What is *not* done is tracked
 in two places and nowhere
@@ -520,7 +519,11 @@ columns — a different increment shape entirely: *no* new
 just a genuinely new fourteenth row-set check
 (`mrcm_attribute_range_member_rows`, already present in the store)
 since it's that type's first filterable column, a twelfth refset type
-outside the two map types. In
+outside the two map types; and `rangeConstraint` (2026-09-10) is
+`MrcmAttributeRangeRefsetMember`'s first column of its own, back on
+the string-search shape, another genuinely new variant (no
+implemented column shares this RF2 field name), again no new row-set
+check since all four columns implemented so far share one row. In
 between, the
 `ecl_parse` fuzz target's CI smoke run caught
 a real stack overflow on pathologically deep `(`/refinement/

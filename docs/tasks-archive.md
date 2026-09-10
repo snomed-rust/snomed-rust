@@ -1,7 +1,7 @@
 # Tasks archive — index
 
 [`tasks.md`](../tasks.md) keeps the current checklist and the recent
-entries; everything older lives here, split into forty-seven files
+entries; everything older lives here, split into forty-eight files
 that each
 stay inside the repository's 40 KB per-document budget. Entries were moved
 verbatim — this is a historical record, not a summary, and it is worth
@@ -59,6 +59,7 @@ so the paths quoted here still resolve.
 | [`tasks-archive-45.md`](tasks-archive-45.md) | 2026-09-09/10 | Release 0.43.0; `memberFieldFilter`'s `attributeCardinality` column (`MrcmAttributeDomainRefsetMember`'s fifth column); Release 0.44.0 |
 | [`tasks-archive-46.md`](tasks-archive-46.md) | 2026-09-10 | Release 0.45.0; `memberFieldFilter`'s `attributeInGroupCardinality` column (`MrcmAttributeDomainRefsetMember`'s sixth and last column, completing its column coverage) |
 | [`tasks-archive-47.md`](tasks-archive-47.md) | 2026-09-10 | Release 0.46.0; `memberFieldFilter`'s `sourceEffectiveTime` column (the time shape's first implemented column, `ModuleDependencyRefsetMember`'s first filterable column) |
+| [`tasks-archive-48.md`](tasks-archive-48.md) | 2026-09-10 | Release 0.47.0; `memberFieldFilter`'s `targetEffectiveTime` column (`ModuleDependencyRefsetMember`'s second and last column, completing its column coverage) |
 
 Older entries are shorter and more granular than recent ones: they were
 written a change at a time while the workspace was being built from

@@ -84,9 +84,8 @@ token shape:
   `attributeOrder`/`descriptionFormat`/`descriptionLength`/
   `domainConstraint`/`parentDomain`/`proximalPrimitiveConstraint`/
   `proximalPrimitiveRefinement`/`domainTemplateForPrecoordination`/
-  `domainTemplateForPostcoordination`/`guideURL`/`domainId`/`ruleStrengthId`/`contentTypeId`/`grouped`/`attributeCardinality`/`attributeInGroupCardinality`/`sourceEffectiveTime`/`targetEffectiveTime`
-  — a refset-type-specific column (`rangeConstraint`, `attributeRule`,
-  …), as
+  `domainTemplateForPostcoordination`/`guideURL`/`domainId`/`ruleStrengthId`/`contentTypeId`/`grouped`/`attributeCardinality`/`attributeInGroupCardinality`/`sourceEffectiveTime`/`targetEffectiveTime`/`rangeConstraint`
+  — a refset-type-specific column (`attributeRule`, …), as
   opposed to the three shared-column kinds
   (`moduleId`/`effectiveTime`/`active`) implemented 2026-09-01 after both
   `^` and `^R`. `refsetFieldName` is `1*alpha` in the official grammar
@@ -270,9 +269,12 @@ token shape:
   variant, add the row-set check" shape `targetComponentId`/`order`
   had extending to `OrderedAssociationRefsetMember`, just two columns
   at once instead of one.
-  `rangeConstraint`/`attributeRule` (`MrcmAttributeRangeRefsetMember`'s
-  own two string columns) remain unimplemented, with no example yet.
-  See
+  `rangeConstraint` (2026-09-10) — the fourteenth string-search-shape
+  column, `MrcmAttributeRangeRefsetMember`'s first column of its own
+  (all four columns implemented so far share one row) — reuses
+  `mapTarget`'s grammar verbatim, no new row-set check needed.
+  `attributeRule` (`MrcmAttributeRangeRefsetMember`'s own second and
+  last column) remains unimplemented, with no example yet. See
   `SnapshotStore::simple_map_member_rows`/`extended_map_member_rows`/
   `association_member_rows` and
   spec/09 rule 4. Decided 2026-09-03 in `plan.md`'s "Open decisions":

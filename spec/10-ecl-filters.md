@@ -157,9 +157,9 @@ named column's own semantic type (confirmed against the official ABNF,
 subExpressionConstraint` (a concept reference), `numericComparisonOperator
 ws "#" numericValue`, `stringComparisonOperator ws (typedSearchTerm |
 typedSearchTermSet)`, `booleanComparisonOperator ws booleanValue`, or
-`timeComparisonOperator ws (timeValue | timeValueSet)`. Thirty-two
+`timeComparisonOperator ws (timeValue | timeValueSet)`. Thirty-three
 kinds are
-implemented, spanning all five shapes (string has thirteen,
+implemented, spanning all five shapes (string has fourteen,
 concept reference has eleven, numeric has five, boolean has one, time
 has two):
 
@@ -492,10 +492,19 @@ has two):
   `MrcmDomainRefsetMember`, and `MrcmAttributeDomainRefsetMember`)
   to reach it. No other implemented column shares the RF2 field name
   `targetEffectiveTime`, so this needs its own variant too.
+- `rangeConstraint (=|!=) (typedSearchTerm | typedSearchTermSet)`
+  — the string-search shape, reusing `TermFilter`/`term_matches` as
+  `mapTarget`/`domainConstraint`/`attributeCardinality` do, matched
+  against the member row's own `rangeConstraint` column (the RF2
+  concrete-domain expression string, stored unparsed).
+  `MrcmAttributeRangeRefsetMember`'s first column of its own (after
+  `ruleStrengthId`/`contentTypeId` extended to it, above) — no new
+  row-set check, same row, same accessor. Genuinely new variant: no
+  other column shares this RF2 field name.
 
-All thirty-two reuse the shared dispatch `mapTarget` introduced
+All thirty-three reuse the shared dispatch `mapTarget` introduced
 (renamed `typed_field_row_matches` once a non-map type joined it): a
-block naming *any* of the thirty-two kinds is tested against
+block naming *any* of the thirty-three kinds is tested against
 `SimpleMap`/`ExtendedMap`/`Association`/`AttributeValue`/`OwlExpression`/
 `OrderedComponent`/`OrderedAssociation`/`MrcmModuleScope`/
 `RefsetDescriptor`/`DescriptionType`/`MrcmDomain`/`MrcmAttributeDomain`/
@@ -512,7 +521,7 @@ any of `correlationId`/
 `attributeOrder`/`descriptionFormat`/`descriptionLength`/
 `domainConstraint`/`parentDomain`/`proximalPrimitiveConstraint`/
 `proximalPrimitiveRefinement`/`domainTemplateForPrecoordination`/
-`domainTemplateForPostcoordination`/`guideURL`/`domainId`/`ruleStrengthId`/`contentTypeId`/`grouped`/`attributeCardinality`/`attributeInGroupCardinality`/`sourceEffectiveTime`/`targetEffectiveTime`
+`domainTemplateForPostcoordination`/`guideURL`/`domainId`/`ruleStrengthId`/`contentTypeId`/`grouped`/`attributeCardinality`/`attributeInGroupCardinality`/`sourceEffectiveTime`/`targetEffectiveTime`/`rangeConstraint`
 (the column is
 simply
 absent on that row source, the same "not this row's type" answer a
