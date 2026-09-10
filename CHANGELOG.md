@@ -13,6 +13,8 @@ together, in dependency order (`snomed-core` → `snomed-rf2` → `snomed-owl`
 
 ## [Unreleased]
 
+## [0.48.0] — 2026-09-10
+
 **New ECL capability, additive.** `{{ M ... }}`'s `memberFieldFilter`'s
 `ruleStrengthId`/`contentTypeId` filters now also match
 `MrcmAttributeRangeRefsetMember`'s own pair of those columns, after

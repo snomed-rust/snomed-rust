@@ -11,7 +11,7 @@ human-readable layer above it.
 
 | | |
 |---|---|
-| Version | **0.47.0**, released 2026-09-10 |
+| Version | **0.48.0**, released 2026-09-10 |
 | Crates | nine, released together and sharing one version number |
 | Rust MSRV | 1.96 (current stable minus two) |
 | License | `Apache-2.0 OR MIT` |
@@ -19,18 +19,13 @@ human-readable layer above it.
 | Packages | <https://crates.io/crates/snomed> |
 | Documentation | <https://docs.rs/snomed> · <https://snomed-rust.github.io/> |
 
-0.47.0 gives the ECL `{{ M ... }}` member filter constraint's
-`memberFieldFilter` alternative its thirty-second and final
-`ModuleDependencyRefsetMember` column, `targetEffectiveTime` —
-`ModuleDependencyRefsetMember`'s second and last column, still the
-time shape. Reuses the same grammar and machinery
-`{{ M effectiveTime }}`/`sourceEffectiveTime` already have, so no new
-comparison logic — just a new column to match it against, sharing a
-row with `sourceEffectiveTime` so no store-side change was needed
-either. Completes `ModuleDependencyRefsetMember`'s column coverage —
-the fifth refset type outside the two map types to reach it. Purely
-additive: no public API removed or changed, existing code compiles
-unmodified. Full detail is in the
+0.48.0 extends the ECL `{{ M ... }}` member filter constraint's
+`memberFieldFilter` `ruleStrengthId`/`contentTypeId` filters to also
+match `MrcmAttributeRangeRefsetMember`'s own pair of those columns —
+a distinct row from `MrcmAttributeDomainRefsetMember`'s, sharing only
+the RF2 field names. No new public API: the existing filter kinds
+simply reach a new row source. Purely additive: no public API removed
+or changed, existing code compiles unmodified. Full detail is in the
 [changelog](CHANGELOG.md).
 
 **Pre-1.0 caveat, stated up front because it affects anyone writing about
@@ -83,6 +78,7 @@ project is young and says so.
 | 2026-09-10 | 0.45.0 — `{{ M ... }}`'s `memberFieldFilter`: `attributeInGroupCardinality`, `MrcmAttributeDomain`'s sixth and last column, completing its column coverage |
 | 2026-09-10 | 0.46.0 — `{{ M ... }}`'s `memberFieldFilter`: `sourceEffectiveTime`, the time shape's first implemented column, `ModuleDependencyRefsetMember`'s first filterable column |
 | 2026-09-10 | 0.47.0 — `{{ M ... }}`'s `memberFieldFilter`: `targetEffectiveTime`, `ModuleDependencyRefsetMember`'s second and last column, completing its column coverage |
+| 2026-09-10 | 0.48.0 — `{{ M ... }}`'s `memberFieldFilter`: `ruleStrengthId`/`contentTypeId` extend to `MrcmAttributeRangeRefsetMember`, no new filter kind, new row-set check |
 
 ## Following updates
 
@@ -168,7 +164,7 @@ remains licensed material obtained separately from SNOMED International.
 - **What it is not.** Not a terminology server, not an authoring platform, not
   a browser, and not a replacement for Snowstorm. [COMPARISONS.md](COMPARISONS.md)
   states the limitations at length and names the tools that do those jobs.
-- **Maturity.** Version 0.47.0, first published in September 2026, one
+- **Maturity.** Version 0.48.0, first published in September 2026, one
   maintainer, pre-1.0. [MAINTAINERS.md](MAINTAINERS.md) states the bus factor
   and the continuity position without softening, and is the right source for
   any risk framing.
