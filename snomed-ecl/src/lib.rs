@@ -17,7 +17,7 @@
 //! `domainTemplateForPrecoordination`/`domainTemplateForPostcoordination`/
 //! `guideURL`/`domainId`/`ruleStrengthId`/`contentTypeId`/`grouped`/
 //! `attributeCardinality`/`attributeInGroupCardinality`/`sourceEffectiveTime`/
-//! `targetEffectiveTime`/`rangeConstraint`,
+//! `targetEffectiveTime`/`rangeConstraint`/`attributeRule`,
 //! the history supplement,
 //! alternate identifiers, …) is listed in
 //! `spec/10-ecl-unimplemented.md`. Encountering one is a parse error,

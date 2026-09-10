@@ -53,7 +53,8 @@ Official sources:
 | [09-versioning.md](09-versioning.md) | effectiveTime, active, moduleId, snapshot semantics | `snomed-store` |
 | [10-ecl.md](10-ecl.md) | Expression Constraint Language: grammar, hierarchy operators, `memberOf`/`^R`, dot notation, **and all of ECL's normative rules** | `snomed-ecl` |
 | [10-ecl-refinements.md](10-ecl-refinements.md) | ECL `:` attribute-value constraints: cardinality, reverse flag, attribute groups, concrete values | `snomed-ecl` |
-| [10-ecl-filters.md](10-ecl-filters.md) | ECL filter constraints: `{{ C ... }}` concept filters, `{{ D ... }}` description filters, `{{ M ... }}` member filters | `snomed-ecl` |
+| [10-ecl-filters.md](10-ecl-filters.md) | ECL filter constraints: `{{ C ... }}` concept filters, `{{ D ... }}` description filters | `snomed-ecl` |
+| [10-ecl-member-filters.md](10-ecl-member-filters.md) | ECL `{{ M ... }}` member filter constraints: what each `memberFieldFilter` column matches | `snomed-ecl` |
 | [10-ecl-unimplemented.md](10-ecl-unimplemented.md) | ECL constructs still rejected, and what each one is blocked on | `snomed-ecl` |
 | [11-fhir.md](11-fhir.md) | FHIR terminology service building blocks: `$lookup`, `$subsumes`, `$expand` | `snomed-fhir` |
 | [12-owl.md](12-owl.md) | OWL Expression reference set: parsing axioms in OWL 2 functional syntax | `snomed-owl` |
@@ -83,8 +84,11 @@ binding on this workspace in the same way):
 | [node-current-version/](node-current-version/index.md) | The GitHub Pages site's Node.js version: current major (26), enforced at both CI and install time | `snomed-rust.github.io/.github/workflows/deploy.yml`, `package.json`, `pnpm-workspace.yaml`, `.npmrc` |
 | [monorepo-github-pages/](monorepo-github-pages/index.md) | The GitHub Pages site publishes via `git subtree` to a read-only sibling repo (`snomed-rust/snomed-rust.github.io`), never edited directly | `Makefile`, `snomed-rust.github.io/README.md` |
 
-`spec/10` is four files because it outgrew the 40 KB per-document budget,
-not because parts of it are less binding. **All ECL rule numbers live in
+`spec/10` is five files because it outgrew the 40 KB per-document budget
+twice — first splitting the unimplemented-construct list out of
+`10-ecl.md`, then the `{{ M ... }}` member filter section out of
+`10-ecl-filters.md` as `memberFieldFilter` columns accumulated — not
+because parts of it are less binding. **All ECL rule numbers live in
 `10-ecl.md`**, so a `spec/10 rule N` citation always resolves there
 regardless of which file the prose sits in;
 `snomed/tests/spec_citations.rs` fails the build if one doesn't.

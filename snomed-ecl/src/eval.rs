@@ -320,6 +320,7 @@ fn member_row_matches(
                 | MemberFilterKind::SourceEffectiveTime(_)
                 | MemberFilterKind::TargetEffectiveTime(_)
                 | MemberFilterKind::RangeConstraint(_)
+                | MemberFilterKind::AttributeRule(_)
         )
     }) {
         return typed_field_row_matches(
@@ -388,7 +389,9 @@ fn member_row_matches(
 /// `MrcmAttributeRangeRefsetMember`, a twelfth refset type outside the
 /// two map types — `rule_strength_id`/`content_type_id` already reach
 /// that type's row too, reused from `MrcmAttributeDomainRefsetMember`'s
-/// own pair (see [`typed_field_row_matches`]'s doc comment).
+/// own pair (see [`typed_field_row_matches`]'s doc comment);
+/// `attribute_rule` is its second and last, populated from the same
+/// row.
 #[derive(Default)]
 struct TypedFields<'a> {
     map_target: Option<&'a str>,
@@ -424,6 +427,7 @@ struct TypedFields<'a> {
     source_effective_time: Option<EffectiveTime>,
     target_effective_time: Option<EffectiveTime>,
     range_constraint: Option<&'a str>,
+    attribute_rule: Option<&'a str>,
 }
 
 /// The `mapTarget`/`correlationId`/`mapGroup`/`mapPriority`/`mapRule`/
@@ -785,6 +789,7 @@ fn typed_field_row_matches(
                             rule_strength_id: Some(row.rule_strength_id),
                             content_type_id: Some(row.content_type_id),
                             range_constraint: Some(&row.range_constraint),
+                            attribute_rule: Some(&row.attribute_rule),
                             ..TypedFields::default()
                         },
                     )
@@ -952,18 +957,17 @@ fn prepare_member_filter(filter: &MemberFilterKind, store: &SnapshotStore) -> Pr
         | MemberFilterKind::GuideUrl(TermFilter { values, .. })
         | MemberFilterKind::AttributeCardinality(TermFilter { values, .. })
         | MemberFilterKind::AttributeInGroupCardinality(TermFilter { values, .. })
-        | MemberFilterKind::RangeConstraint(TermFilter { values, .. }) => {
-            PreparedMemberFilter::Term(
-                values
-                    .iter()
-                    .map(|search| match search.search_type {
-                        SearchType::Match => PreparedSearch::Match(words(&search.text)),
-                        SearchType::Wild => PreparedSearch::Wild(search.text.to_lowercase()),
-                        SearchType::Exact => PreparedSearch::Exact,
-                    })
-                    .collect(),
-            )
-        }
+        | MemberFilterKind::RangeConstraint(TermFilter { values, .. })
+        | MemberFilterKind::AttributeRule(TermFilter { values, .. }) => PreparedMemberFilter::Term(
+            values
+                .iter()
+                .map(|search| match search.search_type {
+                    SearchType::Match => PreparedSearch::Match(words(&search.text)),
+                    SearchType::Wild => PreparedSearch::Wild(search.text.to_lowercase()),
+                    SearchType::Exact => PreparedSearch::Exact,
+                })
+                .collect(),
+        ),
         _ => PreparedMemberFilter::Literal,
     }
 }
@@ -1438,6 +1442,22 @@ fn member_filter_matches(
                 .iter()
                 .zip(searches)
                 .any(|(search, prepared)| term_matches(range_constraint, search, prepared));
+            matches != *negated
+        }
+        MemberFilterKind::AttributeRule(TermFilter { negated, values }) => {
+            let PreparedMemberFilter::Term(searches) = prepared else {
+                unreachable!("an attributeRule filter prepares to `Term`")
+            };
+            // No `attribute_rule` on this row source (every source
+            // but `MrcmAttributeRange`'s own): never matches, same
+            // reasoning as `RangeConstraint`'s `None` case above.
+            let Some(attribute_rule) = fields.attribute_rule else {
+                return false;
+            };
+            let matches = values
+                .iter()
+                .zip(searches)
+                .any(|(search, prepared)| term_matches(attribute_rule, search, prepared));
             matches != *negated
         }
     }
@@ -2987,7 +3007,7 @@ mod tests {
         }
     }
 
-    /// The canonical `memberFieldFilter` example (spec/10-ecl-filters.md,
+    /// The canonical `memberFieldFilter` example (spec/10-ecl-member-filters.md,
     /// the docs.snomed.org guide's own): `mapTarget` on an ExtendedMap
     /// row. Also proves `{{ M }}` after `^R` reaches it, via the same
     /// shared `member_row_matches` the `^` path uses.
@@ -7451,6 +7471,98 @@ mod tests {
         assert_eq!(
             eval(
                 &format!("^ {mrcm_domain} {{{{ M rangeConstraint = \"<< 27113001\" }}}}"),
+                &store
+            ),
+            HashSet::new()
+        );
+    }
+
+    /// `attributeRule` (spec/10 rule 18) — the thirty-fourth
+    /// `memberFieldFilter` column, and `MrcmAttributeRangeRefsetMember`'s
+    /// second and last column, tested against the same fourteenth
+    /// typed row set `rangeConstraint` uses — no new row-set check
+    /// needed. Also proves `{{ M }}` after `^R` reaches it, and that
+    /// it conjoins with `rangeConstraint` on the same row.
+    #[test]
+    fn member_filter_attribute_rule_matches_mrcm_attribute_range_rows() {
+        let mrcm_attribute_range = SctId::compose(10025, ComponentType::Concept, None).unwrap();
+        let mut b = SnapshotStore::builder();
+        b.add_concept(concept(MI));
+        b.add_mrcm_attribute_range_member(MrcmAttributeRangeRefsetMember {
+            core: RefsetMemberCore {
+                id: MemberId::parse("80000000-0000-4000-8000-000000000181").unwrap(),
+                effective_time: EffectiveTime::new_unchecked(20190731),
+                active: true,
+                module_id: constants::CORE_MODULE,
+                refset_id: mrcm_attribute_range,
+                referenced_component_id: MI,
+            },
+            range_constraint: "<< 27113001".to_string(),
+            attribute_rule: "116680003 = 404684003".to_string(),
+            rule_strength_id: constants::CORE_MODULE,
+            content_type_id: constants::CORE_MODULE,
+        });
+        let store = b.build();
+
+        assert_eq!(
+            eval(
+                &format!("^ {mrcm_attribute_range} {{{{ M attributeRule = exact:\"x\" }}}}"),
+                &store
+            ),
+            HashSet::new(),
+            "the row's own attributeRule doesn't match"
+        );
+        assert_eq!(
+            eval(
+                &format!(
+                    "^ {mrcm_attribute_range} {{{{ M attributeRule = \"116680003 = 404684003\", rangeConstraint = \"<< 27113001\" }}}}"
+                ),
+                &store
+            ),
+            HashSet::from([MI])
+        );
+        // `^R` reaches the same row, through the shared row-matching path.
+        assert_eq!(
+            eval(
+                &format!("^R {MI} {{{{ M attributeRule = \"116680003 = 404684003\" }}}}"),
+                &store
+            ),
+            HashSet::from([mrcm_attribute_range])
+        );
+    }
+
+    /// `MrcmDomainRefsetMember`/every other typed row source has no
+    /// `attributeRule` column — a membership that exists only there
+    /// must never match, the same "column absent on this row source"
+    /// case every other field filter has for the row types it doesn't
+    /// apply to.
+    #[test]
+    fn member_filter_attribute_rule_never_matches_mrcm_domain_rows() {
+        let mrcm_domain = SctId::compose(10026, ComponentType::Concept, None).unwrap();
+        let mut b = SnapshotStore::builder();
+        b.add_concept(concept(MI));
+        b.add_mrcm_domain_member(MrcmDomainRefsetMember {
+            core: RefsetMemberCore {
+                id: MemberId::parse("80000000-0000-4000-8000-000000000182").unwrap(),
+                effective_time: EffectiveTime::new_unchecked(20190731),
+                active: true,
+                module_id: constants::CORE_MODULE,
+                refset_id: mrcm_domain,
+                referenced_component_id: MI,
+            },
+            domain_constraint: String::new(),
+            parent_domain: String::new(),
+            proximal_primitive_constraint: String::new(),
+            proximal_primitive_refinement: String::new(),
+            domain_template_for_precoordination: String::new(),
+            domain_template_for_postcoordination: String::new(),
+            guide_url: String::new(),
+        });
+        let store = b.build();
+
+        assert_eq!(
+            eval(
+                &format!("^ {mrcm_domain} {{{{ M attributeRule = \"116680003 = 404684003\" }}}}"),
                 &store
             ),
             HashSet::new()

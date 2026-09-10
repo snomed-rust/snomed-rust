@@ -208,11 +208,11 @@ its inactive rows.
 `descriptionFormat`/`descriptionLength`/`domainConstraint`/
 `parentDomain`/`proximalPrimitiveConstraint`/
 `proximalPrimitiveRefinement`/`domainTemplateForPrecoordination`/
-`domainTemplateForPostcoordination`/`guideURL`/`domainId`/`ruleStrengthId`/`contentTypeId`/`grouped`/`attributeCardinality`/`attributeInGroupCardinality`/`sourceEffectiveTime`/`targetEffectiveTime`/`rangeConstraint`
+`domainTemplateForPostcoordination`/`guideURL`/`domainId`/`ruleStrengthId`/`contentTypeId`/`grouped`/`attributeCardinality`/`attributeInGroupCardinality`/`sourceEffectiveTime`/`targetEffectiveTime`/`rangeConstraint`/`attributeRule`
 filters
 (`spec/10-ecl.md` rule
 18) are
-the first thirty-three
+the first thirty-four
 consumers: the first seven dispatch directly to
 `simple_map_member_rows`/`extended_map_member_rows`
 (`correlationId`/`mapGroup`/`mapPriority`/`mapRule`/`mapAdvice`/
@@ -223,8 +223,8 @@ consumers: the first seven dispatch directly to
 `descriptionFormat`/`descriptionLength`/`domainConstraint`/
 `parentDomain`/`proximalPrimitiveConstraint`/`proximalPrimitiveRefinement`/
 `domainTemplateForPrecoordination`/`domainTemplateForPostcoordination`/
-`guideURL`/`domainId`/`ruleStrengthId`/`contentTypeId`/`grouped`/`attributeCardinality`/`attributeInGroupCardinality`/`sourceEffectiveTime`/`targetEffectiveTime`/`rangeConstraint`
-— the first twenty-six
+`guideURL`/`domainId`/`ruleStrengthId`/`contentTypeId`/`grouped`/`attributeCardinality`/`attributeInGroupCardinality`/`sourceEffectiveTime`/`targetEffectiveTime`/`rangeConstraint`/`attributeRule`
+— the first twenty-seven
 outside
 the two map types — dispatch to `association_member_rows`/
 `attribute_value_member_rows`/`owl_expression_member_rows`/
@@ -304,7 +304,14 @@ set — `MrcmAttributeRangeRefsetMember`'s first column of its own, no
 new row-set check needed since all four columns implemented so far
 share one row; back to needing a genuinely new `MemberFilterKind`
 variant, since (unlike `ruleStrengthId`/`contentTypeId`) no
-implemented column shares the RF2 field name `rangeConstraint`. All
+implemented column shares the RF2 field name `rangeConstraint`.
+`attributeRule` then reused that same fourteenth row set too — it's
+`MrcmAttributeRangeRefsetMember`'s second and last column, no new
+row-set check needed, completing that type's column coverage (the
+sixth refset type outside the two map types, after
+`RefsetDescriptorRefsetMember`, `DescriptionTypeRefsetMember`,
+`MrcmDomainRefsetMember`, `MrcmAttributeDomainRefsetMember`, and
+`ModuleDependencyRefsetMember`, to reach it). All
 row sets are still
 tested whenever any field-filter kind appears in a block, since a row
 missing the column simply fails that filter rather than needing its

@@ -65,12 +65,84 @@ column, the first boolean-shape column (2026-09-09), release 0.43.0,
 0.45.0, `memberFieldFilter`'s `sourceEffectiveTime` column, the time
 shape's first implemented column, release 0.46.0,
 `memberFieldFilter`'s `targetEffectiveTime` column, completing
-`ModuleDependencyRefsetMember`'s column coverage, and release 0.47.0,
-live in
+`ModuleDependencyRefsetMember`'s column coverage, release 0.47.0,
+`memberFieldFilter`'s `ruleStrengthId`/`contentTypeId` extending to
+`MrcmAttributeRangeRefsetMember`, and release 0.48.0, live in
 [`docs/tasks-archive.md`](docs/tasks-archive.md) — moved there verbatim,
 most recently on 2026-09-10, to keep this file inside the repository's
 40 KB per-document budget. Search both when asking "has this come up
 before".
+
+## Done (2026-09-10, ECL `{{ M ... }}` `memberFieldFilter`: `attributeRule`, completes `MrcmAttributeRangeRefsetMember`'s column coverage; `spec/10` splits a second time)
+
+- [x] **`snomed-ecl`**: `MemberFilterKind::AttributeRule(TermFilter)`
+      — `attributeRule (=|!=) (typedSearchTerm |
+      typedSearchTermSet)`, still the string-search shape, reusing
+      `mapTarget`/`rangeConstraint`'s exact grammar and `term_matches`
+      verbatim, on `MrcmAttributeRangeRefsetMember` again (its second
+      and last column) — the thirty-fourth `memberFieldFilter`
+      column. No implemented column shares the RF2 field name
+      `attributeRule`, so this genuinely needed a new variant. No new
+      row-set check was needed — all five columns implemented so far
+      live on the same `MrcmAttributeRangeRefsetMember` row, so the
+      existing `mrcm_attribute_range_member_rows` block just grew a
+      fourth `TypedFields` entry. Completes
+      `MrcmAttributeRangeRefsetMember`'s column coverage — the sixth
+      refset type outside the two map types (after
+      `RefsetDescriptorRefsetMember`, `DescriptionTypeRefsetMember`,
+      `MrcmDomainRefsetMember`, `MrcmAttributeDomainRefsetMember`, and
+      `ModuleDependencyRefsetMember`) to reach it.
+- [x] **`spec/10` split a second time**, before implementing the
+      column above: `spec/10-ecl-filters.md` was 108 bytes under its
+      own 40 KB budget, too tight to absorb the new bullet even after
+      trimming prose (the fix used for `rangeConstraint`'s cycle).
+      Its `{{ M ... }}` member filter section (26.9 KB of the file's
+      40.9 KB) moved verbatim to a new `spec/10-ecl-member-filters.md`,
+      the same fix `spec/10-ecl-unimplemented.md` was for `10-ecl.md`
+      earlier — by size, not authority; rule numbers stay in
+      `10-ecl.md`, untouched. `spec/10` is five files now. Updated
+      every place that counted or listed the four files:
+      `CLAUDE.md` rule 9, `spec/README.md` (new table row, "four" to
+      "five" files, the split's own rationale paragraph),
+      `agents/ecl-engineer.md` ("The spec is four files now" section
+      and its cross-reference), `index.md`,
+      `.claude/skills/snomed-skill/SKILL.md`, and the one
+      `snomed-ecl/src/eval.rs` doc comment citing the member-filter
+      example by its old filename. `tasks.md`'s own 35→36
+      `spec/`-document count (18 specification distillations now,
+      was 17).
+- [x] 3 new tests (parser: one shape test; eval: matches
+      `MrcmAttributeRange` rows after both `^` and `^R`, conjoining
+      with `rangeConstraint` on the same row; never matches
+      `MrcmDomain` rows) — 519/519 total, up from 516. Also fixed
+      `rejects_an_unrecognized_member_field_filter_generically` a
+      sixteenth time, which had used `attributeRule` itself as its
+      unrecognized-keyword example — switched to
+      `languageDialectCode` (shared by `ComponentAnnotationRefsetMember`
+      and `MemberAnnotationRefsetMember`, still unimplemented — the
+      first example outside the MRCM refset family).
+- [x] Updated: `spec/10-ecl-member-filters.md` (new bullet,
+      dispatch-list and shape-count updates — thirty-four kinds,
+      string-search now fifteen of them), `spec/10-ecl-unimplemented.md`
+      (keyword list, narrative history, swapped the unimplemented-column
+      example to `languageDialectCode`), `snomed-ecl/src/lib.rs`,
+      `snomed-ecl/README.md` (table row, not-yet-implemented list,
+      same example swap), `agents/ecl-engineer.md`,
+      `agents/store-engineer.md` (twenty-seven consumers outside the
+      map types, still fourteen row-set checks total), `plan.md`
+      (Open decisions paragraph, Current status test count, Since
+      0.9.0 narrative — including the spec split), `CHANGELOG.md`.
+- [x] **`CHANGELOG.md` crossed its own 40 KB budget a fifteenth
+      time** (42884 bytes, caught by `bin/check-docs` immediately)
+      once this entry's `[Unreleased]` section was added — the
+      fourteenth time was at `rangeConstraint`/0.49.0. This time
+      `docs/changelog-archive.md` had plenty of room (14.6 KB free),
+      so a direct two-section move sufficed: `[0.28.0]` and
+      `[0.29.0]` moved from `CHANGELOG.md` into
+      `docs/changelog-archive.md` ahead of `[0.27.0]`, no cascade
+      needed this time.
+- [x] Verified: build/clippy/fmt/test (519/519)/check-docs/
+      check-trademarks/spec_citations all clean.
 
 ## Done (2026-09-10, Release 0.49.0 — `memberFieldFilter`'s `rangeConstraint`, `MrcmAttributeRangeRefsetMember`'s first column of its own, thirty-seventh self-decided release)
 
@@ -163,85 +235,6 @@ before".
 - [x] Verified: build/clippy/fmt/test (516/516)/check-docs/
       check-trademarks/spec_citations all clean.
 
-## Done (2026-09-10, Release 0.48.0 — `memberFieldFilter`'s `ruleStrengthId`/`contentTypeId` extend to `MrcmAttributeRangeRefsetMember`, thirty-sixth self-decided release)
-
-- [x] **Decided and executed the release itself**, per §1-5 of
-      `spec/ai-release-authority/`: §1 CI independently green on the
-      pushed merge commit (`9255780`, all jobs, confirmed via `gh run
-      view` on the exact commit); §2 `CHANGELOG.md`'s `[Unreleased]`
-      verified against the actual diff and moved under `## [0.48.0]`,
-      minor bump (new behavior on existing public API — no new
-      `MemberFilterKind` variant, `ruleStrengthId`/`contentTypeId`
-      simply reach a new row source — nothing removed or changed
-      signature); §3 no rule oversteps — a routine grammar-coverage
-      call this authority already covers (confirming a field-name
-      reuse is genuine before skipping the new-variant step), not a
-      `plan.md` "Open decisions" item; §4 all nine crates, one
-      version, standard dependency order; §5 tagged `v0.48.0` (signed,
-      verified against the merge commit) and ran `cargo publish` for
-      each crate in order, all nine succeeding cleanly (a few
-      "Blocking waiting for file lock on package cache" waits along
-      the way, harmless).
-- [x] **Verified against crates.io's own API afterward**: `GET
-      /api/v1/crates/<name>` for all nine names returns
-      `max_version: "0.48.0"`.
-- [x] Version bumped everywhere the 0.13.0-0.47.0 precedent bumped it:
-      `Cargo.toml` (workspace + seven pins), `CITATION.cff`, `NEWS.md`,
-      `INSTALL.md`, `SECURITY.md`.
-- [x] Same `release/0.48.0` branch/merge shape as 0.12.0-0.47.0, not a
-      direct commit to `main`; branch deleted locally once GitHub,
-      GitLab, and Codeberg confirmed the merge commit and CI came
-      back green.
-- [x] All three forges pushed cleanly via `git push origin` in one
-      command, for both `main` and the `v0.48.0` tag — the fourteenth
-      release in a row with no GitLab connectivity issue.
-- [x] Verified: build/clippy/fmt/test (513/513)/check-docs/
-      check-trademarks/spec_citations all clean before tagging.
-
-## Done (2026-09-10, ECL `{{ M ... }}` `memberFieldFilter`: `ruleStrengthId`/`contentTypeId` extend to `MrcmAttributeRangeRefsetMember`, no new variant, new row-set check)
-
-- [x] **`snomed-ecl`**: `MemberFilterKind::RuleStrengthId`/`ContentTypeId`
-      — the same two variants `MrcmAttributeDomainRefsetMember`
-      already uses — now also match `MrcmAttributeRangeRefsetMember`'s
-      own `ruleStrengthId`/`contentTypeId` columns, a distinct row
-      sharing only the RF2 field *names*. No new `MemberFilterKind`
-      variant needed. Needed a genuinely new fourteenth row-set check
-      in `typed_field_row_matches` (`mrcm_attribute_range_member_rows`,
-      already present in the store) since it's
-      `MrcmAttributeRangeRefsetMember`'s first filterable column — a
-      twelfth refset type outside the two map types. The same "reuse
-      the variant, add the row-set check" shape
-      `targetComponentId`/`order` had extending to
-      `OrderedAssociationRefsetMember`, just two columns from one new
-      type at once.
-- [x] 2 new tests (eval: matches `MrcmAttributeRange` rows for both
-      columns after both `^` and `^R`, conjoining on the same row;
-      never matches `MrcmDomain` rows) — 513/513 total, up from 511.
-      No parser test needed — no new grammar, no new keyword, no new
-      `MemberFilterKind` variant to parse into.
-- [x] Updated: `spec/10-ecl-filters.md` (new bullet describing the
-      extension, dispatch-list row-set addition — thirty-two kinds
-      unchanged since no new kind, fourteen typed row sets now),
-      `spec/10-ecl-unimplemented.md` (narrative history — the
-      "not yet extended to" notes on `ruleStrengthId`/`contentTypeId`
-      now point at this entry instead), `agents/ecl-engineer.md`,
-      `agents/store-engineer.md` (fourteen row-set checks total now),
-      `plan.md` (Open decisions paragraph, Current status test count,
-      Since 0.9.0 narrative), `CHANGELOG.md`. No `snomed-ecl/src/lib.rs`
-      or `snomed-ecl/README.md` keyword-list change needed — no new
-      kind name was added.
-- [x] **`CHANGELOG.md` crossed its own 40 KB budget a thirteenth
-      time** (42367 bytes, caught by `bin/check-docs` immediately)
-      once this entry's `[Unreleased]` section was added — the
-      twelfth time was at `targetEffectiveTime`/0.47.0. This time one
-      section wasn't enough to clear the budget either way: moving
-      `[0.25.0]` alone left `CHANGELOG.md` still 366 bytes over, so
-      `[0.26.0]` moved too, both into `docs/changelog-archive.md`
-      ahead of `[0.24.0]`, updating both files' footer/intro text
-      from "0.24.0" to "0.26.0".
-- [x] Verified: build/clippy/fmt/test (513/513)/check-docs/
-      check-trademarks/spec_citations all clean.
-
 ## Next up
 
 - [ ] Nothing currently scoped beyond the `{{ M ... }}` remainder below.
@@ -326,11 +319,15 @@ before".
       still the time shape,
       `ModuleDependencyRefsetMember`'s second and last column, again
       no new row-set check since both columns share one row,
-      completing that type's column coverage), and `rangeConstraint`
-      (see Done above — back on the string-search shape,
+      completing that type's column coverage), `rangeConstraint`
+      (0.49.0 — back on the string-search shape,
       `MrcmAttributeRangeRefsetMember`'s first column of its own,
       again no new row-set check since all four columns implemented
-      so far share one row),
+      so far share one row), and `attributeRule` (see Done above —
+      still the string-search shape,
+      `MrcmAttributeRangeRefsetMember`'s second and last column,
+      again no new row-set check since all five columns share one
+      row, completing that type's column coverage),
       all after both `^` and
       `^R`.
       Together `mapAdvice`/`mapCategoryId` complete `ExtendedMap`'s
@@ -341,10 +338,10 @@ before".
       `descriptionFormat`/`descriptionLength`/`domainConstraint`/
       `parentDomain`/`proximalPrimitiveConstraint`/
       `proximalPrimitiveRefinement`/`domainTemplateForPrecoordination`/
-      `domainTemplateForPostcoordination`/`guideURL`/`domainId`/`ruleStrengthId`/`contentTypeId`/`grouped`/`attributeCardinality`/`attributeInGroupCardinality`/`sourceEffectiveTime`/`targetEffectiveTime`,
-      and `rangeConstraint`
+      `domainTemplateForPostcoordination`/`guideURL`/`domainId`/`ruleStrengthId`/`contentTypeId`/`grouped`/`attributeCardinality`/`attributeInGroupCardinality`/`sourceEffectiveTime`/`targetEffectiveTime`/`rangeConstraint`,
+      and `attributeRule`
       are the
-      first twenty-six columns
+      first twenty-seven columns
       implemented
       outside the two map types
       (`AssociationRefsetMember`/`AttributeValueRefsetMember`/
@@ -357,8 +354,9 @@ before".
       first two of those columns) —
       `RefsetDescriptorRefsetMember`,
       `DescriptionTypeRefsetMember`, `MrcmDomainRefsetMember`,
-      `MrcmAttributeDomainRefsetMember`, and `ModuleDependencyRefsetMember`
-      each carry every column they have, the first five refset types
+      `MrcmAttributeDomainRefsetMember`, `ModuleDependencyRefsetMember`,
+      and `MrcmAttributeRangeRefsetMember`
+      each carry every column they have, the first six refset types
       outside the two map types with full column coverage. `grouped`
       is also the first `memberFieldFilter` column on the boolean
       shape (`booleanComparisonOperator ws booleanValue`, confirmed
@@ -369,15 +367,16 @@ before".
       to every shape, not just concept-reference.
       `{{ M ... }}` after `^`
       (0.13.0), after `^R` (0.14.0), and its `memberFieldFilter`
-      alternative (0.15.0-0.49.0),
+      alternative (0.15.0-0.49.0, plus `attributeRule` implemented
+      and committed but not yet released),
       all decided and executed under
       `spec/ai-release-authority/`'s criteria rather than a fresh
-      per-release maintainer go-ahead (see `CHANGELOG.md`). 9 crates, 516
+      per-release maintainer go-ahead (see `CHANGELOG.md`). 9 crates, 519
       tests,
       clippy/fmt clean on stable, MSRV 1.96 (current
       stable minus two, `spec/rust-msrv-n-minus-2/index.md`), `fuzz/`,
-      and `benches/`; 13 fuzz targets; 6 criterion benchmark files; 35
-      `spec/` documents (17 specification distillations, the README
+      and `benches/`; 13 fuzz targets; 6 criterion benchmark files; 36
+      `spec/` documents (18 specification distillations, the README
       index, and 17 project policies — `ai-release-authority/` added
       2026-09-02), every one registered in the
       README index. Commit/tag signing verified on all three forges —

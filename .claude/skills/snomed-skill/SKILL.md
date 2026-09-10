@@ -121,7 +121,8 @@ finds every clinical finding whose associated morphology is an infarct.
 
 The full grammar this workspace implements, and what's deliberately
 out of scope, lives in `spec/10-ecl.md`, `spec/10-ecl-filters.md`,
-`spec/10-ecl-refinements.md`, and `spec/10-ecl-unimplemented.md` — read
+`spec/10-ecl-member-filters.md`, `spec/10-ecl-refinements.md`, and
+`spec/10-ecl-unimplemented.md` — read
 those before assuming a construct isn't supported. The official language
 reference is <https://docs.snomed.org/snomed-ct-specifications/snomed-ct-expression-constraint-language/>.
 

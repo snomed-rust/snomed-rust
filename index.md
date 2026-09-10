@@ -67,7 +67,8 @@ stale pointers behind in silence.
 | [09-versioning.md](spec/09-versioning.md) — snapshot/history semantics | `snomed-store` |
 | [10-ecl.md](spec/10-ecl.md) — Expression Constraint Language: grammar, operators, **and every ECL rule number** | `snomed-ecl` |
 | [10-ecl-refinements.md](spec/10-ecl-refinements.md) — ECL `:` attribute-value constraints | `snomed-ecl` |
-| [10-ecl-filters.md](spec/10-ecl-filters.md) — ECL `{{ }}` filter constraints | `snomed-ecl` |
+| [10-ecl-filters.md](spec/10-ecl-filters.md) — ECL `{{ C }}`/`{{ D }}` filter constraints | `snomed-ecl` |
+| [10-ecl-member-filters.md](spec/10-ecl-member-filters.md) — ECL `{{ M }}` member filter constraints | `snomed-ecl` |
 | [10-ecl-unimplemented.md](spec/10-ecl-unimplemented.md) — ECL constructs still rejected, and why | `snomed-ecl` |
 | [11-fhir.md](spec/11-fhir.md) — `$lookup`/`$subsumes`/`$expand` | `snomed-fhir` |
 | [12-owl.md](spec/12-owl.md) — OWL Expression refset axiom syntax | `snomed-owl` |

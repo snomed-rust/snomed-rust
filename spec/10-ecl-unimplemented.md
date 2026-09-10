@@ -84,8 +84,8 @@ token shape:
   `attributeOrder`/`descriptionFormat`/`descriptionLength`/
   `domainConstraint`/`parentDomain`/`proximalPrimitiveConstraint`/
   `proximalPrimitiveRefinement`/`domainTemplateForPrecoordination`/
-  `domainTemplateForPostcoordination`/`guideURL`/`domainId`/`ruleStrengthId`/`contentTypeId`/`grouped`/`attributeCardinality`/`attributeInGroupCardinality`/`sourceEffectiveTime`/`targetEffectiveTime`/`rangeConstraint`
-  — a refset-type-specific column (`attributeRule`, …), as
+  `domainTemplateForPostcoordination`/`guideURL`/`domainId`/`ruleStrengthId`/`contentTypeId`/`grouped`/`attributeCardinality`/`attributeInGroupCardinality`/`sourceEffectiveTime`/`targetEffectiveTime`/`rangeConstraint`/`attributeRule`
+  — a refset-type-specific column (`languageDialectCode`, …), as
   opposed to the three shared-column kinds
   (`moduleId`/`effectiveTime`/`active`) implemented 2026-09-01 after both
   `^` and `^R`. `refsetFieldName` is `1*alpha` in the official grammar
@@ -273,8 +273,18 @@ token shape:
   column, `MrcmAttributeRangeRefsetMember`'s first column of its own
   (all four columns implemented so far share one row) — reuses
   `mapTarget`'s grammar verbatim, no new row-set check needed.
-  `attributeRule` (`MrcmAttributeRangeRefsetMember`'s own second and
-  last column) remains unimplemented, with no example yet. See
+  `attributeRule` (2026-09-10) — the fifteenth string-search-shape
+  column, `MrcmAttributeRangeRefsetMember`'s second and last column
+  (all five columns implemented so far share one row) — reuses
+  `mapTarget`'s grammar verbatim, no new row-set check needed,
+  completing that type's column coverage: the sixth refset type
+  outside the two map types (after `RefsetDescriptorRefsetMember`,
+  `DescriptionTypeRefsetMember`, `MrcmDomainRefsetMember`,
+  `MrcmAttributeDomainRefsetMember`, and
+  `ModuleDependencyRefsetMember`) to reach it.
+  `languageDialectCode` (shared by `ComponentAnnotationRefsetMember`
+  and `MemberAnnotationRefsetMember`) remains unimplemented, with no
+  example yet. See
   `SnapshotStore::simple_map_member_rows`/`extended_map_member_rows`/
   `association_member_rows` and
   spec/09 rule 4. Decided 2026-09-03 in `plan.md`'s "Open decisions":

@@ -6,8 +6,8 @@ AST, and evaluator.
 ## Read this first
 
 `spec/10-ecl.md` is normative, and it is the file that carries **every ECL
-rule number** even though the prose is spread over four files (see "The
-spec is four files now" below).
+rule number** even though the prose is spread over five files (see "The
+spec is five files now" below).
 
 Broadly, what is implemented: the hierarchy operators and wildcard,
 `AND`/`OR`/`MINUS`, the full `refsetOperator` surface (`^ X`, `^ *`,
@@ -189,20 +189,26 @@ exists alongside the one being excluded. `Le`/`Lt`/`Ge`/`Gt` have no such
 distinction; they define the per-row predicate directly, since there's no
 "aggregate negation" reading of `<=` to preserve consistency with.
 
-## The spec is four files now
+## The spec is five files now
 
 `spec/10-ecl.md` holds the grammar, the operators, and *all* the
 normative rules; `spec/10-ecl-refinements.md` holds the `:`
 attribute-value constraints (cardinality, reverse flag, groups, concrete
 values); `spec/10-ecl-filters.md` holds what each
-`{{ C ... }}`/`{{ D ... }}`/`{{ M ... }}` filter kind matches;
+`{{ C ... }}`/`{{ D ... }}` filter kind matches;
+`spec/10-ecl-member-filters.md` holds what each `{{ M ... }}`
+`memberFieldFilter` column matches — split out of `10-ecl-filters.md`
+itself (2026-09-10) once that file outgrew its own budget from
+`memberFieldFilter` columns accumulating one increment at a time;
 `spec/10-ecl-unimplemented.md` holds the rejected-construct list and why
 each one is still rejected. The split is by size, not by authority — all
-four are normative, and rule numbers stay in the first file so citations
+five are normative, and rule numbers stay in the first file so citations
 like "spec/10 rule 14" keep resolving
 (`snomed/tests/spec_citations.rs` checks that they do). When you
-add a filter kind, its prose goes in the filters file and its rule (if it
-needs one) in the rules list; when you implement a rejected construct,
+add a `{{ C }}`/`{{ D }}` filter kind, its prose goes in the filters
+file; when you add a `{{ M }}` `memberFieldFilter` column, its prose
+goes in the member-filters file; either way its rule (if it needs one)
+goes in the rules list; when you implement a rejected construct,
 delete its entry from the unimplemented file in the same change.
 
 ## `{{ D ... }}` filters conjoin over one description, not over the concept
@@ -500,7 +506,12 @@ immediately too — back on the string-search shape (reusing
 `mapTarget`'s grammar and `term_matches` verbatim), a genuinely new
 variant this time (no implemented column shares this RF2 field name),
 again no new row-set check — all four columns implemented so far on
-that type share one row. `memberFieldFilter`
+that type share one row. `attributeRule` (2026-09-10),
+`MrcmAttributeRangeRefsetMember`'s second and last column, followed
+immediately too — same string-search shape, another genuinely new
+variant, again no new row-set check, completing that type's column
+coverage (the sixth refset type outside the two map types to reach
+it). `memberFieldFilter`
 isn't one production but five in the official grammar, chosen by the
 named column's own semantic type
 (`expressionComparisonOperator ws subExpressionConstraint` for a concept
@@ -525,13 +536,15 @@ inspection. `mapPriority` reused that same numeric shape and
 `TermFilter`/`term_matches` verbatim. With the store side now done for
 all sixteen types, every
 *remaining* `memberFieldFilter` column
-(`attributeRule`, …)
+(`languageDialectCode`, …)
 IS a free next increment — the cadence below applies to them cleanly,
 the same as any other filter kind. See `spec/10-ecl-unimplemented.md`.
 
 That cadence is the recommendation for a filter kind that IS free, not
 the history alone: add one filter
-kind at a time, with its spec prose in `spec/10-ecl-filters.md` and its
+kind at a time, with its spec prose in `spec/10-ecl-filters.md`
+(`{{ C }}`/`{{ D }}`) or `spec/10-ecl-member-filters.md` (`{{ M }}`
+`memberFieldFilter` columns) and its
 rule (if it needs one) in `10-ecl.md`'s list.
 `parse_boolean_comparison_operator` (factored out during the
 `definitionStatus` increment) is shared by every

@@ -380,7 +380,7 @@ pub enum ConceptFilterKind {
 /// `DomainTemplateForPrecoordination`/`DomainTemplateForPostcoordination`/
 /// `GuideUrl`/`DomainId`/`RuleStrengthId`/`ContentTypeId`/`Grouped`/
 /// `AttributeCardinality`/`AttributeInGroupCardinality`/`SourceEffectiveTime`/
-/// `TargetEffectiveTime`/`RangeConstraint`
+/// `TargetEffectiveTime`/`RangeConstraint`/`AttributeRule`
 /// are the official grammar's fourth kind, `memberFieldFilter`
 /// — a refset-type-specific column rather than a shared one. Its own
 /// grammar (confirmed against the official ABNF, `syntax/abnf-brief.txt`)
@@ -487,7 +487,14 @@ pub enum ConceptFilterKind {
 /// `MrcmAttributeRangeRefsetMember`'s first column of its own — after
 /// `ruleStrengthId`/`contentTypeId` extended to that type reusing
 /// existing variants — again no new row-set check since all four
-/// columns implemented so far come from the same row) —
+/// columns implemented so far come from the same row); and
+/// `attributeRule` (`MrcmAttributeRangeRefsetMember`'s second and
+/// last column, still the string-search shape, again no new row-set
+/// check since all five columns come from the same row — the sixth
+/// refset type outside the two map types, after
+/// `RefsetDescriptorRefsetMember`, `DescriptionTypeRefsetMember`,
+/// `MrcmDomainRefsetMember`, `MrcmAttributeDomainRefsetMember`, and
+/// `ModuleDependencyRefsetMember`, with full column coverage) —
 /// all
 /// decided 2026-09-03 (`plan.md`'s "Open decisions") to retain full rows
 /// — active and inactive — for all sixteen non-Simple/Language refset
@@ -1036,6 +1043,25 @@ pub enum MemberFilterKind {
     /// implemented column shares the RF2 field name
     /// `rangeConstraint`, so this needs its own variant too.
     RangeConstraint(TermFilter),
+    /// `attributeRule (=|!=) (typedSearchTerm | typedSearchTermSet)`
+    /// — a `memberFieldFilter` (spec/10 rule 18), the same
+    /// string-search shape as [`Self::RangeConstraint`]. Matched
+    /// against `MrcmAttributeRangeRefsetMember`'s own `attributeRule`
+    /// column (spec/08, a computable expression string, stored
+    /// unparsed). `MrcmAttributeRangeRefsetMember`'s second and last
+    /// column: all five columns live on the same row, so a block
+    /// naming any combination is satisfied by that one row, no new
+    /// row-set check needed — tested against the same
+    /// `SnapshotStore::mrcm_attribute_range_member_rows` as
+    /// `rangeConstraint`. No other implemented column shares the RF2
+    /// field name `attributeRule`, so this needs its own variant
+    /// too. Completes `MrcmAttributeRangeRefsetMember`'s column
+    /// coverage — the sixth refset type outside the two map types
+    /// (after `RefsetDescriptorRefsetMember`,
+    /// `DescriptionTypeRefsetMember`, `MrcmDomainRefsetMember`,
+    /// `MrcmAttributeDomainRefsetMember`, and
+    /// `ModuleDependencyRefsetMember`) to reach it.
+    AttributeRule(TermFilter),
 }
 
 /// `numericComparisonOperator ws "#" numericValue` — a `memberFieldFilter`

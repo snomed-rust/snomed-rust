@@ -91,7 +91,7 @@ subdirectory) — `snomed-core/`, `snomed-ecl/`, and so on, siblings of
 9. Cite rules as `spec/NN rule M`. `snomed/tests/spec_citations.rs`
    checks every such citation in the repo resolves, so **inserting or
    renumbering a rule means updating its citations in the same change** —
-   the test will say if you missed one. `spec/10` is four files, and all
+   the test will say if you missed one. `spec/10` is five files, and all
    its rule numbers live in `10-ecl.md`.
 
 ## Gotchas
