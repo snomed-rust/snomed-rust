@@ -316,6 +316,7 @@ fn member_row_matches(
                 | MemberFilterKind::ContentTypeId(_)
                 | MemberFilterKind::Grouped(_)
                 | MemberFilterKind::AttributeCardinality(_)
+                | MemberFilterKind::AttributeInGroupCardinality(_)
         )
     }) {
         return typed_field_row_matches(
@@ -374,8 +375,8 @@ fn member_row_matches(
 /// the first field from `MrcmAttributeDomainRefsetMember`, a tenth
 /// refset type outside the two map types; `rule_strength_id` is its
 /// second, `content_type_id` its third, `grouped` its fourth,
-/// `attribute_cardinality` its fifth, all populated from the same
-/// row.
+/// `attribute_cardinality` its fifth, `attribute_in_group_cardinality`
+/// its sixth and last, all populated from the same row.
 #[derive(Default)]
 struct TypedFields<'a> {
     map_target: Option<&'a str>,
@@ -407,6 +408,7 @@ struct TypedFields<'a> {
     content_type_id: Option<SctId>,
     grouped: Option<bool>,
     attribute_cardinality: Option<&'a str>,
+    attribute_in_group_cardinality: Option<&'a str>,
 }
 
 /// The `mapTarget`/`correlationId`/`mapGroup`/`mapPriority`/`mapRule`/
@@ -715,6 +717,9 @@ fn typed_field_row_matches(
                             content_type_id: Some(row.content_type_id),
                             grouped: Some(row.grouped),
                             attribute_cardinality: Some(&row.attribute_cardinality),
+                            attribute_in_group_cardinality: Some(
+                                &row.attribute_in_group_cardinality,
+                            ),
                             ..TypedFields::default()
                         },
                     )
@@ -880,7 +885,8 @@ fn prepare_member_filter(filter: &MemberFilterKind, store: &SnapshotStore) -> Pr
         | MemberFilterKind::DomainTemplateForPrecoordination(TermFilter { values, .. })
         | MemberFilterKind::DomainTemplateForPostcoordination(TermFilter { values, .. })
         | MemberFilterKind::GuideUrl(TermFilter { values, .. })
-        | MemberFilterKind::AttributeCardinality(TermFilter { values, .. }) => {
+        | MemberFilterKind::AttributeCardinality(TermFilter { values, .. })
+        | MemberFilterKind::AttributeInGroupCardinality(TermFilter { values, .. }) => {
             PreparedMemberFilter::Term(
                 values
                     .iter()
@@ -1309,6 +1315,22 @@ fn member_filter_matches(
                 .iter()
                 .zip(searches)
                 .any(|(search, prepared)| term_matches(attribute_cardinality, search, prepared));
+            matches != *negated
+        }
+        MemberFilterKind::AttributeInGroupCardinality(TermFilter { negated, values }) => {
+            let PreparedMemberFilter::Term(searches) = prepared else {
+                unreachable!("an attributeInGroupCardinality filter prepares to `Term`")
+            };
+            // No `attribute_in_group_cardinality` on this row source
+            // (every source but `MrcmAttributeDomain`'s own): never
+            // matches, same reasoning as `AttributeCardinality`'s
+            // `None` case above.
+            let Some(attribute_in_group_cardinality) = fields.attribute_in_group_cardinality else {
+                return false;
+            };
+            let matches = values.iter().zip(searches).any(|(search, prepared)| {
+                term_matches(attribute_in_group_cardinality, search, prepared)
+            });
             matches != *negated
         }
     }
@@ -6721,13 +6743,112 @@ mod tests {
         );
     }
 
-    /// `domainId`/`ruleStrengthId`/`contentTypeId`/`grouped`/
-    /// `attributeCardinality` all five live on the same
-    /// `MrcmAttributeDomainRefsetMember` row (spec/08) — a block
-    /// naming any combination of the five is satisfied by that one
-    /// row, not by separate rows each matching one filter.
+    /// `attributeInGroupCardinality` (spec/10 rule 18) — the thirtieth
+    /// `memberFieldFilter` column, and `MrcmAttributeDomainRefsetMember`'s
+    /// sixth and last column (after `domainId`/`ruleStrengthId`/
+    /// `contentTypeId`/`grouped`/`attributeCardinality`). Still the
+    /// string-search shape, reusing `mapTarget`/`attributeCardinality`'s
+    /// exact grammar, but tested against the same twelfth typed row set
+    /// the other five columns use — no new row-set check needed. Also
+    /// proves `{{ M }}` after `^R` reaches it.
     #[test]
-    fn member_filter_all_five_mrcm_attribute_domain_columns_conjoin_on_the_same_row() {
+    fn member_filter_attribute_in_group_cardinality_matches_mrcm_attribute_domain_rows() {
+        let mrcm_attribute_domain = SctId::compose(10009, ComponentType::Concept, None).unwrap();
+        let mut b = SnapshotStore::builder();
+        b.add_concept(concept(MI));
+        b.add_mrcm_attribute_domain_member(MrcmAttributeDomainRefsetMember {
+            core: RefsetMemberCore {
+                id: MemberId::parse("80000000-0000-4000-8000-000000000170").unwrap(),
+                effective_time: EffectiveTime::new_unchecked(20190731),
+                active: true,
+                module_id: constants::CORE_MODULE,
+                refset_id: mrcm_attribute_domain,
+                referenced_component_id: MI,
+            },
+            domain_id: constants::CORE_MODULE,
+            grouped: true,
+            attribute_cardinality: String::new(),
+            attribute_in_group_cardinality: "0..1".to_string(),
+            rule_strength_id: constants::CORE_MODULE,
+            content_type_id: constants::CORE_MODULE,
+        });
+        let store = b.build();
+
+        assert_eq!(
+            eval(
+                &format!(
+                    "^ {mrcm_attribute_domain} {{{{ M attributeInGroupCardinality = exact:\"1..*\" }}}}"
+                ),
+                &store
+            ),
+            HashSet::new(),
+            "the row's own attributeInGroupCardinality doesn't match"
+        );
+        assert_eq!(
+            eval(
+                &format!(
+                    "^ {mrcm_attribute_domain} {{{{ M attributeInGroupCardinality = exact:\"0..1\" }}}}"
+                ),
+                &store
+            ),
+            HashSet::from([MI])
+        );
+        // `^R` reaches the same row, through the shared row-matching path.
+        assert_eq!(
+            eval(
+                &format!("^R {MI} {{{{ M attributeInGroupCardinality = exact:\"0..1\" }}}}"),
+                &store
+            ),
+            HashSet::from([mrcm_attribute_domain])
+        );
+    }
+
+    /// `MrcmDomainRefsetMember`/every other typed row source has no
+    /// `attributeInGroupCardinality` column — a membership that exists
+    /// only there must never match, the same "column absent on this
+    /// row source" case every other field filter has for the row types
+    /// it doesn't apply to.
+    #[test]
+    fn member_filter_attribute_in_group_cardinality_never_matches_mrcm_domain_rows() {
+        let mrcm_domain = SctId::compose(10010, ComponentType::Concept, None).unwrap();
+        let mut b = SnapshotStore::builder();
+        b.add_concept(concept(MI));
+        b.add_mrcm_domain_member(MrcmDomainRefsetMember {
+            core: RefsetMemberCore {
+                id: MemberId::parse("80000000-0000-4000-8000-000000000171").unwrap(),
+                effective_time: EffectiveTime::new_unchecked(20190731),
+                active: true,
+                module_id: constants::CORE_MODULE,
+                refset_id: mrcm_domain,
+                referenced_component_id: MI,
+            },
+            domain_constraint: String::new(),
+            parent_domain: String::new(),
+            proximal_primitive_constraint: String::new(),
+            proximal_primitive_refinement: String::new(),
+            domain_template_for_precoordination: String::new(),
+            domain_template_for_postcoordination: String::new(),
+            guide_url: String::new(),
+        });
+        let store = b.build();
+
+        assert_eq!(
+            eval(
+                &format!("^ {mrcm_domain} {{{{ M attributeInGroupCardinality = \"0..1\" }}}}"),
+                &store
+            ),
+            HashSet::new()
+        );
+    }
+
+    /// `domainId`/`ruleStrengthId`/`contentTypeId`/`grouped`/
+    /// `attributeCardinality`/`attributeInGroupCardinality` all six
+    /// live on the same `MrcmAttributeDomainRefsetMember` row
+    /// (spec/08) — a block naming any combination of the six is
+    /// satisfied by that one row, not by separate rows each matching
+    /// one filter.
+    #[test]
+    fn member_filter_all_six_mrcm_attribute_domain_columns_conjoin_on_the_same_row() {
         let mrcm_attribute_domain = SctId::compose(9995, ComponentType::Concept, None).unwrap();
         let domain = SctId::compose(9996, ComponentType::Concept, None).unwrap();
         let mandatory = SctId::compose(9997, ComponentType::Concept, None).unwrap();
@@ -6749,7 +6870,7 @@ mod tests {
             domain_id: domain,
             grouped: true,
             attribute_cardinality: "0..1".to_string(),
-            attribute_in_group_cardinality: String::new(),
+            attribute_in_group_cardinality: "1..1".to_string(),
             rule_strength_id: mandatory,
             content_type_id: all_content,
         });
@@ -6758,7 +6879,7 @@ mod tests {
         assert_eq!(
             eval(
                 &format!(
-                    "^ {mrcm_attribute_domain} {{{{ M domainId = {domain}, ruleStrengthId = {mandatory}, contentTypeId = {all_content}, grouped = true, attributeCardinality = \"0..1\" }}}}"
+                    "^ {mrcm_attribute_domain} {{{{ M domainId = {domain}, ruleStrengthId = {mandatory}, contentTypeId = {all_content}, grouped = true, attributeCardinality = \"0..1\", attributeInGroupCardinality = \"1..1\" }}}}"
                 ),
                 &store
             ),
@@ -6767,12 +6888,12 @@ mod tests {
         assert_eq!(
             eval(
                 &format!(
-                    "^ {mrcm_attribute_domain} {{{{ M domainId = {domain}, attributeCardinality = exact:\"1..*\" }}}}"
+                    "^ {mrcm_attribute_domain} {{{{ M domainId = {domain}, attributeInGroupCardinality = exact:\"0..1\" }}}}"
                 ),
                 &store
             ),
             HashSet::new(),
-            "wrong attributeCardinality on the only row rules it out"
+            "wrong attributeInGroupCardinality on the only row rules it out"
         );
     }
 

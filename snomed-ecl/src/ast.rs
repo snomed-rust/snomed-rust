@@ -379,7 +379,7 @@ pub enum ConceptFilterKind {
 /// `ProximalPrimitiveConstraint`/`ProximalPrimitiveRefinement`/
 /// `DomainTemplateForPrecoordination`/`DomainTemplateForPostcoordination`/
 /// `GuideUrl`/`DomainId`/`RuleStrengthId`/`ContentTypeId`/`Grouped`/
-/// `AttributeCardinality`
+/// `AttributeCardinality`/`AttributeInGroupCardinality`
 /// are the official grammar's fourth kind, `memberFieldFilter`
 /// — a refset-type-specific column rather than a shared one. Its own
 /// grammar (confirmed against the official ABNF, `syntax/abnf-brief.txt`)
@@ -461,7 +461,13 @@ pub enum ConceptFilterKind {
 /// `attributeCardinality` (`MrcmAttributeDomainRefsetMember`'s fifth
 /// column, back on the string-search shape, another genuinely new
 /// variant, again no new row-set check since all five columns come
-/// from the same row) —
+/// from the same row); and `attributeInGroupCardinality`
+/// (`MrcmAttributeDomainRefsetMember`'s sixth and last column, still
+/// the string-search shape, another genuinely new variant, again no
+/// new row-set check since all six columns come from the same row —
+/// the fourth refset type outside the two map types, after
+/// `RefsetDescriptorRefsetMember`, `DescriptionTypeRefsetMember`, and
+/// `MrcmDomainRefsetMember`, with full column coverage) —
 /// all
 /// decided 2026-09-03 (`plan.md`'s "Open decisions") to retain full rows
 /// — active and inactive — for all sixteen non-Simple/Language refset
@@ -930,6 +936,33 @@ pub enum MemberFilterKind {
     /// other implemented column shares the RF2 field name
     /// `attributeCardinality`, so this needs its own variant too.
     AttributeCardinality(TermFilter),
+    /// `attributeInGroupCardinality (=|!=) (typedSearchTerm | typedSearchTermSet)`
+    /// — a `memberFieldFilter` (spec/10 rule 18):
+    /// `MrcmAttributeDomainRefsetMember`'s own
+    /// `attributeInGroupCardinality` column (free text — the RF2
+    /// cardinality string that applies when `grouped` is true, e.g.
+    /// `"0..1"`, stored unparsed, not a parsed [`Cardinality`]).
+    /// Reuses [`TermFilter`]'s exact shape and grammar — the same
+    /// string production
+    /// `mapTarget`/`domainConstraint`/`parentDomain`/
+    /// `proximalPrimitiveConstraint`/`proximalPrimitiveRefinement`/
+    /// `domainTemplateForPrecoordination`/
+    /// `domainTemplateForPostcoordination`/`guideURL`/
+    /// `attributeCardinality` use, just a different RF2 column.
+    /// `MrcmAttributeDomainRefsetMember`'s sixth and last column: all
+    /// six columns live on the same row, so a block naming any
+    /// combination is satisfied by that one row, no new row-set check
+    /// needed — tested against the same
+    /// `SnapshotStore::mrcm_attribute_domain_member_rows` as
+    /// `domainId`/`ruleStrengthId`/`contentTypeId`/`grouped`/
+    /// `attributeCardinality`. No other implemented column shares the
+    /// RF2 field name `attributeInGroupCardinality`, so this needs
+    /// its own variant too. Completes
+    /// `MrcmAttributeDomainRefsetMember`'s column coverage — the
+    /// fourth refset type outside the two map types (after
+    /// `RefsetDescriptorRefsetMember`, `DescriptionTypeRefsetMember`,
+    /// and `MrcmDomainRefsetMember`) to reach it.
+    AttributeInGroupCardinality(TermFilter),
 }
 
 /// `numericComparisonOperator ws "#" numericValue` — a `memberFieldFilter`

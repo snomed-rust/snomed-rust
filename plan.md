@@ -264,8 +264,9 @@ and harmonizes it with the sibling repositories (`hl7-rust`, `er7-rust`,
   `domainId`,
   `ruleStrengthId`,
   `contentTypeId`,
-  `grouped`, and
-  `attributeCardinality` are the
+  `grouped`,
+  `attributeCardinality`, and
+  `attributeInGroupCardinality` are the
   first thirty
   concrete fields
   built on this retention (`snomed-ecl`, spec/10 rule 18): the
@@ -286,7 +287,7 @@ and harmonizes it with the sibling repositories (`hl7-rust`, `er7-rust`,
   `owlExpression`/`domainConstraint`/`parentDomain`/
   `proximalPrimitiveConstraint`/`proximalPrimitiveRefinement`/
   `domainTemplateForPrecoordination`/`domainTemplateForPostcoordination`/
-  `guideURL`/`attributeCardinality`
+  `guideURL`/`attributeCardinality`/`attributeInGroupCardinality`
   the string-search
   shape, `correlationId`/`mapCategoryId`/
   `targetComponentId`/`valueId`/`mrcmRuleRefsetId`/`attributeDescription`/
@@ -314,9 +315,9 @@ and harmonizes it with the sibling repositories (`hl7-rust`, `er7-rust`,
   `descriptionFormat`/`descriptionLength`/`domainConstraint`/
   `parentDomain`/`proximalPrimitiveConstraint`/
   `proximalPrimitiveRefinement`/`domainTemplateForPrecoordination`/
-  `domainTemplateForPostcoordination`/`guideURL`/`domainId`/`ruleStrengthId`/`contentTypeId`/`grouped`/`attributeCardinality`
+  `domainTemplateForPostcoordination`/`guideURL`/`domainId`/`ruleStrengthId`/`contentTypeId`/`grouped`/`attributeCardinality`/`attributeInGroupCardinality`
   are the
-  first twenty-two fields on refset
+  first twenty-three fields on refset
   types
   other than the two
   map types (`AssociationRefsetMember`/`AttributeValueRefsetMember`/
@@ -326,14 +327,16 @@ and harmonizes it with the sibling repositories (`hl7-rust`, `er7-rust`,
   `MrcmAttributeDomainRefsetMember`, plus
   `OrderedAssociationRefsetMember`
   as a ninth reusing two existing variants) — `RefsetDescriptorRefsetMember`,
-  `DescriptionTypeRefsetMember`, and `MrcmDomainRefsetMember` each
-  carry every column they have, the first three refset types outside
+  `DescriptionTypeRefsetMember`, `MrcmDomainRefsetMember`, and (as of
+  `attributeInGroupCardinality` below) `MrcmAttributeDomainRefsetMember`
+  each
+  carry every column they have, the first four refset types outside
   the two map types with full column coverage,
   confirming the same store retention and dispatch pattern generalizes
   past `ExtendedMap`/`SimpleMap` across every grammar shape, not just
   the concept-reference one. Every
   other `memberFieldFilter` column
-  (`attributeInGroupCardinality`, `sourceEffectiveTime`, …)
+  (`sourceEffectiveTime`, `targetEffectiveTime`, …)
   remains rejected generically —
   not by a fixed keyword list (`refsetFieldName` is `1*alpha`, confirmed
   against the official ABNF) — but each is now a free `snomed-ecl`
@@ -349,9 +352,9 @@ and harmonizes it with the sibling repositories (`hl7-rust`, `er7-rust`,
 ## Current status
 
 All eight phases above are closed. As of `memberFieldFilter`'s
-`attributeCardinality` (2026-09-10, below) the
+`attributeInGroupCardinality` (2026-09-10, below) the
 workspace is 9 published
-crates with zero dependencies, 501 tests, a clean
+crates with zero dependencies, 504 tests, a clean
 `cargo clippy --all-targets`, 13 fuzz targets, and six criterion
 benchmark files. What is *not* done is tracked
 in two places and nowhere
@@ -474,7 +477,13 @@ again no new row-set check since all four columns share one row; and
 `attributeCardinality` (2026-09-10) is
 `MrcmAttributeDomainRefsetMember`'s fifth column, back on the
 string-search shape, another genuinely new variant, again no new
-row-set check since all five columns share one row. In
+row-set check since all five columns share one row; and
+`attributeInGroupCardinality` (2026-09-10) is
+`MrcmAttributeDomainRefsetMember`'s sixth and last column, still the
+string-search shape, another genuinely new variant, again no new
+row-set check since all six columns share one row — completing that
+type's column coverage, the fourth refset type outside the two map
+types to reach it. In
 between, the
 `ecl_parse` fuzz target's CI smoke run caught
 a real stack overflow on pathologically deep `(`/refinement/

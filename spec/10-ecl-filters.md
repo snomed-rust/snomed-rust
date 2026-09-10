@@ -157,10 +157,10 @@ named column's own semantic type (confirmed against the official ABNF,
 subExpressionConstraint` (a concept reference), `numericComparisonOperator
 ws "#" numericValue`, `stringComparisonOperator ws (typedSearchTerm |
 typedSearchTermSet)`, `booleanComparisonOperator ws booleanValue`, or
-`timeComparisonOperator ws (timeValue | timeValueSet)`. Twenty-two
+`timeComparisonOperator ws (timeValue | timeValueSet)`. Thirty
 kinds are
-implemented, spanning three of the five shapes (string has nine,
-concept reference has eight, numeric has five):
+implemented, spanning four of the five shapes (string has thirteen,
+concept reference has eleven, numeric has five, boolean has one):
 
 - `mapTarget (=|!=) (typedSearchTerm | typedSearchTermSet)` — the same
   `match:`/`wild:`/`exact:` search-term grammar `{{ D term }}` uses,
@@ -423,10 +423,28 @@ concept reference has eight, numeric has five):
   `grouped`) — all five live on the same row, tested against the same
   `SnapshotStore::mrcm_attribute_domain_member_rows`, no new row-set
   check needed.
+- `attributeInGroupCardinality (=|!=) (typedSearchTerm | typedSearchTermSet)`
+  — the same string-search shape and the same
+  `TermFilter`/`term_matches` machinery as
+  `mapTarget`/`domainConstraint`/`parentDomain`/
+  `proximalPrimitiveConstraint`/`proximalPrimitiveRefinement`/
+  `domainTemplateForPrecoordination`/`domainTemplateForPostcoordination`/
+  `guideURL`/`attributeCardinality`, matched against the member row's
+  own `attributeInGroupCardinality` column (the RF2 cardinality string
+  that applies when `grouped` is true, e.g. `"0..1"`, not a parsed
+  `Cardinality`). `MrcmAttributeDomainRefsetMember`'s sixth and last
+  column (after `domainId`/`ruleStrengthId`/`contentTypeId`/`grouped`/
+  `attributeCardinality`) — all six live on the same row, tested
+  against the same `SnapshotStore::mrcm_attribute_domain_member_rows`,
+  no new row-set check needed. Completes
+  `MrcmAttributeDomainRefsetMember`'s column coverage — the fourth
+  refset type outside the two map types (after
+  `RefsetDescriptorRefsetMember`, `DescriptionTypeRefsetMember`, and
+  `MrcmDomainRefsetMember`) to reach it.
 
-All twenty-nine reuse the shared dispatch `mapTarget` introduced
+All thirty reuse the shared dispatch `mapTarget` introduced
 (renamed `typed_field_row_matches` once a non-map type joined it): a
-block naming *any* of the twenty-nine kinds is tested against
+block naming *any* of the thirty kinds is tested against
 `SimpleMap`/`ExtendedMap`/`Association`/`AttributeValue`/`OwlExpression`/
 `OrderedComponent`/`OrderedAssociation`/`MrcmModuleScope`/
 `RefsetDescriptor`/`DescriptionType`/`MrcmDomain`/`MrcmAttributeDomain`
@@ -442,7 +460,7 @@ any of `correlationId`/
 `attributeOrder`/`descriptionFormat`/`descriptionLength`/
 `domainConstraint`/`parentDomain`/`proximalPrimitiveConstraint`/
 `proximalPrimitiveRefinement`/`domainTemplateForPrecoordination`/
-`domainTemplateForPostcoordination`/`guideURL`/`domainId`/`ruleStrengthId`/`contentTypeId`/`grouped`/`attributeCardinality`
+`domainTemplateForPostcoordination`/`guideURL`/`domainId`/`ruleStrengthId`/`contentTypeId`/`grouped`/`attributeCardinality`/`attributeInGroupCardinality`
 (the column is
 simply
 absent on that row source, the same "not this row's type" answer a

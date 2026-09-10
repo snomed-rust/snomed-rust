@@ -208,7 +208,7 @@ its inactive rows.
 `descriptionFormat`/`descriptionLength`/`domainConstraint`/
 `parentDomain`/`proximalPrimitiveConstraint`/
 `proximalPrimitiveRefinement`/`domainTemplateForPrecoordination`/
-`domainTemplateForPostcoordination`/`guideURL`/`domainId`/`ruleStrengthId`/`contentTypeId`/`grouped`/`attributeCardinality`
+`domainTemplateForPostcoordination`/`guideURL`/`domainId`/`ruleStrengthId`/`contentTypeId`/`grouped`/`attributeCardinality`/`attributeInGroupCardinality`
 filters
 (`spec/10-ecl.md` rule
 18) are
@@ -223,8 +223,8 @@ consumers: the first seven dispatch directly to
 `descriptionFormat`/`descriptionLength`/`domainConstraint`/
 `parentDomain`/`proximalPrimitiveConstraint`/`proximalPrimitiveRefinement`/
 `domainTemplateForPrecoordination`/`domainTemplateForPostcoordination`/
-`guideURL`/`domainId`/`ruleStrengthId`/`contentTypeId`/`grouped`/`attributeCardinality`
-— the first seventeen
+`guideURL`/`domainId`/`ruleStrengthId`/`contentTypeId`/`grouped`/`attributeCardinality`/`attributeInGroupCardinality`
+— the first twenty-three
 outside
 the two map types — dispatch to `association_member_rows`/
 `attribute_value_member_rows`/`owl_expression_member_rows`/
@@ -260,10 +260,13 @@ reach it); `domainId` needed its own new twelfth row-set check
 `MrcmAttributeDomainRefsetMember`'s first filterable column — a
 tenth refset type outside the two map types, and the accessor was
 already present in the store; `ruleStrengthId`/`contentTypeId`/`grouped`/
-`attributeCardinality`
-then all reused that same twelfth row set — all five of
-`MrcmAttributeDomainRefsetMember`'s implemented columns now share one
-row, no new row-set check needed for any of them; `grouped` is also
+`attributeCardinality`/`attributeInGroupCardinality`
+then all reused that same twelfth row set — all six of
+`MrcmAttributeDomainRefsetMember`'s columns now share one
+row, no new row-set check needed for any of them, completing that
+type's column coverage (the fourth refset type outside the two map
+types, after `RefsetDescriptorRefsetMember`, `DescriptionTypeRefsetMember`,
+and `MrcmDomainRefsetMember`, to reach it); `grouped` is also
 the first `memberFieldFilter` column on the boolean shape, confirming
 the same store retention and dispatch pattern generalizes to that
 shape too, not just concept-reference/string-search/numeric. All

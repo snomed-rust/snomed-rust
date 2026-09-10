@@ -84,9 +84,9 @@ token shape:
   `attributeOrder`/`descriptionFormat`/`descriptionLength`/
   `domainConstraint`/`parentDomain`/`proximalPrimitiveConstraint`/
   `proximalPrimitiveRefinement`/`domainTemplateForPrecoordination`/
-  `domainTemplateForPostcoordination`/`guideURL`/`domainId`/`ruleStrengthId`/`contentTypeId`/`grouped`/`attributeCardinality`
-  — a refset-type-specific column (`attributeInGroupCardinality`,
-  `sourceEffectiveTime`, …), as
+  `domainTemplateForPostcoordination`/`guideURL`/`domainId`/`ruleStrengthId`/`contentTypeId`/`grouped`/`attributeCardinality`/`attributeInGroupCardinality`
+  — a refset-type-specific column (`sourceEffectiveTime`,
+  `targetEffectiveTime`, …), as
   opposed to the three shared-column kinds
   (`moduleId`/`effectiveTime`/`active`) implemented 2026-09-01 after both
   `^` and `^R`. `refsetFieldName` is `1*alpha` in the official grammar
@@ -228,7 +228,15 @@ token shape:
   `attributeCardinality` (2026-09-10) — the twelfth
   string-search-shape column, `MrcmAttributeDomainRefsetMember`'s
   fifth column (all five columns share one row) — reuses
-  `mapTarget`'s grammar verbatim, no new row-set check needed.
+  `mapTarget`'s grammar verbatim, no new row-set check needed;
+  `attributeInGroupCardinality` (2026-09-10) — the thirteenth
+  string-search-shape column, `MrcmAttributeDomainRefsetMember`'s
+  sixth and last column (all six columns share one row) — reuses
+  `mapTarget`'s grammar verbatim, no new row-set check needed,
+  completing that type's column coverage: the fourth refset type
+  outside the two map types (after `RefsetDescriptorRefsetMember`,
+  `DescriptionTypeRefsetMember`, and `MrcmDomainRefsetMember`) to
+  reach it.
   Time remains unimplemented, with no example yet. See
   `SnapshotStore::simple_map_member_rows`/`extended_map_member_rows`/
   `association_member_rows` and

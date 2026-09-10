@@ -456,7 +456,13 @@ that type's columns now share one row. `attributeCardinality`
 followed immediately too — back on the string-search shape (reusing
 `mapTarget`'s grammar and `term_matches` verbatim), another genuinely
 new variant, again no new row-set check — all five of that type's
-columns now share one row. `memberFieldFilter`
+columns now share one row. `attributeInGroupCardinality`
+(2026-09-10), `MrcmAttributeDomainRefsetMember`'s sixth and last
+column, followed immediately too — still the string-search shape,
+another genuinely new variant, again no new row-set check — all six
+of that type's columns now share one row, completing its column
+coverage (the fourth refset type outside the two map types to reach
+it). `memberFieldFilter`
 isn't one production but five in the official grammar, chosen by the
 named column's own semantic type
 (`expressionComparisonOperator ws subExpressionConstraint` for a concept
@@ -480,7 +486,7 @@ inspection. `mapPriority` reused that same numeric shape and
 `TermFilter`/`term_matches` verbatim. With the store side now done for
 all sixteen types, every
 *remaining* `memberFieldFilter` column
-(`attributeInGroupCardinality`, `sourceEffectiveTime`, …)
+(`sourceEffectiveTime`, `targetEffectiveTime`, …)
 IS a free next increment — the cadence below applies to them cleanly,
 the same as any other filter kind. See `spec/10-ecl-unimplemented.md`.
 

@@ -1,10 +1,72 @@
 # Changelog archive
 
-Entries for versions 0.19.0 and earlier, moved verbatim from
+Entries for versions 0.21.0 and earlier, moved verbatim from
 [`CHANGELOG.md`](../CHANGELOG.md) to keep that file inside the
 repository's 40 KB per-document budget
 (rule 1 of `spec/docs-budget-and-links/index.md`). Newer entries live
 there.
+
+## [0.21.0] — 2026-09-05
+
+**New ECL capability, additive.** `{{ M ... }}`'s `memberFieldFilter`
+gains its seventh and last `ExtendedMapRefsetMember` column,
+`mapCategoryId` — after both `^` and `^R`. Completes
+`ExtendedMapRefsetMember`'s column coverage: every column it has is now
+a filterable `memberFieldFilter` kind. A minor bump: new public API, no
+removals or signature changes to anything existing.
+
+### Added
+
+- `snomed-ecl`: `{{ M mapCategoryId = 116680003 }}` restricts to
+  `ExtendedMap` member rows whose own `mapCategoryId` column matches —
+  the same concept-reference grammar `correlationId` uses (reusing
+  `ModuleFilter`'s exact shape). Works after both `^` and `^R`, and
+  conjoins with `mapTarget` and the shared-column kinds on the same
+  member row. Only `ExtendedMapRefsetMember` rows carry a
+  `mapCategoryId` column; `SimpleMapRefsetMember` and every other refset
+  type never match this filter. New public API:
+  `MemberFilterKind::MapCategoryId`.
+
+### Notes for consumers
+
+- No public API removed or changed signature; existing code compiles
+  unmodified against this release.
+
+## [0.20.0] — 2026-09-04
+
+**New ECL capability, additive, plus a fuzz-caught crash fix.** `{{ M
+... }}`'s `memberFieldFilter` gains its sixth column, `mapAdvice` — after
+both `^` and `^R`. Parsing also now rejects pathologically deep
+`(`/refinement/attribute-set nesting with a typed error instead of
+overflowing the call stack. A minor bump: new public API, no removals or
+signature changes to anything existing.
+
+### Added
+
+- `snomed-ecl`: `{{ M mapAdvice = wild:"ALWAYS*" }}` restricts to
+  `ExtendedMap` member rows whose own `mapAdvice` column matches — the
+  same `match:`/`wild:`/`exact:` search-term grammar `mapTarget`/`mapRule`
+  use. Works after both `^` and `^R`, and conjoins with `mapTarget` and
+  the shared-column kinds on the same member row. Only
+  `ExtendedMapRefsetMember` rows carry a `mapAdvice` column;
+  `SimpleMapRefsetMember` and every other refset type never match this
+  filter. New public API: `MemberFilterKind::MapAdvice`.
+
+### Fixed
+
+- `snomed-ecl`: parsing deeply nested `(`/refinement/attribute-set input
+  (e.g. `((((((...`) recursed until the process's call stack overflowed
+  — a real crash the `ecl_parse` fuzz target's smoke run found in CI.
+  Parsing now rejects nesting past 100 levels with a new error variant,
+  `EclError::MaxNestingDepthExceeded` (spec/10 rule 19), well before any
+  real ECL expression would nest that deep.
+
+### Notes for consumers
+
+- No public API removed or changed signature; existing code compiles
+  unmodified against this release. `EclError` is `#[non_exhaustive]`, so
+  the new `MaxNestingDepthExceeded` variant is not a breaking match
+  change for existing consumers.
 
 ## [0.19.0] — 2026-09-04
 
