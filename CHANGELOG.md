@@ -13,6 +13,8 @@ together, in dependency order (`snomed-core` → `snomed-rf2` → `snomed-owl`
 
 ## [Unreleased]
 
+## [0.44.0] — 2026-09-10
+
 **New ECL capability, additive.** `{{ M ... }}`'s `memberFieldFilter`
 gains its twenty-ninth column, `attributeCardinality` —
 `MrcmAttributeDomainRefsetMember`'s fifth column (after
