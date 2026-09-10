@@ -72,6 +72,41 @@ most recently on 2026-09-10, to keep this file inside the repository's
 40 KB per-document budget. Search both when asking "has this come up
 before".
 
+## Done (2026-09-10, Release 0.49.0 — `memberFieldFilter`'s `rangeConstraint`, `MrcmAttributeRangeRefsetMember`'s first column of its own, thirty-seventh self-decided release)
+
+- [x] **Decided and executed the release itself**, per §1-5 of
+      `spec/ai-release-authority/`: §1 CI independently green on the
+      pushed merge commit (`0a3ccc8`, all jobs, confirmed via `gh run
+      view` on the exact commit); §2 `CHANGELOG.md`'s `[Unreleased]`
+      verified against the actual diff and moved under `## [0.49.0]`,
+      minor bump (purely additive: new
+      `MemberFilterKind::RangeConstraint` variant, no new row-set
+      check — nothing removed or changed signature); §3 no rule
+      oversteps — needed a genuinely new variant (no existing column
+      shares the RF2 field name `rangeConstraint`), the same kind of
+      routine grammar-coverage call this authority already covers,
+      not a `plan.md` "Open decisions" item; §4 all nine crates, one
+      version, standard dependency order; §5 tagged `v0.49.0` (signed,
+      verified against the merge commit) and ran `cargo publish` for
+      each crate in order, all nine succeeding cleanly (more
+      "Blocking waiting for file lock on package cache" waits along
+      the way, harmless).
+- [x] **Verified against crates.io's own API afterward**: `GET
+      /api/v1/crates/<name>` for all nine names returns
+      `max_version: "0.49.0"`.
+- [x] Version bumped everywhere the 0.13.0-0.48.0 precedent bumped it:
+      `Cargo.toml` (workspace + seven pins), `CITATION.cff`, `NEWS.md`,
+      `INSTALL.md`, `SECURITY.md`.
+- [x] Same `release/0.49.0` branch/merge shape as 0.12.0-0.48.0, not a
+      direct commit to `main`; branch deleted locally once GitHub,
+      GitLab, and Codeberg confirmed the merge commit and CI came
+      back green.
+- [x] All three forges pushed cleanly via `git push origin` in one
+      command, for both `main` and the `v0.49.0` tag — the fifteenth
+      release in a row with no GitLab connectivity issue.
+- [x] Verified: build/clippy/fmt/test (516/516)/check-docs/
+      check-trademarks/spec_citations all clean before tagging.
+
 ## Done (2026-09-10, ECL `{{ M ... }}` `memberFieldFilter`: `rangeConstraint`, `MrcmAttributeRangeRefsetMember`'s first column of its own, no new row-set check)
 
 - [x] **`snomed-ecl`**: `MemberFilterKind::RangeConstraint(TermFilter)`
@@ -210,7 +245,7 @@ before".
 ## Next up
 
 - [ ] Nothing currently scoped beyond the `{{ M ... }}` remainder below.
-      State as of 2026-09-10: **0.48.0 released** — `mapTarget` (0.15.0),
+      State as of 2026-09-10: **0.49.0 released** — `mapTarget` (0.15.0),
       `correlationId` (0.16.0), `mapGroup` (0.17.0), `mapPriority`
       (0.18.0), `mapRule` (0.19.0), `mapAdvice` plus the `ecl_parse`
       fuzz-caught recursion-depth guard (spec/10 rule 19, 0.20.0),
@@ -334,8 +369,7 @@ before".
       to every shape, not just concept-reference.
       `{{ M ... }}` after `^`
       (0.13.0), after `^R` (0.14.0), and its `memberFieldFilter`
-      alternative (0.15.0-0.48.0, plus `rangeConstraint` implemented
-      and committed but not yet released),
+      alternative (0.15.0-0.49.0),
       all decided and executed under
       `spec/ai-release-authority/`'s criteria rather than a fresh
       per-release maintainer go-ahead (see `CHANGELOG.md`). 9 crates, 516
