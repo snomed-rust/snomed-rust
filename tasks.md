@@ -61,12 +61,57 @@ column, the first boolean-shape column (2026-09-09), release 0.43.0,
 `memberFieldFilter`'s `attributeCardinality` column
 (2026-09-10), release 0.44.0, `memberFieldFilter`'s
 `attributeInGroupCardinality` column, completing
-`MrcmAttributeDomainRefsetMember`'s column coverage, and release
-0.45.0, live in
+`MrcmAttributeDomainRefsetMember`'s column coverage, release
+0.45.0, `memberFieldFilter`'s `sourceEffectiveTime` column, the time
+shape's first implemented column, and release 0.46.0, live in
 [`docs/tasks-archive.md`](docs/tasks-archive.md) — moved there verbatim,
 most recently on 2026-09-10, to keep this file inside the repository's
 40 KB per-document budget. Search both when asking "has this come up
 before".
+
+## Done (2026-09-10, ECL `{{ M ... }}` `memberFieldFilter`: `ruleStrengthId`/`contentTypeId` extend to `MrcmAttributeRangeRefsetMember`, no new variant, new row-set check)
+
+- [x] **`snomed-ecl`**: `MemberFilterKind::RuleStrengthId`/`ContentTypeId`
+      — the same two variants `MrcmAttributeDomainRefsetMember`
+      already uses — now also match `MrcmAttributeRangeRefsetMember`'s
+      own `ruleStrengthId`/`contentTypeId` columns, a distinct row
+      sharing only the RF2 field *names*. No new `MemberFilterKind`
+      variant needed. Needed a genuinely new fourteenth row-set check
+      in `typed_field_row_matches` (`mrcm_attribute_range_member_rows`,
+      already present in the store) since it's
+      `MrcmAttributeRangeRefsetMember`'s first filterable column — a
+      twelfth refset type outside the two map types. The same "reuse
+      the variant, add the row-set check" shape
+      `targetComponentId`/`order` had extending to
+      `OrderedAssociationRefsetMember`, just two columns from one new
+      type at once.
+- [x] 2 new tests (eval: matches `MrcmAttributeRange` rows for both
+      columns after both `^` and `^R`, conjoining on the same row;
+      never matches `MrcmDomain` rows) — 513/513 total, up from 511.
+      No parser test needed — no new grammar, no new keyword, no new
+      `MemberFilterKind` variant to parse into.
+- [x] Updated: `spec/10-ecl-filters.md` (new bullet describing the
+      extension, dispatch-list row-set addition — thirty-two kinds
+      unchanged since no new kind, fourteen typed row sets now),
+      `spec/10-ecl-unimplemented.md` (narrative history — the
+      "not yet extended to" notes on `ruleStrengthId`/`contentTypeId`
+      now point at this entry instead), `agents/ecl-engineer.md`,
+      `agents/store-engineer.md` (fourteen row-set checks total now),
+      `plan.md` (Open decisions paragraph, Current status test count,
+      Since 0.9.0 narrative), `CHANGELOG.md`. No `snomed-ecl/src/lib.rs`
+      or `snomed-ecl/README.md` keyword-list change needed — no new
+      kind name was added.
+- [x] **`CHANGELOG.md` crossed its own 40 KB budget a thirteenth
+      time** (42367 bytes, caught by `bin/check-docs` immediately)
+      once this entry's `[Unreleased]` section was added — the
+      twelfth time was at `targetEffectiveTime`/0.47.0. This time one
+      section wasn't enough to clear the budget either way: moving
+      `[0.25.0]` alone left `CHANGELOG.md` still 366 bytes over, so
+      `[0.26.0]` moved too, both into `docs/changelog-archive.md`
+      ahead of `[0.24.0]`, updating both files' footer/intro text
+      from "0.24.0" to "0.26.0".
+- [x] Verified: build/clippy/fmt/test (513/513)/check-docs/
+      check-trademarks/spec_citations all clean.
 
 ## Done (2026-09-10, Release 0.47.0 — `memberFieldFilter`'s `targetEffectiveTime`, completes `ModuleDependencyRefsetMember`'s column coverage, thirty-fifth self-decided release)
 
@@ -154,97 +199,6 @@ before".
       `docs/changelog-archive.md` — a two-hop cascade, not the usual
       single move.
 - [x] Verified: build/clippy/fmt/test (511/511)/check-docs/
-      check-trademarks/spec_citations all clean.
-
-## Done (2026-09-10, Release 0.46.0 — `memberFieldFilter`'s `sourceEffectiveTime`, time shape's first implemented column, thirty-fourth self-decided release)
-
-- [x] **Decided and executed the release itself**, per §1-5 of
-      `spec/ai-release-authority/`: §1 CI independently green on the
-      pushed merge commit (`aadc341`, all jobs, confirmed via `gh run
-      view` on the exact commit); §2 `CHANGELOG.md`'s `[Unreleased]`
-      verified against the actual diff and moved under `## [0.46.0]`,
-      minor bump (purely additive: new
-      `MemberFilterKind::SourceEffectiveTime` variant, no
-      `snomed-store` change — nothing removed or changed signature);
-      §3 no rule oversteps — needed a genuinely new variant (no
-      existing column shares the RF2 field name
-      `sourceEffectiveTime`), the same kind of routine
-      grammar-coverage call this authority already covers, not a
-      `plan.md` "Open decisions" item; §4 all nine crates, one
-      version, standard dependency order; §5 tagged `v0.46.0` (signed,
-      verified against the merge commit) and ran `cargo publish` for
-      each crate in order, all nine succeeding cleanly.
-- [x] **Verified against crates.io's own API afterward**: `GET
-      /api/v1/crates/<name>` for all nine names returns
-      `max_version: "0.46.0"`.
-- [x] Version bumped everywhere the 0.13.0-0.45.0 precedent bumped it:
-      `Cargo.toml` (workspace + seven pins), `CITATION.cff`, `NEWS.md`,
-      `INSTALL.md`, `SECURITY.md`.
-- [x] Same `release/0.46.0` branch/merge shape as 0.12.0-0.45.0, not a
-      direct commit to `main`; branch deleted locally once GitHub,
-      GitLab, and Codeberg confirmed the merge commit and CI came
-      back green.
-- [x] All three forges pushed cleanly via `git push origin` in one
-      command, for both `main` and the `v0.46.0` tag — the twelfth
-      release in a row with no GitLab connectivity issue.
-- [x] Verified: build/clippy/fmt/test (507/507)/check-docs/
-      check-trademarks/spec_citations all clean before tagging.
-
-## Done (2026-09-10, ECL `{{ M ... }}` `memberFieldFilter`: `sourceEffectiveTime`, time shape's first implemented column, `ModuleDependencyRefsetMember`'s first filterable column)
-
-- [x] **Confirmed the time shape against the official ABNF before
-      writing any Rust**, per the standing rule: fetched
-      `syntax/abnf-brief.txt` and quoted
-      `timeComparisonOperator ws (timeValue | timeValueSet)` — the
-      same production `{{ M effectiveTime }}`'s shared-column filter
-      already has, so no new grammar to design, just a new column to
-      match it against.
-- [x] **`snomed-ecl`**: `MemberFilterKind::SourceEffectiveTime(EffectiveTimeFilter)`
-      — `sourceEffectiveTime (=|!=|<=|<|>=|>) (timeValue |
-      timeValueSet)`, reusing `EffectiveTimeFilter`/
-      `time_comparison_matches` verbatim, on `ModuleDependencyRefsetMember`
-      (its first filterable column, an eleventh refset type outside
-      the two map types) — the thirty-first `memberFieldFilter`
-      column, and every grammar shape's first implemented column now
-      covered. No implemented column shares the RF2 field name
-      `sourceEffectiveTime`, so this genuinely needed a new variant.
-      Unlike every column since `domainId`, **no new row-set check
-      was needed even though this is that type's first filterable
-      column**: `module_dependency_member_rows` was already present
-      in the store (every non-Simple/Language type was retained
-      2026-09-03 regardless of whether a filter existed for it yet),
-      so this was purely a `typed_field_row_matches` dispatch wiring
-      change — a thirteenth row-set check in that function, zero
-      `snomed-store` changes.
-- [x] 3 new tests (parser: one shape test exercising `>=`; eval:
-      matches `ModuleDependency` rows after both `^` and `^R` across
-      `=`/`<=`/`>` comparisons, never matches `MrcmDomain` rows) —
-      507/507 total, up from 504. Also fixed
-      `rejects_an_unrecognized_member_field_filter_generically` a
-      thirteenth time, which had used `sourceEffectiveTime` itself as
-      its unrecognized-keyword example — switched to
-      `targetEffectiveTime` (`ModuleDependencyRefsetMember`'s own
-      second and last column, still unimplemented).
-- [x] Updated: `spec/10-ecl-filters.md` (new bullet, dispatch-list and
-      shape-count updates — thirty-one kinds, all five grammar shapes
-      now implemented at least once, thirteen typed row sets),
-      `spec/10-ecl-unimplemented.md` (keyword list, narrative history,
-      swapped the unimplemented-column example to
-      `targetEffectiveTime`), `snomed-ecl/src/lib.rs`,
-      `snomed-ecl/README.md` (table row, not-yet-implemented list,
-      same example swap), `agents/ecl-engineer.md`,
-      `agents/store-engineer.md` (twenty-four consumers outside the
-      map types, thirteen row-set checks total now), `plan.md` (Open
-      decisions paragraph, Current status test count, Since 0.9.0
-      narrative), `CHANGELOG.md`.
-- [x] **`CHANGELOG.md` crossed its own 40 KB budget an eleventh time**
-      (42030 bytes, caught by `bin/check-docs` immediately) once this
-      entry's `[Unreleased]` section was added — the tenth time was
-      at `attributeInGroupCardinality`/0.45.0. Fixed by moving
-      `[0.22.0]` and `[0.23.0]` verbatim into
-      `docs/changelog-archive.md` ahead of `[0.21.0]`, updating both
-      files' footer/intro text from "0.21.0" to "0.23.0".
-- [x] Verified: build/clippy/fmt/test (507/507)/check-docs/
       check-trademarks/spec_citations all clean.
 
 ## Next up
@@ -354,7 +308,10 @@ before".
       `DescriptionTypeRefsetMember`/`MrcmDomainRefsetMember`/
       `MrcmAttributeDomainRefsetMember`/`ModuleDependencyRefsetMember`, plus
       `OrderedAssociationRefsetMember` as a tenth type reusing the
-      first two of those columns) — `RefsetDescriptorRefsetMember`,
+      first two of those columns, and `MrcmAttributeRangeRefsetMember`
+      (see Done above) as a twelfth reusing `ruleStrengthId`/
+      `contentTypeId` — no new kind, just a new row-set check) —
+      `RefsetDescriptorRefsetMember`,
       `DescriptionTypeRefsetMember`, `MrcmDomainRefsetMember`,
       `MrcmAttributeDomainRefsetMember`, and `ModuleDependencyRefsetMember`
       each carry every column they have, the first five refset types
@@ -368,10 +325,12 @@ before".
       to every shape, not just concept-reference.
       `{{ M ... }}` after `^`
       (0.13.0), after `^R` (0.14.0), and its `memberFieldFilter`
-      alternative (0.15.0-0.47.0),
+      alternative (0.15.0-0.47.0, plus `ruleStrengthId`/`contentTypeId`
+      extending to `MrcmAttributeRangeRefsetMember` implemented and
+      committed but not yet released),
       all decided and executed under
       `spec/ai-release-authority/`'s criteria rather than a fresh
-      per-release maintainer go-ahead (see `CHANGELOG.md`). 9 crates, 511
+      per-release maintainer go-ahead (see `CHANGELOG.md`). 9 crates, 513
       tests,
       clippy/fmt clean on stable, MSRV 1.96 (current
       stable minus two, `spec/rust-msrv-n-minus-2/index.md`), `fuzz/`,

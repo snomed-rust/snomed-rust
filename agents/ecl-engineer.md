@@ -481,7 +481,20 @@ immediately too — still the time shape, another genuinely new
 variant, again no new row-set check since both columns share one row
 — completing that type's column coverage (the fifth refset type
 outside the two map types to reach it, and the first to reach it on
-the time shape). `memberFieldFilter`
+the time shape). `ruleStrengthId`/`contentTypeId` then extended
+(2026-09-10) to `MrcmAttributeRangeRefsetMember`'s own pair of those
+columns — a genuinely *different* increment shape: no new
+`MemberFilterKind` variant at all (the RF2 field names are identical
+to `MrcmAttributeDomainRefsetMember`'s own pair, already implemented),
+just a new `mrcm_attribute_range_member_rows` row-set check in
+`typed_field_row_matches`, reusing both existing variants — the same
+"reuse the variant, add the row-set check" shape
+`targetComponentId`/`order` had extending to
+`OrderedAssociationRefsetMember`, except two columns from *one* new
+type this time rather than two columns already spanning two types.
+Confirm a field name reuse is genuine (same RF2 column, same
+semantics) before skipping the new-variant step — it is not a
+shortcut to take by default. `memberFieldFilter`
 isn't one production but five in the official grammar, chosen by the
 named column's own semantic type
 (`expressionComparisonOperator ws subExpressionConstraint` for a concept

@@ -13,6 +13,36 @@ together, in dependency order (`snomed-core` → `snomed-rf2` → `snomed-owl`
 
 ## [Unreleased]
 
+**New ECL capability, additive.** `{{ M ... }}`'s `memberFieldFilter`'s
+`ruleStrengthId`/`contentTypeId` filters now also match
+`MrcmAttributeRangeRefsetMember`'s own pair of those columns, after
+both `^` and `^R`. A distinct row from `MrcmAttributeDomainRefsetMember`'s
+— sharing only the RF2 field *names*, not the row — so no new
+`MemberFilterKind` variant is needed: the existing
+`MemberFilterKind::RuleStrengthId`/`ContentTypeId` variants dispatch
+correctly once `MrcmAttributeRangeRefsetMember`'s own row is tested
+too. Needed a genuinely new row-set check
+(`SnapshotStore::mrcm_attribute_range_member_rows`, already present in
+the store) since it's that type's first filterable column — a twelfth
+refset type outside the two map types. A minor bump: new behavior on
+existing public API, no removals or signature changes.
+
+### Changed
+
+- `snomed-ecl`: `{{ M ruleStrengthId = 723561005 }}`/
+  `{{ M contentTypeId = 723596005 }}` now also restrict to
+  `MrcmAttributeRange` member rows whose own `ruleStrengthId`/
+  `contentTypeId` columns match — the same concept-reference grammar
+  already implemented for `MrcmAttributeDomainRefsetMember`'s pair
+  (reusing `ModuleFilter`'s exact shape and the existing
+  `MemberFilterKind` variants verbatim, no new variant added). Works
+  after both `^` and `^R`, and conjoins with the shared-column kinds
+  on the same `MrcmAttributeRange` row — both columns that type has
+  live on the same row. `MrcmAttributeRangeRefsetMember`'s first
+  filterable column, tested against a new
+  `SnapshotStore::mrcm_attribute_range_member_rows` row-set check
+  (already present in the store).
+
 ## [0.47.0] — 2026-09-10
 
 **New ECL capability, additive.** `{{ M ... }}`'s `memberFieldFilter`
@@ -728,59 +758,7 @@ anything existing.
 - No public API removed or changed signature; existing code compiles
   unmodified against this release.
 
-## [0.26.0] — 2026-09-06
-
-**New ECL capability, additive.** `{{ M ... }}`'s `memberFieldFilter`'s
-`targetComponentId` and `order` kinds now also match
-`OrderedAssociationRefsetMember` rows (a fifth refset type outside the
-two map types, carrying both columns on the same row), after both `^`
-and `^R`. No new `MemberFilterKind` variant — both filter kinds already
-existed, from `AssociationRefsetMember` and `OrderedComponentRefsetMember`
-respectively — but a genuine new match target: a block naming either
-(or both) now reaches `OrderedAssociationRefsetMember` rows it
-previously never could. A minor bump: no removals or signature changes
-to anything existing.
-
-### Added
-
-- `snomed-ecl`: `{{ M targetComponentId = ... }}` and `{{ M order =
-  ... }}` now also match `OrderedAssociationRefsetMember` member rows.
-  Naming both in the same block is satisfied by that type's row alone
-  — `OrderedAssociationRefsetMember` is the only row source carrying
-  both columns — per the "one row, all filters" rule, not by two
-  different rows each satisfying one filter.
-
-### Notes for consumers
-
-- No public API removed or changed signature; existing code compiles
-  unmodified against this release.
-
-## [0.25.0] — 2026-09-06
-
-**New ECL capability, additive.** `{{ M ... }}`'s `memberFieldFilter`
-gains its eleventh column, `order` — the fourth column outside the two
-map types (`OrderedComponentRefsetMember`), and the first of those
-four back on the numeric shape, after both `^` and `^R`. A minor
-bump: new public API, no removals or signature changes to anything
-existing.
-
-### Added
-
-- `snomed-ecl`: `{{ M order = #2 }}` restricts to `OrderedComponent`
-  member rows whose own `order` column satisfies the comparison — `=`,
-  `!=`, `<=`, `<`, `>=`, or `>`, the same numeric grammar
-  `mapGroup`/`mapPriority` use. Works after both `^` and `^R`, and
-  conjoins with `moduleId` and the other shared-column kinds on the
-  same member row. Only `OrderedComponentRefsetMember` rows carry an
-  `order` column; every other refset type never matches this filter.
-  New public API: `MemberFilterKind::Order`.
-
-### Notes for consumers
-
-- No public API removed or changed signature; existing code compiles
-  unmodified against this release.
-
-Entries for 0.24.0 and earlier live in
+Entries for 0.26.0 and earlier live in
 [`docs/changelog-archive.md`](docs/changelog-archive.md) — moved there
 verbatim to keep this file inside the repository's 40 KB per-document
 budget (rule 1 of `spec/docs-budget-and-links/index.md`).

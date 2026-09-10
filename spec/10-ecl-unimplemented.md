@@ -208,13 +208,13 @@ token shape:
   `ruleStrengthId` (2026-09-09) — the tenth concept-reference-shape
   column, `MrcmAttributeDomainRefsetMember`'s second column (both
   columns share one row) — reuses `correlationId`'s grammar verbatim,
-  no new row-set check needed. Not yet extended to
+  no new row-set check needed. Later extended (2026-09-10, below) to
   `MrcmAttributeRangeRefsetMember`, which has its own `ruleStrengthId`
   column;
   `contentTypeId` (2026-09-09) — the eleventh concept-reference-shape
   column, `MrcmAttributeDomainRefsetMember`'s third column (all three
   columns share one row) — reuses `correlationId`'s grammar verbatim,
-  no new row-set check needed. Not yet extended to
+  no new row-set check needed. Later extended (2026-09-10, below) to
   `MrcmAttributeRangeRefsetMember`, which has its own `contentTypeId`
   column;
   `grouped` (2026-09-09) — the first boolean-shape column
@@ -259,6 +259,17 @@ token shape:
   outside the two map types (after `RefsetDescriptorRefsetMember`,
   `DescriptionTypeRefsetMember`, `MrcmDomainRefsetMember`, and
   `MrcmAttributeDomainRefsetMember`) to reach it.
+  `ruleStrengthId`/`contentTypeId` extended (2026-09-10) to
+  `MrcmAttributeRangeRefsetMember`'s own pair of those columns — no
+  new `MemberFilterKind` variant needed (the RF2 field names are
+  identical to the pair already implemented on
+  `MrcmAttributeDomainRefsetMember`), but a genuinely new thirteenth
+  row-set check (`mrcm_attribute_range_member_rows`, already present
+  in the store) since it's that type's first filterable column — the
+  twelfth refset type outside the two map types. The same "reuse the
+  variant, add the row-set check" shape `targetComponentId`/`order`
+  had extending to `OrderedAssociationRefsetMember`, just two columns
+  at once instead of one.
   `rangeConstraint`/`attributeRule` (`MrcmAttributeRangeRefsetMember`'s
   own two string columns) remain unimplemented, with no example yet.
   See

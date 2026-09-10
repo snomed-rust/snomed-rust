@@ -336,8 +336,10 @@ and harmonizes it with the sibling repositories (`hl7-rust`, `er7-rust`,
   `MrcmModuleScopeRefsetMember`/`RefsetDescriptorRefsetMember`/
   `DescriptionTypeRefsetMember`/`MrcmDomainRefsetMember`/
   `MrcmAttributeDomainRefsetMember`/`ModuleDependencyRefsetMember`, plus
-  `OrderedAssociationRefsetMember`
-  as a tenth reusing two existing variants) — `RefsetDescriptorRefsetMember`,
+  `OrderedAssociationRefsetMember` as a tenth reusing two existing
+  variants, and `MrcmAttributeRangeRefsetMember` as a twelfth (below)
+  reusing the same two `ruleStrengthId`/`contentTypeId` variants
+  `MrcmAttributeDomainRefsetMember` already has) — `RefsetDescriptorRefsetMember`,
   `DescriptionTypeRefsetMember`, `MrcmDomainRefsetMember`,
   `MrcmAttributeDomainRefsetMember`, and `ModuleDependencyRefsetMember`
   each
@@ -363,9 +365,10 @@ and harmonizes it with the sibling repositories (`hl7-rust`, `er7-rust`,
 ## Current status
 
 All eight phases above are closed. As of `memberFieldFilter`'s
-`targetEffectiveTime` (2026-09-10, below) the
+`ruleStrengthId`/`contentTypeId` extending to
+`MrcmAttributeRangeRefsetMember` (2026-09-10, below) the
 workspace is 9 published
-crates with zero dependencies, 511 tests, a clean
+crates with zero dependencies, 513 tests, a clean
 `cargo clippy --all-targets`, 13 fuzz targets, and six criterion
 benchmark files. What is *not* done is tracked
 in two places and nowhere
@@ -504,12 +507,20 @@ same machinery `{{ M effectiveTime }}`'s shared-column filter already
 has); needed a genuinely new `MemberFilterKind` variant and a new
 thirteenth `typed_field_row_matches` dispatch arm, but no
 `snomed-store` change, since `module_dependency_member_rows` was
-already present; and `targetEffectiveTime` (2026-09-10) is
+already present; `targetEffectiveTime` (2026-09-10) is
 `ModuleDependencyRefsetMember`'s second and last column, still the
 time shape, another genuinely new variant, again no new row-set
 check since both columns share one row — completing that type's
 column coverage, the fifth refset type outside the two map types to
-reach it. In
+reach it; and `ruleStrengthId`/`contentTypeId` (2026-09-10) then
+extended to `MrcmAttributeRangeRefsetMember`'s own pair of those
+columns — a different increment shape entirely: *no* new
+`MemberFilterKind` variant (the RF2 field names are identical to
+`MrcmAttributeDomainRefsetMember`'s own pair, already implemented),
+just a genuinely new fourteenth row-set check
+(`mrcm_attribute_range_member_rows`, already present in the store)
+since it's that type's first filterable column, a twelfth refset type
+outside the two map types. In
 between, the
 `ecl_parse` fuzz target's CI smoke run caught
 a real stack overflow on pathologically deep `(`/refinement/

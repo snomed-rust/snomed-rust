@@ -1,10 +1,62 @@
 # Changelog archive
 
-Entries for versions 0.24.0 and earlier, moved verbatim from
+Entries for versions 0.26.0 and earlier, moved verbatim from
 [`CHANGELOG.md`](../CHANGELOG.md) to keep that file inside the
 repository's 40 KB per-document budget
 (rule 1 of `spec/docs-budget-and-links/index.md`). Newer entries live
 there.
+
+## [0.26.0] — 2026-09-06
+
+**New ECL capability, additive.** `{{ M ... }}`'s `memberFieldFilter`'s
+`targetComponentId` and `order` kinds now also match
+`OrderedAssociationRefsetMember` rows (a fifth refset type outside the
+two map types, carrying both columns on the same row), after both `^`
+and `^R`. No new `MemberFilterKind` variant — both filter kinds already
+existed, from `AssociationRefsetMember` and `OrderedComponentRefsetMember`
+respectively — but a genuine new match target: a block naming either
+(or both) now reaches `OrderedAssociationRefsetMember` rows it
+previously never could. A minor bump: no removals or signature changes
+to anything existing.
+
+### Added
+
+- `snomed-ecl`: `{{ M targetComponentId = ... }}` and `{{ M order =
+  ... }}` now also match `OrderedAssociationRefsetMember` member rows.
+  Naming both in the same block is satisfied by that type's row alone
+  — `OrderedAssociationRefsetMember` is the only row source carrying
+  both columns — per the "one row, all filters" rule, not by two
+  different rows each satisfying one filter.
+
+### Notes for consumers
+
+- No public API removed or changed signature; existing code compiles
+  unmodified against this release.
+
+## [0.25.0] — 2026-09-06
+
+**New ECL capability, additive.** `{{ M ... }}`'s `memberFieldFilter`
+gains its eleventh column, `order` — the fourth column outside the two
+map types (`OrderedComponentRefsetMember`), and the first of those
+four back on the numeric shape, after both `^` and `^R`. A minor
+bump: new public API, no removals or signature changes to anything
+existing.
+
+### Added
+
+- `snomed-ecl`: `{{ M order = #2 }}` restricts to `OrderedComponent`
+  member rows whose own `order` column satisfies the comparison — `=`,
+  `!=`, `<=`, `<`, `>=`, or `>`, the same numeric grammar
+  `mapGroup`/`mapPriority` use. Works after both `^` and `^R`, and
+  conjoins with `moduleId` and the other shared-column kinds on the
+  same member row. Only `OrderedComponentRefsetMember` rows carry an
+  `order` column; every other refset type never matches this filter.
+  New public API: `MemberFilterKind::Order`.
+
+### Notes for consumers
+
+- No public API removed or changed signature; existing code compiles
+  unmodified against this release.
 
 ## [0.24.0] — 2026-09-06
 

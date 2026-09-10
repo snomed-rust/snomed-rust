@@ -286,7 +286,20 @@ last column, both on one row, no new row-set check needed, completing
 that type's column coverage (the fifth refset type outside the two
 map types, after `RefsetDescriptorRefsetMember`,
 `DescriptionTypeRefsetMember`, `MrcmDomainRefsetMember`, and
-`MrcmAttributeDomainRefsetMember`, to reach it). All
+`MrcmAttributeDomainRefsetMember`, to reach it).
+`ruleStrengthId`/`contentTypeId` then extended to
+`MrcmAttributeRangeRefsetMember`'s own pair of those columns — a
+genuinely new fourteenth row-set check
+(`mrcm_attribute_range_member_rows`, already present in the store)
+since it's that type's first filterable column, a twelfth refset type
+outside the two map types, but *no new `MemberFilterKind` variant* —
+the RF2 field names are identical to the pair already implemented on
+`MrcmAttributeDomainRefsetMember`, so the existing variants dispatch
+correctly once this row set is tested too. The same "reuse the
+variant, add the row-set check" shape `targetComponentId`/`order` had
+extending to `OrderedAssociationRefsetMember`, just two columns from
+one type at once rather than the same one column extending to a
+second type. All
 row sets are still
 tested whenever any field-filter kind appears in a block, since a row
 missing the column simply fails that filter rather than needing its

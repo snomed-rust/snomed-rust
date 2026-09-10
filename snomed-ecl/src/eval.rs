@@ -447,12 +447,19 @@ struct TypedFields<'a> {
 /// `ordered_component_member_rows`/`ordered_association_member_rows`/
 /// `mrcm_module_scope_member_rows`/`refset_descriptor_member_rows`/
 /// `description_type_member_rows`/`mrcm_domain_member_rows`/
-/// `mrcm_attribute_domain_member_rows`/`module_dependency_member_rows`)
+/// `mrcm_attribute_domain_member_rows`/`module_dependency_member_rows`/
+/// `mrcm_attribute_range_member_rows`)
 /// rather
-/// than either map type's.
+/// than either map type's. `mrcm_attribute_range_member_rows` carries
+/// no field of its own not already implemented — `ruleStrengthId`/
+/// `contentTypeId` extend to it by RF2 field name, reusing
+/// `MemberFilterKind::RuleStrengthId`/`ContentTypeId` verbatim, the
+/// same "reuse the variant" case `OrderedAssociationRefsetMember` is
+/// for `targetComponentId`/`order`, just two columns from one type
+/// instead of two columns from two types.
 /// Renamed from `typed_map_row_matches` once it stopped being map-only.
 /// Whichever field-filter kind appears, a block naming it is
-/// tested against all thirteen typed row sets rather than `member_rows`.
+/// tested against all fourteen typed row sets rather than `member_rows`.
 /// Testing every set whenever *any* field-filter kind appears (rather
 /// than computing the exact type each filter needs) is deliberately
 /// simple, not merely convenient: a `SimpleMap` row tested against a
@@ -737,7 +744,7 @@ fn typed_field_row_matches(
     if matches_mrcm_attribute_domain {
         return true;
     }
-    store
+    let matches_module_dependency = store
         .module_dependency_member_rows(refset_id, component_id)
         .iter()
         .any(|row| {
@@ -750,6 +757,27 @@ fn typed_field_row_matches(
                         &TypedFields {
                             source_effective_time: Some(row.source_effective_time),
                             target_effective_time: Some(row.target_effective_time),
+                            ..TypedFields::default()
+                        },
+                    )
+                })
+        });
+    if matches_module_dependency {
+        return true;
+    }
+    store
+        .mrcm_attribute_range_member_rows(refset_id, component_id)
+        .iter()
+        .any(|row| {
+            (states_active || row.core.active)
+                && filters.iter().zip(prepared).all(|(f, p)| {
+                    member_filter_matches(
+                        f,
+                        p,
+                        &row.core,
+                        &TypedFields {
+                            rule_strength_id: Some(row.rule_strength_id),
+                            content_type_id: Some(row.content_type_id),
                             ..TypedFields::default()
                         },
                     )
@@ -2122,9 +2150,10 @@ mod tests {
     use snomed_rf2::refset::{
         AssociationRefsetMember, AttributeValueRefsetMember, DescriptionTypeRefsetMember,
         ExtendedMapRefsetMember, LanguageRefsetMember, ModuleDependencyRefsetMember,
-        MrcmAttributeDomainRefsetMember, MrcmDomainRefsetMember, MrcmModuleScopeRefsetMember,
-        OrderedAssociationRefsetMember, OrderedComponentRefsetMember, OwlExpressionRefsetMember,
-        RefsetDescriptorRefsetMember, RefsetMemberCore, SimpleMapRefsetMember, SimpleRefsetMember,
+        MrcmAttributeDomainRefsetMember, MrcmAttributeRangeRefsetMember, MrcmDomainRefsetMember,
+        MrcmModuleScopeRefsetMember, OrderedAssociationRefsetMember, OrderedComponentRefsetMember,
+        OwlExpressionRefsetMember, RefsetDescriptorRefsetMember, RefsetMemberCore,
+        SimpleMapRefsetMember, SimpleRefsetMember,
     };
 
     const ROOT: SctId = constants::ROOT_CONCEPT;
@@ -7199,6 +7228,107 @@ mod tests {
             ),
             HashSet::new(),
             "wrong targetEffectiveTime on the only row rules it out"
+        );
+    }
+
+    /// `ruleStrengthId`/`contentTypeId` extended to
+    /// `MrcmAttributeRangeRefsetMember`'s own pair of those columns —
+    /// no new `MemberFilterKind` variant, just a new
+    /// `mrcm_attribute_range_member_rows` row-set check reusing the
+    /// existing variants (spec/10 rule 18). Also proves `{{ M }}`
+    /// after `^R` reaches it, and that both columns conjoin on the
+    /// same row.
+    #[test]
+    fn member_filter_rule_strength_and_content_type_match_mrcm_attribute_range_rows() {
+        let mrcm_attribute_range = SctId::compose(10016, ComponentType::Concept, None).unwrap();
+        let mandatory = SctId::compose(10017, ComponentType::Concept, None).unwrap();
+        let all_content = SctId::compose(10018, ComponentType::Concept, None).unwrap();
+        let optional = SctId::compose(10019, ComponentType::Concept, None).unwrap();
+        let mut b = SnapshotStore::builder();
+        b.add_concept(concept(MI));
+        b.add_concept(concept(mandatory));
+        b.add_concept(concept(all_content));
+        b.add_concept(concept(optional));
+        b.add_mrcm_attribute_range_member(MrcmAttributeRangeRefsetMember {
+            core: RefsetMemberCore {
+                id: MemberId::parse("80000000-0000-4000-8000-000000000177").unwrap(),
+                effective_time: EffectiveTime::new_unchecked(20190731),
+                active: true,
+                module_id: constants::CORE_MODULE,
+                refset_id: mrcm_attribute_range,
+                referenced_component_id: MI,
+            },
+            range_constraint: String::new(),
+            attribute_rule: String::new(),
+            rule_strength_id: mandatory,
+            content_type_id: all_content,
+        });
+        let store = b.build();
+
+        assert_eq!(
+            eval(
+                &format!("^ {mrcm_attribute_range} {{{{ M ruleStrengthId = {optional} }}}}"),
+                &store
+            ),
+            HashSet::new(),
+            "the row's own ruleStrengthId doesn't match"
+        );
+        assert_eq!(
+            eval(
+                &format!(
+                    "^ {mrcm_attribute_range} {{{{ M ruleStrengthId = {mandatory}, contentTypeId = {all_content} }}}}"
+                ),
+                &store
+            ),
+            HashSet::from([MI])
+        );
+        // `^R` reaches the same row, through the shared row-matching path.
+        assert_eq!(
+            eval(
+                &format!("^R {MI} {{{{ M ruleStrengthId = {mandatory} }}}}"),
+                &store
+            ),
+            HashSet::from([mrcm_attribute_range])
+        );
+    }
+
+    /// `MrcmDomainRefsetMember`/every other typed row source with no
+    /// `MrcmAttributeRangeRefsetMember` row must never match a block
+    /// naming `ruleStrengthId`/`contentTypeId` against
+    /// `mrcm_attribute_range_member_rows` specifically — this proves
+    /// the extension doesn't spuriously match
+    /// `MrcmAttributeDomainRefsetMember`'s own distinct row for the
+    /// same RF2 field names when only the range refset id is queried.
+    #[test]
+    fn member_filter_rule_strength_never_matches_mrcm_domain_rows() {
+        let mrcm_domain = SctId::compose(10020, ComponentType::Concept, None).unwrap();
+        let mut b = SnapshotStore::builder();
+        b.add_concept(concept(MI));
+        b.add_mrcm_domain_member(MrcmDomainRefsetMember {
+            core: RefsetMemberCore {
+                id: MemberId::parse("80000000-0000-4000-8000-000000000178").unwrap(),
+                effective_time: EffectiveTime::new_unchecked(20190731),
+                active: true,
+                module_id: constants::CORE_MODULE,
+                refset_id: mrcm_domain,
+                referenced_component_id: MI,
+            },
+            domain_constraint: String::new(),
+            parent_domain: String::new(),
+            proximal_primitive_constraint: String::new(),
+            proximal_primitive_refinement: String::new(),
+            domain_template_for_precoordination: String::new(),
+            domain_template_for_postcoordination: String::new(),
+            guide_url: String::new(),
+        });
+        let store = b.build();
+
+        assert_eq!(
+            eval(
+                &format!("^ {mrcm_domain} {{{{ M ruleStrengthId = {MI} }}}}"),
+                &store
+            ),
+            HashSet::new()
         );
     }
 

@@ -382,8 +382,9 @@ has two):
   member row's own `ruleStrengthId` column. `MrcmAttributeDomainRefsetMember`'s
   second column (after `domainId`) — both live on the same row, tested
   against the same `SnapshotStore::mrcm_attribute_domain_member_rows`,
-  no new row-set check needed. `MrcmAttributeRangeRefsetMember` also
-  has a `ruleStrengthId` column of its own, not yet extended to.
+  no new row-set check needed. Also extended to
+  `MrcmAttributeRangeRefsetMember`'s own `ruleStrengthId` column (see
+  below).
 - `contentTypeId (=|!=) subExpressionConstraint` — the same
   concept-reference shape and the same `ModuleFilter` machinery as
   `correlationId`/`mrcmRuleRefsetId`/`attributeDescription`/
@@ -392,8 +393,25 @@ has two):
   `MrcmAttributeDomainRefsetMember`'s third column (after `domainId`/
   `ruleStrengthId`) — all three live on the same row, tested against
   the same `SnapshotStore::mrcm_attribute_domain_member_rows`, no new
-  row-set check needed. `MrcmAttributeRangeRefsetMember` also has a
-  `contentTypeId` column of its own, not yet extended to.
+  row-set check needed. Also extended to
+  `MrcmAttributeRangeRefsetMember`'s own `contentTypeId` column (see
+  below).
+- `ruleStrengthId`/`contentTypeId` extended to
+  `MrcmAttributeRangeRefsetMember` — the same two `MemberFilterKind`
+  variants above, this time matched against
+  `MrcmAttributeRangeRefsetMember`'s own `ruleStrengthId`/
+  `contentTypeId` columns (spec/08: this type has its own pair, a
+  distinct row from `MrcmAttributeDomainRefsetMember`'s, sharing only
+  the RF2 field *names*). No new `MemberFilterKind` variant needed —
+  the RF2 field name is identical, so the existing variants dispatch
+  correctly once `MrcmAttributeRangeRefsetMember`'s own row is tested
+  too. A genuinely new thirteenth row-set check
+  (`SnapshotStore::mrcm_attribute_range_member_rows`, already present
+  in the store) since it's that type's first filterable column — the
+  twelfth refset type outside the two map types. The same
+  "several fields, one row" shape `targetComponentId`/`order` have for
+  `OrderedAssociationRefsetMember`, just reusing two variants at once
+  instead of adding a new row-set check for each separately.
 - `grouped (=|!=) booleanValue` — the boolean shape
   (`booleanComparisonOperator ws booleanValue`, confirmed against the
   official ABNF — `booleanComparisonOperator = "=" / "!="`,
@@ -481,7 +499,7 @@ block naming *any* of the thirty-two kinds is tested against
 `SimpleMap`/`ExtendedMap`/`Association`/`AttributeValue`/`OwlExpression`/
 `OrderedComponent`/`OrderedAssociation`/`MrcmModuleScope`/
 `RefsetDescriptor`/`DescriptionType`/`MrcmDomain`/`MrcmAttributeDomain`/
-`ModuleDependency`
+`ModuleDependency`/`MrcmAttributeRange`
 rows together
 rather than `member_rows`, and the "one row, all filters" and "active
 unless stated otherwise" rules above still hold across a block naming
