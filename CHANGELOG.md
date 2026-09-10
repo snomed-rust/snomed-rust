@@ -13,6 +13,43 @@ together, in dependency order (`snomed-core` → `snomed-rf2` → `snomed-owl`
 
 ## [Unreleased]
 
+**New ECL capability, additive.** `{{ M ... }}`'s `memberFieldFilter`
+gains its thirty-first column, `sourceEffectiveTime` —
+`ModuleDependencyRefsetMember`'s first filterable column, after both
+`^` and `^R`. The time shape's first implemented column
+(`timeComparisonOperator ws (timeValue | timeValueSet)`, confirmed
+against the official ABNF): reuses `EffectiveTimeFilter`/
+`time_comparison_matches` verbatim, the same grammar and machinery
+`{{ M effectiveTime }}`'s shared-column filter already has, just
+matched against `ModuleDependencyRefsetMember`'s own
+`sourceEffectiveTime` column instead of the member row's shared
+`effectiveTime`. Needed a genuinely new `MemberFilterKind` variant (no
+implemented column shares this RF2 field name) and a new
+`typed_field_row_matches` dispatch arm, but no `snomed-store` change —
+`module_dependency_member_rows` was already present, retained for
+every non-Simple/Language refset type regardless of whether
+`snomed-ecl` had a filter for it yet. Every `memberFieldFilter`
+grammar shape now has at least one implemented column. A minor bump:
+new public API, no removals or signature changes to anything existing.
+
+### Added
+
+- `snomed-ecl`: `{{ M sourceEffectiveTime >= "20240101" }}` restricts
+  to `ModuleDependency` member rows whose own `sourceEffectiveTime`
+  column satisfies the comparison — the same
+  `timeComparisonOperator`/`timeValue`/`timeValueSet` grammar
+  `{{ M effectiveTime }}` uses (reusing `EffectiveTimeFilter`'s exact
+  shape and `time_comparison_matches`). Works after both `^` and
+  `^R`, and conjoins with `moduleId`/`effectiveTime`/`active` and any
+  other filter in the same block on the same member row. Only
+  `ModuleDependencyRefsetMember` rows carry a `sourceEffectiveTime`
+  column; every other row source never matches. `memberFieldFilter`'s
+  thirty-first column, and `ModuleDependencyRefsetMember`'s first —
+  an eleventh refset type outside the two map types. Needed a
+  genuinely new `MemberFilterKind` variant but no new
+  `snomed-store` change, reusing the already-present
+  `SnapshotStore::module_dependency_member_rows`.
+
 ## [0.45.0] — 2026-09-10
 
 **New ECL capability, additive.** `{{ M ... }}`'s `memberFieldFilter`
@@ -729,59 +766,7 @@ existing.
 - No public API removed or changed signature; existing code compiles
   unmodified against this release.
 
-## [0.23.0] — 2026-09-06
-
-**New ECL capability, additive.** `{{ M ... }}`'s `memberFieldFilter`
-gains its ninth column, `valueId` — the second column outside the two
-map types (`AttributeValueRefsetMember`), after both `^` and `^R`. A
-minor bump: new public API, no removals or signature changes to
-anything existing.
-
-### Added
-
-- `snomed-ecl`: `{{ M valueId = 900000000000495008 }}` restricts to
-  `AttributeValue` member rows whose own `valueId` column matches — the
-  same concept-reference grammar `correlationId`/`mapCategoryId`/
-  `targetComponentId` use (reusing `ModuleFilter`'s exact shape). Works
-  after both `^` and `^R`, and conjoins with `moduleId` and the other
-  shared-column kinds on the same member row. Only
-  `AttributeValueRefsetMember` rows carry a `valueId` column;
-  `SimpleMapRefsetMember`/`ExtendedMapRefsetMember`/
-  `AssociationRefsetMember` and every other refset type never match
-  this filter. New public API: `MemberFilterKind::ValueId`.
-
-### Notes for consumers
-
-- No public API removed or changed signature; existing code compiles
-  unmodified against this release.
-
-## [0.22.0] — 2026-09-05
-
-**New ECL capability, additive.** `{{ M ... }}`'s `memberFieldFilter`
-gains its eighth column, `targetComponentId` — the first outside the
-two map types (`AssociationRefsetMember`), after both `^` and `^R`. A
-minor bump: new public API, no removals or signature changes to
-anything existing.
-
-### Added
-
-- `snomed-ecl`: `{{ M targetComponentId = 116680003 }}` restricts to
-  `Association` member rows whose own `targetComponentId` column
-  matches — the same concept-reference grammar `correlationId`/
-  `mapCategoryId` use (reusing `ModuleFilter`'s exact shape). Works
-  after both `^` and `^R`, and conjoins with `moduleId` and the other
-  shared-column kinds on the same member row. Only
-  `AssociationRefsetMember` rows carry a `targetComponentId` column in
-  this release; `SimpleMapRefsetMember`/`ExtendedMapRefsetMember` and
-  every other refset type never match this filter. New public API:
-  `MemberFilterKind::TargetComponentId`.
-
-### Notes for consumers
-
-- No public API removed or changed signature; existing code compiles
-  unmodified against this release.
-
-Entries for 0.21.0 and earlier live in
+Entries for 0.23.0 and earlier live in
 [`docs/changelog-archive.md`](docs/changelog-archive.md) — moved there
 verbatim to keep this file inside the repository's 40 KB per-document
 budget (rule 1 of `spec/docs-budget-and-links/index.md`).

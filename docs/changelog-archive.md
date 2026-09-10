@@ -1,10 +1,62 @@
 # Changelog archive
 
-Entries for versions 0.21.0 and earlier, moved verbatim from
+Entries for versions 0.23.0 and earlier, moved verbatim from
 [`CHANGELOG.md`](../CHANGELOG.md) to keep that file inside the
 repository's 40 KB per-document budget
 (rule 1 of `spec/docs-budget-and-links/index.md`). Newer entries live
 there.
+
+## [0.23.0] — 2026-09-06
+
+**New ECL capability, additive.** `{{ M ... }}`'s `memberFieldFilter`
+gains its ninth column, `valueId` — the second column outside the two
+map types (`AttributeValueRefsetMember`), after both `^` and `^R`. A
+minor bump: new public API, no removals or signature changes to
+anything existing.
+
+### Added
+
+- `snomed-ecl`: `{{ M valueId = 900000000000495008 }}` restricts to
+  `AttributeValue` member rows whose own `valueId` column matches — the
+  same concept-reference grammar `correlationId`/`mapCategoryId`/
+  `targetComponentId` use (reusing `ModuleFilter`'s exact shape). Works
+  after both `^` and `^R`, and conjoins with `moduleId` and the other
+  shared-column kinds on the same member row. Only
+  `AttributeValueRefsetMember` rows carry a `valueId` column;
+  `SimpleMapRefsetMember`/`ExtendedMapRefsetMember`/
+  `AssociationRefsetMember` and every other refset type never match
+  this filter. New public API: `MemberFilterKind::ValueId`.
+
+### Notes for consumers
+
+- No public API removed or changed signature; existing code compiles
+  unmodified against this release.
+
+## [0.22.0] — 2026-09-05
+
+**New ECL capability, additive.** `{{ M ... }}`'s `memberFieldFilter`
+gains its eighth column, `targetComponentId` — the first outside the
+two map types (`AssociationRefsetMember`), after both `^` and `^R`. A
+minor bump: new public API, no removals or signature changes to
+anything existing.
+
+### Added
+
+- `snomed-ecl`: `{{ M targetComponentId = 116680003 }}` restricts to
+  `Association` member rows whose own `targetComponentId` column
+  matches — the same concept-reference grammar `correlationId`/
+  `mapCategoryId` use (reusing `ModuleFilter`'s exact shape). Works
+  after both `^` and `^R`, and conjoins with `moduleId` and the other
+  shared-column kinds on the same member row. Only
+  `AssociationRefsetMember` rows carry a `targetComponentId` column in
+  this release; `SimpleMapRefsetMember`/`ExtendedMapRefsetMember` and
+  every other refset type never match this filter. New public API:
+  `MemberFilterKind::TargetComponentId`.
+
+### Notes for consumers
+
+- No public API removed or changed signature; existing code compiles
+  unmodified against this release.
 
 ## [0.21.0] — 2026-09-05
 

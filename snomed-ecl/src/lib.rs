@@ -16,7 +16,7 @@
 //! `proximalPrimitiveConstraint`/`proximalPrimitiveRefinement`/
 //! `domainTemplateForPrecoordination`/`domainTemplateForPostcoordination`/
 //! `guideURL`/`domainId`/`ruleStrengthId`/`contentTypeId`/`grouped`/
-//! `attributeCardinality`/`attributeInGroupCardinality`,
+//! `attributeCardinality`/`attributeInGroupCardinality`/`sourceEffectiveTime`,
 //! the history supplement,
 //! alternate identifiers, …) is listed in
 //! `spec/10-ecl-unimplemented.md`. Encountering one is a parse error,

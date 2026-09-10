@@ -317,6 +317,7 @@ fn member_row_matches(
                 | MemberFilterKind::Grouped(_)
                 | MemberFilterKind::AttributeCardinality(_)
                 | MemberFilterKind::AttributeInGroupCardinality(_)
+                | MemberFilterKind::SourceEffectiveTime(_)
         )
     }) {
         return typed_field_row_matches(
@@ -377,6 +378,9 @@ fn member_row_matches(
 /// second, `content_type_id` its third, `grouped` its fourth,
 /// `attribute_cardinality` its fifth, `attribute_in_group_cardinality`
 /// its sixth and last, all populated from the same row.
+/// `source_effective_time` is the first field from
+/// `ModuleDependencyRefsetMember`, an eleventh refset type outside the
+/// two map types — the time shape's first implemented column.
 #[derive(Default)]
 struct TypedFields<'a> {
     map_target: Option<&'a str>,
@@ -409,6 +413,7 @@ struct TypedFields<'a> {
     grouped: Option<bool>,
     attribute_cardinality: Option<&'a str>,
     attribute_in_group_cardinality: Option<&'a str>,
+    source_effective_time: Option<EffectiveTime>,
 }
 
 /// The `mapTarget`/`correlationId`/`mapGroup`/`mapPriority`/`mapRule`/
@@ -438,12 +443,12 @@ struct TypedFields<'a> {
 /// `ordered_component_member_rows`/`ordered_association_member_rows`/
 /// `mrcm_module_scope_member_rows`/`refset_descriptor_member_rows`/
 /// `description_type_member_rows`/`mrcm_domain_member_rows`/
-/// `mrcm_attribute_domain_member_rows`)
+/// `mrcm_attribute_domain_member_rows`/`module_dependency_member_rows`)
 /// rather
 /// than either map type's.
 /// Renamed from `typed_map_row_matches` once it stopped being map-only.
 /// Whichever field-filter kind appears, a block naming it is
-/// tested against all twelve typed row sets rather than `member_rows`.
+/// tested against all thirteen typed row sets rather than `member_rows`.
 /// Testing every set whenever *any* field-filter kind appears (rather
 /// than computing the exact type each filter needs) is deliberately
 /// simple, not merely convenient: a `SimpleMap` row tested against a
@@ -701,7 +706,7 @@ fn typed_field_row_matches(
     if matches_mrcm_domain {
         return true;
     }
-    store
+    let matches_mrcm_attribute_domain = store
         .mrcm_attribute_domain_member_rows(refset_id, component_id)
         .iter()
         .any(|row| {
@@ -720,6 +725,26 @@ fn typed_field_row_matches(
                             attribute_in_group_cardinality: Some(
                                 &row.attribute_in_group_cardinality,
                             ),
+                            ..TypedFields::default()
+                        },
+                    )
+                })
+        });
+    if matches_mrcm_attribute_domain {
+        return true;
+    }
+    store
+        .module_dependency_member_rows(refset_id, component_id)
+        .iter()
+        .any(|row| {
+            (states_active || row.core.active)
+                && filters.iter().zip(prepared).all(|(f, p)| {
+                    member_filter_matches(
+                        f,
+                        p,
+                        &row.core,
+                        &TypedFields {
+                            source_effective_time: Some(row.source_effective_time),
                             ..TypedFields::default()
                         },
                     )
@@ -1332,6 +1357,18 @@ fn member_filter_matches(
                 term_matches(attribute_in_group_cardinality, search, prepared)
             });
             matches != *negated
+        }
+        MemberFilterKind::SourceEffectiveTime(EffectiveTimeFilter { operator, values }) => {
+            // No `source_effective_time` on this row source (every
+            // source but `ModuleDependency`'s own): never matches,
+            // same reasoning as every other typed-column filter's
+            // `None` case above.
+            let Some(source_effective_time) = fields.source_effective_time else {
+                return false;
+            };
+            values
+                .iter()
+                .any(|v| time_comparison_matches(*operator, source_effective_time, *v))
         }
     }
 }
@@ -2067,10 +2104,10 @@ mod tests {
     use snomed_core::time::EffectiveTime;
     use snomed_rf2::refset::{
         AssociationRefsetMember, AttributeValueRefsetMember, DescriptionTypeRefsetMember,
-        ExtendedMapRefsetMember, LanguageRefsetMember, MrcmAttributeDomainRefsetMember,
-        MrcmDomainRefsetMember, MrcmModuleScopeRefsetMember, OrderedAssociationRefsetMember,
-        OrderedComponentRefsetMember, OwlExpressionRefsetMember, RefsetDescriptorRefsetMember,
-        RefsetMemberCore, SimpleMapRefsetMember, SimpleRefsetMember,
+        ExtendedMapRefsetMember, LanguageRefsetMember, ModuleDependencyRefsetMember,
+        MrcmAttributeDomainRefsetMember, MrcmDomainRefsetMember, MrcmModuleScopeRefsetMember,
+        OrderedAssociationRefsetMember, OrderedComponentRefsetMember, OwlExpressionRefsetMember,
+        RefsetDescriptorRefsetMember, RefsetMemberCore, SimpleMapRefsetMember, SimpleRefsetMember,
     };
 
     const ROOT: SctId = constants::ROOT_CONCEPT;
@@ -6894,6 +6931,111 @@ mod tests {
             ),
             HashSet::new(),
             "wrong attributeInGroupCardinality on the only row rules it out"
+        );
+    }
+
+    /// `sourceEffectiveTime` (spec/10 rule 18) — the thirty-first
+    /// `memberFieldFilter` column, and the time shape's first
+    /// implemented column, tested against `ModuleDependencyRefsetMember`'s
+    /// own `sourceEffectiveTime` column (an eleventh typed row set,
+    /// already present in the store before this column existed). Also
+    /// proves `{{ M }}` after `^R` reaches it, and exercises every
+    /// `TimeComparisonOp` symbol the same way
+    /// `concept_filter_effective_time_restricts_by_comparison` does for
+    /// the concept-filter shape.
+    #[test]
+    fn member_filter_source_effective_time_matches_module_dependency_rows() {
+        let module_dependency = SctId::compose(10011, ComponentType::Concept, None).unwrap();
+        let mut b = SnapshotStore::builder();
+        b.add_concept(concept(MI));
+        b.add_module_dependency_member(ModuleDependencyRefsetMember {
+            core: RefsetMemberCore {
+                id: MemberId::parse("80000000-0000-4000-8000-000000000172").unwrap(),
+                effective_time: EffectiveTime::new_unchecked(20190731),
+                active: true,
+                module_id: constants::CORE_MODULE,
+                refset_id: module_dependency,
+                referenced_component_id: MI,
+            },
+            source_effective_time: EffectiveTime::new_unchecked(20190731),
+            target_effective_time: EffectiveTime::new_unchecked(20190731),
+        });
+        let store = b.build();
+
+        assert_eq!(
+            eval(
+                &format!("^ {module_dependency} {{{{ M sourceEffectiveTime = \"20200101\" }}}}"),
+                &store
+            ),
+            HashSet::new(),
+            "the row's own sourceEffectiveTime doesn't match"
+        );
+        assert_eq!(
+            eval(
+                &format!("^ {module_dependency} {{{{ M sourceEffectiveTime = \"20190731\" }}}}"),
+                &store
+            ),
+            HashSet::from([MI])
+        );
+        assert_eq!(
+            eval(
+                &format!("^ {module_dependency} {{{{ M sourceEffectiveTime <= \"20200101\" }}}}"),
+                &store
+            ),
+            HashSet::from([MI])
+        );
+        assert_eq!(
+            eval(
+                &format!("^ {module_dependency} {{{{ M sourceEffectiveTime > \"20200101\" }}}}"),
+                &store
+            ),
+            HashSet::new()
+        );
+        // `^R` reaches the same row, through the shared row-matching path.
+        assert_eq!(
+            eval(
+                &format!("^R {MI} {{{{ M sourceEffectiveTime = \"20190731\" }}}}"),
+                &store
+            ),
+            HashSet::from([module_dependency])
+        );
+    }
+
+    /// `MrcmDomainRefsetMember`/every other typed row source has no
+    /// `sourceEffectiveTime` column — a membership that exists only
+    /// there must never match, the same "column absent on this row
+    /// source" case every other field filter has for the row types it
+    /// doesn't apply to.
+    #[test]
+    fn member_filter_source_effective_time_never_matches_mrcm_domain_rows() {
+        let mrcm_domain = SctId::compose(10012, ComponentType::Concept, None).unwrap();
+        let mut b = SnapshotStore::builder();
+        b.add_concept(concept(MI));
+        b.add_mrcm_domain_member(MrcmDomainRefsetMember {
+            core: RefsetMemberCore {
+                id: MemberId::parse("80000000-0000-4000-8000-000000000173").unwrap(),
+                effective_time: EffectiveTime::new_unchecked(20190731),
+                active: true,
+                module_id: constants::CORE_MODULE,
+                refset_id: mrcm_domain,
+                referenced_component_id: MI,
+            },
+            domain_constraint: String::new(),
+            parent_domain: String::new(),
+            proximal_primitive_constraint: String::new(),
+            proximal_primitive_refinement: String::new(),
+            domain_template_for_precoordination: String::new(),
+            domain_template_for_postcoordination: String::new(),
+            guide_url: String::new(),
+        });
+        let store = b.build();
+
+        assert_eq!(
+            eval(
+                &format!("^ {mrcm_domain} {{{{ M sourceEffectiveTime = \"20190731\" }}}}"),
+                &store
+            ),
+            HashSet::new()
         );
     }
 

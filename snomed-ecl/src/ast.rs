@@ -379,7 +379,7 @@ pub enum ConceptFilterKind {
 /// `ProximalPrimitiveConstraint`/`ProximalPrimitiveRefinement`/
 /// `DomainTemplateForPrecoordination`/`DomainTemplateForPostcoordination`/
 /// `GuideUrl`/`DomainId`/`RuleStrengthId`/`ContentTypeId`/`Grouped`/
-/// `AttributeCardinality`/`AttributeInGroupCardinality`
+/// `AttributeCardinality`/`AttributeInGroupCardinality`/`SourceEffectiveTime`
 /// are the official grammar's fourth kind, `memberFieldFilter`
 /// — a refset-type-specific column rather than a shared one. Its own
 /// grammar (confirmed against the official ABNF, `syntax/abnf-brief.txt`)
@@ -467,13 +467,22 @@ pub enum ConceptFilterKind {
 /// new row-set check since all six columns come from the same row —
 /// the fourth refset type outside the two map types, after
 /// `RefsetDescriptorRefsetMember`, `DescriptionTypeRefsetMember`, and
-/// `MrcmDomainRefsetMember`, with full column coverage) —
+/// `MrcmDomainRefsetMember`, with full column coverage); and
+/// `sourceEffectiveTime` (the time shape's first implemented column,
+/// `ModuleDependencyRefsetMember`'s first filterable column, an
+/// eleventh refset type outside the two map types — reusing
+/// [`EffectiveTimeFilter`]/`time_comparison_matches` verbatim, the
+/// same machinery [`Self::EffectiveTime`] already has, just against a
+/// different row's own column; the `module_dependency_member_rows`
+/// accessor was already present, so this needed no `snomed-store`
+/// change) —
 /// all
 /// decided 2026-09-03 (`plan.md`'s "Open decisions") to retain full rows
 /// — active and inactive — for all sixteen non-Simple/Language refset
 /// types, the same store change `moduleId`/`effectiveTime`/`active`
 /// needed for the six shared columns. Every other `memberFieldFilter`
-/// column, and the time shape, are still rejected — see
+/// column, including `targetEffectiveTime` (the time shape's second
+/// and last column), is still rejected — see
 /// [`ExpressionConstraint::MemberFilter`] and
 /// `spec/10-ecl-unimplemented.md`.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -963,6 +972,21 @@ pub enum MemberFilterKind {
     /// `RefsetDescriptorRefsetMember`, `DescriptionTypeRefsetMember`,
     /// and `MrcmDomainRefsetMember`) to reach it.
     AttributeInGroupCardinality(TermFilter),
+    /// `sourceEffectiveTime (=|!=|<=|<|>=|>) (timeValue | timeValueSet)`
+    /// — a `memberFieldFilter` (spec/10 rule 18), the time shape
+    /// (`timeComparisonOperator ws (timeValue | timeValueSet)`,
+    /// confirmed against the official ABNF) — the first implemented
+    /// column to use it. Reuses [`EffectiveTimeFilter`]'s exact shape
+    /// and grammar — the same production `{{ M effectiveTime }}`'s
+    /// shared-column filter ([`Self::EffectiveTime`]) already has —
+    /// just matched against `ModuleDependencyRefsetMember`'s own
+    /// `sourceEffectiveTime` column (spec/08) instead of the member
+    /// row's shared `effectiveTime`.
+    /// `ModuleDependencyRefsetMember`'s first filterable column: an
+    /// eleventh refset type outside the two map types. No implemented
+    /// column shares the RF2 field name `sourceEffectiveTime`, so
+    /// this needs its own variant too.
+    SourceEffectiveTime(EffectiveTimeFilter),
 }
 
 /// `numericComparisonOperator ws "#" numericValue` — a `memberFieldFilter`

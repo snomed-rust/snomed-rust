@@ -462,7 +462,20 @@ column, followed immediately too — still the string-search shape,
 another genuinely new variant, again no new row-set check — all six
 of that type's columns now share one row, completing its column
 coverage (the fourth refset type outside the two map types to reach
-it). `memberFieldFilter`
+it). `sourceEffectiveTime` (2026-09-10),
+`ModuleDependencyRefsetMember`'s first filterable column — an
+eleventh refset type outside the two map types — broke new ground on
+the *shape* rather than the type: the time shape
+(`timeComparisonOperator ws (timeValue | timeValueSet)`, confirmed
+against the ABNF), its first implemented column. Reused
+`EffectiveTimeFilter`/`time_comparison_matches` verbatim — the same
+machinery `{{ M effectiveTime }}`'s shared-column filter already has
+— so no new comparison logic, just a new `MemberFilterKind` variant
+and a `typed_field_row_matches` dispatch arm; the store's
+`module_dependency_member_rows` accessor was already present (every
+non-Simple/Language type was retained 2026-09-03 regardless of
+whether a filter existed for it yet), so no `snomed-store` change was
+needed. `memberFieldFilter`
 isn't one production but five in the official grammar, chosen by the
 named column's own semantic type
 (`expressionComparisonOperator ws subExpressionConstraint` for a concept
@@ -472,7 +485,8 @@ typedSearchTermSet)` vs. `mapGroup`'s `numericComparisonOperator ws "#"
 numericValue` vs. `grouped`'s `booleanComparisonOperator ws
 booleanValue`; also
 `timeComparisonOperator ws (timeValue | timeValueSet)`, confirmed against
-the ABNF, not implemented yet). Confirm which shape a column
+the ABNF — `sourceEffectiveTime` above is its first implemented
+column). Confirm which shape a column
 actually uses before implementing it — do not assume every remaining
 column reuses `mapTarget`'s string grammar just because it was first.
 `mapGroup` also caught a real bug this way: the existing `numeric_matches`
@@ -486,7 +500,7 @@ inspection. `mapPriority` reused that same numeric shape and
 `TermFilter`/`term_matches` verbatim. With the store side now done for
 all sixteen types, every
 *remaining* `memberFieldFilter` column
-(`sourceEffectiveTime`, `targetEffectiveTime`, …)
+(`targetEffectiveTime`, …)
 IS a free next increment — the cadence below applies to them cleanly,
 the same as any other filter kind. See `spec/10-ecl-unimplemented.md`.
 

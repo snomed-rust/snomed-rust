@@ -157,10 +157,11 @@ named column's own semantic type (confirmed against the official ABNF,
 subExpressionConstraint` (a concept reference), `numericComparisonOperator
 ws "#" numericValue`, `stringComparisonOperator ws (typedSearchTerm |
 typedSearchTermSet)`, `booleanComparisonOperator ws booleanValue`, or
-`timeComparisonOperator ws (timeValue | timeValueSet)`. Thirty
+`timeComparisonOperator ws (timeValue | timeValueSet)`. Thirty-one
 kinds are
-implemented, spanning four of the five shapes (string has thirteen,
-concept reference has eleven, numeric has five, boolean has one):
+implemented, spanning all five shapes (string has thirteen,
+concept reference has eleven, numeric has five, boolean has one, time
+has one):
 
 - `mapTarget (=|!=) (typedSearchTerm | typedSearchTermSet)` — the same
   `match:`/`wild:`/`exact:` search-term grammar `{{ D term }}` uses,
@@ -441,13 +442,32 @@ concept reference has eleven, numeric has five, boolean has one):
   refset type outside the two map types (after
   `RefsetDescriptorRefsetMember`, `DescriptionTypeRefsetMember`, and
   `MrcmDomainRefsetMember`) to reach it.
+- `sourceEffectiveTime (=|!=|<=|<|>=|>) (timeValue | timeValueSet)`
+  — the time shape (`timeComparisonOperator ws (timeValue |
+  timeValueSet)`, confirmed against the official ABNF), the first
+  `memberFieldFilter` column to use it. Reuses
+  [`EffectiveTimeFilter`]/`time_comparison_matches` verbatim — the
+  same grammar and machinery `{{ M effectiveTime }}` (the
+  shared-column filter) already has, just matched against
+  `ModuleDependencyRefsetMember`'s own `sourceEffectiveTime` column
+  (spec/08) instead of the member row's shared `effectiveTime`.
+  `ModuleDependencyRefsetMember`'s first filterable column — an
+  eleventh refset type outside the two map types, and the
+  `SnapshotStore::module_dependency_member_rows` accessor was
+  already present (decided 2026-09-03, retained for every
+  non-Simple/Language type regardless of whether `snomed-ecl` had a
+  filter for it yet), so this needed no `snomed-store` change, only
+  wiring the existing row set into `typed_field_row_matches`. No
+  other implemented column shares the RF2 field name
+  `sourceEffectiveTime`, so this needs its own variant too.
 
-All thirty reuse the shared dispatch `mapTarget` introduced
+All thirty-one reuse the shared dispatch `mapTarget` introduced
 (renamed `typed_field_row_matches` once a non-map type joined it): a
-block naming *any* of the thirty kinds is tested against
+block naming *any* of the thirty-one kinds is tested against
 `SimpleMap`/`ExtendedMap`/`Association`/`AttributeValue`/`OwlExpression`/
 `OrderedComponent`/`OrderedAssociation`/`MrcmModuleScope`/
-`RefsetDescriptor`/`DescriptionType`/`MrcmDomain`/`MrcmAttributeDomain`
+`RefsetDescriptor`/`DescriptionType`/`MrcmDomain`/`MrcmAttributeDomain`/
+`ModuleDependency`
 rows together
 rather than `member_rows`, and the "one row, all filters" and "active
 unless stated otherwise" rules above still hold across a block naming
@@ -460,17 +480,17 @@ any of `correlationId`/
 `attributeOrder`/`descriptionFormat`/`descriptionLength`/
 `domainConstraint`/`parentDomain`/`proximalPrimitiveConstraint`/
 `proximalPrimitiveRefinement`/`domainTemplateForPrecoordination`/
-`domainTemplateForPostcoordination`/`guideURL`/`domainId`/`ruleStrengthId`/`contentTypeId`/`grouped`/`attributeCardinality`/`attributeInGroupCardinality`
+`domainTemplateForPostcoordination`/`guideURL`/`domainId`/`ruleStrengthId`/`contentTypeId`/`grouped`/`attributeCardinality`/`attributeInGroupCardinality`/`sourceEffectiveTime`
 (the column is
 simply
 absent on that row source, the same "not this row's type" answer a
 shared-column filter gets from a row of the wrong refset type), so it
 can never be a spurious match.
 
-**Not implemented:** every other `memberFieldFilter` column, and the
-remaining shape — time (`sourceEffectiveTime`/`targetEffectiveTime`
-on `ModuleDependencyRefsetMember`, and
-the rest — see `spec/10-ecl-unimplemented.md`); the store retention
+**Not implemented:** every other `memberFieldFilter` column, including
+`targetEffectiveTime` — `ModuleDependencyRefsetMember`'s second and
+last column, the same time shape as `sourceEffectiveTime` — and
+the rest (see `spec/10-ecl-unimplemented.md`); the store retention
 that made these columns possible already covers every non-Simple/
 Language refset type (decided 2026-09-03, `plan.md`'s "Open decisions"),
 so each remaining column is a parser/eval increment only, not a further

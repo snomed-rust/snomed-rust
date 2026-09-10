@@ -744,11 +744,20 @@ impl Parser {
                     values,
                 }))
             }
+            TokenKind::Word(word) if word == "sourceEffectiveTime" => {
+                self.advance()?;
+                let operator = self.parse_time_comparison_operator()?;
+                let values = self.parse_time_value_set()?;
+                Ok(MemberFilterKind::SourceEffectiveTime(EffectiveTimeFilter {
+                    operator,
+                    values,
+                }))
+            }
             _ => {
                 let tok = self.peek().clone();
                 Err(Self::unexpected(
                     &tok,
-                    "`moduleId`, `effectiveTime`, `active`, `mapTarget`, `correlationId`, `mapGroup`, `mapPriority`, `mapRule`, `mapAdvice`, `mapCategoryId`, `targetComponentId`, `valueId`, `owlExpression`, `order`, `mrcmRuleRefsetId`, `attributeDescription`, `attributeType`, `attributeOrder`, `descriptionFormat`, `descriptionLength`, `domainConstraint`, `parentDomain`, `proximalPrimitiveConstraint`, `proximalPrimitiveRefinement`, `domainTemplateForPrecoordination`, `domainTemplateForPostcoordination`, `guideURL`, `domainId`, `ruleStrengthId`, `contentTypeId`, `grouped`, `attributeCardinality`, or `attributeInGroupCardinality`",
+                    "`moduleId`, `effectiveTime`, `active`, `mapTarget`, `correlationId`, `mapGroup`, `mapPriority`, `mapRule`, `mapAdvice`, `mapCategoryId`, `targetComponentId`, `valueId`, `owlExpression`, `order`, `mrcmRuleRefsetId`, `attributeDescription`, `attributeType`, `attributeOrder`, `descriptionFormat`, `descriptionLength`, `domainConstraint`, `parentDomain`, `proximalPrimitiveConstraint`, `proximalPrimitiveRefinement`, `domainTemplateForPrecoordination`, `domainTemplateForPostcoordination`, `guideURL`, `domainId`, `ruleStrengthId`, `contentTypeId`, `grouped`, `attributeCardinality`, `attributeInGroupCardinality`, or `sourceEffectiveTime`",
                 ))
             }
         }
@@ -2601,6 +2610,41 @@ mod tests {
         assert_eq!(values[0].search_type, crate::ast::SearchType::Match);
     }
 
+    /// `sourceEffectiveTime` (spec/10 rule 18) — the thirty-first
+    /// `memberFieldFilter` column, and the time shape's first
+    /// implemented column (`timeComparisonOperator ws (timeValue |
+    /// timeValueSet)`, confirmed against the official ABNF). Reuses
+    /// `parse_time_comparison_operator`/`parse_time_value_set`
+    /// verbatim — the same parsing `{{ M effectiveTime }}`'s
+    /// shared-column filter already has.
+    /// `ModuleDependencyRefsetMember`'s first filterable column, an
+    /// eleventh refset type outside the two map types. No implemented
+    /// column shares this RF2 field name, so it's a genuinely new
+    /// variant, but the store's `module_dependency_member_rows`
+    /// accessor was already present — no `snomed-store` change
+    /// needed.
+    #[test]
+    fn parses_member_filter_source_effective_time() {
+        let EC::MemberFilter { filters, .. } =
+            parse("^ 900000000000534007 {{ M sourceEffectiveTime >= \"20240101\" }}").unwrap()
+        else {
+            panic!("expected a member filter");
+        };
+        assert_eq!(filters.len(), 1);
+        let crate::ast::MemberFilterKind::SourceEffectiveTime(crate::ast::EffectiveTimeFilter {
+            operator,
+            values,
+        }) = &filters[0]
+        else {
+            panic!(
+                "expected a SourceEffectiveTime filter, got {:?}",
+                filters[0]
+            );
+        };
+        assert!(matches!(operator, crate::ast::TimeComparisonOp::Ge));
+        assert_eq!(values, &[EffectiveTime::new_unchecked(20240101)]);
+    }
+
     /// `mapGroup` (spec/10 rule 18) — the third `memberFieldFilter`
     /// column implemented, and the first to use the numeric grammar
     /// shape (`numericComparisonOperator ws "#" numericValue`, the same
@@ -2699,15 +2743,15 @@ mod tests {
         assert_eq!(values[0].search_type, crate::ast::SearchType::Wild);
     }
 
-    /// A field name this crate doesn't recognize (`sourceEffectiveTime`,
-    /// say — one of the time-shape columns on
-    /// `ModuleDependencyRefsetMember`, still unimplemented) falls to the
-    /// generic bucket, not `NotYetImplemented` — the same "genuinely
+    /// A field name this crate doesn't recognize (`targetEffectiveTime`,
+    /// say — `ModuleDependencyRefsetMember`'s second and last
+    /// time-shape column, still unimplemented) falls to the generic
+    /// bucket, not `NotYetImplemented` — the same "genuinely
     /// unimplemented" distinction rule 9 draws elsewhere.
     #[test]
     fn rejects_an_unrecognized_member_field_filter_generically() {
         assert!(matches!(
-            parse("^ 447562003 {{ M sourceEffectiveTime = \"x\" }}"),
+            parse("^ 447562003 {{ M targetEffectiveTime = \"20200101\" }}"),
             Err(EclError::UnexpectedKeyword { .. })
         ));
     }

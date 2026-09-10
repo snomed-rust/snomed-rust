@@ -208,11 +208,11 @@ its inactive rows.
 `descriptionFormat`/`descriptionLength`/`domainConstraint`/
 `parentDomain`/`proximalPrimitiveConstraint`/
 `proximalPrimitiveRefinement`/`domainTemplateForPrecoordination`/
-`domainTemplateForPostcoordination`/`guideURL`/`domainId`/`ruleStrengthId`/`contentTypeId`/`grouped`/`attributeCardinality`/`attributeInGroupCardinality`
+`domainTemplateForPostcoordination`/`guideURL`/`domainId`/`ruleStrengthId`/`contentTypeId`/`grouped`/`attributeCardinality`/`attributeInGroupCardinality`/`sourceEffectiveTime`
 filters
 (`spec/10-ecl.md` rule
 18) are
-the first thirty
+the first thirty-one
 consumers: the first seven dispatch directly to
 `simple_map_member_rows`/`extended_map_member_rows`
 (`correlationId`/`mapGroup`/`mapPriority`/`mapRule`/`mapAdvice`/
@@ -223,8 +223,8 @@ consumers: the first seven dispatch directly to
 `descriptionFormat`/`descriptionLength`/`domainConstraint`/
 `parentDomain`/`proximalPrimitiveConstraint`/`proximalPrimitiveRefinement`/
 `domainTemplateForPrecoordination`/`domainTemplateForPostcoordination`/
-`guideURL`/`domainId`/`ruleStrengthId`/`contentTypeId`/`grouped`/`attributeCardinality`/`attributeInGroupCardinality`
-— the first twenty-three
+`guideURL`/`domainId`/`ruleStrengthId`/`contentTypeId`/`grouped`/`attributeCardinality`/`attributeInGroupCardinality`/`sourceEffectiveTime`
+— the first twenty-four
 outside
 the two map types — dispatch to `association_member_rows`/
 `attribute_value_member_rows`/`owl_expression_member_rows`/
@@ -269,7 +269,18 @@ types, after `RefsetDescriptorRefsetMember`, `DescriptionTypeRefsetMember`,
 and `MrcmDomainRefsetMember`, to reach it); `grouped` is also
 the first `memberFieldFilter` column on the boolean shape, confirming
 the same store retention and dispatch pattern generalizes to that
-shape too, not just concept-reference/string-search/numeric. All
+shape too, not just concept-reference/string-search/numeric.
+`sourceEffectiveTime` needed its own new thirteenth row-set check in
+`typed_field_row_matches` (`module_dependency_member_rows`) since
+it's `ModuleDependencyRefsetMember`'s first filterable column — an
+eleventh refset type outside the two map types — but the accessor
+itself was *already present* in the store (every non-Simple/Language
+type was retained 2026-09-03 regardless of whether `snomed-ecl` had a
+filter for it yet), so this was purely a `snomed-ecl` dispatch wiring
+change, no `snomed-store` change. It's also the time shape's first
+implemented column, confirming the pattern generalizes to that shape
+too — every `memberFieldFilter` grammar shape now has at least one
+implemented column. All
 row sets are still
 tested whenever any field-filter kind appears in a block, since a row
 missing the column simply fails that filter rather than needing its

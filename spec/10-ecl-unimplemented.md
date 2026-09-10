@@ -84,9 +84,8 @@ token shape:
   `attributeOrder`/`descriptionFormat`/`descriptionLength`/
   `domainConstraint`/`parentDomain`/`proximalPrimitiveConstraint`/
   `proximalPrimitiveRefinement`/`domainTemplateForPrecoordination`/
-  `domainTemplateForPostcoordination`/`guideURL`/`domainId`/`ruleStrengthId`/`contentTypeId`/`grouped`/`attributeCardinality`/`attributeInGroupCardinality`
-  — a refset-type-specific column (`sourceEffectiveTime`,
-  `targetEffectiveTime`, …), as
+  `domainTemplateForPostcoordination`/`guideURL`/`domainId`/`ruleStrengthId`/`contentTypeId`/`grouped`/`attributeCardinality`/`attributeInGroupCardinality`/`sourceEffectiveTime`
+  — a refset-type-specific column (`targetEffectiveTime`, …), as
   opposed to the three shared-column kinds
   (`moduleId`/`effectiveTime`/`active`) implemented 2026-09-01 after both
   `^` and `^R`. `refsetFieldName` is `1*alpha` in the official grammar
@@ -236,8 +235,23 @@ token shape:
   completing that type's column coverage: the fourth refset type
   outside the two map types (after `RefsetDescriptorRefsetMember`,
   `DescriptionTypeRefsetMember`, and `MrcmDomainRefsetMember`) to
-  reach it.
-  Time remains unimplemented, with no example yet. See
+  reach it;
+  `sourceEffectiveTime` (2026-09-10) — the time shape's first
+  implemented column (`timeComparisonOperator ws (timeValue |
+  timeValueSet)`, confirmed against the official ABNF), reusing
+  `EffectiveTimeFilter`/`time_comparison_matches` verbatim (the same
+  machinery `{{ M effectiveTime }}`'s shared-column filter already
+  has), `ModuleDependencyRefsetMember`'s first filterable column —
+  an eleventh refset type outside the two map types. No new
+  `snomed-store` change needed: `module_dependency_member_rows`
+  was already present, retained for every non-Simple/Language type
+  regardless of whether `snomed-ecl` had a filter for it yet — this
+  was purely a `typed_field_row_matches` dispatch wiring plus a new
+  `MemberFilterKind` variant, since no implemented column shares the
+  RF2 field name `sourceEffectiveTime`.
+  `targetEffectiveTime` remains unimplemented, with no example yet
+  beyond it — `ModuleDependencyRefsetMember`'s second and last
+  column, the same time shape. See
   `SnapshotStore::simple_map_member_rows`/`extended_map_member_rows`/
   `association_member_rows` and
   spec/09 rule 4. Decided 2026-09-03 in `plan.md`'s "Open decisions":
