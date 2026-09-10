@@ -13,6 +13,8 @@ together, in dependency order (`snomed-core` → `snomed-rf2` → `snomed-owl`
 
 ## [Unreleased]
 
+## [0.47.0] — 2026-09-10
+
 **New ECL capability, additive.** `{{ M ... }}`'s `memberFieldFilter`
 gains its thirty-second and final `ModuleDependencyRefsetMember`
 column, `targetEffectiveTime` — `ModuleDependencyRefsetMember`'s
