@@ -208,11 +208,11 @@ its inactive rows.
 `descriptionFormat`/`descriptionLength`/`domainConstraint`/
 `parentDomain`/`proximalPrimitiveConstraint`/
 `proximalPrimitiveRefinement`/`domainTemplateForPrecoordination`/
-`domainTemplateForPostcoordination`/`guideURL`/`domainId`/`ruleStrengthId`/`contentTypeId`/`grouped`
+`domainTemplateForPostcoordination`/`guideURL`/`domainId`/`ruleStrengthId`/`contentTypeId`/`grouped`/`attributeCardinality`
 filters
 (`spec/10-ecl.md` rule
 18) are
-the first twenty-nine
+the first thirty
 consumers: the first seven dispatch directly to
 `simple_map_member_rows`/`extended_map_member_rows`
 (`correlationId`/`mapGroup`/`mapPriority`/`mapRule`/`mapAdvice`/
@@ -223,8 +223,8 @@ consumers: the first seven dispatch directly to
 `descriptionFormat`/`descriptionLength`/`domainConstraint`/
 `parentDomain`/`proximalPrimitiveConstraint`/`proximalPrimitiveRefinement`/
 `domainTemplateForPrecoordination`/`domainTemplateForPostcoordination`/
-`guideURL`/`domainId`/`ruleStrengthId`/`contentTypeId`/`grouped`
-— the first sixteen
+`guideURL`/`domainId`/`ruleStrengthId`/`contentTypeId`/`grouped`/`attributeCardinality`
+— the first seventeen
 outside
 the two map types — dispatch to `association_member_rows`/
 `attribute_value_member_rows`/`owl_expression_member_rows`/
@@ -259,8 +259,9 @@ reach it); `domainId` needed its own new twelfth row-set check
 (`mrcm_attribute_domain_member_rows`) since it's
 `MrcmAttributeDomainRefsetMember`'s first filterable column — a
 tenth refset type outside the two map types, and the accessor was
-already present in the store; `ruleStrengthId`/`contentTypeId`/`grouped`
-then all reused that same twelfth row set — all four of
+already present in the store; `ruleStrengthId`/`contentTypeId`/`grouped`/
+`attributeCardinality`
+then all reused that same twelfth row set — all five of
 `MrcmAttributeDomainRefsetMember`'s implemented columns now share one
 row, no new row-set check needed for any of them; `grouped` is also
 the first `memberFieldFilter` column on the boolean shape, confirming

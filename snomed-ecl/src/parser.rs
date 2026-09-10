@@ -726,11 +726,20 @@ impl Parser {
                     value,
                 }))
             }
+            TokenKind::Word(word) if word == "attributeCardinality" => {
+                self.advance()?;
+                let negated = self.parse_boolean_comparison_operator()?;
+                let values = self.parse_typed_search_term_set()?;
+                Ok(MemberFilterKind::AttributeCardinality(TermFilter {
+                    negated,
+                    values,
+                }))
+            }
             _ => {
                 let tok = self.peek().clone();
                 Err(Self::unexpected(
                     &tok,
-                    "`moduleId`, `effectiveTime`, `active`, `mapTarget`, `correlationId`, `mapGroup`, `mapPriority`, `mapRule`, `mapAdvice`, `mapCategoryId`, `targetComponentId`, `valueId`, `owlExpression`, `order`, `mrcmRuleRefsetId`, `attributeDescription`, `attributeType`, `attributeOrder`, `descriptionFormat`, `descriptionLength`, `domainConstraint`, `parentDomain`, `proximalPrimitiveConstraint`, `proximalPrimitiveRefinement`, `domainTemplateForPrecoordination`, `domainTemplateForPostcoordination`, `guideURL`, `domainId`, `ruleStrengthId`, `contentTypeId`, or `grouped`",
+                    "`moduleId`, `effectiveTime`, `active`, `mapTarget`, `correlationId`, `mapGroup`, `mapPriority`, `mapRule`, `mapAdvice`, `mapCategoryId`, `targetComponentId`, `valueId`, `owlExpression`, `order`, `mrcmRuleRefsetId`, `attributeDescription`, `attributeType`, `attributeOrder`, `descriptionFormat`, `descriptionLength`, `domainConstraint`, `parentDomain`, `proximalPrimitiveConstraint`, `proximalPrimitiveRefinement`, `domainTemplateForPrecoordination`, `domainTemplateForPostcoordination`, `guideURL`, `domainId`, `ruleStrengthId`, `contentTypeId`, `grouped`, or `attributeCardinality`",
                 ))
             }
         }
@@ -2518,6 +2527,38 @@ mod tests {
         assert!(value);
     }
 
+    /// `attributeCardinality` (spec/10 rule 18) — the twenty-ninth
+    /// `memberFieldFilter` column, and `MrcmAttributeDomainRefsetMember`'s
+    /// fifth column (after `domainId`/`ruleStrengthId`/`contentTypeId`/
+    /// `grouped`). Back on the string-search shape, reusing
+    /// `mapTarget`/`domainConstraint`'s exact grammar. No other
+    /// implemented column shares this RF2 field name, so it's a
+    /// genuinely new variant, but — since all five columns share one
+    /// row — no new row-set check.
+    #[test]
+    fn parses_member_filter_attribute_cardinality() {
+        let EC::MemberFilter { filters, .. } =
+            parse("^ 723592007 {{ M attributeCardinality = \"0..1\" }}").unwrap()
+        else {
+            panic!("expected a member filter");
+        };
+        assert_eq!(filters.len(), 1);
+        let crate::ast::MemberFilterKind::AttributeCardinality(crate::ast::TermFilter {
+            negated,
+            values,
+        }) = &filters[0]
+        else {
+            panic!(
+                "expected an AttributeCardinality filter, got {:?}",
+                filters[0]
+            );
+        };
+        assert!(!negated);
+        assert_eq!(values.len(), 1);
+        assert_eq!(values[0].text, "0..1");
+        assert_eq!(values[0].search_type, crate::ast::SearchType::Match);
+    }
+
     /// `mapGroup` (spec/10 rule 18) — the third `memberFieldFilter`
     /// column implemented, and the first to use the numeric grammar
     /// shape (`numericComparisonOperator ws "#" numericValue`, the same
@@ -2623,7 +2664,7 @@ mod tests {
     #[test]
     fn rejects_an_unrecognized_member_field_filter_generically() {
         assert!(matches!(
-            parse("^ 447562003 {{ M attributeCardinality = \"x\" }}"),
+            parse("^ 447562003 {{ M attributeInGroupCardinality = \"x\" }}"),
             Err(EclError::UnexpectedKeyword { .. })
         ));
     }

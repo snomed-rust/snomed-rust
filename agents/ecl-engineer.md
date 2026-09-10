@@ -451,7 +451,12 @@ carries a wildcard alternative this one doesn't. New
 `BooleanFieldFilter` (reusing the `TokenKind::True`/`TokenKind::False`
 tokens `ActiveValue`'s own parsing already lexes) and
 `MemberFilterKind::Grouped`, again no new row-set check — all four of
-that type's columns now share one row. `memberFieldFilter`
+that type's columns now share one row. `attributeCardinality`
+(2026-09-10), `MrcmAttributeDomainRefsetMember`'s fifth column,
+followed immediately too — back on the string-search shape (reusing
+`mapTarget`'s grammar and `term_matches` verbatim), another genuinely
+new variant, again no new row-set check — all five of that type's
+columns now share one row. `memberFieldFilter`
 isn't one production but five in the official grammar, chosen by the
 named column's own semantic type
 (`expressionComparisonOperator ws subExpressionConstraint` for a concept
@@ -475,7 +480,7 @@ inspection. `mapPriority` reused that same numeric shape and
 `TermFilter`/`term_matches` verbatim. With the store side now done for
 all sixteen types, every
 *remaining* `memberFieldFilter` column
-(`attributeCardinality`, `sourceEffectiveTime`, …)
+(`attributeInGroupCardinality`, `sourceEffectiveTime`, …)
 IS a free next increment — the cadence below applies to them cleanly,
 the same as any other filter kind. See `spec/10-ecl-unimplemented.md`.
 

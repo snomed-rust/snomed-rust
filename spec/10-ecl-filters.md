@@ -410,10 +410,23 @@ concept reference has eight, numeric has five):
   `ruleStrengthId`/`contentTypeId`) — all four live on the same row,
   tested against the same `SnapshotStore::mrcm_attribute_domain_member_rows`,
   no new row-set check needed.
+- `attributeCardinality (=|!=) (typedSearchTerm | typedSearchTermSet)`
+  — the same string-search shape and the same
+  `TermFilter`/`term_matches` machinery as
+  `mapTarget`/`domainConstraint`/`parentDomain`/
+  `proximalPrimitiveConstraint`/`proximalPrimitiveRefinement`/
+  `domainTemplateForPrecoordination`/`domainTemplateForPostcoordination`/
+  `guideURL`, matched against the member row's own
+  `attributeCardinality` column (the RF2 cardinality string, e.g.
+  `"0..1"`, not a parsed `Cardinality`). `MrcmAttributeDomainRefsetMember`'s
+  fifth column (after `domainId`/`ruleStrengthId`/`contentTypeId`/
+  `grouped`) — all five live on the same row, tested against the same
+  `SnapshotStore::mrcm_attribute_domain_member_rows`, no new row-set
+  check needed.
 
-All twenty-eight reuse the shared dispatch `mapTarget` introduced
+All twenty-nine reuse the shared dispatch `mapTarget` introduced
 (renamed `typed_field_row_matches` once a non-map type joined it): a
-block naming *any* of the twenty-eight kinds is tested against
+block naming *any* of the twenty-nine kinds is tested against
 `SimpleMap`/`ExtendedMap`/`Association`/`AttributeValue`/`OwlExpression`/
 `OrderedComponent`/`OrderedAssociation`/`MrcmModuleScope`/
 `RefsetDescriptor`/`DescriptionType`/`MrcmDomain`/`MrcmAttributeDomain`
@@ -429,7 +442,7 @@ any of `correlationId`/
 `attributeOrder`/`descriptionFormat`/`descriptionLength`/
 `domainConstraint`/`parentDomain`/`proximalPrimitiveConstraint`/
 `proximalPrimitiveRefinement`/`domainTemplateForPrecoordination`/
-`domainTemplateForPostcoordination`/`guideURL`/`domainId`/`ruleStrengthId`/`contentTypeId`/`grouped`
+`domainTemplateForPostcoordination`/`guideURL`/`domainId`/`ruleStrengthId`/`contentTypeId`/`grouped`/`attributeCardinality`
 (the column is
 simply
 absent on that row source, the same "not this row's type" answer a

@@ -1,10 +1,56 @@
 # Changelog archive
 
-Entries for versions 0.17.0 and earlier, moved verbatim from
+Entries for versions 0.19.0 and earlier, moved verbatim from
 [`CHANGELOG.md`](../CHANGELOG.md) to keep that file inside the
 repository's 40 KB per-document budget
 (rule 1 of `spec/docs-budget-and-links/index.md`). Newer entries live
 there.
+
+## [0.19.0] — 2026-09-04
+
+**New ECL capability, additive.** `{{ M ... }}`'s `memberFieldFilter`
+gains its fifth column, `mapRule` — after both `^` and `^R`. A minor
+bump: new public API, no removals or signature changes to anything
+existing.
+
+### Added
+
+- `snomed-ecl`: `{{ M mapRule = "TRUE" }}` restricts to `ExtendedMap`
+  member rows whose own `mapRule` column matches — the same
+  `match:`/`wild:`/`exact:` search-term grammar `mapTarget` uses. Works
+  after both `^` and `^R`, and conjoins with `mapTarget` and the
+  shared-column kinds on the same member row. Only `ExtendedMapRefsetMember`
+  rows carry a `mapRule` column; `SimpleMapRefsetMember` and every other
+  refset type never match this filter. New public API:
+  `MemberFilterKind::MapRule`.
+
+### Notes for consumers
+
+- No public API removed or changed signature; existing code compiles
+  unmodified against this release.
+
+## [0.18.0] — 2026-09-04
+
+**New ECL capability, additive.** `{{ M ... }}`'s `memberFieldFilter`
+gains its fourth column, `mapPriority` — after both `^` and `^R`. A
+minor bump: new public API, no removals or signature changes to anything
+existing.
+
+### Added
+
+- `snomed-ecl`: `{{ M mapPriority = #2 }}` restricts to `ExtendedMap`
+  member rows whose own `mapPriority` column satisfies the comparison —
+  `=`, `!=`, `<=`, `<`, `>=`, or `>`, the same numeric grammar `mapGroup`
+  uses. Works after both `^` and `^R`, and conjoins with `mapGroup`,
+  `mapTarget`/`correlationId`, and the shared-column kinds on the same
+  member row. Only `ExtendedMapRefsetMember` rows carry a `mapPriority`
+  column; `SimpleMapRefsetMember` and every other refset type never
+  match this filter. New public API: `MemberFilterKind::MapPriority`.
+
+### Notes for consumers
+
+- No public API removed or changed signature; existing code compiles
+  unmodified against this release.
 
 ## [0.17.0] — 2026-09-03
 

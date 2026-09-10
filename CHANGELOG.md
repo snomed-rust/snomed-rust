@@ -13,6 +13,39 @@ together, in dependency order (`snomed-core` → `snomed-rf2` → `snomed-owl`
 
 ## [Unreleased]
 
+**New ECL capability, additive.** `{{ M ... }}`'s `memberFieldFilter`
+gains its twenty-ninth column, `attributeCardinality` —
+`MrcmAttributeDomainRefsetMember`'s fifth column (after
+`domainId`/`ruleStrengthId`/`contentTypeId`/`grouped`), after both
+`^` and `^R`. Back on the string-search shape, reusing
+`mapTarget`/`domainConstraint`'s exact grammar and `term_matches`;
+needed a genuinely new `MemberFilterKind` variant (no implemented
+column shares this RF2 field name) but no new row-set check, reusing
+the type's existing row set. A minor bump: new public API, no
+removals or signature changes to anything existing.
+
+### Added
+
+- `snomed-ecl`: `{{ M attributeCardinality = "0..1" }}` restricts to
+  `MrcmAttributeDomain` member rows whose own `attributeCardinality`
+  column matches — the same `match:`/`wild:`/`exact:` search-term
+  grammar `mapTarget`/`domainConstraint`/`parentDomain`/
+  `proximalPrimitiveConstraint`/`proximalPrimitiveRefinement`/
+  `domainTemplateForPrecoordination`/`domainTemplateForPostcoordination`/
+  `guideURL` use (reusing `TermFilter`'s exact shape and
+  `term_matches`). Works after both `^` and `^R`, and conjoins with
+  `domainId`/`ruleStrengthId`/`contentTypeId`/`grouped` and the other
+  shared-column kinds on the same member row — all five
+  `MrcmAttributeDomainRefsetMember` columns implemented so far live
+  on the same row, so a block naming any combination is satisfied by
+  that one row. Only `MrcmAttributeDomainRefsetMember` rows carry an
+  `attributeCardinality` column; every other row source never
+  matches. `memberFieldFilter`'s twenty-ninth column, and
+  `MrcmAttributeDomainRefsetMember`'s fifth. Needed a genuinely new
+  `MemberFilterKind` variant (no implemented column shares this RF2
+  field name) but no new row-set check, reusing the type's existing
+  `SnapshotStore::mrcm_attribute_domain_member_rows`.
+
 ## [0.43.0] — 2026-09-09
 
 **New ECL capability, additive.** `{{ M ... }}`'s `memberFieldFilter`
@@ -766,53 +799,7 @@ signature changes to anything existing.
   the new `MaxNestingDepthExceeded` variant is not a breaking match
   change for existing consumers.
 
-## [0.19.0] — 2026-09-04
-
-**New ECL capability, additive.** `{{ M ... }}`'s `memberFieldFilter`
-gains its fifth column, `mapRule` — after both `^` and `^R`. A minor
-bump: new public API, no removals or signature changes to anything
-existing.
-
-### Added
-
-- `snomed-ecl`: `{{ M mapRule = "TRUE" }}` restricts to `ExtendedMap`
-  member rows whose own `mapRule` column matches — the same
-  `match:`/`wild:`/`exact:` search-term grammar `mapTarget` uses. Works
-  after both `^` and `^R`, and conjoins with `mapTarget` and the
-  shared-column kinds on the same member row. Only `ExtendedMapRefsetMember`
-  rows carry a `mapRule` column; `SimpleMapRefsetMember` and every other
-  refset type never match this filter. New public API:
-  `MemberFilterKind::MapRule`.
-
-### Notes for consumers
-
-- No public API removed or changed signature; existing code compiles
-  unmodified against this release.
-
-## [0.18.0] — 2026-09-04
-
-**New ECL capability, additive.** `{{ M ... }}`'s `memberFieldFilter`
-gains its fourth column, `mapPriority` — after both `^` and `^R`. A
-minor bump: new public API, no removals or signature changes to anything
-existing.
-
-### Added
-
-- `snomed-ecl`: `{{ M mapPriority = #2 }}` restricts to `ExtendedMap`
-  member rows whose own `mapPriority` column satisfies the comparison —
-  `=`, `!=`, `<=`, `<`, `>=`, or `>`, the same numeric grammar `mapGroup`
-  uses. Works after both `^` and `^R`, and conjoins with `mapGroup`,
-  `mapTarget`/`correlationId`, and the shared-column kinds on the same
-  member row. Only `ExtendedMapRefsetMember` rows carry a `mapPriority`
-  column; `SimpleMapRefsetMember` and every other refset type never
-  match this filter. New public API: `MemberFilterKind::MapPriority`.
-
-### Notes for consumers
-
-- No public API removed or changed signature; existing code compiles
-  unmodified against this release.
-
-Entries for 0.17.0 and earlier live in
+Entries for 0.19.0 and earlier live in
 [`docs/changelog-archive.md`](docs/changelog-archive.md) — moved there
 verbatim to keep this file inside the repository's 40 KB per-document
 budget (rule 1 of `spec/docs-budget-and-links/index.md`).

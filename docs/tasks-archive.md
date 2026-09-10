@@ -1,7 +1,7 @@
 # Tasks archive — index
 
 [`tasks.md`](../tasks.md) keeps the current checklist and the recent
-entries; everything older lives here, split into forty-two files
+entries; everything older lives here, split into forty-three files
 that each
 stay inside the repository's 40 KB per-document budget. Entries were moved
 verbatim — this is a historical record, not a summary, and it is worth
@@ -54,6 +54,7 @@ so the paths quoted here still resolve.
 | [`tasks-archive-40.md`](tasks-archive-40.md) | 2026-09-08 | `memberFieldFilter`'s `guideURL` column, completing `MrcmDomainRefsetMember`'s column coverage; release 0.38.0 |
 | [`tasks-archive-41.md`](tasks-archive-41.md) | 2026-09-08/09 | Release 0.39.0; `memberFieldFilter`'s `domainId` column, the first on `MrcmAttributeDomainRefsetMember` (a tenth refset type outside the two map types) |
 | [`tasks-archive-42.md`](tasks-archive-42.md) | 2026-09-09 | Release 0.40.0; `memberFieldFilter`'s `ruleStrengthId` column (`MrcmAttributeDomainRefsetMember`'s second column) |
+| [`tasks-archive-43.md`](tasks-archive-43.md) | 2026-09-09 | Release 0.41.0; `memberFieldFilter`'s `contentTypeId` column (`MrcmAttributeDomainRefsetMember`'s third column) |
 
 Older entries are shorter and more granular than recent ones: they were
 written a change at a time while the workspace was being built from

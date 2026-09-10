@@ -84,8 +84,8 @@ token shape:
   `attributeOrder`/`descriptionFormat`/`descriptionLength`/
   `domainConstraint`/`parentDomain`/`proximalPrimitiveConstraint`/
   `proximalPrimitiveRefinement`/`domainTemplateForPrecoordination`/
-  `domainTemplateForPostcoordination`/`guideURL`/`domainId`/`ruleStrengthId`/`contentTypeId`/`grouped`
-  — a refset-type-specific column (`attributeCardinality`,
+  `domainTemplateForPostcoordination`/`guideURL`/`domainId`/`ruleStrengthId`/`contentTypeId`/`grouped`/`attributeCardinality`
+  — a refset-type-specific column (`attributeInGroupCardinality`,
   `sourceEffectiveTime`, …), as
   opposed to the three shared-column kinds
   (`moduleId`/`effectiveTime`/`active`) implemented 2026-09-01 after both
@@ -224,7 +224,11 @@ token shape:
   (reusing the `TokenKind::True`/`TokenKind::False` tokens
   `ActiveValue`'s own parsing already lexes, but without `active`'s
   wildcard alternative, since `booleanValue` has none), no new
-  row-set check needed.
+  row-set check needed;
+  `attributeCardinality` (2026-09-10) — the twelfth
+  string-search-shape column, `MrcmAttributeDomainRefsetMember`'s
+  fifth column (all five columns share one row) — reuses
+  `mapTarget`'s grammar verbatim, no new row-set check needed.
   Time remains unimplemented, with no example yet. See
   `SnapshotStore::simple_map_member_rows`/`extended_map_member_rows`/
   `association_member_rows` and

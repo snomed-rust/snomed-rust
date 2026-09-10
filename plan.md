@@ -263,9 +263,10 @@ and harmonizes it with the sibling repositories (`hl7-rust`, `er7-rust`,
   `guideURL`,
   `domainId`,
   `ruleStrengthId`,
-  `contentTypeId`, and
-  `grouped` are the
-  first twenty-nine
+  `contentTypeId`,
+  `grouped`, and
+  `attributeCardinality` are the
+  first thirty
   concrete fields
   built on this retention (`snomed-ecl`, spec/10 rule 18): the
   `memberFieldFilter` grammar alternative, tested against
@@ -285,7 +286,7 @@ and harmonizes it with the sibling repositories (`hl7-rust`, `er7-rust`,
   `owlExpression`/`domainConstraint`/`parentDomain`/
   `proximalPrimitiveConstraint`/`proximalPrimitiveRefinement`/
   `domainTemplateForPrecoordination`/`domainTemplateForPostcoordination`/
-  `guideURL`
+  `guideURL`/`attributeCardinality`
   the string-search
   shape, `correlationId`/`mapCategoryId`/
   `targetComponentId`/`valueId`/`mrcmRuleRefsetId`/`attributeDescription`/
@@ -313,9 +314,9 @@ and harmonizes it with the sibling repositories (`hl7-rust`, `er7-rust`,
   `descriptionFormat`/`descriptionLength`/`domainConstraint`/
   `parentDomain`/`proximalPrimitiveConstraint`/
   `proximalPrimitiveRefinement`/`domainTemplateForPrecoordination`/
-  `domainTemplateForPostcoordination`/`guideURL`/`domainId`/`ruleStrengthId`/`contentTypeId`/`grouped`
+  `domainTemplateForPostcoordination`/`guideURL`/`domainId`/`ruleStrengthId`/`contentTypeId`/`grouped`/`attributeCardinality`
   are the
-  first twenty-one fields on refset
+  first twenty-two fields on refset
   types
   other than the two
   map types (`AssociationRefsetMember`/`AttributeValueRefsetMember`/
@@ -332,7 +333,7 @@ and harmonizes it with the sibling repositories (`hl7-rust`, `er7-rust`,
   past `ExtendedMap`/`SimpleMap` across every grammar shape, not just
   the concept-reference one. Every
   other `memberFieldFilter` column
-  (`attributeCardinality`, `sourceEffectiveTime`, …)
+  (`attributeInGroupCardinality`, `sourceEffectiveTime`, …)
   remains rejected generically —
   not by a fixed keyword list (`refsetFieldName` is `1*alpha`, confirmed
   against the official ABNF) — but each is now a free `snomed-ecl`
@@ -348,9 +349,9 @@ and harmonizes it with the sibling repositories (`hl7-rust`, `er7-rust`,
 ## Current status
 
 All eight phases above are closed. As of `memberFieldFilter`'s
-`grouped` (2026-09-09, below) the
+`attributeCardinality` (2026-09-10, below) the
 workspace is 9 published
-crates with zero dependencies, 498 tests, a clean
+crates with zero dependencies, 501 tests, a clean
 `cargo clippy --all-targets`, 13 fuzz targets, and six criterion
 benchmark files. What is *not* done is tracked
 in two places and nowhere
@@ -464,12 +465,16 @@ another genuinely new variant, again no new row-set check since both
 columns share one row; `contentTypeId` (2026-09-09) is
 `MrcmAttributeDomainRefsetMember`'s third column, another genuinely
 new variant, again no new row-set check since all three columns
-share one row; and `grouped` (2026-09-09) is
+share one row; `grouped` (2026-09-09) is
 `MrcmAttributeDomainRefsetMember`'s fourth column — the first
 `memberFieldFilter` column on the boolean shape
 (`booleanComparisonOperator ws booleanValue`, confirmed against the
 official ABNF before writing any Rust), new `BooleanFieldFilter`,
-again no new row-set check since all four columns share one row. In
+again no new row-set check since all four columns share one row; and
+`attributeCardinality` (2026-09-10) is
+`MrcmAttributeDomainRefsetMember`'s fifth column, back on the
+string-search shape, another genuinely new variant, again no new
+row-set check since all five columns share one row. In
 between, the
 `ecl_parse` fuzz target's CI smoke run caught
 a real stack overflow on pathologically deep `(`/refinement/
