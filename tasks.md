@@ -68,12 +68,78 @@ shape's first implemented column, release 0.46.0,
 `ModuleDependencyRefsetMember`'s column coverage, release 0.47.0,
 `memberFieldFilter`'s `ruleStrengthId`/`contentTypeId` extending to
 `MrcmAttributeRangeRefsetMember`, release 0.48.0,
-`memberFieldFilter`'s `rangeConstraint` column, and release 0.49.0,
+`memberFieldFilter`'s `rangeConstraint` column, release 0.49.0,
+`memberFieldFilter`'s `attributeRule` column, completing
+`MrcmAttributeRangeRefsetMember`'s column coverage, and the second
+`spec/10` split (`spec/10-ecl-member-filters.md`),
 live in
 [`docs/tasks-archive.md`](docs/tasks-archive.md) — moved there verbatim,
 most recently on 2026-09-11, to keep this file inside the repository's
 40 KB per-document budget. Search both when asking "has this come up
 before".
+
+## Done (2026-09-11, ECL `{{ M ... }}` `memberFieldFilter`: `languageDialectCode`, `ComponentAnnotationRefsetMember`'s first column)
+
+- [x] **`snomed-ecl`**: `MemberFilterKind::LanguageDialectCode(TermFilter)`
+      — `languageDialectCode (=|!=) (typedSearchTerm |
+      typedSearchTermSet)`, the string-search shape again, reusing
+      `mapTarget`/`rangeConstraint`/`attributeRule`'s exact grammar and
+      `term_matches` verbatim, but on a genuinely new type this time:
+      `ComponentAnnotationRefsetMember`, a thirteenth refset type
+      outside the two map types — the thirty-fifth `memberFieldFilter`
+      column. No implemented column shares the RF2 field name
+      `languageDialectCode`, so a genuinely new variant. Since it's
+      that type's first filterable column, also a genuinely new
+      fifteenth row-set check
+      (`SnapshotStore::component_annotation_member_rows`) — but the
+      accessor itself was already present in the store from the
+      sixteen-type retention decision, so this was `snomed-ecl`
+      dispatch wiring only, no `snomed-store` change. Not yet extended
+      to `MemberAnnotationRefsetMember`'s own `languageDialectCode`
+      column (a distinct row sharing only the RF2 field name — the
+      same open extension `ruleStrengthId`/`contentTypeId` had before
+      reaching `MrcmAttributeRangeRefsetMember`).
+- [x] Discovered and worked around a lexer-keyword collision while
+      picking the `rejects_an_unrecognized_member_field_filter_generically`
+      test's placeholder: `typeId` (a natural next candidate, and
+      `ComponentAnnotationRefsetMember`'s own remaining column) is
+      already a dedicated `TokenKind::TypeIdKeyword` (used by
+      `{{ D typeId = ... }}`), so it lexes differently from a plain
+      `Word` and falls to `EclError::UnexpectedToken` rather than the
+      `UnexpectedKeyword` bucket every other unrecognized
+      `memberFieldFilter` name falls to. Switched the test (and the
+      two prior mentions in `spec/10-ecl-unimplemented.md`) to `value`
+      instead — `ComponentAnnotationRefsetMember`'s actual remaining
+      unimplemented column, confirmed keyword-collision-free.
+- [x] 2 new parser tests, 2 new eval tests (matches
+      `ComponentAnnotation` rows after both `^` and `^R`; never
+      matches `MrcmAttributeDomain` rows) — 522/522 total, up from
+      519.
+- [x] Updated: `spec/10-ecl-member-filters.md` (new bullet,
+      dispatch-list and shape-count updates — thirty-five kinds,
+      string-search now sixteen of them), `spec/10-ecl-unimplemented.md`
+      (keyword list, narrative history, the `typeId` collision note,
+      swapped the unimplemented-column example to `value`),
+      `snomed-ecl/src/lib.rs`, `snomed-ecl/README.md` (table row,
+      not-yet-implemented list, same example swap),
+      `agents/ecl-engineer.md`, `agents/store-engineer.md`
+      (twenty-eight consumers outside the map types, fifteen row-set
+      checks total), `plan.md` (Open decisions paragraph, Current
+      status test count, Since 0.9.0 narrative), `CHANGELOG.md`.
+- [x] **`CHANGELOG.md` crossed its own 40 KB budget a sixteenth
+      time** once this entry's `[Unreleased]` section was added —
+      the fifteenth time was at `attributeRule`/0.50.0.
+      `docs/changelog-archive.md` had room (10.8 KB free), so a
+      direct single-section move sufficed: `[0.30.0]` moved from
+      `CHANGELOG.md` into `docs/changelog-archive.md` ahead of
+      `[0.29.0]`, no cascade needed.
+- [x] **`tasks.md` crossed its own 40 KB budget too** once this Done
+      entry was drafted — the oldest remaining Done section (the
+      2026-09-10 `attributeRule`/second-spec-split entry) moved
+      verbatim into a new `docs/tasks-archive-51.md`, indexed in
+      `docs/tasks-archive.md` (fifty-one files now).
+- [x] Verified: build/clippy/fmt/test (522/522)/check-docs/
+      check-trademarks/spec_citations all clean.
 
 ## Done (2026-09-11, Release 0.50.0 — `memberFieldFilter`'s `attributeRule`, completes `MrcmAttributeRangeRefsetMember`'s column coverage, thirty-eighth self-decided release)
 
@@ -110,81 +176,11 @@ before".
 - [x] Verified: build/clippy/fmt/test (519/519)/check-docs/
       check-trademarks/spec_citations all clean before tagging.
 
-## Done (2026-09-10, ECL `{{ M ... }}` `memberFieldFilter`: `attributeRule`, completes `MrcmAttributeRangeRefsetMember`'s column coverage; `spec/10` splits a second time)
-
-- [x] **`snomed-ecl`**: `MemberFilterKind::AttributeRule(TermFilter)`
-      — `attributeRule (=|!=) (typedSearchTerm |
-      typedSearchTermSet)`, still the string-search shape, reusing
-      `mapTarget`/`rangeConstraint`'s exact grammar and `term_matches`
-      verbatim, on `MrcmAttributeRangeRefsetMember` again (its second
-      and last column) — the thirty-fourth `memberFieldFilter`
-      column. No implemented column shares the RF2 field name
-      `attributeRule`, so this genuinely needed a new variant. No new
-      row-set check was needed — all five columns implemented so far
-      live on the same `MrcmAttributeRangeRefsetMember` row, so the
-      existing `mrcm_attribute_range_member_rows` block just grew a
-      fourth `TypedFields` entry. Completes
-      `MrcmAttributeRangeRefsetMember`'s column coverage — the sixth
-      refset type outside the two map types (after
-      `RefsetDescriptorRefsetMember`, `DescriptionTypeRefsetMember`,
-      `MrcmDomainRefsetMember`, `MrcmAttributeDomainRefsetMember`, and
-      `ModuleDependencyRefsetMember`) to reach it.
-- [x] **`spec/10` split a second time**, before implementing the
-      column above: `spec/10-ecl-filters.md` was 108 bytes under its
-      own 40 KB budget, too tight to absorb the new bullet even after
-      trimming prose (the fix used for `rangeConstraint`'s cycle).
-      Its `{{ M ... }}` member filter section (26.9 KB of the file's
-      40.9 KB) moved verbatim to a new `spec/10-ecl-member-filters.md`,
-      the same fix `spec/10-ecl-unimplemented.md` was for `10-ecl.md`
-      earlier — by size, not authority; rule numbers stay in
-      `10-ecl.md`, untouched. `spec/10` is five files now. Updated
-      every place that counted or listed the four files:
-      `CLAUDE.md` rule 9, `spec/README.md` (new table row, "four" to
-      "five" files, the split's own rationale paragraph),
-      `agents/ecl-engineer.md` ("The spec is four files now" section
-      and its cross-reference), `index.md`,
-      `.claude/skills/snomed-skill/SKILL.md`, and the one
-      `snomed-ecl/src/eval.rs` doc comment citing the member-filter
-      example by its old filename. `tasks.md`'s own 35→36
-      `spec/`-document count (18 specification distillations now,
-      was 17).
-- [x] 3 new tests (parser: one shape test; eval: matches
-      `MrcmAttributeRange` rows after both `^` and `^R`, conjoining
-      with `rangeConstraint` on the same row; never matches
-      `MrcmDomain` rows) — 519/519 total, up from 516. Also fixed
-      `rejects_an_unrecognized_member_field_filter_generically` a
-      sixteenth time, which had used `attributeRule` itself as its
-      unrecognized-keyword example — switched to
-      `languageDialectCode` (shared by `ComponentAnnotationRefsetMember`
-      and `MemberAnnotationRefsetMember`, still unimplemented — the
-      first example outside the MRCM refset family).
-- [x] Updated: `spec/10-ecl-member-filters.md` (new bullet,
-      dispatch-list and shape-count updates — thirty-four kinds,
-      string-search now fifteen of them), `spec/10-ecl-unimplemented.md`
-      (keyword list, narrative history, swapped the unimplemented-column
-      example to `languageDialectCode`), `snomed-ecl/src/lib.rs`,
-      `snomed-ecl/README.md` (table row, not-yet-implemented list,
-      same example swap), `agents/ecl-engineer.md`,
-      `agents/store-engineer.md` (twenty-seven consumers outside the
-      map types, still fourteen row-set checks total), `plan.md`
-      (Open decisions paragraph, Current status test count, Since
-      0.9.0 narrative — including the spec split), `CHANGELOG.md`.
-- [x] **`CHANGELOG.md` crossed its own 40 KB budget a fifteenth
-      time** (42884 bytes, caught by `bin/check-docs` immediately)
-      once this entry's `[Unreleased]` section was added — the
-      fourteenth time was at `rangeConstraint`/0.49.0. This time
-      `docs/changelog-archive.md` had plenty of room (14.6 KB free),
-      so a direct two-section move sufficed: `[0.28.0]` and
-      `[0.29.0]` moved from `CHANGELOG.md` into
-      `docs/changelog-archive.md` ahead of `[0.27.0]`, no cascade
-      needed this time.
-- [x] Verified: build/clippy/fmt/test (519/519)/check-docs/
-      check-trademarks/spec_citations all clean.
-
 ## Next up
 
 - [ ] Nothing currently scoped beyond the `{{ M ... }}` remainder below.
-      State as of 2026-09-11: **0.50.0 released** — `mapTarget` (0.15.0),
+      State as of 2026-09-11: **0.50.0 released**, `languageDialectCode`
+      implemented (release pending, see Done above) — `mapTarget` (0.15.0),
       `correlationId` (0.16.0), `mapGroup` (0.17.0), `mapPriority`
       (0.18.0), `mapRule` (0.19.0), `mapAdvice` plus the `ecl_parse`
       fuzz-caught recursion-depth guard (spec/10 rule 19, 0.20.0),
@@ -273,7 +269,13 @@ before".
       still the string-search shape,
       `MrcmAttributeRangeRefsetMember`'s second and last column,
       again no new row-set check since all five columns share one
-      row, completing that type's column coverage),
+      row, completing that type's column coverage), and
+      `languageDialectCode` (see Done above —
+      back to needing a genuinely new type,
+      `ComponentAnnotationRefsetMember`'s first column, a genuinely
+      new fifteenth row-set check since it's that type's first
+      filterable column, but the accessor itself was already present
+      in the store),
       all after both `^` and
       `^R`.
       Together `mapAdvice`/`mapCategoryId` complete `ExtendedMap`'s
@@ -284,10 +286,10 @@ before".
       `descriptionFormat`/`descriptionLength`/`domainConstraint`/
       `parentDomain`/`proximalPrimitiveConstraint`/
       `proximalPrimitiveRefinement`/`domainTemplateForPrecoordination`/
-      `domainTemplateForPostcoordination`/`guideURL`/`domainId`/`ruleStrengthId`/`contentTypeId`/`grouped`/`attributeCardinality`/`attributeInGroupCardinality`/`sourceEffectiveTime`/`targetEffectiveTime`/`rangeConstraint`,
-      and `attributeRule`
+      `domainTemplateForPostcoordination`/`guideURL`/`domainId`/`ruleStrengthId`/`contentTypeId`/`grouped`/`attributeCardinality`/`attributeInGroupCardinality`/`sourceEffectiveTime`/`targetEffectiveTime`/`rangeConstraint`/`attributeRule`,
+      and `languageDialectCode`
       are the
-      first twenty-seven columns
+      first twenty-eight columns
       implemented
       outside the two map types
       (`AssociationRefsetMember`/`AttributeValueRefsetMember`/
@@ -295,7 +297,8 @@ before".
       `MrcmModuleScopeRefsetMember`/`RefsetDescriptorRefsetMember`/
       `DescriptionTypeRefsetMember`/`MrcmDomainRefsetMember`/
       `MrcmAttributeDomainRefsetMember`/`ModuleDependencyRefsetMember`/
-      `MrcmAttributeRangeRefsetMember`, plus
+      `MrcmAttributeRangeRefsetMember`/`ComponentAnnotationRefsetMember`,
+      plus
       `OrderedAssociationRefsetMember` as a tenth type reusing the
       first two of those columns) —
       `RefsetDescriptorRefsetMember`,
@@ -313,10 +316,11 @@ before".
       to every shape, not just concept-reference.
       `{{ M ... }}` after `^`
       (0.13.0), after `^R` (0.14.0), and its `memberFieldFilter`
-      alternative (0.15.0-0.50.0),
+      alternative (0.15.0-0.50.0, `languageDialectCode` implemented but
+      not yet released),
       all decided and executed under
       `spec/ai-release-authority/`'s criteria rather than a fresh
-      per-release maintainer go-ahead (see `CHANGELOG.md`). 9 crates, 519
+      per-release maintainer go-ahead (see `CHANGELOG.md`). 9 crates, 522
       tests,
       clippy/fmt clean on stable, MSRV 1.96 (current
       stable minus two, `spec/rust-msrv-n-minus-2/index.md`), `fuzz/`,

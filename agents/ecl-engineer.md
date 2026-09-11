@@ -511,7 +511,18 @@ that type share one row. `attributeRule` (2026-09-10),
 immediately too — same string-search shape, another genuinely new
 variant, again no new row-set check, completing that type's column
 coverage (the sixth refset type outside the two map types to reach
-it). `memberFieldFilter`
+it). `languageDialectCode` (2026-09-11),
+`ComponentAnnotationRefsetMember`'s first column, followed immediately
+too — back on the string-search shape, a genuinely new variant, needing
+a genuinely new row-set check
+(`component_annotation_member_rows`, already present in the store)
+since it's that type's first filterable column — a thirteenth refset
+type outside the two map types. Not yet extended to
+`MemberAnnotationRefsetMember`, which has its own `languageDialectCode`
+column (a distinct row, sharing only the RF2 field name — the same
+"reuse the variant, add the row-set check" shape open here that
+`ruleStrengthId`/`contentTypeId` had before reaching
+`MrcmAttributeRangeRefsetMember`). `memberFieldFilter`
 isn't one production but five in the official grammar, chosen by the
 named column's own semantic type
 (`expressionComparisonOperator ws subExpressionConstraint` for a concept

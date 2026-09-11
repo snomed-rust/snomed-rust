@@ -84,8 +84,9 @@ token shape:
   `attributeOrder`/`descriptionFormat`/`descriptionLength`/
   `domainConstraint`/`parentDomain`/`proximalPrimitiveConstraint`/
   `proximalPrimitiveRefinement`/`domainTemplateForPrecoordination`/
-  `domainTemplateForPostcoordination`/`guideURL`/`domainId`/`ruleStrengthId`/`contentTypeId`/`grouped`/`attributeCardinality`/`attributeInGroupCardinality`/`sourceEffectiveTime`/`targetEffectiveTime`/`rangeConstraint`/`attributeRule`
-  — a refset-type-specific column (`languageDialectCode`, …), as
+  `domainTemplateForPostcoordination`/`guideURL`/`domainId`/`ruleStrengthId`/`contentTypeId`/`grouped`/`attributeCardinality`/`attributeInGroupCardinality`/`sourceEffectiveTime`/`targetEffectiveTime`/`rangeConstraint`/`attributeRule`/`languageDialectCode`
+  — a refset-type-specific column (`value` on
+  `ComponentAnnotationRefsetMember`, …), as
   opposed to the three shared-column kinds
   (`moduleId`/`effectiveTime`/`active`) implemented 2026-09-01 after both
   `^` and `^R`. `refsetFieldName` is `1*alpha` in the official grammar
@@ -282,9 +283,24 @@ token shape:
   `DescriptionTypeRefsetMember`, `MrcmDomainRefsetMember`,
   `MrcmAttributeDomainRefsetMember`, and
   `ModuleDependencyRefsetMember`) to reach it.
-  `languageDialectCode` (shared by `ComponentAnnotationRefsetMember`
-  and `MemberAnnotationRefsetMember`) remains unimplemented, with no
-  example yet. See
+  `languageDialectCode` (2026-09-11) — the sixteenth string-search-shape
+  column, `ComponentAnnotationRefsetMember`'s first column — a
+  thirteenth refset type outside the two map types, needing a
+  genuinely new fifteenth row-set check
+  (`component_annotation_member_rows`, already present in the store)
+  since it's that type's first filterable column. Not yet extended to
+  `MemberAnnotationRefsetMember`, which has its own
+  `languageDialectCode` column (a distinct row, sharing only the RF2
+  field name — the same open extension `ruleStrengthId`/`contentTypeId`
+  had before reaching `MrcmAttributeRangeRefsetMember`).
+  `typeId`/`value` (`ComponentAnnotationRefsetMember`'s remaining two
+  columns) remain unimplemented, with no example yet — `typeId`
+  lexes as a dedicated `TokenKind::TypeIdKeyword` (from
+  `{{ D typeId = ... }}`), not a plain `Word`, so it falls to
+  `EclError::UnexpectedToken` here rather than the
+  `UnexpectedKeyword` bucket every other unrecognized
+  `memberFieldFilter` name falls to; still rejected, just via a
+  different variant. See
   `SnapshotStore::simple_map_member_rows`/`extended_map_member_rows`/
   `association_member_rows` and
   spec/09 rule 4. Decided 2026-09-03 in `plan.md`'s "Open decisions":

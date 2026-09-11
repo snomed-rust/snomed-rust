@@ -780,11 +780,20 @@ impl Parser {
                     values,
                 }))
             }
+            TokenKind::Word(word) if word == "languageDialectCode" => {
+                self.advance()?;
+                let negated = self.parse_boolean_comparison_operator()?;
+                let values = self.parse_typed_search_term_set()?;
+                Ok(MemberFilterKind::LanguageDialectCode(TermFilter {
+                    negated,
+                    values,
+                }))
+            }
             _ => {
                 let tok = self.peek().clone();
                 Err(Self::unexpected(
                     &tok,
-                    "`moduleId`, `effectiveTime`, `active`, `mapTarget`, `correlationId`, `mapGroup`, `mapPriority`, `mapRule`, `mapAdvice`, `mapCategoryId`, `targetComponentId`, `valueId`, `owlExpression`, `order`, `mrcmRuleRefsetId`, `attributeDescription`, `attributeType`, `attributeOrder`, `descriptionFormat`, `descriptionLength`, `domainConstraint`, `parentDomain`, `proximalPrimitiveConstraint`, `proximalPrimitiveRefinement`, `domainTemplateForPrecoordination`, `domainTemplateForPostcoordination`, `guideURL`, `domainId`, `ruleStrengthId`, `contentTypeId`, `grouped`, `attributeCardinality`, `attributeInGroupCardinality`, `sourceEffectiveTime`, `targetEffectiveTime`, `rangeConstraint`, or `attributeRule`",
+                    "`moduleId`, `effectiveTime`, `active`, `mapTarget`, `correlationId`, `mapGroup`, `mapPriority`, `mapRule`, `mapAdvice`, `mapCategoryId`, `targetComponentId`, `valueId`, `owlExpression`, `order`, `mrcmRuleRefsetId`, `attributeDescription`, `attributeType`, `attributeOrder`, `descriptionFormat`, `descriptionLength`, `domainConstraint`, `parentDomain`, `proximalPrimitiveConstraint`, `proximalPrimitiveRefinement`, `domainTemplateForPrecoordination`, `domainTemplateForPostcoordination`, `guideURL`, `domainId`, `ruleStrengthId`, `contentTypeId`, `grouped`, `attributeCardinality`, `attributeInGroupCardinality`, `sourceEffectiveTime`, `targetEffectiveTime`, `rangeConstraint`, `attributeRule`, or `languageDialectCode`",
                 ))
             }
         }
@@ -2759,6 +2768,36 @@ mod tests {
         assert_eq!(values[0].search_type, crate::ast::SearchType::Match);
     }
 
+    /// `languageDialectCode` (spec/10 rule 18) — the thirty-fifth
+    /// `memberFieldFilter` column, still the string-search shape,
+    /// reusing `mapTarget`/`attributeRule`'s exact grammar.
+    /// `ComponentAnnotationRefsetMember`'s first column — a
+    /// thirteenth refset type outside the two map types, needing a
+    /// genuinely new row-set check.
+    #[test]
+    fn parses_member_filter_language_dialect_code() {
+        let EC::MemberFilter { filters, .. } =
+            parse("^ 1292992004 {{ M languageDialectCode = \"en-GB\" }}").unwrap()
+        else {
+            panic!("expected a member filter");
+        };
+        assert_eq!(filters.len(), 1);
+        let crate::ast::MemberFilterKind::LanguageDialectCode(crate::ast::TermFilter {
+            negated,
+            values,
+        }) = &filters[0]
+        else {
+            panic!(
+                "expected a LanguageDialectCode filter, got {:?}",
+                filters[0]
+            );
+        };
+        assert!(!negated);
+        assert_eq!(values.len(), 1);
+        assert_eq!(values[0].text, "en-GB");
+        assert_eq!(values[0].search_type, crate::ast::SearchType::Match);
+    }
+
     /// `mapGroup` (spec/10 rule 18) — the third `memberFieldFilter`
     /// column implemented, and the first to use the numeric grammar
     /// shape (`numericComparisonOperator ws "#" numericValue`, the same
@@ -2857,15 +2896,18 @@ mod tests {
         assert_eq!(values[0].search_type, crate::ast::SearchType::Wild);
     }
 
-    /// A field name this crate doesn't recognize (`languageDialectCode`,
-    /// say — shared by `ComponentAnnotationRefsetMember` and
-    /// `MemberAnnotationRefsetMember`, still unimplemented) falls to
-    /// the generic bucket, not `NotYetImplemented` — the same
-    /// "genuinely unimplemented" distinction rule 9 draws elsewhere.
+    /// A field name this crate doesn't recognize (`value`, say —
+    /// `ComponentAnnotationRefsetMember`'s own third and last column,
+    /// still unimplemented) falls to the generic bucket, not
+    /// `NotYetImplemented` — the same "genuinely unimplemented"
+    /// distinction rule 9 draws elsewhere. Not `typeId`: that word is
+    /// already a dedicated `TokenKind::TypeIdKeyword` (used by
+    /// `{{ D typeId = ... }}`), so it lexes differently from a plain
+    /// `Word` and would test something else entirely.
     #[test]
     fn rejects_an_unrecognized_member_field_filter_generically() {
         assert!(matches!(
-            parse("^ 447562003 {{ M languageDialectCode = \"x\" }}"),
+            parse("^ 447562003 {{ M value = \"x\" }}"),
             Err(EclError::UnexpectedKeyword { .. })
         ));
     }

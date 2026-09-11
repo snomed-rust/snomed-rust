@@ -321,6 +321,7 @@ fn member_row_matches(
                 | MemberFilterKind::TargetEffectiveTime(_)
                 | MemberFilterKind::RangeConstraint(_)
                 | MemberFilterKind::AttributeRule(_)
+                | MemberFilterKind::LanguageDialectCode(_)
         )
     }) {
         return typed_field_row_matches(
@@ -391,7 +392,9 @@ fn member_row_matches(
 /// that type's row too, reused from `MrcmAttributeDomainRefsetMember`'s
 /// own pair (see [`typed_field_row_matches`]'s doc comment);
 /// `attribute_rule` is its second and last, populated from the same
-/// row.
+/// row. `language_dialect_code` is the first field from
+/// `ComponentAnnotationRefsetMember`, a thirteenth refset type
+/// outside the two map types.
 #[derive(Default)]
 struct TypedFields<'a> {
     map_target: Option<&'a str>,
@@ -428,6 +431,7 @@ struct TypedFields<'a> {
     target_effective_time: Option<EffectiveTime>,
     range_constraint: Option<&'a str>,
     attribute_rule: Option<&'a str>,
+    language_dialect_code: Option<&'a str>,
 }
 
 /// The `mapTarget`/`correlationId`/`mapGroup`/`mapPriority`/`mapRule`/
@@ -458,7 +462,7 @@ struct TypedFields<'a> {
 /// `mrcm_module_scope_member_rows`/`refset_descriptor_member_rows`/
 /// `description_type_member_rows`/`mrcm_domain_member_rows`/
 /// `mrcm_attribute_domain_member_rows`/`module_dependency_member_rows`/
-/// `mrcm_attribute_range_member_rows`)
+/// `mrcm_attribute_range_member_rows`/`component_annotation_member_rows`)
 /// rather
 /// than either map type's. `mrcm_attribute_range_member_rows` carries
 /// no field of its own not already implemented — `ruleStrengthId`/
@@ -469,7 +473,7 @@ struct TypedFields<'a> {
 /// instead of two columns from two types.
 /// Renamed from `typed_map_row_matches` once it stopped being map-only.
 /// Whichever field-filter kind appears, a block naming it is
-/// tested against all fourteen typed row sets rather than `member_rows`.
+/// tested against all fifteen typed row sets rather than `member_rows`.
 /// Testing every set whenever *any* field-filter kind appears (rather
 /// than computing the exact type each filter needs) is deliberately
 /// simple, not merely convenient: a `SimpleMap` row tested against a
@@ -775,7 +779,7 @@ fn typed_field_row_matches(
     if matches_module_dependency {
         return true;
     }
-    store
+    let matches_mrcm_attribute_range = store
         .mrcm_attribute_range_member_rows(refset_id, component_id)
         .iter()
         .any(|row| {
@@ -790,6 +794,26 @@ fn typed_field_row_matches(
                             content_type_id: Some(row.content_type_id),
                             range_constraint: Some(&row.range_constraint),
                             attribute_rule: Some(&row.attribute_rule),
+                            ..TypedFields::default()
+                        },
+                    )
+                })
+        });
+    if matches_mrcm_attribute_range {
+        return true;
+    }
+    store
+        .component_annotation_member_rows(refset_id, component_id)
+        .iter()
+        .any(|row| {
+            (states_active || row.core.active)
+                && filters.iter().zip(prepared).all(|(f, p)| {
+                    member_filter_matches(
+                        f,
+                        p,
+                        &row.core,
+                        &TypedFields {
+                            language_dialect_code: Some(&row.language_dialect_code),
                             ..TypedFields::default()
                         },
                     )
@@ -958,16 +982,19 @@ fn prepare_member_filter(filter: &MemberFilterKind, store: &SnapshotStore) -> Pr
         | MemberFilterKind::AttributeCardinality(TermFilter { values, .. })
         | MemberFilterKind::AttributeInGroupCardinality(TermFilter { values, .. })
         | MemberFilterKind::RangeConstraint(TermFilter { values, .. })
-        | MemberFilterKind::AttributeRule(TermFilter { values, .. }) => PreparedMemberFilter::Term(
-            values
-                .iter()
-                .map(|search| match search.search_type {
-                    SearchType::Match => PreparedSearch::Match(words(&search.text)),
-                    SearchType::Wild => PreparedSearch::Wild(search.text.to_lowercase()),
-                    SearchType::Exact => PreparedSearch::Exact,
-                })
-                .collect(),
-        ),
+        | MemberFilterKind::AttributeRule(TermFilter { values, .. })
+        | MemberFilterKind::LanguageDialectCode(TermFilter { values, .. }) => {
+            PreparedMemberFilter::Term(
+                values
+                    .iter()
+                    .map(|search| match search.search_type {
+                        SearchType::Match => PreparedSearch::Match(words(&search.text)),
+                        SearchType::Wild => PreparedSearch::Wild(search.text.to_lowercase()),
+                        SearchType::Exact => PreparedSearch::Exact,
+                    })
+                    .collect(),
+            )
+        }
         _ => PreparedMemberFilter::Literal,
     }
 }
@@ -1458,6 +1485,23 @@ fn member_filter_matches(
                 .iter()
                 .zip(searches)
                 .any(|(search, prepared)| term_matches(attribute_rule, search, prepared));
+            matches != *negated
+        }
+        MemberFilterKind::LanguageDialectCode(TermFilter { negated, values }) => {
+            let PreparedMemberFilter::Term(searches) = prepared else {
+                unreachable!("a languageDialectCode filter prepares to `Term`")
+            };
+            // No `language_dialect_code` on this row source (every
+            // source but `ComponentAnnotation`'s own): never matches,
+            // same reasoning as every other typed-column filter's
+            // `None` case above.
+            let Some(language_dialect_code) = fields.language_dialect_code else {
+                return false;
+            };
+            let matches = values
+                .iter()
+                .zip(searches)
+                .any(|(search, prepared)| term_matches(language_dialect_code, search, prepared));
             matches != *negated
         }
     }
@@ -2193,12 +2237,12 @@ mod tests {
     use snomed_core::sctid::ComponentType;
     use snomed_core::time::EffectiveTime;
     use snomed_rf2::refset::{
-        AssociationRefsetMember, AttributeValueRefsetMember, DescriptionTypeRefsetMember,
-        ExtendedMapRefsetMember, LanguageRefsetMember, ModuleDependencyRefsetMember,
-        MrcmAttributeDomainRefsetMember, MrcmAttributeRangeRefsetMember, MrcmDomainRefsetMember,
-        MrcmModuleScopeRefsetMember, OrderedAssociationRefsetMember, OrderedComponentRefsetMember,
-        OwlExpressionRefsetMember, RefsetDescriptorRefsetMember, RefsetMemberCore,
-        SimpleMapRefsetMember, SimpleRefsetMember,
+        AssociationRefsetMember, AttributeValueRefsetMember, ComponentAnnotationRefsetMember,
+        DescriptionTypeRefsetMember, ExtendedMapRefsetMember, LanguageRefsetMember,
+        ModuleDependencyRefsetMember, MrcmAttributeDomainRefsetMember,
+        MrcmAttributeRangeRefsetMember, MrcmDomainRefsetMember, MrcmModuleScopeRefsetMember,
+        OrderedAssociationRefsetMember, OrderedComponentRefsetMember, OwlExpressionRefsetMember,
+        RefsetDescriptorRefsetMember, RefsetMemberCore, SimpleMapRefsetMember, SimpleRefsetMember,
     };
 
     const ROOT: SctId = constants::ROOT_CONCEPT;
@@ -7563,6 +7607,100 @@ mod tests {
         assert_eq!(
             eval(
                 &format!("^ {mrcm_domain} {{{{ M attributeRule = \"116680003 = 404684003\" }}}}"),
+                &store
+            ),
+            HashSet::new()
+        );
+    }
+
+    /// `languageDialectCode` (spec/10 rule 18) — the thirty-fifth
+    /// `memberFieldFilter` column, still the string-search shape,
+    /// reusing `mapTarget`/`attributeRule`'s exact grammar.
+    /// `ComponentAnnotationRefsetMember`'s first column — a
+    /// thirteenth refset type outside the two map types, needing a
+    /// genuinely new fifteenth row-set check. Also proves `{{ M }}`
+    /// after `^R` reaches it.
+    #[test]
+    fn member_filter_language_dialect_code_matches_component_annotation_rows() {
+        let component_annotation = SctId::compose(10027, ComponentType::Concept, None).unwrap();
+        let annotation_type = SctId::compose(10028, ComponentType::Concept, None).unwrap();
+        let mut b = SnapshotStore::builder();
+        b.add_concept(concept(MI));
+        b.add_concept(concept(annotation_type));
+        b.add_component_annotation_member(ComponentAnnotationRefsetMember {
+            core: RefsetMemberCore {
+                id: MemberId::parse("80000000-0000-4000-8000-000000000183").unwrap(),
+                effective_time: EffectiveTime::new_unchecked(20190731),
+                active: true,
+                module_id: constants::CORE_MODULE,
+                refset_id: component_annotation,
+                referenced_component_id: MI,
+            },
+            language_dialect_code: "en-GB".to_string(),
+            type_id: annotation_type,
+            value: "a free-text note".to_string(),
+        });
+        let store = b.build();
+
+        assert_eq!(
+            eval(
+                &format!(
+                    "^ {component_annotation} {{{{ M languageDialectCode = exact:\"en-US\" }}}}"
+                ),
+                &store
+            ),
+            HashSet::new(),
+            "the row's own languageDialectCode doesn't match"
+        );
+        assert_eq!(
+            eval(
+                &format!("^ {component_annotation} {{{{ M languageDialectCode = \"en-GB\" }}}}"),
+                &store
+            ),
+            HashSet::from([MI])
+        );
+        // `^R` reaches the same row, through the shared row-matching path.
+        assert_eq!(
+            eval(
+                &format!("^R {MI} {{{{ M languageDialectCode = \"en-GB\" }}}}"),
+                &store
+            ),
+            HashSet::from([component_annotation])
+        );
+    }
+
+    /// `MrcmDomainRefsetMember`/every other typed row source has no
+    /// `languageDialectCode` column — a membership that exists only
+    /// there must never match, the same "column absent on this row
+    /// source" case every other field filter has for the row types it
+    /// doesn't apply to.
+    #[test]
+    fn member_filter_language_dialect_code_never_matches_mrcm_domain_rows() {
+        let mrcm_domain = SctId::compose(10029, ComponentType::Concept, None).unwrap();
+        let mut b = SnapshotStore::builder();
+        b.add_concept(concept(MI));
+        b.add_mrcm_domain_member(MrcmDomainRefsetMember {
+            core: RefsetMemberCore {
+                id: MemberId::parse("80000000-0000-4000-8000-000000000184").unwrap(),
+                effective_time: EffectiveTime::new_unchecked(20190731),
+                active: true,
+                module_id: constants::CORE_MODULE,
+                refset_id: mrcm_domain,
+                referenced_component_id: MI,
+            },
+            domain_constraint: String::new(),
+            parent_domain: String::new(),
+            proximal_primitive_constraint: String::new(),
+            proximal_primitive_refinement: String::new(),
+            domain_template_for_precoordination: String::new(),
+            domain_template_for_postcoordination: String::new(),
+            guide_url: String::new(),
+        });
+        let store = b.build();
+
+        assert_eq!(
+            eval(
+                &format!("^ {mrcm_domain} {{{{ M languageDialectCode = \"en-GB\" }}}}"),
                 &store
             ),
             HashSet::new()

@@ -208,11 +208,11 @@ its inactive rows.
 `descriptionFormat`/`descriptionLength`/`domainConstraint`/
 `parentDomain`/`proximalPrimitiveConstraint`/
 `proximalPrimitiveRefinement`/`domainTemplateForPrecoordination`/
-`domainTemplateForPostcoordination`/`guideURL`/`domainId`/`ruleStrengthId`/`contentTypeId`/`grouped`/`attributeCardinality`/`attributeInGroupCardinality`/`sourceEffectiveTime`/`targetEffectiveTime`/`rangeConstraint`/`attributeRule`
+`domainTemplateForPostcoordination`/`guideURL`/`domainId`/`ruleStrengthId`/`contentTypeId`/`grouped`/`attributeCardinality`/`attributeInGroupCardinality`/`sourceEffectiveTime`/`targetEffectiveTime`/`rangeConstraint`/`attributeRule`/`languageDialectCode`
 filters
 (`spec/10-ecl.md` rule
 18) are
-the first thirty-four
+the first thirty-five
 consumers: the first seven dispatch directly to
 `simple_map_member_rows`/`extended_map_member_rows`
 (`correlationId`/`mapGroup`/`mapPriority`/`mapRule`/`mapAdvice`/
@@ -223,8 +223,8 @@ consumers: the first seven dispatch directly to
 `descriptionFormat`/`descriptionLength`/`domainConstraint`/
 `parentDomain`/`proximalPrimitiveConstraint`/`proximalPrimitiveRefinement`/
 `domainTemplateForPrecoordination`/`domainTemplateForPostcoordination`/
-`guideURL`/`domainId`/`ruleStrengthId`/`contentTypeId`/`grouped`/`attributeCardinality`/`attributeInGroupCardinality`/`sourceEffectiveTime`/`targetEffectiveTime`/`rangeConstraint`/`attributeRule`
-— the first twenty-seven
+`guideURL`/`domainId`/`ruleStrengthId`/`contentTypeId`/`grouped`/`attributeCardinality`/`attributeInGroupCardinality`/`sourceEffectiveTime`/`targetEffectiveTime`/`rangeConstraint`/`attributeRule`/`languageDialectCode`
+— the first twenty-eight
 outside
 the two map types — dispatch to `association_member_rows`/
 `attribute_value_member_rows`/`owl_expression_member_rows`/
@@ -311,7 +311,20 @@ row-set check needed, completing that type's column coverage (the
 sixth refset type outside the two map types, after
 `RefsetDescriptorRefsetMember`, `DescriptionTypeRefsetMember`,
 `MrcmDomainRefsetMember`, `MrcmAttributeDomainRefsetMember`, and
-`ModuleDependencyRefsetMember`, to reach it). All
+`ModuleDependencyRefsetMember`, to reach it). `languageDialectCode`
+needed its own new fifteenth row-set check
+(`component_annotation_member_rows`) since it's
+`ComponentAnnotationRefsetMember`'s first filterable column — a
+thirteenth refset type outside the two map types, and (like
+`sourceEffectiveTime`'s `module_dependency_member_rows`) the accessor
+itself was *already present* in the store, so this was purely a
+`snomed-ecl` dispatch wiring change. Genuinely new `MemberFilterKind`
+variant too — no implemented column shares the RF2 field name
+`languageDialectCode` — but `MemberAnnotationRefsetMember` has its own
+column of that name, not yet extended to (the same "reuse the variant,
+add the row-set check" shape still open here that
+`ruleStrengthId`/`contentTypeId` had before reaching
+`MrcmAttributeRangeRefsetMember`). All
 row sets are still
 tested whenever any field-filter kind appears in a block, since a row
 missing the column simply fails that filter rather than needing its

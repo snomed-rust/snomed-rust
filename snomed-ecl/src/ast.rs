@@ -380,7 +380,8 @@ pub enum ConceptFilterKind {
 /// `DomainTemplateForPrecoordination`/`DomainTemplateForPostcoordination`/
 /// `GuideUrl`/`DomainId`/`RuleStrengthId`/`ContentTypeId`/`Grouped`/
 /// `AttributeCardinality`/`AttributeInGroupCardinality`/`SourceEffectiveTime`/
-/// `TargetEffectiveTime`/`RangeConstraint`/`AttributeRule`
+/// `TargetEffectiveTime`/`RangeConstraint`/`AttributeRule`/
+/// `LanguageDialectCode`
 /// are the official grammar's fourth kind, `memberFieldFilter`
 /// — a refset-type-specific column rather than a shared one. Its own
 /// grammar (confirmed against the official ABNF, `syntax/abnf-brief.txt`)
@@ -494,7 +495,11 @@ pub enum ConceptFilterKind {
 /// refset type outside the two map types, after
 /// `RefsetDescriptorRefsetMember`, `DescriptionTypeRefsetMember`,
 /// `MrcmDomainRefsetMember`, `MrcmAttributeDomainRefsetMember`, and
-/// `ModuleDependencyRefsetMember`, with full column coverage) —
+/// `ModuleDependencyRefsetMember`, with full column coverage); and
+/// `languageDialectCode` (`ComponentAnnotationRefsetMember`'s first
+/// column, still the string-search shape, a genuinely new fifteenth
+/// row-set check since it's that type's first filterable column —
+/// a thirteenth refset type outside the two map types) —
 /// all
 /// decided 2026-09-03 (`plan.md`'s "Open decisions") to retain full rows
 /// — active and inactive — for all sixteen non-Simple/Language refset
@@ -1062,6 +1067,27 @@ pub enum MemberFilterKind {
     /// `MrcmAttributeDomainRefsetMember`, and
     /// `ModuleDependencyRefsetMember`) to reach it.
     AttributeRule(TermFilter),
+    /// `languageDialectCode (=|!=) (typedSearchTerm | typedSearchTermSet)`
+    /// — a `memberFieldFilter` (spec/10 rule 18), the string-search
+    /// shape, reusing [`TermFilter`]'s exact shape and grammar — the
+    /// same production `mapTarget`/`rangeConstraint` use, just a
+    /// different refset type and RF2 column. Matched against
+    /// `ComponentAnnotationRefsetMember`'s own `languageDialectCode`
+    /// column (spec/08: an ISO 639-1 language code, optionally with
+    /// an RFC 5646 dialect suffix — MAY be an empty string, never
+    /// absent as a column). `ComponentAnnotationRefsetMember`'s first
+    /// column: a thirteenth refset type outside the two map types, so
+    /// it needed its own new row-set check, tested against
+    /// `SnapshotStore::component_annotation_member_rows` directly
+    /// (already present in the store).
+    /// `MemberAnnotationRefsetMember` has a `languageDialectCode`
+    /// column of its own too, not yet extended to (a distinct row,
+    /// sharing only the RF2 field name — the same open extension
+    /// [`Self::RuleStrengthId`]/[`Self::ContentTypeId`] had before
+    /// reaching `MrcmAttributeRangeRefsetMember`). No other
+    /// implemented column shares the RF2 field name
+    /// `languageDialectCode`, so this needs its own variant too.
+    LanguageDialectCode(TermFilter),
 }
 
 /// `numericComparisonOperator ws "#" numericValue` — a `memberFieldFilter`

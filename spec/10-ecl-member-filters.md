@@ -73,9 +73,9 @@ named column's own semantic type (confirmed against the official ABNF,
 subExpressionConstraint` (a concept reference), `numericComparisonOperator
 ws "#" numericValue`, `stringComparisonOperator ws (typedSearchTerm |
 typedSearchTermSet)`, `booleanComparisonOperator ws booleanValue`, or
-`timeComparisonOperator ws (timeValue | timeValueSet)`. Thirty-four
+`timeComparisonOperator ws (timeValue | timeValueSet)`. Thirty-five
 kinds are
-implemented, spanning all five shapes (string has fifteen,
+implemented, spanning all five shapes (string has sixteen,
 concept reference has eleven, numeric has five, boolean has one, time
 has two):
 
@@ -429,14 +429,30 @@ has two):
   `MrcmDomainRefsetMember`, `MrcmAttributeDomainRefsetMember`, and
   `ModuleDependencyRefsetMember`) to reach it. Genuinely new variant:
   no other column shares this RF2 field name.
+- `languageDialectCode (=|!=) (typedSearchTerm | typedSearchTermSet)`
+  — the string-search shape, reusing `TermFilter`/`term_matches` as
+  `mapTarget`/`rangeConstraint` do, matched against the member row's
+  own `languageDialectCode` column (spec/08: an ISO 639-1 language
+  code, optionally with an RFC 5646 dialect suffix — MAY be an empty
+  string, never absent as a column). `ComponentAnnotationRefsetMember`'s
+  first column — a thirteenth refset type outside the two map types
+  — so it needed its own new row-set check, tested against
+  `SnapshotStore::component_annotation_member_rows` directly (already
+  present in the store). `MemberAnnotationRefsetMember` has a
+  `languageDialectCode` column of its own too, not yet extended to
+  (a distinct row from `ComponentAnnotationRefsetMember`'s, sharing
+  only the RF2 field name — the same "extend the variant to a second
+  type" shape `ruleStrengthId`/`contentTypeId` had extending to
+  `MrcmAttributeRangeRefsetMember`, still open here). Genuinely new
+  variant: no other column shares this RF2 field name.
 
-All thirty-four reuse the shared dispatch `mapTarget` introduced
+All thirty-five reuse the shared dispatch `mapTarget` introduced
 (renamed `typed_field_row_matches` once a non-map type joined it): a
-block naming *any* of the thirty-four kinds is tested against
+block naming *any* of the thirty-five kinds is tested against
 `SimpleMap`/`ExtendedMap`/`Association`/`AttributeValue`/`OwlExpression`/
 `OrderedComponent`/`OrderedAssociation`/`MrcmModuleScope`/
 `RefsetDescriptor`/`DescriptionType`/`MrcmDomain`/`MrcmAttributeDomain`/
-`ModuleDependency`/`MrcmAttributeRange`
+`ModuleDependency`/`MrcmAttributeRange`/`ComponentAnnotation`
 rows together
 rather than `member_rows`, and the "one row, all filters" and "active
 unless stated otherwise" rules above still hold across a block naming
@@ -449,7 +465,7 @@ any of `correlationId`/
 `attributeOrder`/`descriptionFormat`/`descriptionLength`/
 `domainConstraint`/`parentDomain`/`proximalPrimitiveConstraint`/
 `proximalPrimitiveRefinement`/`domainTemplateForPrecoordination`/
-`domainTemplateForPostcoordination`/`guideURL`/`domainId`/`ruleStrengthId`/`contentTypeId`/`grouped`/`attributeCardinality`/`attributeInGroupCardinality`/`sourceEffectiveTime`/`targetEffectiveTime`/`rangeConstraint`/`attributeRule`
+`domainTemplateForPostcoordination`/`guideURL`/`domainId`/`ruleStrengthId`/`contentTypeId`/`grouped`/`attributeCardinality`/`attributeInGroupCardinality`/`sourceEffectiveTime`/`targetEffectiveTime`/`rangeConstraint`/`attributeRule`/`languageDialectCode`
 (the column is
 simply
 absent on that row source, the same "not this row's type" answer a

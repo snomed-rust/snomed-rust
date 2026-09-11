@@ -13,6 +13,31 @@ together, in dependency order (`snomed-core` → `snomed-rf2` → `snomed-owl`
 
 ## [Unreleased]
 
+### Added
+
+- `snomed-ecl`: `{{ M languageDialectCode = "en-GB" }}` restricts to
+  `ComponentAnnotation` member rows whose own `languageDialectCode`
+  column matches — the same `match:`/`wild:`/`exact:` search-term
+  grammar `mapTarget`/`rangeConstraint`/`attributeRule` use (reusing
+  `TermFilter`'s exact shape and `term_matches`). Works after both `^`
+  and `^R`, and conjoins with `moduleId` and the other shared-column
+  kinds on the same member row. `memberFieldFilter`'s thirty-fifth
+  column, and `ComponentAnnotationRefsetMember`'s first — a thirteenth
+  refset type outside `SimpleMap`/`ExtendedMap`, needing a genuinely
+  new `MemberFilterKind` variant (no implemented column shares this
+  RF2 field name) and a genuinely new fifteenth typed row-set check
+  (`SnapshotStore::component_annotation_member_rows`, already present
+  in the store from the sixteen-type retention decision). Not yet
+  extended to `MemberAnnotationRefsetMember`'s own
+  `languageDialectCode` column (a distinct row sharing only the RF2
+  field name — the same open extension `ruleStrengthId`/`contentTypeId`
+  had before reaching `MrcmAttributeRangeRefsetMember`).
+
+### Notes for consumers
+
+- No public API removed or changed signature; existing code compiles
+  unmodified against this release.
+
 ## [0.50.0] — 2026-09-11
 
 **New ECL capability, additive.** `{{ M ... }}`'s `memberFieldFilter`
@@ -715,40 +740,7 @@ public API, no removals or signature changes to anything existing.
   (`SnapshotStore::description_type_member_rows`, already present in
   the store from the sixteen-type retention decision).
 
-## [0.30.0] — 2026-09-06
-
-**New ECL capability, additive.** `{{ M ... }}`'s `memberFieldFilter`
-gains its fifteenth column, `attributeOrder` —
-`RefsetDescriptorRefsetMember`'s third and last column (after
-`attributeDescription`/`attributeType`), after both `^` and `^R`. Back
-on the numeric shape, reusing `mapGroup`/`mapPriority`/`order`'s exact
-grammar and `field_numeric_matches`; distinct from `order` itself
-despite the name overlap, so this is a genuinely new
-`MemberFilterKind` variant rather than an extension of an existing
-one. A minor bump: new public API, no removals or signature changes to
-anything existing.
-
-### Added
-
-- `snomed-ecl`: `{{ M attributeOrder = #1 }}` restricts to
-  `RefsetDescriptor` member rows whose own `attributeOrder` column
-  matches — the same numeric grammar `mapGroup`/`mapPriority`/`order`
-  use (reusing `NumericFieldFilter`'s exact shape). Works after both
-  `^` and `^R`, and conjoins with `moduleId` and the other
-  shared-column kinds on the same member row.
-  `attributeDescription`/`attributeType`/`attributeOrder` all live on
-  the same `RefsetDescriptorRefsetMember` row, so a block naming any
-  combination of the three is satisfied by that one row. Only
-  `RefsetDescriptorRefsetMember` rows carry an `attributeOrder` column;
-  every other refset type never matches this filter. New public API:
-  `MemberFilterKind::AttributeOrder`.
-
-### Notes for consumers
-
-- No public API removed or changed signature; existing code compiles
-  unmodified against this release.
-
-Entries for 0.29.0 and earlier live in
+Entries for 0.30.0 and earlier live in
 [`docs/changelog-archive.md`](docs/changelog-archive.md) — moved there
 verbatim to keep this file inside the repository's 40 KB per-document
 budget (rule 1 of `spec/docs-budget-and-links/index.md`).
