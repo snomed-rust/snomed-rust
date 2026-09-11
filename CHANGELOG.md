@@ -13,6 +13,20 @@ together, in dependency order (`snomed-core` → `snomed-rf2` → `snomed-owl`
 
 ## [Unreleased]
 
+## [0.51.0] — 2026-09-11
+
+**New ECL capability, additive.** `{{ M ... }}`'s `memberFieldFilter`
+gains its thirty-fifth column, `languageDialectCode` —
+`ComponentAnnotationRefsetMember`'s first column, a thirteenth refset
+type outside the two map types, after both `^` and `^R`. Still the
+string-search shape, reusing `TermFilter`/`term_matches` verbatim;
+needed a genuinely new `MemberFilterKind` variant (no implemented
+column shares this RF2 field name) and a genuinely new row-set check
+(`SnapshotStore::component_annotation_member_rows`, already present in
+the store), since it's that type's first filterable column. A minor
+bump: new public API, no removals or signature changes to anything
+existing.
+
 ### Added
 
 - `snomed-ecl`: `{{ M languageDialectCode = "en-GB" }}` restricts to

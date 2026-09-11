@@ -11,7 +11,7 @@ human-readable layer above it.
 
 | | |
 |---|---|
-| Version | **0.50.0**, released 2026-09-11 |
+| Version | **0.51.0**, released 2026-09-11 |
 | Crates | nine, released together and sharing one version number |
 | Rust MSRV | 1.96 (current stable minus two) |
 | License | `Apache-2.0 OR MIT` |
@@ -19,19 +19,15 @@ human-readable layer above it.
 | Packages | <https://crates.io/crates/snomed> |
 | Documentation | <https://docs.rs/snomed> · <https://snomed-rust.github.io/> |
 
-0.50.0 gives the ECL `{{ M ... }}` member filter constraint's
-`memberFieldFilter` alternative its thirty-fourth and final
-`MrcmAttributeRangeRefsetMember` column, `attributeRule` —
-`MrcmAttributeRangeRefsetMember`'s second and last column, still the
-string-search shape, reusing `TermFilter`/`term_matches` verbatim.
-Completes `MrcmAttributeRangeRefsetMember`'s column coverage — the
-sixth refset type outside the two map types to reach it. This
-release also splits `spec/10` a second time: the `{{ M ... }}`
-member filter section moved from `spec/10-ecl-filters.md` to a new
-`spec/10-ecl-member-filters.md` as it outgrew that file's own budget
-— documentation only, no code change. Purely additive: no public API
-removed or changed, existing code compiles unmodified. Full detail is
-in the
+0.51.0 gives the ECL `{{ M ... }}` member filter constraint's
+`memberFieldFilter` alternative its thirty-fifth column,
+`languageDialectCode` — `ComponentAnnotationRefsetMember`'s first
+column, a thirteenth refset type outside the two map types. Still the
+string-search shape, reusing `TermFilter`/`term_matches` verbatim; a
+genuinely new `MemberFilterKind` variant and a genuinely new row-set
+check, since it's that type's first filterable column. Purely
+additive: no public API removed or changed, existing code compiles
+unmodified. Full detail is in the
 [changelog](CHANGELOG.md).
 
 **Pre-1.0 caveat, stated up front because it affects anyone writing about
@@ -87,6 +83,7 @@ project is young and says so.
 | 2026-09-10 | 0.48.0 — `{{ M ... }}`'s `memberFieldFilter`: `ruleStrengthId`/`contentTypeId` extend to `MrcmAttributeRangeRefsetMember`, no new filter kind, new row-set check |
 | 2026-09-10 | 0.49.0 — `{{ M ... }}`'s `memberFieldFilter`: `rangeConstraint`, `MrcmAttributeRangeRefsetMember`'s first column of its own |
 | 2026-09-11 | 0.50.0 — `{{ M ... }}`'s `memberFieldFilter`: `attributeRule`, completing `MrcmAttributeRangeRefsetMember`'s column coverage; `spec/10` splits a second time |
+| 2026-09-11 | 0.51.0 — `{{ M ... }}`'s `memberFieldFilter`: `languageDialectCode`, `ComponentAnnotationRefsetMember`'s first column |
 
 ## Following updates
 
@@ -172,7 +169,7 @@ remains licensed material obtained separately from SNOMED International.
 - **What it is not.** Not a terminology server, not an authoring platform, not
   a browser, and not a replacement for Snowstorm. [COMPARISONS.md](COMPARISONS.md)
   states the limitations at length and names the tools that do those jobs.
-- **Maturity.** Version 0.50.0, first published in September 2026, one
+- **Maturity.** Version 0.51.0, first published in September 2026, one
   maintainer, pre-1.0. [MAINTAINERS.md](MAINTAINERS.md) states the bus factor
   and the continuity position without softening, and is the right source for
   any risk framing.
