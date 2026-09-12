@@ -271,9 +271,9 @@ and harmonizes it with the sibling repositories (`hl7-rust`, `er7-rust`,
   `targetEffectiveTime`,
   `rangeConstraint`,
   `attributeRule`,
-  `languageDialectCode`, and
-  `typeId` are the
-  first thirty-six
+  `languageDialectCode`, `typeId`, and
+  `value` are the
+  first thirty-seven
   concrete fields
   built on this retention (`snomed-ecl`, spec/10 rule 18): the
   `memberFieldFilter` grammar alternative, tested against
@@ -295,7 +295,7 @@ and harmonizes it with the sibling repositories (`hl7-rust`, `er7-rust`,
   `owlExpression`/`domainConstraint`/`parentDomain`/
   `proximalPrimitiveConstraint`/`proximalPrimitiveRefinement`/
   `domainTemplateForPrecoordination`/`domainTemplateForPostcoordination`/
-  `guideURL`/`attributeCardinality`/`attributeInGroupCardinality`/`rangeConstraint`/`attributeRule`/`languageDialectCode`
+  `guideURL`/`attributeCardinality`/`attributeInGroupCardinality`/`rangeConstraint`/`attributeRule`/`languageDialectCode`/`value`
   the string-search
   shape, `correlationId`/`mapCategoryId`/
   `targetComponentId`/`valueId`/`mrcmRuleRefsetId`/`attributeDescription`/
@@ -330,10 +330,10 @@ and harmonizes it with the sibling repositories (`hl7-rust`, `er7-rust`,
   `descriptionFormat`/`descriptionLength`/`domainConstraint`/
   `parentDomain`/`proximalPrimitiveConstraint`/
   `proximalPrimitiveRefinement`/`domainTemplateForPrecoordination`/
-  `domainTemplateForPostcoordination`/`guideURL`/`domainId`/`ruleStrengthId`/`contentTypeId`/`grouped`/`attributeCardinality`/`attributeInGroupCardinality`/`sourceEffectiveTime`/`targetEffectiveTime`/`rangeConstraint`/`attributeRule`/`languageDialectCode`,
-  and `typeId`
+  `domainTemplateForPostcoordination`/`guideURL`/`domainId`/`ruleStrengthId`/`contentTypeId`/`grouped`/`attributeCardinality`/`attributeInGroupCardinality`/`sourceEffectiveTime`/`targetEffectiveTime`/`rangeConstraint`/`attributeRule`/`languageDialectCode`/`typeId`,
+  and `value`
   are the
-  first twenty-nine fields on refset
+  first thirty fields on refset
   types
   other than the two
   map types (`AssociationRefsetMember`/`AttributeValueRefsetMember`/
@@ -347,15 +347,16 @@ and harmonizes it with the sibling repositories (`hl7-rust`, `er7-rust`,
   (`languageDialectCode`, extended 2026-09-12)) — `RefsetDescriptorRefsetMember`,
   `DescriptionTypeRefsetMember`, `MrcmDomainRefsetMember`,
   `MrcmAttributeDomainRefsetMember`, `ModuleDependencyRefsetMember`,
-  and `MrcmAttributeRangeRefsetMember`
+  `MrcmAttributeRangeRefsetMember`, and
+  `ComponentAnnotationRefsetMember`
   each
-  carry every column they have, the first six refset types outside
+  carry every column they have, the first seven refset types outside
   the two map types with full column coverage,
   confirming the same store retention and dispatch pattern generalizes
   past `ExtendedMap`/`SimpleMap` across every grammar shape, not just
   the concept-reference one. Every
   other `memberFieldFilter` column
-  (`value`, `ComponentAnnotationRefsetMember`'s last, …)
+  (`referencedMemberId` on `MemberAnnotationRefsetMember`, …)
   remains rejected generically —
   not by a fixed keyword list (`refsetFieldName` is `1*alpha`, confirmed
   against the official ABNF) — but each is now a free `snomed-ecl`
@@ -371,9 +372,10 @@ and harmonizes it with the sibling repositories (`hl7-rust`, `er7-rust`,
 ## Current status
 
 All eight phases above are closed. As of `memberFieldFilter`'s
-`typeId` (2026-09-12, below) the
+`value`, completing `ComponentAnnotationRefsetMember`'s column
+coverage (2026-09-12, below) the
 workspace is 9 published
-crates with zero dependencies, 526 tests, a clean
+crates with zero dependencies, 529 tests, a clean
 `cargo clippy --all-targets`, 13 fuzz targets, and six criterion
 benchmark files. What is *not* done is tracked
 in two places and nowhere
@@ -558,7 +560,12 @@ kind), no new row-set check since it shares
 lexer keyword from `{{ D typeId = ... }}`. Caught a real bug before
 shipping: a new variant must also be added to `member_row_matches`'s
 dispatch `matches!` list, or it silently falls through to the
-type-erased `member_rows` path and can never match. `spec/10`
+type-erased `member_rows` path and can never match; and `value`
+(2026-09-12) is `ComponentAnnotationRefsetMember`'s third and last
+column, back on the string-search shape, another genuinely new
+variant, no new row-set check since it shares that row too —
+completing `ComponentAnnotationRefsetMember`'s column coverage, the
+seventh refset type outside the two map types to reach it. `spec/10`
 also split a second time this cycle: `spec/10-ecl-filters.md` had
 outgrown its own 40 KB budget from `{{ M ... }}` columns
 accumulating, so that section moved to a new

@@ -329,6 +329,7 @@ fn member_row_matches(
                 | MemberFilterKind::AttributeRule(_)
                 | MemberFilterKind::LanguageDialectCode(_)
                 | MemberFilterKind::TypeId(_)
+                | MemberFilterKind::Value(_)
         )
     }) {
         return typed_field_row_matches(
@@ -407,7 +408,9 @@ fn member_row_matches(
 /// distinct row sharing only the RF2 field name. `type_id` is
 /// `ComponentAnnotationRefsetMember`'s second column, populated from
 /// the same row as `language_dialect_code`'s
-/// `ComponentAnnotationRefsetMember` case.
+/// `ComponentAnnotationRefsetMember` case; `value` is its third and
+/// last, populated from that same row, completing that type's column
+/// coverage.
 #[derive(Default)]
 struct TypedFields<'a> {
     map_target: Option<&'a str>,
@@ -446,6 +449,7 @@ struct TypedFields<'a> {
     attribute_rule: Option<&'a str>,
     language_dialect_code: Option<&'a str>,
     type_id: Option<SctId>,
+    value: Option<&'a str>,
 }
 
 /// The `mapTarget`/`correlationId`/`mapGroup`/`mapPriority`/`mapRule`/
@@ -836,6 +840,7 @@ fn typed_field_row_matches(
                         &TypedFields {
                             language_dialect_code: Some(&row.language_dialect_code),
                             type_id: Some(row.type_id),
+                            value: Some(&row.value),
                             ..TypedFields::default()
                         },
                     )
@@ -1026,18 +1031,17 @@ fn prepare_member_filter(filter: &MemberFilterKind, store: &SnapshotStore) -> Pr
         | MemberFilterKind::AttributeInGroupCardinality(TermFilter { values, .. })
         | MemberFilterKind::RangeConstraint(TermFilter { values, .. })
         | MemberFilterKind::AttributeRule(TermFilter { values, .. })
-        | MemberFilterKind::LanguageDialectCode(TermFilter { values, .. }) => {
-            PreparedMemberFilter::Term(
-                values
-                    .iter()
-                    .map(|search| match search.search_type {
-                        SearchType::Match => PreparedSearch::Match(words(&search.text)),
-                        SearchType::Wild => PreparedSearch::Wild(search.text.to_lowercase()),
-                        SearchType::Exact => PreparedSearch::Exact,
-                    })
-                    .collect(),
-            )
-        }
+        | MemberFilterKind::LanguageDialectCode(TermFilter { values, .. })
+        | MemberFilterKind::Value(TermFilter { values, .. }) => PreparedMemberFilter::Term(
+            values
+                .iter()
+                .map(|search| match search.search_type {
+                    SearchType::Match => PreparedSearch::Match(words(&search.text)),
+                    SearchType::Wild => PreparedSearch::Wild(search.text.to_lowercase()),
+                    SearchType::Exact => PreparedSearch::Exact,
+                })
+                .collect(),
+        ),
         _ => PreparedMemberFilter::Literal,
     }
 }
@@ -1559,6 +1563,23 @@ fn member_filter_matches(
                 return false;
             };
             values.contains(&type_id) != *negated
+        }
+        MemberFilterKind::Value(TermFilter { negated, values }) => {
+            let PreparedMemberFilter::Term(searches) = prepared else {
+                unreachable!("a value filter prepares to `Term`")
+            };
+            // No `value` on this row source (every source but
+            // `ComponentAnnotation`'s own): never matches, same
+            // reasoning as every other typed-column filter's `None`
+            // case above.
+            let Some(value) = fields.value else {
+                return false;
+            };
+            let matches = values
+                .iter()
+                .zip(searches)
+                .any(|(search, prepared)| term_matches(value, search, prepared));
+            matches != *negated
         }
     }
 }
@@ -7896,6 +7917,94 @@ mod tests {
         assert_eq!(
             eval(
                 &format!("^ {member_annotation} {{{{ M typeId = {annotation_type} }}}}"),
+                &store
+            ),
+            HashSet::new()
+        );
+    }
+
+    /// `value` (spec/10 rule 18) — `ComponentAnnotationRefsetMember`'s
+    /// third and last column, back on the string-search shape,
+    /// completing that type's column coverage (the seventh refset
+    /// type outside the two map types to reach it). Also proves
+    /// `{{ M }}` after `^R` reaches it.
+    #[test]
+    fn member_filter_value_matches_component_annotation_rows() {
+        let component_annotation = SctId::compose(10037, ComponentType::Concept, None).unwrap();
+        let annotation_type = SctId::compose(10038, ComponentType::Concept, None).unwrap();
+        let mut b = SnapshotStore::builder();
+        b.add_concept(concept(MI));
+        b.add_concept(concept(annotation_type));
+        b.add_component_annotation_member(ComponentAnnotationRefsetMember {
+            core: RefsetMemberCore {
+                id: MemberId::parse("80000000-0000-4000-8000-000000000190").unwrap(),
+                effective_time: EffectiveTime::new_unchecked(20190731),
+                active: true,
+                module_id: constants::CORE_MODULE,
+                refset_id: component_annotation,
+                referenced_component_id: MI,
+            },
+            language_dialect_code: "en-GB".to_string(),
+            type_id: annotation_type,
+            value: "a free-text note".to_string(),
+        });
+        let store = b.build();
+
+        assert_eq!(
+            eval(
+                &format!("^ {component_annotation} {{{{ M value = \"nonexistent\" }}}}"),
+                &store
+            ),
+            HashSet::new(),
+            "the row's own value doesn't match"
+        );
+        assert_eq!(
+            eval(
+                &format!("^ {component_annotation} {{{{ M value = \"free-text\" }}}}"),
+                &store
+            ),
+            HashSet::from([MI])
+        );
+        // `^R` reaches the same row, through the shared row-matching path.
+        assert_eq!(
+            eval(
+                &format!("^R {MI} {{{{ M value = \"free-text\" }}}}"),
+                &store
+            ),
+            HashSet::from([component_annotation])
+        );
+    }
+
+    /// `MrcmDomainRefsetMember`/every other typed row source has no
+    /// `value` column reached by this filter kind — a membership that
+    /// exists only there must never match.
+    #[test]
+    fn member_filter_value_never_matches_mrcm_domain_rows() {
+        let mrcm_domain = SctId::compose(10039, ComponentType::Concept, None).unwrap();
+        let mut b = SnapshotStore::builder();
+        b.add_concept(concept(MI));
+        b.add_mrcm_domain_member(MrcmDomainRefsetMember {
+            core: RefsetMemberCore {
+                id: MemberId::parse("80000000-0000-4000-8000-000000000191").unwrap(),
+                effective_time: EffectiveTime::new_unchecked(20190731),
+                active: true,
+                module_id: constants::CORE_MODULE,
+                refset_id: mrcm_domain,
+                referenced_component_id: MI,
+            },
+            domain_constraint: String::new(),
+            parent_domain: String::new(),
+            proximal_primitive_constraint: String::new(),
+            proximal_primitive_refinement: String::new(),
+            domain_template_for_precoordination: String::new(),
+            domain_template_for_postcoordination: String::new(),
+            guide_url: String::new(),
+        });
+        let store = b.build();
+
+        assert_eq!(
+            eval(
+                &format!("^ {mrcm_domain} {{{{ M value = \"free-text\" }}}}"),
                 &store
             ),
             HashSet::new()

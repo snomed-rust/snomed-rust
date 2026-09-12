@@ -13,6 +13,26 @@ together, in dependency order (`snomed-core` → `snomed-rf2` → `snomed-owl`
 
 ## [Unreleased]
 
+### Added
+
+- `snomed-ecl`: `{{ M value = "a free-text note" }}` restricts to
+  `ComponentAnnotation` member rows whose own `value` column matches —
+  the same `match:`/`wild:`/`exact:` search-term grammar
+  `mapTarget`/`languageDialectCode` use (reusing `TermFilter`'s exact
+  shape and `term_matches`). Works after both `^` and `^R`, and
+  conjoins with `languageDialectCode`/`typeId` and the other
+  shared-column kinds on the same member row — all three of
+  `ComponentAnnotationRefsetMember`'s columns now share one row, no
+  new row-set check. `memberFieldFilter`'s thirty-seventh column, and
+  `ComponentAnnotationRefsetMember`'s third and last — completing that
+  type's column coverage, the seventh refset type outside the two map
+  types to reach it.
+
+### Notes for consumers
+
+- No public API removed or changed signature; existing code compiles
+  unmodified against this release.
+
 ## [0.53.0] — 2026-09-12
 
 **New ECL capability, additive.** `{{ M ... }}`'s `memberFieldFilter`
@@ -732,39 +752,7 @@ public API, no removals or signature changes to anything existing.
   check, reusing `domainConstraint`'s
   `SnapshotStore::mrcm_domain_member_rows`.
 
-## [0.33.0] — 2026-09-07
-
-**New ECL capability, additive.** `{{ M ... }}`'s `memberFieldFilter`
-gains its eighteenth column, `domainConstraint` — the first filterable
-column on `MrcmDomainRefsetMember`, a ninth refset type outside the
-two map types, after both `^` and `^R`. String-search shape, reusing
-`mapTarget`/`mapRule`/`mapAdvice`/`owlExpression`'s exact grammar and
-`term_matches`; needed a genuinely new `MemberFilterKind` variant (no
-implemented column shares this RF2 field name) and a genuinely new
-eleventh row-set check. A minor bump: new public API, no removals or
-signature changes to anything existing.
-
-### Added
-
-- `snomed-ecl`: `{{ M domainConstraint = "<< 404684003" }}` restricts
-  to `MrcmDomain` member rows whose own `domainConstraint` column
-  matches — the same `match:`/`wild:`/`exact:` search-term grammar
-  `mapTarget`/`mapRule`/`mapAdvice`/`owlExpression` use (reusing
-  `TermFilter`'s exact shape and `term_matches`). Works after both `^`
-  and `^R`, and conjoins with `moduleId` and the other shared-column
-  kinds on the same member row. Only `MrcmDomainRefsetMember` rows
-  carry a `domainConstraint` column; every other row source never
-  matches. `memberFieldFilter`'s eighteenth column, and the first on
-  `MrcmDomainRefsetMember` — a ninth refset type outside the two map
-  types, and the first of those nine whose first implemented column is
-  the string-search shape rather than concept-reference or numeric.
-  Needed a genuinely new `MemberFilterKind` variant (no implemented
-  column shares this RF2 field name) and a genuinely new eleventh
-  typed row-set check (`SnapshotStore::mrcm_domain_member_rows`,
-  already present in the store from the sixteen-type retention
-  decision).
-
-Entries for 0.32.0 and earlier live in
+Entries for 0.33.0 and earlier live in
 [`docs/changelog-archive.md`](docs/changelog-archive.md) — moved there
 verbatim to keep this file inside the repository's 40 KB per-document
 budget (rule 1 of `spec/docs-budget-and-links/index.md`).

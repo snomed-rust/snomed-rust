@@ -73,9 +73,9 @@ named column's own semantic type (confirmed against the official ABNF,
 subExpressionConstraint` (a concept reference), `numericComparisonOperator
 ws "#" numericValue`, `stringComparisonOperator ws (typedSearchTerm |
 typedSearchTermSet)`, `booleanComparisonOperator ws booleanValue`, or
-`timeComparisonOperator ws (timeValue | timeValueSet)`. Thirty-six
+`timeComparisonOperator ws (timeValue | timeValueSet)`. Thirty-seven
 kinds are
-implemented, spanning all five shapes (string has sixteen,
+implemented, spanning all five shapes (string has seventeen,
 concept reference has twelve, numeric has five, boolean has one, time
 has two):
 
@@ -462,10 +462,21 @@ has two):
   filter kind (distinct from `{{ D typeId = ... }}`'s own `typeId`
   filter, a different filter block matched against a description
   row's `typeId`, not a member row's).
+- `value (=|!=) (typedSearchTerm | typedSearchTermSet)` — the
+  string-search shape, reusing `TermFilter`/`term_matches` as
+  `mapTarget`/`languageDialectCode` do, matched against
+  `ComponentAnnotationRefsetMember`'s own `value` column (spec/08:
+  the free-text annotation itself, up to 32KB UTF-8).
+  `ComponentAnnotationRefsetMember`'s third and last column, sharing a
+  row with `languageDialectCode`/`typeId` — no new row-set check.
+  Completes `ComponentAnnotationRefsetMember`'s column coverage — the
+  seventh refset type outside the two map types to reach it. Genuinely
+  new variant: no other column shares this RF2 field name in this
+  filter kind.
 
-All thirty-six reuse the shared dispatch `mapTarget` introduced
+All thirty-seven reuse the shared dispatch `mapTarget` introduced
 (renamed `typed_field_row_matches` once a non-map type joined it): a
-block naming *any* of the thirty-six kinds is tested against
+block naming *any* of the thirty-seven kinds is tested against
 `SimpleMap`/`ExtendedMap`/`Association`/`AttributeValue`/`OwlExpression`/
 `OrderedComponent`/`OrderedAssociation`/`MrcmModuleScope`/
 `RefsetDescriptor`/`DescriptionType`/`MrcmDomain`/`MrcmAttributeDomain`/
@@ -483,7 +494,7 @@ any of `correlationId`/
 `attributeOrder`/`descriptionFormat`/`descriptionLength`/
 `domainConstraint`/`parentDomain`/`proximalPrimitiveConstraint`/
 `proximalPrimitiveRefinement`/`domainTemplateForPrecoordination`/
-`domainTemplateForPostcoordination`/`guideURL`/`domainId`/`ruleStrengthId`/`contentTypeId`/`grouped`/`attributeCardinality`/`attributeInGroupCardinality`/`sourceEffectiveTime`/`targetEffectiveTime`/`rangeConstraint`/`attributeRule`/`languageDialectCode`/`typeId`
+`domainTemplateForPostcoordination`/`guideURL`/`domainId`/`ruleStrengthId`/`contentTypeId`/`grouped`/`attributeCardinality`/`attributeInGroupCardinality`/`sourceEffectiveTime`/`targetEffectiveTime`/`rangeConstraint`/`attributeRule`/`languageDialectCode`/`typeId`/`value`
 (the column is
 simply
 absent on that row source, the same "not this row's type" answer a

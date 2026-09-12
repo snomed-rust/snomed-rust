@@ -84,9 +84,9 @@ token shape:
   `attributeOrder`/`descriptionFormat`/`descriptionLength`/
   `domainConstraint`/`parentDomain`/`proximalPrimitiveConstraint`/
   `proximalPrimitiveRefinement`/`domainTemplateForPrecoordination`/
-  `domainTemplateForPostcoordination`/`guideURL`/`domainId`/`ruleStrengthId`/`contentTypeId`/`grouped`/`attributeCardinality`/`attributeInGroupCardinality`/`sourceEffectiveTime`/`targetEffectiveTime`/`rangeConstraint`/`attributeRule`/`languageDialectCode`/`typeId`
-  — a refset-type-specific column (`value` on
-  `ComponentAnnotationRefsetMember`, …), as
+  `domainTemplateForPostcoordination`/`guideURL`/`domainId`/`ruleStrengthId`/`contentTypeId`/`grouped`/`attributeCardinality`/`attributeInGroupCardinality`/`sourceEffectiveTime`/`targetEffectiveTime`/`rangeConstraint`/`attributeRule`/`languageDialectCode`/`typeId`/`value`
+  — a refset-type-specific column (`referencedMemberId` on
+  `MemberAnnotationRefsetMember`, …), as
   opposed to the three shared-column kinds
   (`moduleId`/`effectiveTime`/`active`) implemented 2026-09-01 after both
   `^` and `^R`. `refsetFieldName` is `1*alpha` in the official grammar
@@ -308,9 +308,15 @@ token shape:
   `member_row_matches`'s dispatch `matches!` list too, or it silently
   falls through to the generic `member_rows` path where it can never
   match — every future variant needs that same addition, not just the
-  parser/eval/store touchpoints already tracked. `value`
-  (`ComponentAnnotationRefsetMember`'s remaining and last column)
-  remains unimplemented, with no example yet. See
+  parser/eval/store touchpoints already tracked.
+  `value` (2026-09-12) — `ComponentAnnotationRefsetMember`'s third and
+  last column, back on the string-search shape, sharing a row with
+  `languageDialectCode`/`typeId` — no new row-set check. Completes
+  `ComponentAnnotationRefsetMember`'s column coverage, the seventh
+  refset type outside the two map types to reach it.
+  `referencedMemberId` (`MemberAnnotationRefsetMember`'s own column,
+  distinct from `targetComponentId`) remains unimplemented, with no
+  example yet. See
   `SnapshotStore::simple_map_member_rows`/`extended_map_member_rows`/
   `association_member_rows` and
   spec/09 rule 4. Decided 2026-09-03 in `plan.md`'s "Open decisions":

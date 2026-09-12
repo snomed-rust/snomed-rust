@@ -18,7 +18,7 @@
 //! `guideURL`/`domainId`/`ruleStrengthId`/`contentTypeId`/`grouped`/
 //! `attributeCardinality`/`attributeInGroupCardinality`/`sourceEffectiveTime`/
 //! `targetEffectiveTime`/`rangeConstraint`/`attributeRule`/`languageDialectCode`/
-//! `typeId`,
+//! `typeId`/`value`,
 //! the history supplement,
 //! alternate identifiers, …) is listed in
 //! `spec/10-ecl-unimplemented.md`. Encountering one is a parse error,

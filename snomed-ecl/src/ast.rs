@@ -381,7 +381,7 @@ pub enum ConceptFilterKind {
 /// `GuideUrl`/`DomainId`/`RuleStrengthId`/`ContentTypeId`/`Grouped`/
 /// `AttributeCardinality`/`AttributeInGroupCardinality`/`SourceEffectiveTime`/
 /// `TargetEffectiveTime`/`RangeConstraint`/`AttributeRule`/
-/// `LanguageDialectCode`/`TypeId`
+/// `LanguageDialectCode`/`TypeId`/`Value`
 /// are the official grammar's fourth kind, `memberFieldFilter`
 /// — a refset-type-specific column rather than a shared one. Its own
 /// grammar (confirmed against the official ABNF, `syntax/abnf-brief.txt`)
@@ -502,11 +502,15 @@ pub enum ConceptFilterKind {
 /// a thirteenth refset type outside the two map types, extended to
 /// `MemberAnnotationRefsetMember`'s own column of the same name
 /// next — a sixteenth row-set check, a fourteenth refset type
-/// outside the two map types, no new variant); and `typeId`
+/// outside the two map types, no new variant); `typeId`
 /// (`ComponentAnnotationRefsetMember`'s second column, back to the
 /// concept-reference shape, another genuinely new variant since no
 /// implemented column shares this RF2 field name, no new row-set
-/// check since it shares `languageDialectCode`'s row) —
+/// check since it shares `languageDialectCode`'s row); and `value`
+/// (`ComponentAnnotationRefsetMember`'s third and last column, back
+/// to the string-search shape, another genuinely new variant, no new
+/// row-set check, completing that type's column coverage — the
+/// seventh refset type outside the two map types to reach it) —
 /// all
 /// decided 2026-09-03 (`plan.md`'s "Open decisions") to retain full rows
 /// — active and inactive — for all sixteen non-Simple/Language refset
@@ -1120,6 +1124,21 @@ pub enum MemberFilterKind {
     /// `languageDialectCode`; `value` remains); no new row-set check,
     /// reusing `component_annotation_member_rows`.
     TypeId(ModuleFilter),
+    /// `value (=|!=) (typedSearchTerm | typedSearchTermSet)` — a
+    /// `memberFieldFilter` (spec/10 rule 18), the string-search shape,
+    /// reusing [`TermFilter`]'s exact shape and grammar — the same
+    /// production `mapTarget`/`languageDialectCode` use. Matched
+    /// against `ComponentAnnotationRefsetMember`'s own `value` column
+    /// (spec/08: the free-text annotation itself, up to 32KB UTF-8).
+    /// `ComponentAnnotationRefsetMember`'s third and last column,
+    /// completing that type's column coverage (the seventh refset
+    /// type outside the two map types to reach it) — no new row-set
+    /// check, reusing `component_annotation_member_rows`. No
+    /// implemented column shares the RF2 field name `value` in this
+    /// filter kind (distinct from RF2's ubiquitous *concrete value*
+    /// concept in `eclAttribute`'s own numeric/string comparisons,
+    /// unrelated machinery entirely), so this needed its own variant.
+    Value(TermFilter),
 }
 
 /// `numericComparisonOperator ws "#" numericValue` — a `memberFieldFilter`
