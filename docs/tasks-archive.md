@@ -1,7 +1,7 @@
 # Tasks archive — index
 
 [`tasks.md`](../tasks.md) keeps the current checklist and the recent
-entries; everything older lives here, split into fifty-two files
+entries; everything older lives here, split into fifty-three files
 that each
 stay inside the repository's 40 KB per-document budget. Entries were moved
 verbatim — this is a historical record, not a summary, and it is worth
@@ -64,6 +64,7 @@ so the paths quoted here still resolve.
 | [`tasks-archive-50.md`](tasks-archive-50.md) | 2026-09-10 | Release 0.49.0; `memberFieldFilter`'s `rangeConstraint` column (`MrcmAttributeRangeRefsetMember`'s first column of its own) |
 | [`tasks-archive-51.md`](tasks-archive-51.md) | 2026-09-10 | `memberFieldFilter`'s `attributeRule` column, completing `MrcmAttributeRangeRefsetMember`'s column coverage; the second `spec/10` split (`spec/10-ecl-member-filters.md`) |
 | [`tasks-archive-52.md`](tasks-archive-52.md) | 2026-09-11 | Release 0.50.0 (`memberFieldFilter`'s `attributeRule`, the thirty-eighth self-decided release) |
+| [`tasks-archive-53.md`](tasks-archive-53.md) | 2026-09-11 | Release 0.51.0 and `memberFieldFilter`'s `languageDialectCode` column (`ComponentAnnotationRefsetMember`'s first column, the thirty-ninth self-decided release) |
 
 Older entries are shorter and more granular than recent ones: they were
 written a change at a time while the workspace was being built from

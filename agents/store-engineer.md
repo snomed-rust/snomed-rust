@@ -208,11 +208,11 @@ its inactive rows.
 `descriptionFormat`/`descriptionLength`/`domainConstraint`/
 `parentDomain`/`proximalPrimitiveConstraint`/
 `proximalPrimitiveRefinement`/`domainTemplateForPrecoordination`/
-`domainTemplateForPostcoordination`/`guideURL`/`domainId`/`ruleStrengthId`/`contentTypeId`/`grouped`/`attributeCardinality`/`attributeInGroupCardinality`/`sourceEffectiveTime`/`targetEffectiveTime`/`rangeConstraint`/`attributeRule`/`languageDialectCode`
+`domainTemplateForPostcoordination`/`guideURL`/`domainId`/`ruleStrengthId`/`contentTypeId`/`grouped`/`attributeCardinality`/`attributeInGroupCardinality`/`sourceEffectiveTime`/`targetEffectiveTime`/`rangeConstraint`/`attributeRule`/`languageDialectCode`/`typeId`
 filters
 (`spec/10-ecl.md` rule
 18) are
-the first thirty-five
+the first thirty-six
 consumers: the first seven dispatch directly to
 `simple_map_member_rows`/`extended_map_member_rows`
 (`correlationId`/`mapGroup`/`mapPriority`/`mapRule`/`mapAdvice`/
@@ -223,8 +223,8 @@ consumers: the first seven dispatch directly to
 `descriptionFormat`/`descriptionLength`/`domainConstraint`/
 `parentDomain`/`proximalPrimitiveConstraint`/`proximalPrimitiveRefinement`/
 `domainTemplateForPrecoordination`/`domainTemplateForPostcoordination`/
-`guideURL`/`domainId`/`ruleStrengthId`/`contentTypeId`/`grouped`/`attributeCardinality`/`attributeInGroupCardinality`/`sourceEffectiveTime`/`targetEffectiveTime`/`rangeConstraint`/`attributeRule`/`languageDialectCode`
-— the first twenty-eight
+`guideURL`/`domainId`/`ruleStrengthId`/`contentTypeId`/`grouped`/`attributeCardinality`/`attributeInGroupCardinality`/`sourceEffectiveTime`/`targetEffectiveTime`/`rangeConstraint`/`attributeRule`/`languageDialectCode`/`typeId`
+— the first twenty-nine
 outside
 the two map types — dispatch to `association_member_rows`/
 `attribute_value_member_rows`/`owl_expression_member_rows`/
@@ -328,7 +328,16 @@ in the store) but *no* second `MemberFilterKind` variant, the same
 "reuse the variant, add the row-set check" shape
 `ruleStrengthId`/`contentTypeId` had extending to
 `MrcmAttributeRangeRefsetMember` — a fourteenth refset type outside
-the two map types. All
+the two map types. `typeId` then reused that same fifteenth row set
+too — `ComponentAnnotationRefsetMember`'s second column, sharing a
+row with `languageDialectCode`, no new row-set check needed; back to
+a genuinely new `MemberFilterKind` variant (no implemented column
+shares the RF2 field name `typeId` in this filter kind), with its own
+parser arm on `TokenKind::TypeIdKeyword` rather than a plain `Word`
+match. This one also surfaced a real dispatch bug: a new variant
+needs adding to `snomed-ecl`'s `member_row_matches` `matches!` list
+too — not a `snomed-store` touchpoint, but the same "every new
+variant has more than one place to update" lesson. All
 row sets are still
 tested whenever any field-filter kind appears in a block, since a row
 missing the column simply fails that filter rather than needing its

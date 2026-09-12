@@ -276,6 +276,12 @@ fn evaluate_member_filter(
 /// the same block, via each typed row's own `core`, so "one row, all
 /// filters" still means one `SimpleMap`/`ExtendedMap` row, not a
 /// `RefsetMemberCore` row and a typed row compared independently.
+/// **Every new `MemberFilterKind` variant must be added to the
+/// `matches!` list below**, or it silently falls through to the
+/// `member_rows` path, where its `TypedFields` field is always `None`
+/// and the filter can never match anything — caught once for real by
+/// `typeId`'s eval tests (the first non-parser test written after
+/// adding a variant here, since the parser test alone can't see this).
 fn member_row_matches(
     store: &SnapshotStore,
     refset_id: SctId,
@@ -322,6 +328,7 @@ fn member_row_matches(
                 | MemberFilterKind::RangeConstraint(_)
                 | MemberFilterKind::AttributeRule(_)
                 | MemberFilterKind::LanguageDialectCode(_)
+                | MemberFilterKind::TypeId(_)
         )
     }) {
         return typed_field_row_matches(
@@ -397,7 +404,10 @@ fn member_row_matches(
 /// outside the two map types, and also — reused verbatim, no second
 /// field — `MemberAnnotationRefsetMember`'s own `languageDialectCode`
 /// column, a fourteenth refset type outside the two map types, a
-/// distinct row sharing only the RF2 field name.
+/// distinct row sharing only the RF2 field name. `type_id` is
+/// `ComponentAnnotationRefsetMember`'s second column, populated from
+/// the same row as `language_dialect_code`'s
+/// `ComponentAnnotationRefsetMember` case.
 #[derive(Default)]
 struct TypedFields<'a> {
     map_target: Option<&'a str>,
@@ -435,6 +445,7 @@ struct TypedFields<'a> {
     range_constraint: Option<&'a str>,
     attribute_rule: Option<&'a str>,
     language_dialect_code: Option<&'a str>,
+    type_id: Option<SctId>,
 }
 
 /// The `mapTarget`/`correlationId`/`mapGroup`/`mapPriority`/`mapRule`/
@@ -824,6 +835,7 @@ fn typed_field_row_matches(
                         &row.core,
                         &TypedFields {
                             language_dialect_code: Some(&row.language_dialect_code),
+                            type_id: Some(row.type_id),
                             ..TypedFields::default()
                         },
                     )
@@ -995,7 +1007,8 @@ fn prepare_member_filter(filter: &MemberFilterKind, store: &SnapshotStore) -> Pr
         | MemberFilterKind::DescriptionFormat(ModuleFilter { value, .. })
         | MemberFilterKind::DomainId(ModuleFilter { value, .. })
         | MemberFilterKind::RuleStrengthId(ModuleFilter { value, .. })
-        | MemberFilterKind::ContentTypeId(ModuleFilter { value, .. }) => {
+        | MemberFilterKind::ContentTypeId(ModuleFilter { value, .. })
+        | MemberFilterKind::TypeId(ModuleFilter { value, .. }) => {
             PreparedMemberFilter::Concepts(evaluate(value, store))
         }
         MemberFilterKind::MapTarget(TermFilter { values, .. })
@@ -1522,9 +1535,9 @@ fn member_filter_matches(
                 unreachable!("a languageDialectCode filter prepares to `Term`")
             };
             // No `language_dialect_code` on this row source (every
-            // source but `ComponentAnnotation`'s own): never matches,
-            // same reasoning as every other typed-column filter's
-            // `None` case above.
+            // source but `ComponentAnnotation`'s and
+            // `MemberAnnotation`'s own): never matches, same reasoning
+            // as every other typed-column filter's `None` case above.
             let Some(language_dialect_code) = fields.language_dialect_code else {
                 return false;
             };
@@ -1533,6 +1546,19 @@ fn member_filter_matches(
                 .zip(searches)
                 .any(|(search, prepared)| term_matches(language_dialect_code, search, prepared));
             matches != *negated
+        }
+        MemberFilterKind::TypeId(ModuleFilter { negated, .. }) => {
+            let PreparedMemberFilter::Concepts(values) = prepared else {
+                unreachable!("a typeId filter prepares to `Concepts`")
+            };
+            // No `type_id` on this row source (every source but
+            // `ComponentAnnotation`'s own): never matches, same
+            // reasoning as every other typed-column filter's `None`
+            // case above.
+            let Some(type_id) = fields.type_id else {
+                return false;
+            };
+            values.contains(&type_id) != *negated
         }
     }
 }
@@ -7783,6 +7809,96 @@ mod tests {
                 &store
             ),
             HashSet::from([MI])
+        );
+    }
+
+    /// `typeId` (spec/10 rule 18) — `ComponentAnnotationRefsetMember`'s
+    /// second column, back on the concept-reference shape (reusing
+    /// `ModuleFilter`/`correlationId`'s exact grammar), sharing a row
+    /// with `languageDialectCode`. Also proves `{{ M }}` after `^R`
+    /// reaches it.
+    #[test]
+    fn member_filter_type_id_matches_component_annotation_rows() {
+        let component_annotation = SctId::compose(10032, ComponentType::Concept, None).unwrap();
+        let annotation_type = SctId::compose(10033, ComponentType::Concept, None).unwrap();
+        let other_type = SctId::compose(10034, ComponentType::Concept, None).unwrap();
+        let mut b = SnapshotStore::builder();
+        b.add_concept(concept(MI));
+        b.add_concept(concept(annotation_type));
+        b.add_concept(concept(other_type));
+        b.add_component_annotation_member(ComponentAnnotationRefsetMember {
+            core: RefsetMemberCore {
+                id: MemberId::parse("80000000-0000-4000-8000-000000000187").unwrap(),
+                effective_time: EffectiveTime::new_unchecked(20190731),
+                active: true,
+                module_id: constants::CORE_MODULE,
+                refset_id: component_annotation,
+                referenced_component_id: MI,
+            },
+            language_dialect_code: "en-GB".to_string(),
+            type_id: annotation_type,
+            value: "a free-text note".to_string(),
+        });
+        let store = b.build();
+
+        assert_eq!(
+            eval(
+                &format!("^ {component_annotation} {{{{ M typeId = {other_type} }}}}"),
+                &store
+            ),
+            HashSet::new(),
+            "the row's own typeId doesn't match"
+        );
+        assert_eq!(
+            eval(
+                &format!("^ {component_annotation} {{{{ M typeId = {annotation_type} }}}}"),
+                &store
+            ),
+            HashSet::from([MI])
+        );
+        // `^R` reaches the same row, through the shared row-matching path.
+        assert_eq!(
+            eval(
+                &format!("^R {MI} {{{{ M typeId = {annotation_type} }}}}"),
+                &store
+            ),
+            HashSet::from([component_annotation])
+        );
+    }
+
+    /// `MemberAnnotationRefsetMember`/every other typed row source has
+    /// no `typeId` column reached by this filter kind (it is not yet
+    /// extended there, unlike `languageDialectCode`) — a membership
+    /// that exists only there must never match.
+    #[test]
+    fn member_filter_type_id_never_matches_member_annotation_rows() {
+        let member_annotation = SctId::compose(10035, ComponentType::Concept, None).unwrap();
+        let annotation_type = SctId::compose(10036, ComponentType::Concept, None).unwrap();
+        let mut b = SnapshotStore::builder();
+        b.add_concept(concept(MI));
+        b.add_concept(concept(annotation_type));
+        b.add_member_annotation_member(MemberAnnotationRefsetMember {
+            core: RefsetMemberCore {
+                id: MemberId::parse("80000000-0000-4000-8000-000000000188").unwrap(),
+                effective_time: EffectiveTime::new_unchecked(20190731),
+                active: true,
+                module_id: constants::CORE_MODULE,
+                refset_id: member_annotation,
+                referenced_component_id: MI,
+            },
+            referenced_member_id: MemberId::parse("80000000-0000-4000-8000-000000000189").unwrap(),
+            language_dialect_code: "en-GB".to_string(),
+            type_id: annotation_type,
+            value: "a free-text note on a member".to_string(),
+        });
+        let store = b.build();
+
+        assert_eq!(
+            eval(
+                &format!("^ {member_annotation} {{{{ M typeId = {annotation_type} }}}}"),
+                &store
+            ),
+            HashSet::new()
         );
     }
 

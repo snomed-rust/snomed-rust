@@ -270,9 +270,10 @@ and harmonizes it with the sibling repositories (`hl7-rust`, `er7-rust`,
   `sourceEffectiveTime`,
   `targetEffectiveTime`,
   `rangeConstraint`,
-  `attributeRule`, and
-  `languageDialectCode` are the
-  first thirty-five
+  `attributeRule`,
+  `languageDialectCode`, and
+  `typeId` are the
+  first thirty-six
   concrete fields
   built on this retention (`snomed-ecl`, spec/10 rule 18): the
   `memberFieldFilter` grammar alternative, tested against
@@ -298,7 +299,7 @@ and harmonizes it with the sibling repositories (`hl7-rust`, `er7-rust`,
   the string-search
   shape, `correlationId`/`mapCategoryId`/
   `targetComponentId`/`valueId`/`mrcmRuleRefsetId`/`attributeDescription`/
-  `attributeType`/`descriptionFormat`/`domainId`/`ruleStrengthId`/`contentTypeId`
+  `attributeType`/`descriptionFormat`/`domainId`/`ruleStrengthId`/`contentTypeId`/`typeId`
   the concept-reference
   shape
   (`expressionComparisonOperator ws subExpressionConstraint`, reusing
@@ -329,10 +330,10 @@ and harmonizes it with the sibling repositories (`hl7-rust`, `er7-rust`,
   `descriptionFormat`/`descriptionLength`/`domainConstraint`/
   `parentDomain`/`proximalPrimitiveConstraint`/
   `proximalPrimitiveRefinement`/`domainTemplateForPrecoordination`/
-  `domainTemplateForPostcoordination`/`guideURL`/`domainId`/`ruleStrengthId`/`contentTypeId`/`grouped`/`attributeCardinality`/`attributeInGroupCardinality`/`sourceEffectiveTime`/`targetEffectiveTime`/`rangeConstraint`/`attributeRule`,
-  and `languageDialectCode`
+  `domainTemplateForPostcoordination`/`guideURL`/`domainId`/`ruleStrengthId`/`contentTypeId`/`grouped`/`attributeCardinality`/`attributeInGroupCardinality`/`sourceEffectiveTime`/`targetEffectiveTime`/`rangeConstraint`/`attributeRule`/`languageDialectCode`,
+  and `typeId`
   are the
-  first twenty-eight fields on refset
+  first twenty-nine fields on refset
   types
   other than the two
   map types (`AssociationRefsetMember`/`AttributeValueRefsetMember`/
@@ -354,7 +355,7 @@ and harmonizes it with the sibling repositories (`hl7-rust`, `er7-rust`,
   past `ExtendedMap`/`SimpleMap` across every grammar shape, not just
   the concept-reference one. Every
   other `memberFieldFilter` column
-  (`typeId`/`value` on `ComponentAnnotationRefsetMember`, …)
+  (`value`, `ComponentAnnotationRefsetMember`'s last, …)
   remains rejected generically —
   not by a fixed keyword list (`refsetFieldName` is `1*alpha`, confirmed
   against the official ABNF) — but each is now a free `snomed-ecl`
@@ -370,10 +371,9 @@ and harmonizes it with the sibling repositories (`hl7-rust`, `er7-rust`,
 ## Current status
 
 All eight phases above are closed. As of `memberFieldFilter`'s
-`languageDialectCode` extending to `MemberAnnotationRefsetMember`
-(2026-09-12, below) the
+`typeId` (2026-09-12, below) the
 workspace is 9 published
-crates with zero dependencies, 523 tests, a clean
+crates with zero dependencies, 526 tests, a clean
 `cargo clippy --all-targets`, 13 fuzz targets, and six criterion
 benchmark files. What is *not* done is tracked
 in two places and nowhere
@@ -548,7 +548,17 @@ variant, add the row-set check" shape `ruleStrengthId`/`contentTypeId`
 had extending to `MrcmAttributeRangeRefsetMember`): no second variant,
 just a genuinely new sixteenth row-set check
 (`member_annotation_member_rows`, also already present in the store)
-— a fourteenth refset type outside the two map types. `spec/10`
+— a fourteenth refset type outside the two map types; and `typeId`
+(2026-09-12) is `ComponentAnnotationRefsetMember`'s second column,
+back on the concept-reference shape, another genuinely new variant
+(no implemented column shares this RF2 field name in this filter
+kind), no new row-set check since it shares
+`languageDialectCode`'s row — but its own dedicated
+`TokenKind::TypeIdKeyword` parser arm, since `typeId` is already a
+lexer keyword from `{{ D typeId = ... }}`. Caught a real bug before
+shipping: a new variant must also be added to `member_row_matches`'s
+dispatch `matches!` list, or it silently falls through to the
+type-erased `member_rows` path and can never match. `spec/10`
 also split a second time this cycle: `spec/10-ecl-filters.md` had
 outgrown its own 40 KB budget from `{{ M ... }}` columns
 accumulating, so that section moved to a new

@@ -13,6 +13,31 @@ together, in dependency order (`snomed-core` → `snomed-rf2` → `snomed-owl`
 
 ## [Unreleased]
 
+### Added
+
+- `snomed-ecl`: `{{ M typeId = 1295447006 }}` restricts to
+  `ComponentAnnotation` member rows whose own `typeId` column matches
+  — the concept-reference shape, reusing `ModuleFilter` as
+  `correlationId`/`domainId` do. `typeId` already lexes as a
+  dedicated `TokenKind::TypeIdKeyword` (from `{{ D typeId = ... }}`),
+  not a plain `Word`, so this filter's parser arm matches that token
+  kind directly. Works after both `^` and `^R`, and conjoins with
+  `languageDialectCode` and the other shared-column kinds on the same
+  member row — both columns live on the same
+  `ComponentAnnotationRefsetMember` row, so a block naming both is
+  satisfied by that one row. `memberFieldFilter`'s thirty-sixth
+  column; no new row-set check. Adding this variant surfaced a real
+  dispatch gap: `member_row_matches`'s `matches!` list, which decides
+  whether a block routes to the typed row sets at all, must list
+  every `MemberFilterKind` variant — this one was initially missing
+  from it, so the filter silently never matched anything until this
+  column's own eval tests caught it before release.
+
+### Notes for consumers
+
+- No public API removed or changed signature; existing code compiles
+  unmodified against this release.
+
 ## [0.52.0] — 2026-09-12
 
 **New ECL capability, additive.** `{{ M ... }}`'s
@@ -723,41 +748,7 @@ signature changes to anything existing.
   already present in the store from the sixteen-type retention
   decision).
 
-## [0.32.0] — 2026-09-07
-
-**New ECL capability, additive.** `{{ M ... }}`'s `memberFieldFilter`
-gains its seventeenth column, `descriptionLength` —
-`DescriptionTypeRefsetMember`'s second and last column (after
-`descriptionFormat`), after both `^` and `^R`. Back on the numeric
-shape, reusing `mapGroup`/`mapPriority`/`order`/`attributeOrder`'s
-exact grammar and `field_numeric_matches`; needed a genuinely new
-`MemberFilterKind` variant (no implemented column shares this RF2
-field name) but no new row-set check, reusing `descriptionFormat`'s
-row set. Completes `DescriptionTypeRefsetMember`'s column coverage — the
-second refset type outside the two map types to reach that, after
-`RefsetDescriptorRefsetMember`. A minor bump: new public API, no
-removals or signature changes to anything existing.
-
-### Added
-
-- `snomed-ecl`: `{{ M descriptionLength = #255 }}` restricts to
-  `DescriptionType` member rows whose own `descriptionLength` column
-  matches — the same numeric grammar `mapGroup`/`mapPriority`/`order`/
-  `attributeOrder` use (reusing `NumericFieldFilter`'s exact shape and
-  `field_numeric_matches`). Works after both `^` and `^R`, and conjoins
-  with `descriptionFormat` and the other shared-column kinds on the
-  same member row — `descriptionFormat`/`descriptionLength` both live
-  on the same `DescriptionTypeRefsetMember` row, so a block naming both
-  is satisfied by that one row. Only `DescriptionTypeRefsetMember` rows
-  carry a `descriptionLength` column; every other row source never
-  matches. `memberFieldFilter`'s seventeenth column, and
-  `DescriptionTypeRefsetMember`'s second and last — completing that
-  refset type's column coverage. Needed a genuinely new
-  `MemberFilterKind` variant (no implemented column shares this RF2
-  field name) but no new row-set check, reusing
-  `descriptionFormat`'s `SnapshotStore::description_type_member_rows`.
-
-Entries for 0.31.0 and earlier live in
+Entries for 0.32.0 and earlier live in
 [`docs/changelog-archive.md`](docs/changelog-archive.md) — moved there
 verbatim to keep this file inside the repository's 40 KB per-document
 budget (rule 1 of `spec/docs-budget-and-links/index.md`).

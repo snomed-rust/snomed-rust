@@ -73,10 +73,10 @@ named column's own semantic type (confirmed against the official ABNF,
 subExpressionConstraint` (a concept reference), `numericComparisonOperator
 ws "#" numericValue`, `stringComparisonOperator ws (typedSearchTerm |
 typedSearchTermSet)`, `booleanComparisonOperator ws booleanValue`, or
-`timeComparisonOperator ws (timeValue | timeValueSet)`. Thirty-five
+`timeComparisonOperator ws (timeValue | timeValueSet)`. Thirty-six
 kinds are
 implemented, spanning all five shapes (string has sixteen,
-concept reference has eleven, numeric has five, boolean has one, time
+concept reference has twelve, numeric has five, boolean has one, time
 has two):
 
 - `mapTarget (=|!=) (typedSearchTerm | typedSearchTermSet)` — the same
@@ -449,10 +449,23 @@ has two):
   the store) — a fourteenth refset type outside the two map types.
   Genuinely new variant when first implemented: no other column
   shares this RF2 field name.
+- `typeId (=|!=) subExpressionConstraint` — the concept-reference
+  shape, reusing `ModuleFilter` as `correlationId`/`domainId` do,
+  matched against `ComponentAnnotationRefsetMember`'s own `typeId`
+  column (spec/08: a descendant of `1295447006` |Annotation
+  attribute|). `typeId` already lexes as a dedicated
+  `TokenKind::TypeIdKeyword` (from `{{ D typeId = ... }}`), not a
+  plain `Word`, so this filter's parser arm matches that token kind
+  directly. `ComponentAnnotationRefsetMember`'s second column, sharing
+  a row with `languageDialectCode` — no new row-set check. Genuinely
+  new variant: no other column shares this RF2 field name in this
+  filter kind (distinct from `{{ D typeId = ... }}`'s own `typeId`
+  filter, a different filter block matched against a description
+  row's `typeId`, not a member row's).
 
-All thirty-five reuse the shared dispatch `mapTarget` introduced
+All thirty-six reuse the shared dispatch `mapTarget` introduced
 (renamed `typed_field_row_matches` once a non-map type joined it): a
-block naming *any* of the thirty-five kinds is tested against
+block naming *any* of the thirty-six kinds is tested against
 `SimpleMap`/`ExtendedMap`/`Association`/`AttributeValue`/`OwlExpression`/
 `OrderedComponent`/`OrderedAssociation`/`MrcmModuleScope`/
 `RefsetDescriptor`/`DescriptionType`/`MrcmDomain`/`MrcmAttributeDomain`/
@@ -470,7 +483,7 @@ any of `correlationId`/
 `attributeOrder`/`descriptionFormat`/`descriptionLength`/
 `domainConstraint`/`parentDomain`/`proximalPrimitiveConstraint`/
 `proximalPrimitiveRefinement`/`domainTemplateForPrecoordination`/
-`domainTemplateForPostcoordination`/`guideURL`/`domainId`/`ruleStrengthId`/`contentTypeId`/`grouped`/`attributeCardinality`/`attributeInGroupCardinality`/`sourceEffectiveTime`/`targetEffectiveTime`/`rangeConstraint`/`attributeRule`/`languageDialectCode`
+`domainTemplateForPostcoordination`/`guideURL`/`domainId`/`ruleStrengthId`/`contentTypeId`/`grouped`/`attributeCardinality`/`attributeInGroupCardinality`/`sourceEffectiveTime`/`targetEffectiveTime`/`rangeConstraint`/`attributeRule`/`languageDialectCode`/`typeId`
 (the column is
 simply
 absent on that row source, the same "not this row's type" answer a

@@ -1,10 +1,44 @@
 # Changelog archive
 
-Entries for versions 0.31.0 and earlier, moved verbatim from
+Entries for versions 0.32.0 and earlier, moved verbatim from
 [`CHANGELOG.md`](../CHANGELOG.md) to keep that file inside the
 repository's 40 KB per-document budget
 (rule 1 of `spec/docs-budget-and-links/index.md`). Newer entries live
 there.
+
+## [0.32.0] — 2026-09-07
+
+**New ECL capability, additive.** `{{ M ... }}`'s `memberFieldFilter`
+gains its seventeenth column, `descriptionLength` —
+`DescriptionTypeRefsetMember`'s second and last column (after
+`descriptionFormat`), after both `^` and `^R`. Back on the numeric
+shape, reusing `mapGroup`/`mapPriority`/`order`/`attributeOrder`'s
+exact grammar and `field_numeric_matches`; needed a genuinely new
+`MemberFilterKind` variant (no implemented column shares this RF2
+field name) but no new row-set check, reusing `descriptionFormat`'s
+row set. Completes `DescriptionTypeRefsetMember`'s column coverage — the
+second refset type outside the two map types to reach that, after
+`RefsetDescriptorRefsetMember`. A minor bump: new public API, no
+removals or signature changes to anything existing.
+
+### Added
+
+- `snomed-ecl`: `{{ M descriptionLength = #255 }}` restricts to
+  `DescriptionType` member rows whose own `descriptionLength` column
+  matches — the same numeric grammar `mapGroup`/`mapPriority`/`order`/
+  `attributeOrder` use (reusing `NumericFieldFilter`'s exact shape and
+  `field_numeric_matches`). Works after both `^` and `^R`, and conjoins
+  with `descriptionFormat` and the other shared-column kinds on the
+  same member row — `descriptionFormat`/`descriptionLength` both live
+  on the same `DescriptionTypeRefsetMember` row, so a block naming both
+  is satisfied by that one row. Only `DescriptionTypeRefsetMember` rows
+  carry a `descriptionLength` column; every other row source never
+  matches. `memberFieldFilter`'s seventeenth column, and
+  `DescriptionTypeRefsetMember`'s second and last — completing that
+  refset type's column coverage. Needed a genuinely new
+  `MemberFilterKind` variant (no implemented column shares this RF2
+  field name) but no new row-set check, reusing
+  `descriptionFormat`'s `SnapshotStore::description_type_member_rows`.
 
 ## [0.31.0] — 2026-09-07
 

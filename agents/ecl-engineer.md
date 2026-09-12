@@ -498,20 +498,14 @@ just a new `mrcm_attribute_range_member_rows` row-set check in
 `targetComponentId`/`order` had extending to
 `OrderedAssociationRefsetMember`, except two columns from *one* new
 type this time rather than two columns already spanning two types.
-Confirm a field name reuse is genuine (same RF2 column, same
-semantics) before skipping the new-variant step — it is not a
-shortcut to take by default. `rangeConstraint` (2026-09-10),
-`MrcmAttributeRangeRefsetMember`'s first column of its own, followed
-immediately too — back on the string-search shape (reusing
-`mapTarget`'s grammar and `term_matches` verbatim), a genuinely new
-variant this time (no implemented column shares this RF2 field name),
-again no new row-set check — all four columns implemented so far on
-that type share one row. `attributeRule` (2026-09-10),
-`MrcmAttributeRangeRefsetMember`'s second and last column, followed
-immediately too — same string-search shape, another genuinely new
-variant, again no new row-set check, completing that type's column
-coverage (the sixth refset type outside the two map types to reach
-it). `languageDialectCode` (2026-09-11),
+Confirm a field name reuse is genuine before skipping the new-variant
+step — not a shortcut to take by default. `rangeConstraint`/
+`attributeRule` (2026-09-10),
+`MrcmAttributeRangeRefsetMember`'s own first and second/last columns
+— string-search again, genuinely new variants (no shared RF2 field
+name), no new row-set check (four then five columns on one row),
+completing that type's coverage (sixth refset type outside the two
+map types). `languageDialectCode` (2026-09-11),
 `ComponentAnnotationRefsetMember`'s first column, followed immediately
 too — back on the string-search shape, a genuinely new variant, needing
 a genuinely new row-set check
@@ -523,7 +517,12 @@ distinct row, same RF2 field name — the shape
 `ruleStrengthId`/`contentTypeId` had extending to
 `MrcmAttributeRangeRefsetMember`): no new variant, just a new
 `member_annotation_member_rows` row-set check, a fourteenth refset
-type outside the two map types. `memberFieldFilter`
+type outside the two map types. `typeId` (2026-09-12),
+`ComponentAnnotationRefsetMember`'s second column, concept-reference
+again, its own dedicated `TokenKind::TypeIdKeyword` parser arm — caught
+a real bug: every new variant also needs adding to
+`member_row_matches`'s dispatch `matches!` list, or it silently never
+matches. `memberFieldFilter`
 isn't one production but five in the official grammar, chosen by the
 named column's own semantic type
 (`expressionComparisonOperator ws subExpressionConstraint` for a concept
@@ -548,7 +547,7 @@ inspection. `mapPriority` reused that same numeric shape and
 `TermFilter`/`term_matches` verbatim. With the store side now done for
 all sixteen types, every
 *remaining* `memberFieldFilter` column
-(`typeId`/`value` on `ComponentAnnotationRefsetMember`, …)
+(`value`, `ComponentAnnotationRefsetMember`'s last, …)
 IS a free next increment — the cadence below applies to them cleanly,
 the same as any other filter kind. See `spec/10-ecl-unimplemented.md`.
 

@@ -789,11 +789,20 @@ impl Parser {
                     values,
                 }))
             }
+            TokenKind::TypeIdKeyword => {
+                self.advance()?;
+                let negated = self.parse_boolean_comparison_operator()?;
+                let value = self.parse_sub_expression_constraint()?;
+                Ok(MemberFilterKind::TypeId(ModuleFilter {
+                    negated,
+                    value: Box::new(value),
+                }))
+            }
             _ => {
                 let tok = self.peek().clone();
                 Err(Self::unexpected(
                     &tok,
-                    "`moduleId`, `effectiveTime`, `active`, `mapTarget`, `correlationId`, `mapGroup`, `mapPriority`, `mapRule`, `mapAdvice`, `mapCategoryId`, `targetComponentId`, `valueId`, `owlExpression`, `order`, `mrcmRuleRefsetId`, `attributeDescription`, `attributeType`, `attributeOrder`, `descriptionFormat`, `descriptionLength`, `domainConstraint`, `parentDomain`, `proximalPrimitiveConstraint`, `proximalPrimitiveRefinement`, `domainTemplateForPrecoordination`, `domainTemplateForPostcoordination`, `guideURL`, `domainId`, `ruleStrengthId`, `contentTypeId`, `grouped`, `attributeCardinality`, `attributeInGroupCardinality`, `sourceEffectiveTime`, `targetEffectiveTime`, `rangeConstraint`, `attributeRule`, or `languageDialectCode`",
+                    "`moduleId`, `effectiveTime`, `active`, `mapTarget`, `correlationId`, `mapGroup`, `mapPriority`, `mapRule`, `mapAdvice`, `mapCategoryId`, `targetComponentId`, `valueId`, `owlExpression`, `order`, `mrcmRuleRefsetId`, `attributeDescription`, `attributeType`, `attributeOrder`, `descriptionFormat`, `descriptionLength`, `domainConstraint`, `parentDomain`, `proximalPrimitiveConstraint`, `proximalPrimitiveRefinement`, `domainTemplateForPrecoordination`, `domainTemplateForPostcoordination`, `guideURL`, `domainId`, `ruleStrengthId`, `contentTypeId`, `grouped`, `attributeCardinality`, `attributeInGroupCardinality`, `sourceEffectiveTime`, `targetEffectiveTime`, `rangeConstraint`, `attributeRule`, `languageDialectCode`, or `typeId`",
                 ))
             }
         }
@@ -2798,6 +2807,28 @@ mod tests {
         assert_eq!(values[0].search_type, crate::ast::SearchType::Match);
     }
 
+    /// `typeId` (spec/10 rule 18) — `ComponentAnnotationRefsetMember`'s
+    /// second column, back on the concept-reference shape. `typeId`
+    /// already lexes as a dedicated `TokenKind::TypeIdKeyword` (from
+    /// `{{ D typeId = ... }}`), so this exercises the parser arm that
+    /// matches that token kind directly rather than
+    /// `Word(word) if word == "..."`.
+    #[test]
+    fn parses_member_filter_type_id() {
+        let EC::MemberFilter { filters, .. } =
+            parse("^ 1292992004 {{ M typeId = 116680003 |Is a| }}").unwrap()
+        else {
+            panic!("expected a member filter");
+        };
+        assert_eq!(filters.len(), 1);
+        let crate::ast::MemberFilterKind::TypeId(crate::ast::ModuleFilter { negated, .. }) =
+            &filters[0]
+        else {
+            panic!("expected a TypeId filter, got {:?}", filters[0]);
+        };
+        assert!(!negated);
+    }
+
     /// `mapGroup` (spec/10 rule 18) — the third `memberFieldFilter`
     /// column implemented, and the first to use the numeric grammar
     /// shape (`numericComparisonOperator ws "#" numericValue`, the same
@@ -2900,10 +2931,16 @@ mod tests {
     /// `ComponentAnnotationRefsetMember`'s own third and last column,
     /// still unimplemented) falls to the generic bucket, not
     /// `NotYetImplemented` — the same "genuinely unimplemented"
-    /// distinction rule 9 draws elsewhere. Not `typeId`: that word is
-    /// already a dedicated `TokenKind::TypeIdKeyword` (used by
-    /// `{{ D typeId = ... }}`), so it lexes differently from a plain
-    /// `Word` and would test something else entirely.
+    /// distinction rule 9 draws elsewhere. Not `typeId` any more: that
+    /// word used to be a good example of this same lexer-keyword
+    /// collision (`TokenKind::TypeIdKeyword`, from `{{ D typeId =
+    /// ... }}`), but it is a recognized `memberFieldFilter` column now
+    /// (`MemberFilterKind::TypeId`) — its own dedicated match arm on
+    /// `TokenKind::TypeIdKeyword` in `parse_member_filter_kind`, not
+    /// the `Word(word) if word == "..."` pattern every other column
+    /// uses. Kept as a cautionary note here: pick any future
+    /// placeholder column name with the same lexer check this one
+    /// needed.
     #[test]
     fn rejects_an_unrecognized_member_field_filter_generically() {
         assert!(matches!(

@@ -84,7 +84,7 @@ token shape:
   `attributeOrder`/`descriptionFormat`/`descriptionLength`/
   `domainConstraint`/`parentDomain`/`proximalPrimitiveConstraint`/
   `proximalPrimitiveRefinement`/`domainTemplateForPrecoordination`/
-  `domainTemplateForPostcoordination`/`guideURL`/`domainId`/`ruleStrengthId`/`contentTypeId`/`grouped`/`attributeCardinality`/`attributeInGroupCardinality`/`sourceEffectiveTime`/`targetEffectiveTime`/`rangeConstraint`/`attributeRule`/`languageDialectCode`
+  `domainTemplateForPostcoordination`/`guideURL`/`domainId`/`ruleStrengthId`/`contentTypeId`/`grouped`/`attributeCardinality`/`attributeInGroupCardinality`/`sourceEffectiveTime`/`targetEffectiveTime`/`rangeConstraint`/`attributeRule`/`languageDialectCode`/`typeId`
   — a refset-type-specific column (`value` on
   `ComponentAnnotationRefsetMember`, …), as
   opposed to the three shared-column kinds
@@ -297,14 +297,20 @@ token shape:
   `ruleStrengthId`/`contentTypeId` had extending to
   `MrcmAttributeRangeRefsetMember` — a fourteenth refset type outside
   the two map types.
-  `typeId`/`value` (`ComponentAnnotationRefsetMember`'s remaining two
-  columns) remain unimplemented, with no example yet — `typeId`
-  lexes as a dedicated `TokenKind::TypeIdKeyword` (from
-  `{{ D typeId = ... }}`), not a plain `Word`, so it falls to
-  `EclError::UnexpectedToken` here rather than the
-  `UnexpectedKeyword` bucket every other unrecognized
-  `memberFieldFilter` name falls to; still rejected, just via a
-  different variant. See
+  `typeId` (2026-09-12) — `ComponentAnnotationRefsetMember`'s second
+  column, back on the concept-reference shape, needing its own new
+  variant since it lexes as a dedicated `TokenKind::TypeIdKeyword`
+  (from `{{ D typeId = ... }}`), not a plain `Word` — the first
+  `memberFieldFilter` column whose parser arm matches on a dedicated
+  token kind rather than `Word(word) if word == "..."`. No new
+  row-set check, sharing a row with `languageDialectCode`. Caught a
+  real bug before release: the new variant needed adding to
+  `member_row_matches`'s dispatch `matches!` list too, or it silently
+  falls through to the generic `member_rows` path where it can never
+  match — every future variant needs that same addition, not just the
+  parser/eval/store touchpoints already tracked. `value`
+  (`ComponentAnnotationRefsetMember`'s remaining and last column)
+  remains unimplemented, with no example yet. See
   `SnapshotStore::simple_map_member_rows`/`extended_map_member_rows`/
   `association_member_rows` and
   spec/09 rule 4. Decided 2026-09-03 in `plan.md`'s "Open decisions":

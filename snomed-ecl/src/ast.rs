@@ -381,7 +381,7 @@ pub enum ConceptFilterKind {
 /// `GuideUrl`/`DomainId`/`RuleStrengthId`/`ContentTypeId`/`Grouped`/
 /// `AttributeCardinality`/`AttributeInGroupCardinality`/`SourceEffectiveTime`/
 /// `TargetEffectiveTime`/`RangeConstraint`/`AttributeRule`/
-/// `LanguageDialectCode`
+/// `LanguageDialectCode`/`TypeId`
 /// are the official grammar's fourth kind, `memberFieldFilter`
 /// — a refset-type-specific column rather than a shared one. Its own
 /// grammar (confirmed against the official ABNF, `syntax/abnf-brief.txt`)
@@ -502,7 +502,11 @@ pub enum ConceptFilterKind {
 /// a thirteenth refset type outside the two map types, extended to
 /// `MemberAnnotationRefsetMember`'s own column of the same name
 /// next — a sixteenth row-set check, a fourteenth refset type
-/// outside the two map types, no new variant) —
+/// outside the two map types, no new variant); and `typeId`
+/// (`ComponentAnnotationRefsetMember`'s second column, back to the
+/// concept-reference shape, another genuinely new variant since no
+/// implemented column shares this RF2 field name, no new row-set
+/// check since it shares `languageDialectCode`'s row) —
 /// all
 /// decided 2026-09-03 (`plan.md`'s "Open decisions") to retain full rows
 /// — active and inactive — for all sixteen non-Simple/Language refset
@@ -1094,6 +1098,28 @@ pub enum MemberFilterKind {
     /// field name `languageDialectCode`, so this needed its own
     /// variant when first implemented.
     LanguageDialectCode(TermFilter),
+    /// `typeId (=|!=) subExpressionConstraint` — a `memberFieldFilter`
+    /// (spec/10 rule 18), the concept-reference shape, reusing
+    /// [`ModuleFilter`]'s exact shape and grammar — the same
+    /// production `correlationId`/`domainId`/`ruleStrengthId` use.
+    /// Matched against `ComponentAnnotationRefsetMember`'s own
+    /// `typeId` column (spec/08: a descendant of `1295447006`
+    /// |Annotation attribute|). `typeId` already lexes as a dedicated
+    /// `TokenKind::TypeIdKeyword` (from `{{ D typeId = ... }}`'s own
+    /// `typeIdFilter`), not a plain `Word`, so this variant's parser
+    /// arm matches on that token kind directly rather than the
+    /// `Word(word) if word == "..."` pattern every other
+    /// `memberFieldFilter` column uses — the same lexer distinction
+    /// `rejects_an_unrecognized_member_field_filter_generically`'s
+    /// doc comment flags. No implemented column shares the RF2 field
+    /// name `typeId` in this filter kind (distinct from
+    /// [`DescriptionFilterKind::TypeId`], a different filter block
+    /// entirely, matched against a description row's own `typeId`
+    /// column, not a member row's), so this needed its own variant.
+    /// `ComponentAnnotationRefsetMember`'s second column (after
+    /// `languageDialectCode`; `value` remains); no new row-set check,
+    /// reusing `component_annotation_member_rows`.
+    TypeId(ModuleFilter),
 }
 
 /// `numericComparisonOperator ws "#" numericValue` — a `memberFieldFilter`
