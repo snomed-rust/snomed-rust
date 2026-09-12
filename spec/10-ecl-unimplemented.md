@@ -288,11 +288,15 @@ token shape:
   thirteenth refset type outside the two map types, needing a
   genuinely new fifteenth row-set check
   (`component_annotation_member_rows`, already present in the store)
-  since it's that type's first filterable column. Not yet extended to
-  `MemberAnnotationRefsetMember`, which has its own
-  `languageDialectCode` column (a distinct row, sharing only the RF2
-  field name — the same open extension `ruleStrengthId`/`contentTypeId`
-  had before reaching `MrcmAttributeRangeRefsetMember`).
+  since it's that type's first filterable column. Extended (2026-09-12)
+  to `MemberAnnotationRefsetMember`'s own `languageDialectCode` column
+  (a distinct row, sharing only the RF2 field name) — no new variant,
+  just a genuinely new sixteenth row-set check
+  (`member_annotation_member_rows`, already present in the store), the
+  same "reuse the variant, add the row-set check" shape
+  `ruleStrengthId`/`contentTypeId` had extending to
+  `MrcmAttributeRangeRefsetMember` — a fourteenth refset type outside
+  the two map types.
   `typeId`/`value` (`ComponentAnnotationRefsetMember`'s remaining two
   columns) remain unimplemented, with no example yet — `typeId`
   lexes as a dedicated `TokenKind::TypeIdKeyword` (from

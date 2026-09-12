@@ -1,10 +1,41 @@
 # Changelog archive
 
-Entries for versions 0.30.0 and earlier, moved verbatim from
+Entries for versions 0.31.0 and earlier, moved verbatim from
 [`CHANGELOG.md`](../CHANGELOG.md) to keep that file inside the
 repository's 40 KB per-document budget
 (rule 1 of `spec/docs-budget-and-links/index.md`). Newer entries live
 there.
+
+## [0.31.0] — 2026-09-07
+
+**New ECL capability, additive.** `{{ M ... }}`'s `memberFieldFilter`
+gains its sixteenth column, `descriptionFormat` — the first filterable
+column on `DescriptionTypeRefsetMember`, an eighth refset type outside
+`SimpleMap`/`ExtendedMap`, after both `^` and `^R`. Concept-reference
+shape, reusing `correlationId`/`mrcmRuleRefsetId`/`attributeDescription`/
+`attributeType`'s exact grammar; needed a genuinely new
+`MemberFilterKind` variant (no implemented column shares this RF2 field
+name) and a genuinely new tenth typed row-set check. A minor bump: new
+public API, no removals or signature changes to anything existing.
+
+### Added
+
+- `snomed-ecl`: `{{ M descriptionFormat = 900000000000540000 }}`
+  restricts to `DescriptionType` member rows whose own
+  `descriptionFormat` column matches — the same concept-reference
+  grammar `correlationId`/`mrcmRuleRefsetId`/`attributeDescription`/
+  `attributeType` use (reusing `ModuleFilter`'s exact shape). Works
+  after both `^` and `^R`, and conjoins with `moduleId` and the other
+  shared-column kinds on the same member row. Only
+  `DescriptionTypeRefsetMember` rows carry a `descriptionFormat`
+  column; every other row source (including `RefsetDescriptor`'s own
+  rows) never matches. `memberFieldFilter`'s sixteenth column, and the
+  first on `DescriptionTypeRefsetMember` — an eighth refset type
+  outside `SimpleMap`/`ExtendedMap`, needing a genuinely new
+  `MemberFilterKind` variant (no implemented column shares this RF2
+  field name) and a tenth typed row-set check
+  (`SnapshotStore::description_type_member_rows`, already present in
+  the store from the sixteen-type retention decision).
 
 ## [0.30.0] — 2026-09-06
 

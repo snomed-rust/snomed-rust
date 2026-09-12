@@ -342,7 +342,8 @@ and harmonizes it with the sibling repositories (`hl7-rust`, `er7-rust`,
   `MrcmAttributeDomainRefsetMember`/`ModuleDependencyRefsetMember`/
   `MrcmAttributeRangeRefsetMember`/`ComponentAnnotationRefsetMember`, plus
   `OrderedAssociationRefsetMember` as an eleventh reusing two existing
-  variants) — `RefsetDescriptorRefsetMember`,
+  variants, and `MemberAnnotationRefsetMember` as a twelfth reusing one
+  (`languageDialectCode`, extended 2026-09-12)) — `RefsetDescriptorRefsetMember`,
   `DescriptionTypeRefsetMember`, `MrcmDomainRefsetMember`,
   `MrcmAttributeDomainRefsetMember`, `ModuleDependencyRefsetMember`,
   and `MrcmAttributeRangeRefsetMember`
@@ -369,9 +370,10 @@ and harmonizes it with the sibling repositories (`hl7-rust`, `er7-rust`,
 ## Current status
 
 All eight phases above are closed. As of `memberFieldFilter`'s
-`languageDialectCode` (2026-09-11, below) the
+`languageDialectCode` extending to `MemberAnnotationRefsetMember`
+(2026-09-12, below) the
 workspace is 9 published
-crates with zero dependencies, 522 tests, a clean
+crates with zero dependencies, 523 tests, a clean
 `cargo clippy --all-targets`, 13 fuzz targets, and six criterion
 benchmark files. What is *not* done is tracked
 in two places and nowhere
@@ -539,11 +541,14 @@ variant (no implemented column shares this RF2 field name), and this
 time a genuinely new fifteenth row-set check
 (`component_annotation_member_rows`, already present in the store)
 since it's that type's first filterable column — a thirteenth refset
-type outside the two map types. Not yet extended to
+type outside the two map types; extended (2026-09-12) to
 `MemberAnnotationRefsetMember`'s own column of the same name (a
-distinct row, sharing only the RF2 field name — the same open
-extension `ruleStrengthId`/`contentTypeId` had before reaching
-`MrcmAttributeRangeRefsetMember`). `spec/10`
+distinct row, sharing only the RF2 field name — the same "reuse the
+variant, add the row-set check" shape `ruleStrengthId`/`contentTypeId`
+had extending to `MrcmAttributeRangeRefsetMember`): no second variant,
+just a genuinely new sixteenth row-set check
+(`member_annotation_member_rows`, also already present in the store)
+— a fourteenth refset type outside the two map types. `spec/10`
 also split a second time this cycle: `spec/10-ecl-filters.md` had
 outgrown its own 40 KB budget from `{{ M ... }}` columns
 accumulating, so that section moved to a new

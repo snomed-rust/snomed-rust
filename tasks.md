@@ -70,13 +70,50 @@ shape's first implemented column, release 0.46.0,
 `MrcmAttributeRangeRefsetMember`, release 0.48.0,
 `memberFieldFilter`'s `rangeConstraint` column, release 0.49.0,
 `memberFieldFilter`'s `attributeRule` column, completing
-`MrcmAttributeRangeRefsetMember`'s column coverage, and the second
-`spec/10` split (`spec/10-ecl-member-filters.md`),
+`MrcmAttributeRangeRefsetMember`'s column coverage, the second
+`spec/10` split (`spec/10-ecl-member-filters.md`), and release 0.50.0,
 live in
 [`docs/tasks-archive.md`](docs/tasks-archive.md) — moved there verbatim,
-most recently on 2026-09-11, to keep this file inside the repository's
+most recently on 2026-09-12, to keep this file inside the repository's
 40 KB per-document budget. Search both when asking "has this come up
 before".
+
+## Done (2026-09-12, ECL `{{ M ... }}` `memberFieldFilter`: `languageDialectCode` extends to `MemberAnnotationRefsetMember`)
+
+- [x] **`snomed-ecl`**: `MemberFilterKind::LanguageDialectCode` now
+      also dispatches to `MemberAnnotationRefsetMember`'s own
+      `languageDialectCode` column (a distinct row — that type also
+      carries `referencedMemberId` — sharing only the RF2 field name
+      with `ComponentAnnotationRefsetMember`'s). No new variant; a
+      genuinely new sixteenth row-set check in
+      `typed_field_row_matches`, tested against
+      `SnapshotStore::member_annotation_member_rows` (already present
+      in the store). The same "reuse the variant, add the row-set
+      check" shape `ruleStrengthId`/`contentTypeId` had extending to
+      `MrcmAttributeRangeRefsetMember` — a fourteenth refset type
+      outside the two map types.
+- [x] 1 new eval test (matches `MemberAnnotation` rows after `^`;
+      never matches on a mismatched `languageDialectCode`) — 523/523
+      total, up from 522.
+- [x] Updated: `spec/10-ecl-member-filters.md` (bullet rewritten,
+      dispatch-list gains `MemberAnnotation`), `spec/10-ecl-unimplemented.md`
+      (narrative history), `snomed-ecl/src/ast.rs` (variant doc
+      comment, narrative history), `snomed-ecl/src/eval.rs`
+      (`TypedFields`/`typed_field_row_matches` doc comments),
+      `snomed-ecl/README.md` (table row), `agents/ecl-engineer.md`,
+      `agents/store-engineer.md`, `plan.md` (Open decisions
+      paragraph, Current status test count and date, Since 0.9.0
+      narrative), `CHANGELOG.md`.
+- [x] **`CHANGELOG.md` crossed its own 40 KB budget a seventeenth
+      time** once this entry's `[Unreleased]` section was added — the
+      sixteenth time was at `languageDialectCode`'s first
+      implementation/0.51.0. `docs/changelog-archive.md` had room
+      (8.6 KB free), so a direct single-section move sufficed:
+      `[0.31.0]` moved from `CHANGELOG.md` into
+      `docs/changelog-archive.md` ahead of `[0.30.0]`, no cascade
+      needed.
+- [x] Verified: build/clippy/fmt/test (523/523)/check-docs/
+      check-trademarks/spec_citations all clean.
 
 ## Done (2026-09-11, Release 0.51.0 — `memberFieldFilter`'s `languageDialectCode`, `ComponentAnnotationRefsetMember`'s first column, thirty-ninth self-decided release)
 
@@ -176,45 +213,12 @@ before".
 - [x] Verified: build/clippy/fmt/test (522/522)/check-docs/
       check-trademarks/spec_citations all clean.
 
-## Done (2026-09-11, Release 0.50.0 — `memberFieldFilter`'s `attributeRule`, completes `MrcmAttributeRangeRefsetMember`'s column coverage, thirty-eighth self-decided release)
-
-- [x] **Decided and executed the release itself**, per §1-5 of
-      `spec/ai-release-authority/`: §1 CI independently green on the
-      pushed merge commit (`f276394`, all jobs, confirmed via `gh run
-      view` on the exact commit); §2 `CHANGELOG.md`'s `[Unreleased]`
-      verified against the actual diff and moved under `## [0.50.0]`,
-      minor bump (purely additive: new
-      `MemberFilterKind::AttributeRule` variant, no new row-set
-      check, plus a documentation-only `spec/10` split — nothing
-      removed or changed signature); §3 no rule oversteps — needed a
-      genuinely new variant (no existing column shares the RF2 field
-      name `attributeRule`), the same kind of routine
-      grammar-coverage call this authority already covers, not a
-      `plan.md` "Open decisions" item; §4 all nine crates, one
-      version, standard dependency order; §5 tagged `v0.50.0` (signed,
-      verified against the merge commit) and ran `cargo publish` for
-      each crate in order, all nine succeeding cleanly.
-- [x] **Verified against crates.io's own API afterward**: `GET
-      /api/v1/crates/<name>` for all nine names returns
-      `max_version: "0.50.0"`.
-- [x] Version bumped everywhere the 0.13.0-0.49.0 precedent bumped it:
-      `Cargo.toml` (workspace + seven pins), `CITATION.cff` (version
-      and `date-released`, first release of this backlog session to
-      cross into 2026-09-11), `NEWS.md`, `INSTALL.md`, `SECURITY.md`.
-- [x] Same `release/0.50.0` branch/merge shape as 0.12.0-0.49.0, not a
-      direct commit to `main`; branch deleted locally once GitHub,
-      GitLab, and Codeberg confirmed the merge commit and CI came
-      back green.
-- [x] All three forges pushed cleanly via `git push origin` in one
-      command, for both `main` and the `v0.50.0` tag — the sixteenth
-      release in a row with no GitLab connectivity issue.
-- [x] Verified: build/clippy/fmt/test (519/519)/check-docs/
-      check-trademarks/spec_citations all clean before tagging.
-
 ## Next up
 
 - [ ] Nothing currently scoped beyond the `{{ M ... }}` remainder below.
-      State as of 2026-09-11: **0.51.0 released** — `mapTarget` (0.15.0),
+      State as of 2026-09-12: **0.51.0 released**, `languageDialectCode`
+      extended to `MemberAnnotationRefsetMember` (implemented, release
+      pending, see Done above) — `mapTarget` (0.15.0),
       `correlationId` (0.16.0), `mapGroup` (0.17.0), `mapPriority`
       (0.18.0), `mapRule` (0.19.0), `mapAdvice` plus the `ecl_parse`
       fuzz-caught recursion-depth guard (spec/10 rule 19, 0.20.0),
@@ -304,12 +308,15 @@ before".
       `MrcmAttributeRangeRefsetMember`'s second and last column,
       again no new row-set check since all five columns share one
       row, completing that type's column coverage), and
-      `languageDialectCode` (see Done above —
+      `languageDialectCode` (0.51.0 —
       back to needing a genuinely new type,
       `ComponentAnnotationRefsetMember`'s first column, a genuinely
       new fifteenth row-set check since it's that type's first
       filterable column, but the accessor itself was already present
-      in the store),
+      in the store; extended 2026-09-12 to
+      `MemberAnnotationRefsetMember`'s own column of the same name,
+      see Done above — no second variant, a genuinely new sixteenth
+      row-set check),
       all after both `^` and
       `^R`.
       Together `mapAdvice`/`mapCategoryId` complete `ExtendedMap`'s
@@ -334,7 +341,8 @@ before".
       `MrcmAttributeRangeRefsetMember`/`ComponentAnnotationRefsetMember`,
       plus
       `OrderedAssociationRefsetMember` as a tenth type reusing the
-      first two of those columns) —
+      first two of those columns, and `MemberAnnotationRefsetMember`
+      as an eleventh reusing `languageDialectCode`) —
       `RefsetDescriptorRefsetMember`,
       `DescriptionTypeRefsetMember`, `MrcmDomainRefsetMember`,
       `MrcmAttributeDomainRefsetMember`, `ModuleDependencyRefsetMember`,
@@ -350,10 +358,12 @@ before".
       to every shape, not just concept-reference.
       `{{ M ... }}` after `^`
       (0.13.0), after `^R` (0.14.0), and its `memberFieldFilter`
-      alternative (0.15.0-0.51.0),
+      alternative (0.15.0-0.51.0, `languageDialectCode`'s
+      `MemberAnnotationRefsetMember` extension implemented but not yet
+      released),
       all decided and executed under
       `spec/ai-release-authority/`'s criteria rather than a fresh
-      per-release maintainer go-ahead (see `CHANGELOG.md`). 9 crates, 522
+      per-release maintainer go-ahead (see `CHANGELOG.md`). 9 crates, 523
       tests,
       clippy/fmt clean on stable, MSRV 1.96 (current
       stable minus two, `spec/rust-msrv-n-minus-2/index.md`), `fuzz/`,

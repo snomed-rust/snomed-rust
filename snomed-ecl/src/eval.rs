@@ -394,7 +394,10 @@ fn member_row_matches(
 /// `attribute_rule` is its second and last, populated from the same
 /// row. `language_dialect_code` is the first field from
 /// `ComponentAnnotationRefsetMember`, a thirteenth refset type
-/// outside the two map types.
+/// outside the two map types, and also — reused verbatim, no second
+/// field — `MemberAnnotationRefsetMember`'s own `languageDialectCode`
+/// column, a fourteenth refset type outside the two map types, a
+/// distinct row sharing only the RF2 field name.
 #[derive(Default)]
 struct TypedFields<'a> {
     map_target: Option<&'a str>,
@@ -462,7 +465,8 @@ struct TypedFields<'a> {
 /// `mrcm_module_scope_member_rows`/`refset_descriptor_member_rows`/
 /// `description_type_member_rows`/`mrcm_domain_member_rows`/
 /// `mrcm_attribute_domain_member_rows`/`module_dependency_member_rows`/
-/// `mrcm_attribute_range_member_rows`/`component_annotation_member_rows`)
+/// `mrcm_attribute_range_member_rows`/`component_annotation_member_rows`/
+/// `member_annotation_member_rows`)
 /// rather
 /// than either map type's. `mrcm_attribute_range_member_rows` carries
 /// no field of its own not already implemented — `ruleStrengthId`/
@@ -470,10 +474,16 @@ struct TypedFields<'a> {
 /// `MemberFilterKind::RuleStrengthId`/`ContentTypeId` verbatim, the
 /// same "reuse the variant" case `OrderedAssociationRefsetMember` is
 /// for `targetComponentId`/`order`, just two columns from one type
-/// instead of two columns from two types.
+/// instead of two columns from two types. `member_annotation_member_rows`
+/// is the same shape again: `languageDialectCode` extends to it by RF2
+/// field name, reusing `MemberFilterKind::LanguageDialectCode` verbatim
+/// — no new variant, just this new row-set check, since
+/// `MemberAnnotationRefsetMember`'s own `languageDialectCode` column is
+/// a distinct row from `ComponentAnnotationRefsetMember`'s, sharing
+/// only the RF2 field name.
 /// Renamed from `typed_map_row_matches` once it stopped being map-only.
 /// Whichever field-filter kind appears, a block naming it is
-/// tested against all fifteen typed row sets rather than `member_rows`.
+/// tested against all sixteen typed row sets rather than `member_rows`.
 /// Testing every set whenever *any* field-filter kind appears (rather
 /// than computing the exact type each filter needs) is deliberately
 /// simple, not merely convenient: a `SimpleMap` row tested against a
@@ -802,8 +812,28 @@ fn typed_field_row_matches(
     if matches_mrcm_attribute_range {
         return true;
     }
-    store
+    let matches_component_annotation = store
         .component_annotation_member_rows(refset_id, component_id)
+        .iter()
+        .any(|row| {
+            (states_active || row.core.active)
+                && filters.iter().zip(prepared).all(|(f, p)| {
+                    member_filter_matches(
+                        f,
+                        p,
+                        &row.core,
+                        &TypedFields {
+                            language_dialect_code: Some(&row.language_dialect_code),
+                            ..TypedFields::default()
+                        },
+                    )
+                })
+        });
+    if matches_component_annotation {
+        return true;
+    }
+    store
+        .member_annotation_member_rows(refset_id, component_id)
         .iter()
         .any(|row| {
             (states_active || row.core.active)
@@ -2239,10 +2269,11 @@ mod tests {
     use snomed_rf2::refset::{
         AssociationRefsetMember, AttributeValueRefsetMember, ComponentAnnotationRefsetMember,
         DescriptionTypeRefsetMember, ExtendedMapRefsetMember, LanguageRefsetMember,
-        ModuleDependencyRefsetMember, MrcmAttributeDomainRefsetMember,
-        MrcmAttributeRangeRefsetMember, MrcmDomainRefsetMember, MrcmModuleScopeRefsetMember,
-        OrderedAssociationRefsetMember, OrderedComponentRefsetMember, OwlExpressionRefsetMember,
-        RefsetDescriptorRefsetMember, RefsetMemberCore, SimpleMapRefsetMember, SimpleRefsetMember,
+        MemberAnnotationRefsetMember, ModuleDependencyRefsetMember,
+        MrcmAttributeDomainRefsetMember, MrcmAttributeRangeRefsetMember, MrcmDomainRefsetMember,
+        MrcmModuleScopeRefsetMember, OrderedAssociationRefsetMember, OrderedComponentRefsetMember,
+        OwlExpressionRefsetMember, RefsetDescriptorRefsetMember, RefsetMemberCore,
+        SimpleMapRefsetMember, SimpleRefsetMember,
     };
 
     const ROOT: SctId = constants::ROOT_CONCEPT;
@@ -7704,6 +7735,54 @@ mod tests {
                 &store
             ),
             HashSet::new()
+        );
+    }
+
+    /// `languageDialectCode` also reaches `MemberAnnotationRefsetMember`'s
+    /// own column of that name — the same "reuse the variant, add the
+    /// row-set check" shape `ruleStrengthId`/`contentTypeId` had
+    /// extending to `MrcmAttributeRangeRefsetMember`: no new
+    /// `MemberFilterKind` variant, just a new row-set check, since the
+    /// RF2 field name is identical but the row is a distinct one (this
+    /// type also carries `referencedMemberId`, unlike
+    /// `ComponentAnnotationRefsetMember`).
+    #[test]
+    fn member_filter_language_dialect_code_matches_member_annotation_rows() {
+        let member_annotation = SctId::compose(10030, ComponentType::Concept, None).unwrap();
+        let annotation_type = SctId::compose(10031, ComponentType::Concept, None).unwrap();
+        let mut b = SnapshotStore::builder();
+        b.add_concept(concept(MI));
+        b.add_concept(concept(annotation_type));
+        b.add_member_annotation_member(MemberAnnotationRefsetMember {
+            core: RefsetMemberCore {
+                id: MemberId::parse("80000000-0000-4000-8000-000000000185").unwrap(),
+                effective_time: EffectiveTime::new_unchecked(20190731),
+                active: true,
+                module_id: constants::CORE_MODULE,
+                refset_id: member_annotation,
+                referenced_component_id: MI,
+            },
+            referenced_member_id: MemberId::parse("80000000-0000-4000-8000-000000000186").unwrap(),
+            language_dialect_code: "en-GB".to_string(),
+            type_id: annotation_type,
+            value: "a free-text note on a member".to_string(),
+        });
+        let store = b.build();
+
+        assert_eq!(
+            eval(
+                &format!("^ {member_annotation} {{{{ M languageDialectCode = exact:\"en-US\" }}}}"),
+                &store
+            ),
+            HashSet::new(),
+            "the row's own languageDialectCode doesn't match"
+        );
+        assert_eq!(
+            eval(
+                &format!("^ {member_annotation} {{{{ M languageDialectCode = \"en-GB\" }}}}"),
+                &store
+            ),
+            HashSet::from([MI])
         );
     }
 

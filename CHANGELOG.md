@@ -13,6 +13,25 @@ together, in dependency order (`snomed-core` → `snomed-rf2` → `snomed-owl`
 
 ## [Unreleased]
 
+### Added
+
+- `snomed-ecl`: `{{ M languageDialectCode = "en-GB" }}` now also
+  matches `MemberAnnotation` member rows' own `languageDialectCode`
+  column, not just `ComponentAnnotation`'s — a distinct row sharing
+  only the RF2 field name. No new `MemberFilterKind` variant (the
+  existing `LanguageDialectCode` dispatches to both row sets now),
+  just a new row-set check
+  (`SnapshotStore::member_annotation_member_rows`, already present in
+  the store) — the same "reuse the variant, add the row-set check"
+  shape `ruleStrengthId`/`contentTypeId` had extending to
+  `MrcmAttributeRangeRefsetMember`. A fourteenth refset type outside
+  the two map types.
+
+### Notes for consumers
+
+- No public API removed or changed signature; existing code compiles
+  unmodified against this release.
+
 ## [0.51.0] — 2026-09-11
 
 **New ECL capability, additive.** `{{ M ... }}`'s `memberFieldFilter`
@@ -723,38 +742,7 @@ removals or signature changes to anything existing.
   field name) but no new row-set check, reusing
   `descriptionFormat`'s `SnapshotStore::description_type_member_rows`.
 
-## [0.31.0] — 2026-09-07
-
-**New ECL capability, additive.** `{{ M ... }}`'s `memberFieldFilter`
-gains its sixteenth column, `descriptionFormat` — the first filterable
-column on `DescriptionTypeRefsetMember`, an eighth refset type outside
-`SimpleMap`/`ExtendedMap`, after both `^` and `^R`. Concept-reference
-shape, reusing `correlationId`/`mrcmRuleRefsetId`/`attributeDescription`/
-`attributeType`'s exact grammar; needed a genuinely new
-`MemberFilterKind` variant (no implemented column shares this RF2 field
-name) and a genuinely new tenth typed row-set check. A minor bump: new
-public API, no removals or signature changes to anything existing.
-
-### Added
-
-- `snomed-ecl`: `{{ M descriptionFormat = 900000000000540000 }}`
-  restricts to `DescriptionType` member rows whose own
-  `descriptionFormat` column matches — the same concept-reference
-  grammar `correlationId`/`mrcmRuleRefsetId`/`attributeDescription`/
-  `attributeType` use (reusing `ModuleFilter`'s exact shape). Works
-  after both `^` and `^R`, and conjoins with `moduleId` and the other
-  shared-column kinds on the same member row. Only
-  `DescriptionTypeRefsetMember` rows carry a `descriptionFormat`
-  column; every other row source (including `RefsetDescriptor`'s own
-  rows) never matches. `memberFieldFilter`'s sixteenth column, and the
-  first on `DescriptionTypeRefsetMember` — an eighth refset type
-  outside `SimpleMap`/`ExtendedMap`, needing a genuinely new
-  `MemberFilterKind` variant (no implemented column shares this RF2
-  field name) and a tenth typed row-set check
-  (`SnapshotStore::description_type_member_rows`, already present in
-  the store from the sixteen-type retention decision).
-
-Entries for 0.30.0 and earlier live in
+Entries for 0.31.0 and earlier live in
 [`docs/changelog-archive.md`](docs/changelog-archive.md) — moved there
 verbatim to keep this file inside the repository's 40 KB per-document
 budget (rule 1 of `spec/docs-budget-and-links/index.md`).

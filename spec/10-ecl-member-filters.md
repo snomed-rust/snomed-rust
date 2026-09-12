@@ -438,13 +438,17 @@ has two):
   first column — a thirteenth refset type outside the two map types
   — so it needed its own new row-set check, tested against
   `SnapshotStore::component_annotation_member_rows` directly (already
-  present in the store). `MemberAnnotationRefsetMember` has a
-  `languageDialectCode` column of its own too, not yet extended to
-  (a distinct row from `ComponentAnnotationRefsetMember`'s, sharing
-  only the RF2 field name — the same "extend the variant to a second
-  type" shape `ruleStrengthId`/`contentTypeId` had extending to
-  `MrcmAttributeRangeRefsetMember`, still open here). Genuinely new
-  variant: no other column shares this RF2 field name.
+  present in the store). Extended to `MemberAnnotationRefsetMember`'s
+  own `languageDialectCode` column too (a distinct row from
+  `ComponentAnnotationRefsetMember`'s, sharing only the RF2 field
+  name — the same "reuse the variant, add the row-set check" shape
+  `ruleStrengthId`/`contentTypeId` had extending to
+  `MrcmAttributeRangeRefsetMember`): no new `MemberFilterKind`
+  variant, just a new row-set check
+  (`SnapshotStore::member_annotation_member_rows`, already present in
+  the store) — a fourteenth refset type outside the two map types.
+  Genuinely new variant when first implemented: no other column
+  shares this RF2 field name.
 
 All thirty-five reuse the shared dispatch `mapTarget` introduced
 (renamed `typed_field_row_matches` once a non-map type joined it): a
@@ -452,7 +456,8 @@ block naming *any* of the thirty-five kinds is tested against
 `SimpleMap`/`ExtendedMap`/`Association`/`AttributeValue`/`OwlExpression`/
 `OrderedComponent`/`OrderedAssociation`/`MrcmModuleScope`/
 `RefsetDescriptor`/`DescriptionType`/`MrcmDomain`/`MrcmAttributeDomain`/
-`ModuleDependency`/`MrcmAttributeRange`/`ComponentAnnotation`
+`ModuleDependency`/`MrcmAttributeRange`/`ComponentAnnotation`/
+`MemberAnnotation`
 rows together
 rather than `member_rows`, and the "one row, all filters" and "active
 unless stated otherwise" rules above still hold across a block naming

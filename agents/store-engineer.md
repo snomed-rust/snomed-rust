@@ -320,11 +320,15 @@ thirteenth refset type outside the two map types, and (like
 itself was *already present* in the store, so this was purely a
 `snomed-ecl` dispatch wiring change. Genuinely new `MemberFilterKind`
 variant too — no implemented column shares the RF2 field name
-`languageDialectCode` — but `MemberAnnotationRefsetMember` has its own
-column of that name, not yet extended to (the same "reuse the variant,
-add the row-set check" shape still open here that
-`ruleStrengthId`/`contentTypeId` had before reaching
-`MrcmAttributeRangeRefsetMember`). All
+`languageDialectCode`. Extended (2026-09-12) to
+`MemberAnnotationRefsetMember`'s own column of that name — a distinct
+row, sharing only the RF2 field name — needing its own new sixteenth
+row-set check (`member_annotation_member_rows`, also already present
+in the store) but *no* second `MemberFilterKind` variant, the same
+"reuse the variant, add the row-set check" shape
+`ruleStrengthId`/`contentTypeId` had extending to
+`MrcmAttributeRangeRefsetMember` — a fourteenth refset type outside
+the two map types. All
 row sets are still
 tested whenever any field-filter kind appears in a block, since a row
 missing the column simply fails that filter rather than needing its

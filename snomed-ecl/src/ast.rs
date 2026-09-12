@@ -499,7 +499,10 @@ pub enum ConceptFilterKind {
 /// `languageDialectCode` (`ComponentAnnotationRefsetMember`'s first
 /// column, still the string-search shape, a genuinely new fifteenth
 /// row-set check since it's that type's first filterable column —
-/// a thirteenth refset type outside the two map types) —
+/// a thirteenth refset type outside the two map types, extended to
+/// `MemberAnnotationRefsetMember`'s own column of the same name
+/// next — a sixteenth row-set check, a fourteenth refset type
+/// outside the two map types, no new variant) —
 /// all
 /// decided 2026-09-03 (`plan.md`'s "Open decisions") to retain full rows
 /// — active and inactive — for all sixteen non-Simple/Language refset
@@ -1080,13 +1083,16 @@ pub enum MemberFilterKind {
     /// it needed its own new row-set check, tested against
     /// `SnapshotStore::component_annotation_member_rows` directly
     /// (already present in the store).
-    /// `MemberAnnotationRefsetMember` has a `languageDialectCode`
-    /// column of its own too, not yet extended to (a distinct row,
-    /// sharing only the RF2 field name — the same open extension
-    /// [`Self::RuleStrengthId`]/[`Self::ContentTypeId`] had before
-    /// reaching `MrcmAttributeRangeRefsetMember`). No other
-    /// implemented column shares the RF2 field name
-    /// `languageDialectCode`, so this needs its own variant too.
+    /// Extended to `MemberAnnotationRefsetMember`'s own
+    /// `languageDialectCode` column too (a distinct row, sharing only
+    /// the RF2 field name — the same "reuse the variant, add the
+    /// row-set check" shape [`Self::RuleStrengthId`]/
+    /// [`Self::ContentTypeId`] had extending to
+    /// `MrcmAttributeRangeRefsetMember`): tested against
+    /// `SnapshotStore::member_annotation_member_rows` too, no second
+    /// variant needed. No other implemented column shares the RF2
+    /// field name `languageDialectCode`, so this needed its own
+    /// variant when first implemented.
     LanguageDialectCode(TermFilter),
 }
 
