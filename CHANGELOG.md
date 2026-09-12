@@ -13,6 +13,17 @@ together, in dependency order (`snomed-core` → `snomed-rf2` → `snomed-owl`
 
 ## [Unreleased]
 
+## [0.54.0] — 2026-09-12
+
+**New ECL capability, additive.** `{{ M ... }}`'s `memberFieldFilter`
+gains its thirty-seventh and final `ComponentAnnotationRefsetMember`
+column, `value` — the free-text annotation itself, string-search
+shape, after both `^` and `^R`. No new row-set check, sharing a row
+with `languageDialectCode`/`typeId`. Completes
+`ComponentAnnotationRefsetMember`'s column coverage — the seventh
+refset type outside the two map types to reach it. A minor bump: new
+public API, no removals or signature changes to anything existing.
+
 ### Added
 
 - `snomed-ecl`: `{{ M value = "a free-text note" }}` restricts to
