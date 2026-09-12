@@ -11,7 +11,7 @@ human-readable layer above it.
 
 | | |
 |---|---|
-| Version | **0.52.0**, released 2026-09-12 |
+| Version | **0.53.0**, released 2026-09-12 |
 | Crates | nine, released together and sharing one version number |
 | Rust MSRV | 1.96 (current stable minus two) |
 | License | `Apache-2.0 OR MIT` |
@@ -19,16 +19,15 @@ human-readable layer above it.
 | Packages | <https://crates.io/crates/snomed> |
 | Documentation | <https://docs.rs/snomed> · <https://snomed-rust.github.io/> |
 
-0.52.0 extends the ECL `{{ M ... }}` member filter constraint's
-`languageDialectCode` column to `MemberAnnotationRefsetMember`'s own
-column of that name — a distinct row from
-`ComponentAnnotationRefsetMember`'s, sharing only the RF2 field name.
-No new `MemberFilterKind` variant, just a new row-set check, the same
-"reuse the variant, add the row-set check" shape
-`ruleStrengthId`/`contentTypeId` had extending to
-`MrcmAttributeRangeRefsetMember`. Purely additive: no public API
-removed or changed, existing code compiles unmodified. Full detail is
-in the
+0.53.0 gives the ECL `{{ M ... }}` member filter constraint's
+`memberFieldFilter` alternative its thirty-sixth column, `typeId` —
+`ComponentAnnotationRefsetMember`'s second column, the
+concept-reference shape, sharing a row with `languageDialectCode`.
+Also fixes a dispatch bug this increment surfaced: a new filter kind
+must be added to an internal dispatch list or it silently never
+matches, caught by this column's own tests before release rather than
+shipped. Purely additive: no public API removed or changed, existing
+code compiles unmodified. Full detail is in the
 [changelog](CHANGELOG.md).
 
 **Pre-1.0 caveat, stated up front because it affects anyone writing about
@@ -86,6 +85,7 @@ project is young and says so.
 | 2026-09-11 | 0.50.0 — `{{ M ... }}`'s `memberFieldFilter`: `attributeRule`, completing `MrcmAttributeRangeRefsetMember`'s column coverage; `spec/10` splits a second time |
 | 2026-09-11 | 0.51.0 — `{{ M ... }}`'s `memberFieldFilter`: `languageDialectCode`, `ComponentAnnotationRefsetMember`'s first column |
 | 2026-09-12 | 0.52.0 — `{{ M ... }}`'s `languageDialectCode` extends to `MemberAnnotationRefsetMember` |
+| 2026-09-12 | 0.53.0 — `{{ M ... }}`'s `memberFieldFilter`: `typeId`, `ComponentAnnotationRefsetMember`'s second column |
 
 ## Following updates
 
@@ -171,7 +171,7 @@ remains licensed material obtained separately from SNOMED International.
 - **What it is not.** Not a terminology server, not an authoring platform, not
   a browser, and not a replacement for Snowstorm. [COMPARISONS.md](COMPARISONS.md)
   states the limitations at length and names the tools that do those jobs.
-- **Maturity.** Version 0.52.0, first published in September 2026, one
+- **Maturity.** Version 0.53.0, first published in September 2026, one
   maintainer, pre-1.0. [MAINTAINERS.md](MAINTAINERS.md) states the bus factor
   and the continuity position without softening, and is the right source for
   any risk framing.

@@ -13,6 +13,22 @@ together, in dependency order (`snomed-core` → `snomed-rf2` → `snomed-owl`
 
 ## [Unreleased]
 
+## [0.53.0] — 2026-09-12
+
+**New ECL capability, additive.** `{{ M ... }}`'s `memberFieldFilter`
+gains its thirty-sixth column, `typeId` —
+`ComponentAnnotationRefsetMember`'s second column, the
+concept-reference shape, after both `^` and `^R`. No new row-set
+check, sharing a row with `languageDialectCode`. `typeId` already
+lexes as a dedicated `TokenKind::TypeIdKeyword` (from `{{ D typeId =
+... }}`), not a plain `Word`, so this is the first `memberFieldFilter`
+parser arm matching a dedicated token kind directly. Also fixes a
+dispatch bug this increment surfaced: a new `MemberFilterKind` variant
+must be added to `member_row_matches`'s internal dispatch list or it
+silently never matches — caught by this column's own tests before
+release. A minor bump: new public API, no removals or signature
+changes to anything existing.
+
 ### Added
 
 - `snomed-ecl`: `{{ M typeId = 1295447006 }}` restricts to
