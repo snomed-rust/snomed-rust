@@ -1,7 +1,7 @@
 # Tasks archive — index
 
 [`tasks.md`](../tasks.md) keeps the current checklist and the recent
-entries; everything older lives here, split into fifty-four files
+entries; everything older lives here, split into fifty-five files
 that each
 stay inside the repository's 40 KB per-document budget. Entries were moved
 verbatim — this is a historical record, not a summary, and it is worth
@@ -66,6 +66,7 @@ so the paths quoted here still resolve.
 | [`tasks-archive-52.md`](tasks-archive-52.md) | 2026-09-11 | Release 0.50.0 (`memberFieldFilter`'s `attributeRule`, the thirty-eighth self-decided release) |
 | [`tasks-archive-53.md`](tasks-archive-53.md) | 2026-09-11 | Release 0.51.0 and `memberFieldFilter`'s `languageDialectCode` column (`ComponentAnnotationRefsetMember`'s first column, the thirty-ninth self-decided release) |
 | [`tasks-archive-54.md`](tasks-archive-54.md) | 2026-09-12 | Release 0.52.0 and `memberFieldFilter`'s `languageDialectCode` extending to `MemberAnnotationRefsetMember` (the fortieth self-decided release) |
+| [`tasks-archive-55.md`](tasks-archive-55.md) | 2026-09-12 | Release 0.53.0 and `memberFieldFilter`'s `typeId` column (`ComponentAnnotationRefsetMember`'s second column, the forty-first self-decided release) |
 
 Older entries are shorter and more granular than recent ones: they were
 written a change at a time while the workspace was being built from
