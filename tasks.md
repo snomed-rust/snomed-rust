@@ -79,6 +79,43 @@ most recently on 2026-09-12, to keep this file inside the repository's
 40 KB per-document budget. Search both when asking "has this come up
 before".
 
+## Done (2026-09-12, Release 0.53.0 — `memberFieldFilter`'s `typeId`, `ComponentAnnotationRefsetMember`'s second column, forty-first self-decided release)
+
+- [x] **Decided and executed the release itself**, per §1-5 of
+      `spec/ai-release-authority/`: §1 CI independently green on the
+      pushed merge commit (`62e6a20`, all jobs, confirmed via `gh run
+      view` on the exact commit); §2 `CHANGELOG.md`'s `[Unreleased]`
+      verified against the actual diff and moved under `## [0.53.0]`,
+      minor bump (purely additive: a new `MemberFilterKind::TypeId`
+      variant plus the same-cycle `member_row_matches` dispatch fix,
+      nothing removed or changed signature); §3 no rule oversteps —
+      the same kind of routine grammar-coverage call this authority
+      already covers, not a `plan.md` "Open decisions" item; §4 all
+      nine crates, one version, standard dependency order; §5 tagged
+      `v0.53.0` (signed, verified against the merge commit) and ran
+      `cargo publish` for each crate in order — the ninth
+      (`snomed`) uploaded successfully but the shell command hit its
+      2-minute timeout during `cargo publish`'s post-upload
+      "waiting for availability" polling, not during the upload
+      itself; confirmed published via crates.io's own API before
+      treating the release as complete.
+- [x] **Verified against crates.io's own API afterward**: `GET
+      /api/v1/crates/<name>` for all nine names returns
+      `max_version: "0.53.0"`.
+- [x] Version bumped everywhere the 0.13.0-0.52.0 precedent bumped it:
+      `Cargo.toml` (workspace + seven pins), `CITATION.cff` (version;
+      `date-released` unchanged — same day as 0.52.0), `NEWS.md`,
+      `INSTALL.md`, `SECURITY.md`.
+- [x] Same `release/0.53.0` branch/merge shape as 0.12.0-0.52.0, not a
+      direct commit to `main`; branch deleted locally once GitHub,
+      GitLab, and Codeberg confirmed the merge commit and CI came
+      back green.
+- [x] All three forges pushed cleanly via `git push origin` in one
+      command, for both `main` and the `v0.53.0` tag — the
+      nineteenth release in a row with no GitLab connectivity issue.
+- [x] Verified: build/clippy/fmt/test (526/526)/check-docs/
+      check-trademarks/spec_citations all clean before tagging.
+
 ## Done (2026-09-12, ECL `{{ M ... }}` `memberFieldFilter`: `typeId`, `ComponentAnnotationRefsetMember`'s second column)
 
 - [x] **`snomed-ecl`**: `MemberFilterKind::TypeId(ModuleFilter)` —
@@ -209,8 +246,7 @@ before".
 ## Next up
 
 - [ ] Nothing currently scoped beyond the `{{ M ... }}` remainder below.
-      State as of 2026-09-12: **0.52.0 released**, `typeId`
-      implemented (release pending, see Done above) — `mapTarget`
+      State as of 2026-09-12: **0.53.0 released** — `mapTarget`
       (0.15.0),
       `correlationId` (0.16.0), `mapGroup` (0.17.0), `mapPriority`
       (0.18.0), `mapRule` (0.19.0), `mapAdvice` plus the `ecl_parse`
@@ -357,8 +393,7 @@ before".
       to every shape, not just concept-reference.
       `{{ M ... }}` after `^`
       (0.13.0), after `^R` (0.14.0), and its `memberFieldFilter`
-      alternative (0.15.0-0.52.0, `typeId` implemented but not yet
-      released),
+      alternative (0.15.0-0.53.0),
       all decided and executed under
       `spec/ai-release-authority/`'s criteria rather than a fresh
       per-release maintainer go-ahead (see `CHANGELOG.md`). 9 crates, 526
