@@ -13,6 +13,21 @@ together, in dependency order (`snomed-core` → `snomed-rf2` → `snomed-owl`
 
 ## [Unreleased]
 
+## [0.52.0] — 2026-09-12
+
+**New ECL capability, additive.** `{{ M ... }}`'s
+`memberFieldFilter`'s `languageDialectCode` column extends to
+`MemberAnnotationRefsetMember`'s own column of that name — a distinct
+row from `ComponentAnnotationRefsetMember`'s, sharing only the RF2
+field name, after both `^` and `^R`. No new `MemberFilterKind`
+variant, just a new row-set check
+(`SnapshotStore::member_annotation_member_rows`, already present in
+the store), the same "reuse the variant, add the row-set check" shape
+`ruleStrengthId`/`contentTypeId` had extending to
+`MrcmAttributeRangeRefsetMember`. A minor bump: new public API
+surface (a new row-set dispatched to), no removals or signature
+changes to anything existing.
+
 ### Added
 
 - `snomed-ecl`: `{{ M languageDialectCode = "en-GB" }}` now also
