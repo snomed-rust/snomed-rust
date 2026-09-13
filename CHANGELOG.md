@@ -13,6 +13,19 @@ together, in dependency order (`snomed-core` → `snomed-rf2` → `snomed-owl`
 
 ## [Unreleased]
 
+## [0.55.0] — 2026-09-13
+
+**New ECL capability, additive.** `{{ M ... }}`'s `typeId` column
+extends to `MemberAnnotationRefsetMember`'s own column of that name —
+a distinct row from `ComponentAnnotationRefsetMember`'s, sharing only
+the RF2 field name, after both `^` and `^R`. No new `MemberFilterKind`
+variant, and not even a new row-set check: `languageDialectCode`'s
+own earlier extension (0.52.0) had already added the
+`member_annotation_member_rows` block this column's `TypedFields`
+entry simply joins. A minor bump: new public API surface (a new row
+source dispatched to), no removals or signature changes to anything
+existing.
+
 ### Added
 
 - `snomed-ecl`: `{{ M typeId = 1295447006 }}` now also matches
