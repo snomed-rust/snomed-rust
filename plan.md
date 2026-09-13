@@ -343,8 +343,9 @@ and harmonizes it with the sibling repositories (`hl7-rust`, `er7-rust`,
   `MrcmAttributeDomainRefsetMember`/`ModuleDependencyRefsetMember`/
   `MrcmAttributeRangeRefsetMember`/`ComponentAnnotationRefsetMember`, plus
   `OrderedAssociationRefsetMember` as an eleventh reusing two existing
-  variants, and `MemberAnnotationRefsetMember` as a twelfth reusing one
-  (`languageDialectCode`, extended 2026-09-12)) — `RefsetDescriptorRefsetMember`,
+  variants, and `MemberAnnotationRefsetMember` as a twelfth reusing two
+  (`languageDialectCode`, extended 2026-09-12, and `typeId`, extended
+  2026-09-13)) — `RefsetDescriptorRefsetMember`,
   `DescriptionTypeRefsetMember`, `MrcmDomainRefsetMember`,
   `MrcmAttributeDomainRefsetMember`, `ModuleDependencyRefsetMember`,
   `MrcmAttributeRangeRefsetMember`, and
@@ -372,10 +373,10 @@ and harmonizes it with the sibling repositories (`hl7-rust`, `er7-rust`,
 ## Current status
 
 All eight phases above are closed. As of `memberFieldFilter`'s
-`value`, completing `ComponentAnnotationRefsetMember`'s column
-coverage (2026-09-12, below) the
+`typeId` extending to `MemberAnnotationRefsetMember`
+(2026-09-13, below) the
 workspace is 9 published
-crates with zero dependencies, 529 tests, a clean
+crates with zero dependencies, 530 tests, a clean
 `cargo clippy --all-targets`, 13 fuzz targets, and six criterion
 benchmark files. What is *not* done is tracked
 in two places and nowhere
@@ -565,7 +566,12 @@ type-erased `member_rows` path and can never match; and `value`
 column, back on the string-search shape, another genuinely new
 variant, no new row-set check since it shares that row too —
 completing `ComponentAnnotationRefsetMember`'s column coverage, the
-seventh refset type outside the two map types to reach it. `spec/10`
+seventh refset type outside the two map types to reach it; and
+`typeId` extended (2026-09-13) to `MemberAnnotationRefsetMember`'s
+own column of that name — no second variant, and this time not even
+a new row-set check, since `languageDialectCode`'s own extension had
+already added the `member_annotation_member_rows` block this
+column's `TypedFields` entry could simply join. `spec/10`
 also split a second time this cycle: `spec/10-ecl-filters.md` had
 outgrown its own 40 KB budget from `{{ M ... }}` columns
 accumulating, so that section moved to a new

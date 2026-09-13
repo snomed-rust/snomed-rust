@@ -461,7 +461,13 @@ has two):
   new variant: no other column shares this RF2 field name in this
   filter kind (distinct from `{{ D typeId = ... }}`'s own `typeId`
   filter, a different filter block matched against a description
-  row's `typeId`, not a member row's).
+  row's `typeId`, not a member row's). Extended to
+  `MemberAnnotationRefsetMember`'s own `typeId` column too (a
+  distinct row, sharing only the RF2 field name — the same pairing
+  `languageDialectCode` already has between the two types): no new
+  variant, and not even a new row-set check this time, since the
+  block `languageDialectCode`'s own extension already put there
+  tests this row source.
 - `value (=|!=) (typedSearchTerm | typedSearchTermSet)` — the
   string-search shape, reusing `TermFilter`/`term_matches` as
   `mapTarget`/`languageDialectCode` do, matched against

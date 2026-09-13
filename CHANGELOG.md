@@ -13,6 +13,23 @@ together, in dependency order (`snomed-core` → `snomed-rf2` → `snomed-owl`
 
 ## [Unreleased]
 
+### Added
+
+- `snomed-ecl`: `{{ M typeId = 1295447006 }}` now also matches
+  `MemberAnnotation` member rows' own `typeId` column, not just
+  `ComponentAnnotation`'s — a distinct row sharing only the RF2 field
+  name. No new `MemberFilterKind` variant (the existing `TypeId`
+  dispatches to both row sets now), and this time not even a new
+  row-set check: `languageDialectCode`'s own earlier extension to
+  `MemberAnnotationRefsetMember` already added the
+  `member_annotation_member_rows` block this column's `TypedFields`
+  entry simply joins.
+
+### Notes for consumers
+
+- No public API removed or changed signature; existing code compiles
+  unmodified against this release.
+
 ## [0.54.0] — 2026-09-12
 
 **New ECL capability, additive.** `{{ M ... }}`'s `memberFieldFilter`
@@ -734,36 +751,7 @@ anything existing.
   check, reusing `domainConstraint`/`parentDomain`'s
   `SnapshotStore::mrcm_domain_member_rows`.
 
-## [0.34.0] — 2026-09-07
-
-**New ECL capability, additive.** `{{ M ... }}`'s `memberFieldFilter`
-gains its nineteenth column, `parentDomain` — `MrcmDomainRefsetMember`'s
-second column (after `domainConstraint`), after both `^` and `^R`.
-String-search shape, reusing `mapTarget`/`domainConstraint`'s exact
-grammar and `term_matches`; needed a genuinely new `MemberFilterKind`
-variant (no implemented column shares this RF2 field name) but no new
-row-set check, reusing `domainConstraint`'s row set. A minor bump: new
-public API, no removals or signature changes to anything existing.
-
-### Added
-
-- `snomed-ecl`: `{{ M parentDomain = "<< 138875005" }}` restricts to
-  `MrcmDomain` member rows whose own `parentDomain` column matches —
-  the same `match:`/`wild:`/`exact:` search-term grammar
-  `mapTarget`/`domainConstraint` use (reusing `TermFilter`'s exact
-  shape and `term_matches`). Works after both `^` and `^R`, and
-  conjoins with `domainConstraint` and the other shared-column kinds
-  on the same member row — `domainConstraint`/`parentDomain` both live
-  on the same `MrcmDomainRefsetMember` row, so a block naming both is
-  satisfied by that one row. Only `MrcmDomainRefsetMember` rows carry
-  a `parentDomain` column; every other row source never matches.
-  `memberFieldFilter`'s nineteenth column, and `MrcmDomainRefsetMember`'s
-  second. Needed a genuinely new `MemberFilterKind` variant (no
-  implemented column shares this RF2 field name) but no new row-set
-  check, reusing `domainConstraint`'s
-  `SnapshotStore::mrcm_domain_member_rows`.
-
-Entries for 0.33.0 and earlier live in
+Entries for 0.34.0 and earlier live in
 [`docs/changelog-archive.md`](docs/changelog-archive.md) — moved there
 verbatim to keep this file inside the repository's 40 KB per-document
 budget (rule 1 of `spec/docs-budget-and-links/index.md`).

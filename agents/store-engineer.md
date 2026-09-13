@@ -341,7 +341,12 @@ variant has more than one place to update" lesson. `value` then
 reused that same fifteenth row set too — `ComponentAnnotationRefsetMember`'s
 third and last column, back on the string-search shape, again no new
 row-set check, completing that type's column coverage (the seventh
-refset type outside the two map types to reach it). All
+refset type outside the two map types to reach it). `typeId` then
+extended (2026-09-13) to `MemberAnnotationRefsetMember`'s own column
+of that name — no second variant, and this time not even a new
+row-set check, since `languageDialectCode`'s own extension had
+already added a `member_annotation_member_rows` block that this
+column's `TypedFields` entry could simply join. All
 row sets are still
 tested whenever any field-filter kind appears in a block, since a row
 missing the column simply fails that filter rather than needing its

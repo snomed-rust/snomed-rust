@@ -82,6 +82,47 @@ most recently on 2026-09-12, to keep this file inside the repository's
 40 KB per-document budget. Search both when asking "has this come up
 before".
 
+## Done (2026-09-13, ECL `{{ M ... }}` `memberFieldFilter`: `typeId` extends to `MemberAnnotationRefsetMember`)
+
+- [x] **`snomed-ecl`**: `MemberFilterKind::TypeId` now also dispatches
+      to `MemberAnnotationRefsetMember`'s own `typeId` column (a
+      distinct row, sharing only the RF2 field name with
+      `ComponentAnnotationRefsetMember`'s). No new variant; and this
+      time not even a new row-set check — `languageDialectCode`'s own
+      earlier extension (0.52.0) had already added the
+      `member_annotation_member_rows` block in
+      `typed_field_row_matches`, so `typeId`'s `TypedFields` entry
+      simply joins it. The cheapest of the three extension shapes
+      seen so far: no variant, no row-set check, just one more struct
+      field populated in an existing block.
+- [x] Rewrote `member_filter_type_id_never_matches_member_annotation_rows`
+      into `member_filter_type_id_matches_member_annotation_rows` (the
+      behavior changed, so the old name and assertion were no longer
+      true) and added a fresh
+      `member_filter_type_id_never_matches_mrcm_domain_rows` to keep a
+      genuine negative-source test in place — 530/530 total, up from
+      529.
+- [x] Updated: `spec/10-ecl-member-filters.md` (bullet extended),
+      `spec/10-ecl-unimplemented.md` (narrative history),
+      `snomed-ecl/src/ast.rs` (variant doc comment, narrative
+      history), `snomed-ecl/src/eval.rs`
+      (`TypedFields`/`typed_field_row_matches` doc comments),
+      `snomed-ecl/README.md` (table row), `agents/ecl-engineer.md`,
+      `agents/store-engineer.md`, `plan.md` (Open decisions
+      paragraph, Current status test count and date, Since 0.9.0
+      narrative), `CHANGELOG.md`.
+- [x] **`CHANGELOG.md` crossed its own 40 KB budget again** once this
+      entry's `[Unreleased]` section was added. `docs/changelog-archive.md`
+      had room (4.9 KB free), so a direct single-section move
+      sufficed: `[0.34.0]` moved from `CHANGELOG.md` into
+      `docs/changelog-archive.md` ahead of `[0.33.0]`, no cascade
+      needed — though that archive is down to about 3.3 KB free now
+      and will likely need its own cascade to a second-level archive
+      soon (the `docs/changelog-archive-2.md` precedent already
+      exists for exactly this).
+- [x] Verified: build/clippy/fmt/test (530/530)/check-docs/
+      check-trademarks/spec_citations all clean.
+
 ## Done (2026-09-12, Release 0.54.0 — `memberFieldFilter`'s `value`, completes `ComponentAnnotationRefsetMember`'s column coverage, forty-second self-decided release)
 
 - [x] **Decided and executed the release itself**, per §1-5 of
@@ -180,9 +221,10 @@ before".
 ## Next up
 
 - [ ] Nothing currently scoped beyond the `{{ M ... }}` remainder below.
-      State as of 2026-09-12: **0.54.0 released** —
-      `ComponentAnnotationRefsetMember`'s column coverage complete —
-      `mapTarget`
+      State as of 2026-09-13: **0.54.0 released**,
+      `ComponentAnnotationRefsetMember`'s column coverage complete,
+      `typeId` extended to `MemberAnnotationRefsetMember` (implemented,
+      release pending, see Done above) — `mapTarget`
       (0.15.0),
       `correlationId` (0.16.0), `mapGroup` (0.17.0), `mapPriority`
       (0.18.0), `mapRule` (0.19.0), `mapAdvice` plus the `ecl_parse`
@@ -288,12 +330,17 @@ before".
       first `memberFieldFilter` parser arm on a dedicated token kind
       rather than `Word`, and the increment that caught the
       `member_row_matches` dispatch-list omission bug), and `value`
-      (see Done above —
+      (0.54.0 —
       back on the string-search shape,
       `ComponentAnnotationRefsetMember`'s third and last column, again
       no new row-set check since all three share one row, completing
       that type's column coverage — the seventh refset type outside
-      the two map types to reach it),
+      the two map types to reach it); `typeId` then extended (see
+      Done above) to `MemberAnnotationRefsetMember`'s own column of
+      the same name — no second variant, and not even a new row-set
+      check this time, since `languageDialectCode`'s own earlier
+      extension already put a `member_annotation_member_rows` block
+      there for this column to join,
       all after both `^` and
       `^R`.
       Together `mapAdvice`/`mapCategoryId` complete `ExtendedMap`'s
@@ -336,10 +383,12 @@ before".
       to every shape, not just concept-reference.
       `{{ M ... }}` after `^`
       (0.13.0), after `^R` (0.14.0), and its `memberFieldFilter`
-      alternative (0.15.0-0.54.0),
+      alternative (0.15.0-0.54.0, `typeId`'s
+      `MemberAnnotationRefsetMember` extension implemented but not yet
+      released),
       all decided and executed under
       `spec/ai-release-authority/`'s criteria rather than a fresh
-      per-release maintainer go-ahead (see `CHANGELOG.md`). 9 crates, 529
+      per-release maintainer go-ahead (see `CHANGELOG.md`). 9 crates, 530
       tests,
       clippy/fmt clean on stable, MSRV 1.96 (current
       stable minus two, `spec/rust-msrv-n-minus-2/index.md`), `fuzz/`,

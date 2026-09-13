@@ -1,10 +1,39 @@
 # Changelog archive
 
-Entries for versions 0.33.0 and earlier, moved verbatim from
+Entries for versions 0.34.0 and earlier, moved verbatim from
 [`CHANGELOG.md`](../CHANGELOG.md) to keep that file inside the
 repository's 40 KB per-document budget
 (rule 1 of `spec/docs-budget-and-links/index.md`). Newer entries live
 there.
+
+## [0.34.0] — 2026-09-07
+
+**New ECL capability, additive.** `{{ M ... }}`'s `memberFieldFilter`
+gains its nineteenth column, `parentDomain` — `MrcmDomainRefsetMember`'s
+second column (after `domainConstraint`), after both `^` and `^R`.
+String-search shape, reusing `mapTarget`/`domainConstraint`'s exact
+grammar and `term_matches`; needed a genuinely new `MemberFilterKind`
+variant (no implemented column shares this RF2 field name) but no new
+row-set check, reusing `domainConstraint`'s row set. A minor bump: new
+public API, no removals or signature changes to anything existing.
+
+### Added
+
+- `snomed-ecl`: `{{ M parentDomain = "<< 138875005" }}` restricts to
+  `MrcmDomain` member rows whose own `parentDomain` column matches —
+  the same `match:`/`wild:`/`exact:` search-term grammar
+  `mapTarget`/`domainConstraint` use (reusing `TermFilter`'s exact
+  shape and `term_matches`). Works after both `^` and `^R`, and
+  conjoins with `domainConstraint` and the other shared-column kinds
+  on the same member row — `domainConstraint`/`parentDomain` both live
+  on the same `MrcmDomainRefsetMember` row, so a block naming both is
+  satisfied by that one row. Only `MrcmDomainRefsetMember` rows carry
+  a `parentDomain` column; every other row source never matches.
+  `memberFieldFilter`'s nineteenth column, and `MrcmDomainRefsetMember`'s
+  second. Needed a genuinely new `MemberFilterKind` variant (no
+  implemented column shares this RF2 field name) but no new row-set
+  check, reusing `domainConstraint`'s
+  `SnapshotStore::mrcm_domain_member_rows`.
 
 ## [0.33.0] — 2026-09-07
 

@@ -408,8 +408,13 @@ fn member_row_matches(
 /// distinct row sharing only the RF2 field name. `type_id` is
 /// `ComponentAnnotationRefsetMember`'s second column, populated from
 /// the same row as `language_dialect_code`'s
-/// `ComponentAnnotationRefsetMember` case; `value` is its third and
-/// last, populated from that same row, completing that type's column
+/// `ComponentAnnotationRefsetMember` case, and also — reused
+/// verbatim, no second field — `MemberAnnotationRefsetMember`'s own
+/// `typeId` column, a distinct row sharing only the RF2 field name
+/// with `ComponentAnnotationRefsetMember`'s (the same pairing
+/// `language_dialect_code` already has between the two types);
+/// `value` is `ComponentAnnotationRefsetMember`'s third and last,
+/// populated from that same row, completing that type's column
 /// coverage.
 #[derive(Default)]
 struct TypedFields<'a> {
@@ -495,7 +500,11 @@ struct TypedFields<'a> {
 /// — no new variant, just this new row-set check, since
 /// `MemberAnnotationRefsetMember`'s own `languageDialectCode` column is
 /// a distinct row from `ComponentAnnotationRefsetMember`'s, sharing
-/// only the RF2 field name.
+/// only the RF2 field name. `typeId` extends to it the same way,
+/// reusing `MemberFilterKind::TypeId` verbatim — no new variant, no
+/// new row-set check (the block already exists for
+/// `languageDialectCode`), just one more `TypedFields` entry
+/// populated from the same row.
 /// Renamed from `typed_map_row_matches` once it stopped being map-only.
 /// Whichever field-filter kind appears, a block naming it is
 /// tested against all sixteen typed row sets rather than `member_rows`.
@@ -861,6 +870,7 @@ fn typed_field_row_matches(
                         &row.core,
                         &TypedFields {
                             language_dialect_code: Some(&row.language_dialect_code),
+                            type_id: Some(row.type_id),
                             ..TypedFields::default()
                         },
                     )
@@ -7887,17 +7897,22 @@ mod tests {
         );
     }
 
-    /// `MemberAnnotationRefsetMember`/every other typed row source has
-    /// no `typeId` column reached by this filter kind (it is not yet
-    /// extended there, unlike `languageDialectCode`) — a membership
-    /// that exists only there must never match.
+    /// `typeId` also reaches `MemberAnnotationRefsetMember`'s own
+    /// column of that name — the same "reuse the variant, add the
+    /// row-set check" shape `languageDialectCode` already established
+    /// extending to this type: no new `MemberFilterKind` variant, and
+    /// this time not even a new row-set check, since the block
+    /// `languageDialectCode`'s own extension put there already tests
+    /// this row source.
     #[test]
-    fn member_filter_type_id_never_matches_member_annotation_rows() {
+    fn member_filter_type_id_matches_member_annotation_rows() {
         let member_annotation = SctId::compose(10035, ComponentType::Concept, None).unwrap();
         let annotation_type = SctId::compose(10036, ComponentType::Concept, None).unwrap();
+        let other_type = SctId::compose(10040, ComponentType::Concept, None).unwrap();
         let mut b = SnapshotStore::builder();
         b.add_concept(concept(MI));
         b.add_concept(concept(annotation_type));
+        b.add_concept(concept(other_type));
         b.add_member_annotation_member(MemberAnnotationRefsetMember {
             core: RefsetMemberCore {
                 id: MemberId::parse("80000000-0000-4000-8000-000000000188").unwrap(),
@@ -7916,7 +7931,51 @@ mod tests {
 
         assert_eq!(
             eval(
+                &format!("^ {member_annotation} {{{{ M typeId = {other_type} }}}}"),
+                &store
+            ),
+            HashSet::new(),
+            "the row's own typeId doesn't match"
+        );
+        assert_eq!(
+            eval(
                 &format!("^ {member_annotation} {{{{ M typeId = {annotation_type} }}}}"),
+                &store
+            ),
+            HashSet::from([MI])
+        );
+    }
+
+    /// `MrcmDomainRefsetMember`/every other typed row source has no
+    /// `typeId` column reached by this filter kind — a membership that
+    /// exists only there must never match.
+    #[test]
+    fn member_filter_type_id_never_matches_mrcm_domain_rows() {
+        let mrcm_domain = SctId::compose(10041, ComponentType::Concept, None).unwrap();
+        let mut b = SnapshotStore::builder();
+        b.add_concept(concept(MI));
+        b.add_mrcm_domain_member(MrcmDomainRefsetMember {
+            core: RefsetMemberCore {
+                id: MemberId::parse("80000000-0000-4000-8000-000000000192").unwrap(),
+                effective_time: EffectiveTime::new_unchecked(20190731),
+                active: true,
+                module_id: constants::CORE_MODULE,
+                refset_id: mrcm_domain,
+                referenced_component_id: MI,
+            },
+            domain_constraint: String::new(),
+            parent_domain: String::new(),
+            proximal_primitive_constraint: String::new(),
+            proximal_primitive_refinement: String::new(),
+            domain_template_for_precoordination: String::new(),
+            domain_template_for_postcoordination: String::new(),
+            guide_url: String::new(),
+        });
+        let store = b.build();
+
+        assert_eq!(
+            eval(
+                &format!("^ {mrcm_domain} {{{{ M typeId = 447562003 }}}}"),
                 &store
             ),
             HashSet::new()

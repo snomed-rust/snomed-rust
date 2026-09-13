@@ -506,11 +506,15 @@ pub enum ConceptFilterKind {
 /// (`ComponentAnnotationRefsetMember`'s second column, back to the
 /// concept-reference shape, another genuinely new variant since no
 /// implemented column shares this RF2 field name, no new row-set
-/// check since it shares `languageDialectCode`'s row); and `value`
+/// check since it shares `languageDialectCode`'s row); `value`
 /// (`ComponentAnnotationRefsetMember`'s third and last column, back
 /// to the string-search shape, another genuinely new variant, no new
 /// row-set check, completing that type's column coverage — the
-/// seventh refset type outside the two map types to reach it) —
+/// seventh refset type outside the two map types to reach it); and
+/// `typeId` extended (2026-09-13) to `MemberAnnotationRefsetMember`'s
+/// own column of the same name — no new variant, no new row-set
+/// check, reusing the block `languageDialectCode`'s own extension
+/// already put there) —
 /// all
 /// decided 2026-09-03 (`plan.md`'s "Open decisions") to retain full rows
 /// — active and inactive — for all sixteen non-Simple/Language refset
@@ -1123,6 +1127,12 @@ pub enum MemberFilterKind {
     /// `ComponentAnnotationRefsetMember`'s second column (after
     /// `languageDialectCode`; `value` remains); no new row-set check,
     /// reusing `component_annotation_member_rows`.
+    /// Extended to `MemberAnnotationRefsetMember`'s own `typeId`
+    /// column too (a distinct row, sharing only the RF2 field name —
+    /// the same pairing [`Self::LanguageDialectCode`] already has
+    /// between the two types): tested against
+    /// `SnapshotStore::member_annotation_member_rows` too, no second
+    /// variant needed.
     TypeId(ModuleFilter),
     /// `value (=|!=) (typedSearchTerm | typedSearchTermSet)` — a
     /// `memberFieldFilter` (spec/10 rule 18), the string-search shape,
