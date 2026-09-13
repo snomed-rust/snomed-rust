@@ -11,7 +11,7 @@ human-readable layer above it.
 
 | | |
 |---|---|
-| Version | **0.55.0**, released 2026-09-13 |
+| Version | **0.56.0**, released 2026-09-13 |
 | Crates | nine, released together and sharing one version number |
 | Rust MSRV | 1.96 (current stable minus two) |
 | License | `Apache-2.0 OR MIT` |
@@ -19,14 +19,15 @@ human-readable layer above it.
 | Packages | <https://crates.io/crates/snomed> |
 | Documentation | <https://docs.rs/snomed> · <https://snomed-rust.github.io/> |
 
-0.55.0 extends the ECL `{{ M ... }}` member filter constraint's
-`typeId` column to `MemberAnnotationRefsetMember`'s own column of
-that name — a distinct row from `ComponentAnnotationRefsetMember`'s,
+0.56.0 extends the ECL `{{ M ... }}` member filter constraint's
+`value` column to `MemberAnnotationRefsetMember`'s own column of that
+name — a distinct row from `ComponentAnnotationRefsetMember`'s,
 sharing only the RF2 field name. No new `MemberFilterKind` variant,
 and not even a new row-set check: `languageDialectCode`'s own
 earlier extension to this type already put the machinery in place.
-Purely additive: no public API removed or changed, existing code
-compiles unmodified. Full detail is in the
+Completes `MemberAnnotationRefsetMember`'s column coverage but for
+`referencedMemberId`. Purely additive: no public API removed or
+changed, existing code compiles unmodified. Full detail is in the
 [changelog](CHANGELOG.md).
 
 **Pre-1.0 caveat, stated up front because it affects anyone writing about
@@ -87,6 +88,7 @@ project is young and says so.
 | 2026-09-12 | 0.53.0 — `{{ M ... }}`'s `memberFieldFilter`: `typeId`, `ComponentAnnotationRefsetMember`'s second column |
 | 2026-09-12 | 0.54.0 — `{{ M ... }}`'s `memberFieldFilter`: `value`, completing `ComponentAnnotationRefsetMember`'s column coverage |
 | 2026-09-13 | 0.55.0 — `{{ M ... }}`'s `typeId` extends to `MemberAnnotationRefsetMember` |
+| 2026-09-13 | 0.56.0 — `{{ M ... }}`'s `value` extends to `MemberAnnotationRefsetMember` |
 
 ## Following updates
 
@@ -172,7 +174,7 @@ remains licensed material obtained separately from SNOMED International.
 - **What it is not.** Not a terminology server, not an authoring platform, not
   a browser, and not a replacement for Snowstorm. [COMPARISONS.md](COMPARISONS.md)
   states the limitations at length and names the tools that do those jobs.
-- **Maturity.** Version 0.55.0, first published in September 2026, one
+- **Maturity.** Version 0.56.0, first published in September 2026, one
   maintainer, pre-1.0. [MAINTAINERS.md](MAINTAINERS.md) states the bus factor
   and the continuity position without softening, and is the right source for
   any risk framing.
