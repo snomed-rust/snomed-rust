@@ -317,11 +317,12 @@ token shape:
   `typeId` extended (2026-09-13) to `MemberAnnotationRefsetMember`'s
   own column of that name — no new variant, and this time not even a
   new row-set check, since `languageDialectCode`'s own extension
-  already put one there for that type.
+  already put one there for that type. `value` extended (2026-09-13)
+  the same way, completing `MemberAnnotationRefsetMember`'s column
+  coverage but for `referencedMemberId`.
   `referencedMemberId` (`MemberAnnotationRefsetMember`'s own column,
-  distinct from `targetComponentId`) and `value` (not yet extended
-  there either) remain unimplemented for that type, with no example
-  yet. See
+  distinct from `targetComponentId`) remains unimplemented, with no
+  example yet. See
   `SnapshotStore::simple_map_member_rows`/`extended_map_member_rows`/
   `association_member_rows` and
   spec/09 rule 4. Decided 2026-09-03 in `plan.md`'s "Open decisions":

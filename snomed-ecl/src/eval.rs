@@ -415,7 +415,12 @@ fn member_row_matches(
 /// `language_dialect_code` already has between the two types);
 /// `value` is `ComponentAnnotationRefsetMember`'s third and last,
 /// populated from that same row, completing that type's column
-/// coverage.
+/// coverage, and also — reused verbatim, no second field —
+/// `MemberAnnotationRefsetMember`'s own `value` column, completing
+/// that type's column coverage too (all three columns it has —
+/// `languageDialectCode`/`typeId`/`value` — now populate from its one
+/// `member_annotation_member_rows` row; `referencedMemberId` remains
+/// its only unimplemented column).
 #[derive(Default)]
 struct TypedFields<'a> {
     map_target: Option<&'a str>,
@@ -500,11 +505,13 @@ struct TypedFields<'a> {
 /// — no new variant, just this new row-set check, since
 /// `MemberAnnotationRefsetMember`'s own `languageDialectCode` column is
 /// a distinct row from `ComponentAnnotationRefsetMember`'s, sharing
-/// only the RF2 field name. `typeId` extends to it the same way,
-/// reusing `MemberFilterKind::TypeId` verbatim — no new variant, no
-/// new row-set check (the block already exists for
-/// `languageDialectCode`), just one more `TypedFields` entry
-/// populated from the same row.
+/// only the RF2 field name. `typeId` and `value` both extend to it
+/// the same way, reusing `MemberFilterKind::TypeId`/`Value` verbatim
+/// — no new variant, no new row-set check (the block already exists
+/// for `languageDialectCode`), just one more `TypedFields` entry
+/// each, populated from the same row — completing
+/// `MemberAnnotationRefsetMember`'s column coverage (every column it
+/// has but `referencedMemberId`).
 /// Renamed from `typed_map_row_matches` once it stopped being map-only.
 /// Whichever field-filter kind appears, a block naming it is
 /// tested against all sixteen typed row sets rather than `member_rows`.
@@ -871,6 +878,7 @@ fn typed_field_row_matches(
                         &TypedFields {
                             language_dialect_code: Some(&row.language_dialect_code),
                             type_id: Some(row.type_id),
+                            value: Some(&row.value),
                             ..TypedFields::default()
                         },
                     )
@@ -8067,6 +8075,54 @@ mod tests {
                 &store
             ),
             HashSet::new()
+        );
+    }
+
+    /// `value` also reaches `MemberAnnotationRefsetMember`'s own
+    /// column of that name — the same "reuse the variant, add
+    /// nothing" shape `typeId` just established extending to this
+    /// type: no new `MemberFilterKind` variant, and not even a new
+    /// row-set check, since `languageDialectCode`'s own extension
+    /// already put the `member_annotation_member_rows` block in
+    /// place. Completes `MemberAnnotationRefsetMember`'s column
+    /// coverage but for `referencedMemberId`.
+    #[test]
+    fn member_filter_value_matches_member_annotation_rows() {
+        let member_annotation = SctId::compose(10042, ComponentType::Concept, None).unwrap();
+        let annotation_type = SctId::compose(10043, ComponentType::Concept, None).unwrap();
+        let mut b = SnapshotStore::builder();
+        b.add_concept(concept(MI));
+        b.add_concept(concept(annotation_type));
+        b.add_member_annotation_member(MemberAnnotationRefsetMember {
+            core: RefsetMemberCore {
+                id: MemberId::parse("80000000-0000-4000-8000-000000000193").unwrap(),
+                effective_time: EffectiveTime::new_unchecked(20190731),
+                active: true,
+                module_id: constants::CORE_MODULE,
+                refset_id: member_annotation,
+                referenced_component_id: MI,
+            },
+            referenced_member_id: MemberId::parse("80000000-0000-4000-8000-000000000194").unwrap(),
+            language_dialect_code: "en-GB".to_string(),
+            type_id: annotation_type,
+            value: "a free-text note on a member".to_string(),
+        });
+        let store = b.build();
+
+        assert_eq!(
+            eval(
+                &format!("^ {member_annotation} {{{{ M value = \"nonexistent\" }}}}"),
+                &store
+            ),
+            HashSet::new(),
+            "the row's own value doesn't match"
+        );
+        assert_eq!(
+            eval(
+                &format!("^ {member_annotation} {{{{ M value = \"free-text\" }}}}"),
+                &store
+            ),
+            HashSet::from([MI])
         );
     }
 

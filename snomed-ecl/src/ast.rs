@@ -514,7 +514,10 @@ pub enum ConceptFilterKind {
 /// `typeId` extended (2026-09-13) to `MemberAnnotationRefsetMember`'s
 /// own column of the same name — no new variant, no new row-set
 /// check, reusing the block `languageDialectCode`'s own extension
-/// already put there) —
+/// already put there; and `value` extended (2026-09-13) the same
+/// way — no new variant, no new row-set check, completing
+/// `MemberAnnotationRefsetMember`'s column coverage but for
+/// `referencedMemberId`) —
 /// all
 /// decided 2026-09-03 (`plan.md`'s "Open decisions") to retain full rows
 /// — active and inactive — for all sixteen non-Simple/Language refset
@@ -1148,6 +1151,13 @@ pub enum MemberFilterKind {
     /// filter kind (distinct from RF2's ubiquitous *concrete value*
     /// concept in `eclAttribute`'s own numeric/string comparisons,
     /// unrelated machinery entirely), so this needed its own variant.
+    /// Extended to `MemberAnnotationRefsetMember`'s own `value` column
+    /// too (a distinct row, sharing only the RF2 field name — the
+    /// same pairing [`Self::LanguageDialectCode`]/[`Self::TypeId`]
+    /// already have between the two types): tested against
+    /// `SnapshotStore::member_annotation_member_rows` too, no second
+    /// variant needed. Completes `MemberAnnotationRefsetMember`'s
+    /// column coverage but for `referencedMemberId`.
     Value(TermFilter),
 }
 

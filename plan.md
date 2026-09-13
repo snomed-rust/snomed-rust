@@ -343,9 +343,10 @@ and harmonizes it with the sibling repositories (`hl7-rust`, `er7-rust`,
   `MrcmAttributeDomainRefsetMember`/`ModuleDependencyRefsetMember`/
   `MrcmAttributeRangeRefsetMember`/`ComponentAnnotationRefsetMember`, plus
   `OrderedAssociationRefsetMember` as an eleventh reusing two existing
-  variants, and `MemberAnnotationRefsetMember` as a twelfth reusing two
-  (`languageDialectCode`, extended 2026-09-12, and `typeId`, extended
-  2026-09-13)) — `RefsetDescriptorRefsetMember`,
+  variants, and `MemberAnnotationRefsetMember` as a twelfth reusing
+  three (`languageDialectCode`, extended 2026-09-12, and `typeId`/
+  `value`, both extended 2026-09-13 — every column that type has but
+  `referencedMemberId`)) — `RefsetDescriptorRefsetMember`,
   `DescriptionTypeRefsetMember`, `MrcmDomainRefsetMember`,
   `MrcmAttributeDomainRefsetMember`, `ModuleDependencyRefsetMember`,
   `MrcmAttributeRangeRefsetMember`, and
@@ -373,10 +374,10 @@ and harmonizes it with the sibling repositories (`hl7-rust`, `er7-rust`,
 ## Current status
 
 All eight phases above are closed. As of `memberFieldFilter`'s
-`typeId` extending to `MemberAnnotationRefsetMember`
+`typeId`/`value` extending to `MemberAnnotationRefsetMember`
 (2026-09-13, below) the
 workspace is 9 published
-crates with zero dependencies, 530 tests, a clean
+crates with zero dependencies, 531 tests, a clean
 `cargo clippy --all-targets`, 13 fuzz targets, and six criterion
 benchmark files. What is *not* done is tracked
 in two places and nowhere
@@ -571,7 +572,10 @@ seventh refset type outside the two map types to reach it; and
 own column of that name — no second variant, and this time not even
 a new row-set check, since `languageDialectCode`'s own extension had
 already added the `member_annotation_member_rows` block this
-column's `TypedFields` entry could simply join. `spec/10`
+column's `TypedFields` entry could simply join; and `value` extended
+(2026-09-13) the same way, completing
+`MemberAnnotationRefsetMember`'s column coverage but for
+`referencedMemberId`. `spec/10`
 also split a second time this cycle: `spec/10-ecl-filters.md` had
 outgrown its own 40 KB budget from `{{ M ... }}` columns
 accumulating, so that section moved to a new

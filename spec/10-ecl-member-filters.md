@@ -478,7 +478,12 @@ has two):
   Completes `ComponentAnnotationRefsetMember`'s column coverage — the
   seventh refset type outside the two map types to reach it. Genuinely
   new variant: no other column shares this RF2 field name in this
-  filter kind.
+  filter kind. Extended to `MemberAnnotationRefsetMember`'s own
+  `value` column too (a distinct row, sharing only the RF2 field name
+  — the same pairing `languageDialectCode`/`typeId` already have
+  between the two types): no new variant, not even a new row-set
+  check, completing `MemberAnnotationRefsetMember`'s column coverage
+  but for `referencedMemberId`.
 
 All thirty-seven reuse the shared dispatch `mapTarget` introduced
 (renamed `typed_field_row_matches` once a non-map type joined it): a

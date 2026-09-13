@@ -346,7 +346,10 @@ extended (2026-09-13) to `MemberAnnotationRefsetMember`'s own column
 of that name — no second variant, and this time not even a new
 row-set check, since `languageDialectCode`'s own extension had
 already added a `member_annotation_member_rows` block that this
-column's `TypedFields` entry could simply join. All
+column's `TypedFields` entry could simply join. `value` extended
+(2026-09-13) the same way — no second variant, no new row-set check,
+completing `MemberAnnotationRefsetMember`'s column coverage but for
+`referencedMemberId`. All
 row sets are still
 tested whenever any field-filter kind appears in a block, since a row
 missing the column simply fails that filter rather than needing its

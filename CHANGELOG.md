@@ -13,6 +13,23 @@ together, in dependency order (`snomed-core` → `snomed-rf2` → `snomed-owl`
 
 ## [Unreleased]
 
+### Added
+
+- `snomed-ecl`: `{{ M value = "a free-text note" }}` now also matches
+  `MemberAnnotation` member rows' own `value` column, not just
+  `ComponentAnnotation`'s — a distinct row sharing only the RF2 field
+  name. No new `MemberFilterKind` variant (the existing `Value`
+  dispatches to both row sets now), and not even a new row-set check:
+  `languageDialectCode`'s own earlier extension had already added the
+  `member_annotation_member_rows` block this column's `TypedFields`
+  entry simply joins. Completes `MemberAnnotationRefsetMember`'s
+  column coverage but for `referencedMemberId`.
+
+### Notes for consumers
+
+- No public API removed or changed signature; existing code compiles
+  unmodified against this release.
+
 ## [0.55.0] — 2026-09-13
 
 **New ECL capability, additive.** `{{ M ... }}`'s `typeId` column
@@ -730,41 +747,7 @@ removals or signature changes to anything existing.
   `domainConstraint`/`parentDomain`/`proximalPrimitiveConstraint`'s
   `SnapshotStore::mrcm_domain_member_rows`.
 
-## [0.35.0] — 2026-09-07
-
-**New ECL capability, additive.** `{{ M ... }}`'s `memberFieldFilter`
-gains its twentieth column, `proximalPrimitiveConstraint` —
-`MrcmDomainRefsetMember`'s third column (after
-`domainConstraint`/`parentDomain`), after both `^` and `^R`.
-String-search shape, reusing `mapTarget`/`domainConstraint`'s exact
-grammar and `term_matches`; needed a genuinely new `MemberFilterKind`
-variant (no implemented column shares this RF2 field name) but no new
-row-set check, reusing `domainConstraint`/`parentDomain`'s row set. A
-minor bump: new public API, no removals or signature changes to
-anything existing.
-
-### Added
-
-- `snomed-ecl`: `{{ M proximalPrimitiveConstraint = "<< 71388002" }}`
-  restricts to `MrcmDomain` member rows whose own
-  `proximalPrimitiveConstraint` column matches — the same
-  `match:`/`wild:`/`exact:` search-term grammar
-  `mapTarget`/`domainConstraint`/`parentDomain` use (reusing
-  `TermFilter`'s exact shape and `term_matches`). Works after both `^`
-  and `^R`, and conjoins with `domainConstraint`/`parentDomain` and the
-  other shared-column kinds on the same member row —
-  `domainConstraint`/`parentDomain`/`proximalPrimitiveConstraint` all
-  live on the same `MrcmDomainRefsetMember` row, so a block naming any
-  combination is satisfied by that one row. Only
-  `MrcmDomainRefsetMember` rows carry a `proximalPrimitiveConstraint`
-  column; every other row source never matches.
-  `memberFieldFilter`'s twentieth column, and `MrcmDomainRefsetMember`'s
-  third. Needed a genuinely new `MemberFilterKind` variant (no
-  implemented column shares this RF2 field name) but no new row-set
-  check, reusing `domainConstraint`/`parentDomain`'s
-  `SnapshotStore::mrcm_domain_member_rows`.
-
-Entries for 0.34.0 and earlier live in
+Entries for 0.35.0 and earlier live in
 [`docs/changelog-archive.md`](docs/changelog-archive.md) — moved there
 verbatim to keep this file inside the repository's 40 KB per-document
 budget (rule 1 of `spec/docs-budget-and-links/index.md`).

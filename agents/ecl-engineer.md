@@ -420,7 +420,9 @@ reach it. `typeId` extended (2026-09-13) to
 `MemberAnnotationRefsetMember`'s own column of that name — no new
 variant, and this time not even a new row-set check, since
 `languageDialectCode`'s own extension had already put one there for
-that type. `memberFieldFilter`
+that type. `value` extended (2026-09-13) the same way, completing
+`MemberAnnotationRefsetMember`'s column coverage but for
+`referencedMemberId`. `memberFieldFilter`
 isn't one production but five in the official grammar, chosen by the
 named column's own semantic type
 (`expressionComparisonOperator ws subExpressionConstraint` for a concept
