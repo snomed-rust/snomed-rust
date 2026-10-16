@@ -13,6 +13,12 @@ together, in dependency order (`snomed-core` → `snomed-rf2` → `snomed-owl`
 
 ## [Unreleased]
 
+## [0.56.1] — 2026-10-16
+
+Maintenance release; no API changes. Dependencies refreshed, and the
+project site moved to SvelteKit 3.1 (clearing the `devalue` and
+`source-map-js` Dependabot alerts).
+
 ## [0.56.0] — 2026-09-13
 
 **New ECL capability, additive.** `{{ M ... }}`'s `value` column
