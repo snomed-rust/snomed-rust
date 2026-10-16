@@ -1,12 +1,12 @@
 <script lang="ts">
-	import favicon from '$lib/assets/favicon.svg';
-	import '$lib/theme.css';
+	import favicon from '#lib/assets/favicon.svg';
+	import '#lib/theme.css';
 	import { SkipLink, Header, Footer, NavigationMenu } from 'lily-design-system-svelte-headless';
 	import { ThemePicker } from 'lily-design-system-svelte-theme-picker';
 	import { TextSizePicker } from 'lily-design-system-svelte-text-size-picker';
 	import { SharePicker } from 'lily-design-system-svelte-share-picker';
 	import { page } from '$app/state';
-	import { shareTargets } from '$lib/share-targets';
+	import { shareTargets } from '#lib/share-targets.js';
 
 	let { children } = $props();
 

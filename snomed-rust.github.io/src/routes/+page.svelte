@@ -17,7 +17,7 @@
 		DataTableTD
 	} from 'lily-design-system-svelte-headless';
 	import { page } from '$app/state';
-	import { crates } from '$lib/crates';
+	import { crates } from '#lib/crates.js';
 
 	const quickStart = `use snomed::prelude::*;
 
