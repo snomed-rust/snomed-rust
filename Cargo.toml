@@ -30,3 +30,10 @@ snomed-fhir = { path = "snomed-fhir", version = "0.57.0" }
 snomed-owl = { path = "snomed-owl", version = "0.57.0" }
 snomed-rf2 = { path = "snomed-rf2", version = "0.57.0" }
 snomed-store = { path = "snomed-store", version = "0.57.0" }
+
+# cargo-mutants builds every mutant once in a throwaway copy of the tree: no debug information and no
+# incremental state make each build quicker and smaller. `.cargo/mutants.toml` selects it.
+[profile.mutants]
+inherits = "test"
+debug = "none"
+incremental = false
