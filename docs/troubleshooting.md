@@ -112,7 +112,7 @@ included.
 
 ## "What Rust version do I need?"
 
-The current stable release minus two — 1.96 at the time of writing,
+The current stable release minus two — 1.98 at the time of writing,
 with the exact value in the root `Cargo.toml`'s `rust-version` and a CI
 job that checks it. It moves whenever stable does; the policy is
 [`spec/rust-msrv-n-minus-2/index.md`](../spec/rust-msrv-n-minus-2/index.md). If

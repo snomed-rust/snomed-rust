@@ -13,6 +13,12 @@ together, in dependency order (`snomed-core` → `snomed-rf2` → `snomed-owl`
 
 ## [Unreleased]
 
+## [0.57.0] — 2026-11-17
+
+**Breaking: MSRV raised from 1.96 to 1.98** (current stable 1.100 minus two).
+No API changes. Verified with `cargo +1.98 check` and `cargo +1.98 test`
+across the workspace; CI's `msrv` job and the docs follow.
+
 ## [0.56.1] — 2026-10-16
 
 Maintenance release; no API changes. Dependencies refreshed, and the

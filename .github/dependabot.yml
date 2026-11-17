@@ -28,7 +28,7 @@ updates:
     schedule:
       interval: "weekly"
     ignore:
-      # dtolnay/rust-toolchain@1.96 in the msrv job: that ref IS the Rust
+      # dtolnay/rust-toolchain@1.98 in the msrv job: that ref IS the Rust
       # toolchain version the action installs, not just the action's own
       # revision. Dependabot's github-actions updater does not know the
       # difference and will walk it toward the newest tag in that repo,

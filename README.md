@@ -182,7 +182,7 @@ cargo bench --manifest-path benches/Cargo.toml          # criterion benchmarks
 cargo +nightly fuzz run ecl_parse                       # from fuzz/, needs cargo-fuzz
 ```
 
-**MSRV: the current stable Rust release minus two** — 1.96 as of this
+**MSRV: the current stable Rust release minus two** — 1.98 as of this
 writing, checked in CI against that exact toolchain. The policy, and how it
 moves, is [`spec/rust-msrv-n-minus-2/`](spec/rust-msrv-n-minus-2/index.md).
 

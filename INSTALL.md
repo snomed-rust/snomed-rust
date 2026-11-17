@@ -10,7 +10,7 @@ section explains how.
 
 | | |
 |---|---|
-| Rust | **1.96 or newer** — the MSRV policy is current stable minus two, and it moves ([`spec/rust-msrv-n-minus-2/`](spec/rust-msrv-n-minus-2/index.md)) |
+| Rust | **1.98 or newer** — the MSRV policy is current stable minus two, and it moves ([`spec/rust-msrv-n-minus-2/`](spec/rust-msrv-n-minus-2/index.md)) |
 | Platform | anything Rust targets: Linux, macOS, Windows, BSD |
 | External libraries | none |
 | Network access at runtime | none |
@@ -74,7 +74,7 @@ Verhoeff check digit — so it is the fastest way to confirm the install worked.
 To install a specific version, or to reinstall over an existing copy:
 
 ```sh
-cargo install snomed-cli --version 0.56.1 --force
+cargo install snomed-cli --version 0.57.0 --force
 ```
 
 ## Build from source

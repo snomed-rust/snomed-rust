@@ -13,7 +13,7 @@ human-readable layer above it.
 |---|---|
 | Version | **0.56.0**, released 2026-09-13 |
 | Crates | nine, released together and sharing one version number |
-| Rust MSRV | 1.96 (current stable minus two) |
+| Rust MSRV | 1.98 (current stable minus two) |
 | License | `Apache-2.0 OR MIT` |
 | Source | <https://github.com/snomed-rust/snomed-rust> |
 | Packages | <https://crates.io/crates/snomed> |

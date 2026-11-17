@@ -337,7 +337,7 @@ before".
       `spec/ai-release-authority/`'s criteria rather than a fresh
       per-release maintainer go-ahead (see `CHANGELOG.md`). 9 crates, 531
       tests,
-      clippy/fmt clean on stable, MSRV 1.96 (current
+      clippy/fmt clean on stable, MSRV 1.98 (current
       stable minus two, `spec/rust-msrv-n-minus-2/index.md`), `fuzz/`,
       and `benches/`; 13 fuzz targets; 6 criterion benchmark files; 36
       `spec/` documents (18 specification distillations, the README
