@@ -3,7 +3,7 @@
   "summary": "SNOMED CT tooling for Rust: RF2 release file parsing, SCTID validation, an in-memory snapshot store with hierarchy queries, ECL (Expression Constraint Language), FHIR terminology building blocks, OWL axiom parsing, and EL-profile subsumption classification with necessary normal form generation. Nine published crates, zero external dependencies.",
   "repository": "https://github.com/snomed-rust/snomed-rust",
   "homepage": "https://snomed-rust.github.io/",
-  "license": "Apache-2.0 OR MIT",
+  "license": "MIT OR Apache-2.0 OR BSD-3-Clause OR GPL-2.0-only OR GPL-3.0-only OR OGL-UK-3.0 OR CC-BY-NC-SA-4.0",
   "affiliation": "Independent community project, not affiliated with, endorsed by, or certified by SNOMED International. Ships no SNOMED CT content — release files are licensed material obtained under your own affiliate license.",
   "trademark_notice": "SNOMED®, SNOMED CT®, and IHTSDO® are registered trademarks of International Health Terminology Standards Development Organisation (IHTSDO). Use of the trademarks does not constitute endorsement of this product by IHTSDO.",
   "link_targets": "This is the website-appropriate copy of llms.json: this site is a single landing page, so links below resolve on GitHub rather than this domain, except the homepage itself. The source-of-truth version, with repo-relative links, lives at https://github.com/snomed-rust/snomed-rust/blob/main/llms.json (see spec/llms-json-and-llms-txt/index.md).",
@@ -81,7 +81,7 @@
         { "title": "GOVERNANCE.md", "url": "https://github.com/snomed-rust/snomed-rust/blob/main/GOVERNANCE.md", "description": "who decides, and what constrains them" },
         { "title": "AI_STATEMENT.md", "url": "https://github.com/snomed-rust/snomed-rust/blob/main/AI_STATEMENT.md", "description": "how AI is used to build this, and who is accountable" },
         { "title": "RFC.md", "url": "https://github.com/snomed-rust/snomed-rust/blob/main/RFC.md", "description": "what this project is unsure about, and can be settled" },
-        { "title": "LICENSE.md", "url": "https://github.com/snomed-rust/snomed-rust/blob/main/LICENSE.md", "description": "terms — Apache-2.0 OR MIT" },
+        { "title": "LICENSE.md", "url": "https://github.com/snomed-rust/snomed-rust/blob/main/LICENSE.md", "description": "terms — MIT OR Apache-2.0 OR BSD-3-Clause OR GPL-2.0-only OR GPL-3.0-only OR OGL-UK-3.0 OR CC-BY-NC-SA-4.0" },
         { "title": "CITATION.cff", "url": "https://github.com/snomed-rust/snomed-rust/blob/main/CITATION.cff", "description": "how to cite this project" },
         { "title": "agents/", "url": "https://github.com/snomed-rust/snomed-rust/tree/main/agents", "description": "role playbooks, one per crate with non-trivial domain logic" }
       ]

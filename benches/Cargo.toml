@@ -10,21 +10,21 @@ version = "0.0.0"
 publish = false
 edition = "2021"
 rust-version = "1.98"
-license = "Apache-2.0 OR MIT"
+license = "MIT OR Apache-2.0 OR BSD-3-Clause OR GPL-2.0-only OR GPL-3.0-only OR OGL-UK-3.0 OR CC-BY-NC-SA-4.0"
 
 [workspace]
 
 [dependencies]
-snomed-classify = { path = "../snomed-classify" }
 snomed-core = { path = "../snomed-core" }
-snomed-ecl = { path = "../snomed-ecl" }
-snomed-fhir = { path = "../snomed-fhir" }
 snomed-owl = { path = "../snomed-owl" }
 snomed-rf2 = { path = "../snomed-rf2" }
 snomed-store = { path = "../snomed-store" }
 
 [dev-dependencies]
 criterion = "0.8"
+snomed-classify = { path = "../snomed-classify" }
+snomed-ecl = { path = "../snomed-ecl" }
+snomed-fhir = { path = "../snomed-fhir" }
 
 [lib]
 name = "snomed_benches"

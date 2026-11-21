@@ -36,9 +36,9 @@ or analytics pipelines.
 | Crate | Purpose |
 |---|---|
 | [`snomed`](snomed) | Facade: re-exports everything, `prelude`, end-to-end tests |
-| [`snomed-core`](snomed-core) | SCTID parse/validate/compose (Verhoeff check digit), `EffectiveTime`, `Concept`/`Description`/`Relationship`, well-known constants |
-| [`snomed-rf2`](snomed-rf2) | RF2 file name parsing, Full/Snapshot/Delta types, streaming typed reader, reference set members |
-| [`snomed-store`](snomed-store) | Snapshot builder (latest version wins, order-independent), IS-A hierarchy, ancestors/descendants/subsumption, and a `HistoryStore` for full version history / point-in-time queries |
+| [`snomed-core`](snomed-core) | SCTID parse/validate/compose (Verhoeff check digit), `EffectiveTime`, core records including `AlternateIdentifier`, well-known constants |
+| [`snomed-rf2`](snomed-rf2) | RF2 file name parsing, Full/Snapshot/Delta types, streaming typed reader, alternate identifiers, reference set members |
+| [`snomed-store`](snomed-store) | Snapshot builder (latest version wins, order-independent), alternate-identifier resolution, IS-A hierarchy, and a `HistoryStore` for full version history / point-in-time queries |
 | [`snomed-ecl`](snomed-ecl) | Expression Constraint Language: lexer, parser, evaluator — hierarchy operators, `memberOf`/`^R`, dot notation, refinements (cardinality, reverse flag, attribute groups, concrete values), and `{{ }}` concept/description/member filters |
 | [`snomed-fhir`](snomed-fhir) | FHIR terminology service building blocks: `$subsumes`, `$lookup`, `$expand` |
 | [`snomed-owl`](snomed-owl) | Parser for the OWL 2 functional-syntax subset used in the OWL Expression reference set |
@@ -177,6 +177,7 @@ cargo run -p snomed-cli -- nnf ./SnomedCT_InternationalRF2_PRODUCTION_20250801/S
 cargo test                    # unit + integration + doctests
 cargo clippy --all-targets    # kept warning-free
 cargo fmt
+cargo llvm-cov --workspace --summary-only --fail-under-regions 95 --fail-under-functions 95 --fail-under-lines 95
 
 cargo bench --manifest-path benches/Cargo.toml          # criterion benchmarks
 cargo +nightly fuzz run ecl_parse                       # from fuzz/, needs cargo-fuzz
@@ -218,8 +219,11 @@ step, the verification checklist, and cutting a release.
 
 ## License
 
-Code: dual-licensed under [Apache-2.0](LICENSE-APACHE) or [MIT](LICENSE-MIT),
-at your option — `SPDX-License-Identifier: Apache-2.0 OR MIT`. See
+Code: licensed under any one of seven licenses, at your option: [MIT](LICENSES/mit/index.md),
+[Apache-2.0](LICENSES/apache-2.0/index.md), [BSD-3-Clause](LICENSES/bsd-3-clause/index.md),
+[GPL-2.0-only](LICENSES/gpl-2.0-only/index.md), [GPL-3.0-only](LICENSES/gpl-3.0-only/index.md),
+[OGL-UK-3.0](LICENSES/ogl-uk-3.0/index.md), or [CC-BY-NC-SA-4.0](LICENSES/cc-by-nc-sa-4.0/index.md) —
+`SPDX-License-Identifier: MIT OR Apache-2.0 OR BSD-3-Clause OR GPL-2.0-only OR GPL-3.0-only OR OGL-UK-3.0 OR CC-BY-NC-SA-4.0`. See
 [`LICENSE.md`](LICENSE.md) for what that covers, what it does not, and why the
 dependency-free design makes the bill of materials trivial to audit.
 SNOMED®, SNOMED CT®, and IHTSDO® are registered trademarks of International

@@ -16,7 +16,7 @@ members = [
 version = "0.57.0"
 edition = "2021"
 rust-version = "1.98"
-license = "Apache-2.0 OR MIT"
+license = "MIT OR Apache-2.0 OR BSD-3-Clause OR GPL-2.0-only OR GPL-3.0-only OR OGL-UK-3.0 OR CC-BY-NC-SA-4.0"
 repository = "https://github.com/snomed-rust/snomed-rust"
 keywords = ["snomed", "snomed-ct", "healthcare", "terminology", "rf2"]
 categories = ["science", "parser-implementations"]
@@ -30,6 +30,9 @@ snomed-fhir = { path = "snomed-fhir", version = "0.57.0" }
 snomed-owl = { path = "snomed-owl", version = "0.57.0" }
 snomed-rf2 = { path = "snomed-rf2", version = "0.57.0" }
 snomed-store = { path = "snomed-store", version = "0.57.0" }
+
+[workspace.lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(coverage_nightly)'] }
 
 [profile.dev]
 debug = "line-tables-only"

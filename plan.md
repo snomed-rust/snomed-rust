@@ -123,9 +123,10 @@ and harmonizes it with the sibling repositories (`hl7-rust`, `er7-rust`,
   rule, the notices themselves, and the checker landed 2026-08-26 — rule 5
   of `spec/professionalization/index.md`, enforced by
   `bin/check-trademarks` and the CI `trademarks` job.
-  `LICENSES/` landed 2026-08-26: `Apache-2.0.txt` and `MIT.txt`,
-  byte-identical to the root texts — two files, not five, because the SPDX
-  expression is `Apache-2.0 OR MIT` and names nothing else.
+  `LICENSES/` landed 2026-08-26 with `Apache-2.0.txt` and `MIT.txt`; widened
+  to the seven-license choice (`MIT OR Apache-2.0 OR BSD-3-Clause OR
+  GPL-2.0-only OR GPL-3.0-only OR OGL-UK-3.0 OR CC-BY-NC-SA-4.0`), with one
+  text per identifier in `LICENSES/`.
 - **Security and supply chain**: SECURITY.md's "Known posture" items
   (unsigned commits/tags, manual publishing, no DOI) were written down as
   gaps precisely so they get closed or consciously accepted. Private
@@ -271,9 +272,9 @@ and harmonizes it with the sibling repositories (`hl7-rust`, `er7-rust`,
   `targetEffectiveTime`,
   `rangeConstraint`,
   `attributeRule`,
-  `languageDialectCode`, `typeId`, and
+  `languageDialectCode`, `referencedMemberId`, `typeId`, and
   `value` are the
-  first thirty-seven
+  first thirty-eight
   concrete fields
   built on this retention (`snomed-ecl`, spec/10 rule 18): the
   `memberFieldFilter` grammar alternative, tested against
@@ -295,7 +296,7 @@ and harmonizes it with the sibling repositories (`hl7-rust`, `er7-rust`,
   `owlExpression`/`domainConstraint`/`parentDomain`/
   `proximalPrimitiveConstraint`/`proximalPrimitiveRefinement`/
   `domainTemplateForPrecoordination`/`domainTemplateForPostcoordination`/
-  `guideURL`/`attributeCardinality`/`attributeInGroupCardinality`/`rangeConstraint`/`attributeRule`/`languageDialectCode`/`value`
+  `guideURL`/`attributeCardinality`/`attributeInGroupCardinality`/`rangeConstraint`/`attributeRule`/`languageDialectCode`/`referencedMemberId`/`value`
   the string-search
   shape, `correlationId`/`mapCategoryId`/
   `targetComponentId`/`valueId`/`mrcmRuleRefsetId`/`attributeDescription`/
@@ -330,10 +331,10 @@ and harmonizes it with the sibling repositories (`hl7-rust`, `er7-rust`,
   `descriptionFormat`/`descriptionLength`/`domainConstraint`/
   `parentDomain`/`proximalPrimitiveConstraint`/
   `proximalPrimitiveRefinement`/`domainTemplateForPrecoordination`/
-  `domainTemplateForPostcoordination`/`guideURL`/`domainId`/`ruleStrengthId`/`contentTypeId`/`grouped`/`attributeCardinality`/`attributeInGroupCardinality`/`sourceEffectiveTime`/`targetEffectiveTime`/`rangeConstraint`/`attributeRule`/`languageDialectCode`/`typeId`,
+  `domainTemplateForPostcoordination`/`guideURL`/`domainId`/`ruleStrengthId`/`contentTypeId`/`grouped`/`attributeCardinality`/`attributeInGroupCardinality`/`sourceEffectiveTime`/`targetEffectiveTime`/`rangeConstraint`/`attributeRule`/`languageDialectCode`/`referencedMemberId`/`typeId`,
   and `value`
   are the
-  first thirty fields on refset
+  first thirty-one fields on refset
   types
   other than the two
   map types (`AssociationRefsetMember`/`AttributeValueRefsetMember`/
@@ -345,8 +346,9 @@ and harmonizes it with the sibling repositories (`hl7-rust`, `er7-rust`,
   `OrderedAssociationRefsetMember` as an eleventh reusing two existing
   variants, and `MemberAnnotationRefsetMember` as a twelfth reusing
   three (`languageDialectCode`, extended 2026-09-12, and `typeId`/
-  `value`, both extended 2026-09-13 — every column that type has but
-  `referencedMemberId`)) — `RefsetDescriptorRefsetMember`,
+  `value`, both extended 2026-09-13), plus its own
+  `referencedMemberId` (2026-11-19, UUID string-search shape) —
+  `RefsetDescriptorRefsetMember`,
   `DescriptionTypeRefsetMember`, `MrcmDomainRefsetMember`,
   `MrcmAttributeDomainRefsetMember`, `ModuleDependencyRefsetMember`,
   `MrcmAttributeRangeRefsetMember`, and
@@ -356,10 +358,8 @@ and harmonizes it with the sibling repositories (`hl7-rust`, `er7-rust`,
   the two map types with full column coverage,
   confirming the same store retention and dispatch pattern generalizes
   past `ExtendedMap`/`SimpleMap` across every grammar shape, not just
-  the concept-reference one. Every
-  other `memberFieldFilter` column
-  (`referencedMemberId` on `MemberAnnotationRefsetMember`, …)
-  remains rejected generically —
+  the concept-reference one. Every unknown future
+  `memberFieldFilter` column remains rejected generically —
   not by a fixed keyword list (`refsetFieldName` is `1*alpha`, confirmed
   against the official ABNF) — but each is now a free `snomed-ecl`
   parser/eval-only increment (plus, per column, confirming which grammar
@@ -373,11 +373,10 @@ and harmonizes it with the sibling repositories (`hl7-rust`, `er7-rust`,
 
 ## Current status
 
-All eight phases above are closed. As of `memberFieldFilter`'s
-`typeId`/`value` extending to `MemberAnnotationRefsetMember`
-(2026-09-13, below) the
+All eight phases above are closed. As of ECL history supplements
+(2026-11-19, after `dialectIdSet`) the
 workspace is 9 published
-crates with zero dependencies, 531 tests, a clean
+crates with zero dependencies, 583 tests, a clean
 `cargo clippy --all-targets`, 13 fuzz targets, and six criterion
 benchmark files. What is *not* done is tracked
 in two places and nowhere
@@ -386,6 +385,35 @@ spec section that documents it) and the deliberately-rejected lists —
 `spec/10-ecl-unimplemented.md` for ECL, and the "Not yet implemented"
 sections of `spec/11`-`spec/14` — where every entry fails with a typed
 error rather than being silently approximated.
+
+The ECL error boundary distinguishes malformed input from unavailable
+Boolean concrete comparisons. History supplements have since advanced from
+that diagnostic boundary to full MIN/MOD/MAX/default/custom evaluation,
+grounded in the official profile table and reverse association index.
+Unknown future member-field names remain generic
+because their semantic type and therefore grammar shape are unknowable;
+documented lexer-keyword collisions also remain generic.
+
+The description-filter surface treats dialect identifiers as a worldwide,
+edition-defined set: `dialectId = (X Y)` accepts arbitrary language-refset
+identifiers, while `dialect = en-us` resolves all aliases published in the
+official ECL Appendix C table. Both forms support per-dialect/shared
+acceptability constraints and extension-defined acceptability concepts;
+unknown aliases fail explicitly rather than being guessed.
+
+RF2 alternate identifiers now have a complete non-ECL substrate: exact
+Identifier-file parsing, deterministic `(identifierSchemeId, code)` snapshot
+semantics, active resolution, Full history, directory loading, facade access,
+and CLI export. The remaining ECL `schemeAlias#code` gap is narrower and
+explicit: RF2 supplies a scheme SCTID but ECL supplies an alias, so the
+evaluator needs a caller-owned alias map rather than a hard-coded worldwide
+assumption. Exact coverage uses nightly `coverage(off)` to omit inline test
+bodies, ignores integration-test sources, and unions identical source regions
+across unit/integration objects. CI enforces 100.00% production
+regions/functions/lines (623 tests); LLVM's duplicate-object summary is
+99.60%/100.00%/99.84%.
+ECL 2.2 `!!>`/`!!<` now filter every focus shape through the store's
+transitive ancestor/descendant indexes (spec/10 rule 20).
 
 Since 0.9.0 the ECL surface has grown by five constructs and one grammar
 correction rather than by new crates: dot notation (`A . attribute`), the
@@ -575,13 +603,15 @@ already added the `member_annotation_member_rows` block this
 column's `TypedFields` entry could simply join; and `value` extended
 (2026-09-13) the same way, completing
 `MemberAnnotationRefsetMember`'s column coverage but for
-`referencedMemberId`. `spec/10`
+`referencedMemberId`; that UUID-valued column followed (2026-11-19)
+using the string-search grammar and canonical `MemberId` rendering,
+completing the supported row. `spec/10`
 also split a second time this cycle: `spec/10-ecl-filters.md` had
 outgrown its own 40 KB budget from `{{ M ... }}` columns
 accumulating, so that section moved to a new
 `spec/10-ecl-member-filters.md`, mirroring how
 `spec/10-ecl-unimplemented.md` was split out of `10-ecl.md` earlier
-— five files now, still one normative whole, rule numbers
+— six files now after the set-operator split, still one normative whole, rule numbers
 unaffected since they all live in `10-ecl.md`. In
 between, the
 `ecl_parse` fuzz target's CI smoke run caught
@@ -593,6 +623,31 @@ why three separate recursive entry points each needed the guard. Each
 grammar construct above was confirmed against the official ABNF or a
 verbatim guide quote before implementation, because every one of them
 has a plausible wrong reading that returns a set rather than an error.
+
+## Worldwide deployment evidence (2026-11-19)
+
+Start with the boundaries where a successful query can still answer the
+wrong question. This review found an ECL language-code collision and
+incomplete cycle reports in a multi-parent hierarchy. Synthetic regressions
+now cover those cases and the local tests below.
+
+- **Edition and dialect selection.** The host chooses the snapshot and maps a
+  requested dialect to a language refset. The facade test uses two synthetic
+  editions to check preferred display, fallback, and an unavailable version.
+- **Failed imports.** Both directory loaders stream into the caller's builder.
+  A parse error late in a release can leave earlier rows in that builder.
+  The import contract documents fresh-builder recovery. Both loader tests
+  cover a failed update and a corrected retry that omits a previously read row.
+- **Release-scale evidence.** Measure validation, load time, and peak memory
+  with a licensed base edition plus its extension in the operator's own
+  environment. Record edition identifiers, release dates, hardware, and
+  aggregate findings so another operator can interpret the measurements.
+  The rehearsal reports platform, edition/date, timings, and findings. The
+  licensed run still requires a matching pair of release directories.
+
+The ECL backlog now covers the standard concept-reference set spelling in
+module, definition-status ID, and description-type ID filters. The parser
+uses the existing disjunction representation and evaluator.
 
 ## Risks & watch items
 

@@ -79,7 +79,7 @@ There is no succession plan a document can create. What exists instead:
   vendored is unaffected by maintainer availability.
 - **Nothing new ships.** No release, no fix, no security patch, no
   documentation update.
-- **The work is not lost.** The license is `Apache-2.0 OR MIT`, the history is
+- **The work is not lost.** The license is `MIT OR Apache-2.0 OR BSD-3-Clause OR GPL-2.0-only OR GPL-3.0-only OR OGL-UK-3.0 OR CC-BY-NC-SA-4.0`, the history is
   public, and — unusually — the *reasoning* is in the tree too: `spec/`
   carries the normative rules this code implements, `plan.md` carries the
   roadmap, and every behavior cites the spec rule it comes from. A fork is a

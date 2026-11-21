@@ -1,39 +1,57 @@
 # License
 
-**SPDX-License-Identifier: `Apache-2.0 OR MIT`**
+**SPDX-License-Identifier: `MIT OR Apache-2.0 OR BSD-3-Clause OR GPL-2.0-only OR GPL-3.0-only OR OGL-UK-3.0 OR CC-BY-NC-SA-4.0`**
 
-This repository contains **code only**. It is dual-licensed under the Apache
-License, Version 2.0 or the MIT License, at your option. This is the
-conventional dual license of the Rust ecosystem, and it is chosen so that this
-code can be used in the widest possible range of downstream projects,
-including the GPL-licensed and proprietary clinical systems that SNOMED CT
-tooling typically has to live beside.
+This repository contains **code only**. You may use it under **any one** of
+seven licenses, at your option: the MIT License, the Apache License 2.0, the
+BSD 3-Clause License, the GNU General Public License v2.0 only, the GNU General
+Public License v3.0 only, the UK Open Government Licence v3.0, or the Creative
+Commons Attribution Non Commercial Share Alike 4.0 International license. The
+choice is the recipient's, so that this code can be used in the widest possible
+range of downstream projects, including GPL-licensed and proprietary clinical
+systems that SNOMED CT tooling typically has to live beside. Custom license
+terms are available by arrangement.
+
+| License | SPDX identifier | Full text |
+|---|---|---|
+| [MIT](https://opensource.org/license/mit) | [`MIT`](https://spdx.org/licenses/MIT.html) | [LICENSE-MIT](LICENSE-MIT), [LICENSES/mit/index.md](LICENSES/mit/index.md) |
+| [Apache License 2.0](https://www.apache.org/licenses/LICENSE-2.0) | [`Apache-2.0`](https://spdx.org/licenses/Apache-2.0.html) | [LICENSE-APACHE](LICENSE-APACHE), [LICENSES/apache-2.0/index.md](LICENSES/apache-2.0/index.md) |
+| [BSD 3-Clause License](https://opensource.org/license/bsd-3-clause) | [`BSD-3-Clause`](https://spdx.org/licenses/BSD-3-Clause.html) | [LICENSES/bsd-3-clause/index.md](LICENSES/bsd-3-clause/index.md) |
+| [GNU General Public License v2.0](https://www.gnu.org/licenses/old-licenses/gpl-2.0-standalone.html) | [`GPL-2.0-only`](https://spdx.org/licenses/GPL-2.0-only.html) | [LICENSES/gpl-2.0-only/index.md](LICENSES/gpl-2.0-only/index.md) |
+| [GNU General Public License v3.0](https://www.gnu.org/licenses/gpl-3.0-standalone.html) | [`GPL-3.0-only`](https://spdx.org/licenses/GPL-3.0-only.html) | [LICENSES/gpl-3.0-only/index.md](LICENSES/gpl-3.0-only/index.md) |
+| [UK Open Government Licence v3.0](https://www.nationalarchives.gov.uk/doc/open-government-licence/version/3/) | [`OGL-UK-3.0`](https://spdx.org/licenses/OGL-UK-3.0.html) | [LICENSES/ogl-uk-3.0/index.md](LICENSES/ogl-uk-3.0/index.md) |
+| [Creative Commons Attribution Non Commercial Share Alike 4.0 International](https://creativecommons.org/licenses/by-nc-sa/4.0/) | [`CC-BY-NC-SA-4.0`](https://spdx.org/licenses/CC-BY-NC-SA-4.0.html) | [LICENSES/cc-by-nc-sa-4.0/index.md](LICENSES/cc-by-nc-sa-4.0/index.md) |
 
 | | |
 |---|---|
-| SPDX expression | `Apache-2.0 OR MIT` |
-| Apache-2.0 full text | [LICENSE-APACHE](LICENSE-APACHE), also at [LICENSES/Apache-2.0.txt](LICENSES/Apache-2.0.txt) |
-| MIT full text | [LICENSE-MIT](LICENSE-MIT), also at [LICENSES/MIT.txt](LICENSES/MIT.txt) |
+| SPDX expression | `MIT OR Apache-2.0 OR BSD-3-Clause OR GPL-2.0-only OR GPL-3.0-only OR OGL-UK-3.0 OR CC-BY-NC-SA-4.0` |
 | Declared in | `[workspace.package] license` in [`Cargo.toml`](Cargo.toml), inherited by every published crate |
 | Copyright holder | Joel Parker Henderson (joel@joelparkerhenderson.com) |
 
+History: until this change the expression was `Apache-2.0 OR MIT`. The
+authoritative list is [spec/licenses/index.md](spec/licenses/index.md).
+
 ## What "OR" means
 
-You choose. `Apache-2.0 OR MIT` is a disjunctive expression: a recipient may
-comply with **either** license, not both, and need not say which. Take the
-Apache-2.0 terms if you want its express patent grant and its explicit
-contribution clause; take the MIT terms if you want the shortest possible
-notice obligation. Neither choice requires the other's conditions.
+You choose. The expression is disjunctive: a recipient may comply with
+**any one** of the seven licenses, not several, and need not say which. Take
+Apache-2.0 for its express patent grant and explicit contribution clause; MIT
+or BSD-3-Clause for the shortest notice obligation; GPL-2.0-only or
+GPL-3.0-only for copyleft compatibility; OGL-UK-3.0 for UK public-sector
+reuse; CC-BY-NC-SA-4.0 for attribution, non-commercial, share-alike reuse.
+Choosing one does not require the conditions of the others. Note that
+CC-BY-NC-SA-4.0 forbids commercial use, and the GPL licenses are copyleft:
+those restrictions apply only if you choose them.
 
-If your tooling needs a single identifier and cannot express a choice, either
-`Apache-2.0` or `MIT` alone is a correct and sufficient statement of the terms
-you have accepted.
+If your tooling needs a single identifier and cannot express a choice, any
+one of the seven identifiers alone is a correct and sufficient statement of
+the terms you have accepted.
 
-For tooling that looks in the [REUSE](https://reuse.software/)-conventional
-place, the `LICENSES/` directory holds the same two texts under their SPDX
-identifiers — `LICENSES/Apache-2.0.txt` and `LICENSES/MIT.txt`, byte-identical
-copies of the root files. The SPDX expression names exactly these two
-licenses, so those are the only two files the directory holds.
+The `LICENSES/` directory holds one directory per license in the expression,
+named by the lowercase SPDX identifier, each with the full text in `index.md`
+(for example `LICENSES/mit/index.md`). The texts are the SPDX license-list
+texts, with the MIT and BSD-3-Clause copyright lines filled in; the root
+`LICENSE-APACHE` and `LICENSE-MIT` carry the same Apache-2.0 and MIT texts.
 
 ## Scope: what this license covers
 
@@ -63,8 +81,8 @@ Health Terminology Standards Development Organisation (IHTSDO). Use of the
 trademarks does not constitute endorsement of this product by IHTSDO. This
 project is an independent work: it is not affiliated with, endorsed by, or
 certified by SNOMED International, and it ships no SNOMED CT content. The marks appear here descriptively, to identify the
-terminology this software reads. No trademark license is granted by either the
-Apache-2.0 or the MIT license — Apache-2.0 says so expressly, in section 6.
+terminology this software reads. No trademark license is granted by any of the licenses above
+(Apache-2.0 says so expressly, in section 6).
 
 ## Third-party code and dependencies
 
@@ -77,20 +95,20 @@ sit deliberately **outside** the Cargo workspace and are never built by
 
 For a downstream license review this means the software bill of materials for
 anything you consume from crates.io is: these crates, under
-`Apache-2.0 OR MIT`, and the Rust standard library. There is no transitive
+the seven-way choice above, and the Rust standard library. There is no transitive
 license surface to audit.
 
 ## Contributions
 
 Unless you state otherwise, any contribution you intentionally submit for
-inclusion in this work, as defined in the Apache-2.0 license, is dual-licensed
-as above, with no additional terms or conditions. This is the standard Rust
-project inbound-equals-outbound arrangement.
+inclusion in this work, as defined in the Apache-2.0 license, is licensed
+as above (the recipient may choose any one of the seven), with no additional
+terms or conditions: inbound equals outbound.
 
 ## Attribution in your own products
 
-Neither license requires you to advertise this project, but both require the
-copyright notice and license text to travel with substantial portions of the
+None of the licenses requires you to advertise this project, but the one you
+choose requires its copyright notice and license text to travel with substantial portions of the
 source. If you redistribute a binary, the usual and sufficient practice is to
 include the applicable license text in an acknowledgements or third-party
 notices file.

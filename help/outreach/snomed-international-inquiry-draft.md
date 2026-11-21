@@ -45,7 +45,7 @@ handful of well-known metadata identifiers its documentation quotes. Its
 tests use hand-written synthetic fixtures, and its documentation tells users
 to obtain release files under their own Affiliate license from
 <https://www.snomed.org/get-snomed>. It is free and open source
-(Apache-2.0 OR MIT), with no commercial offering behind it.
+(MIT OR Apache-2.0 OR BSD-3-Clause OR GPL-2.0-only OR GPL-3.0-only OR OGL-UK-3.0 OR CC-BY-NC-SA-4.0), with no commercial offering behind it.
 
 My two questions:
 

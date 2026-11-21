@@ -7,7 +7,7 @@
 | Status | Active |
 | Author and owner | Joel Parker Henderson, maintainer |
 | Canonical location | `AI_STATEMENT.md` at the repository root |
-| Licence | `Apache-2.0 OR MIT`, like the rest of the project's own text |
+| Licence | `MIT OR Apache-2.0 OR BSD-3-Clause OR GPL-2.0-only OR GPL-3.0-only OR OGL-UK-3.0 OR CC-BY-NC-SA-4.0`, like the rest of the project's own text |
 | Review | at every minor release, and on any trigger in §13 |
 
 **Abstract.** This document discloses how artificial-intelligence tools are
@@ -181,7 +181,7 @@ independently checks the first. Review depth is one person's.
 
 ## 8. Licensing and provenance of AI output
 
-The project is dual-licensed `Apache-2.0 OR MIT`
+The project is licensed, at the recipient's choice of any one, under `MIT OR Apache-2.0 OR BSD-3-Clause OR GPL-2.0-only OR GPL-3.0-only OR OGL-UK-3.0 OR CC-BY-NC-SA-4.0`
 ([LICENSE.md](LICENSE.md)). The position taken here follows the Apache
 Software Foundation's and LLVM's published reasoning rather than wishful
 shortcuts: an AI tool's output does not launder anyone's copyright, the full

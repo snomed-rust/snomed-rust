@@ -52,6 +52,6 @@ Settings → Pages.
 
 Site source is licensed [Apache-2.0](LICENSE). The parent
 [`snomed-rust/snomed-rust`](https://github.com/snomed-rust/snomed-rust) repo is
-dual-licensed `Apache-2.0 OR MIT`; this site is Apache-2.0 only, not a match.
+licensed under a choice of seven licenses (`MIT OR Apache-2.0 OR BSD-3-Clause OR GPL-2.0-only OR GPL-3.0-only OR OGL-UK-3.0 OR CC-BY-NC-SA-4.0`); this site is Apache-2.0 only, not a match.
 The `lily-design-system-svelte-headless` npm dependency is separately
 licensed — see [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md).
