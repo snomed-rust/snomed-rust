@@ -44,6 +44,9 @@ pub enum FhirError {
     /// itself, so this crate's error type doesn't leak `snomed-ecl` as a
     /// public dependency of its public API.
     InvalidEcl(String),
+    /// `$expand` paging parameters that cannot be applied: `offset + count`
+    /// overflows. Supplied values are rejected, never clamped (RCA-IN-1).
+    InvalidPaging(String),
 }
 
 impl fmt::Display for FhirError {
@@ -72,6 +75,7 @@ impl fmt::Display for FhirError {
             FhirError::UnsupportedValueSet(url) => {
                 write!(f, "`{url}` is not a supported implicit value set")
             }
+            FhirError::InvalidPaging(message) => write!(f, "invalid paging: {message}"),
             FhirError::InvalidEcl(message) => {
                 write!(f, "invalid ECL in implicit value set: {message}")
             }

@@ -13,6 +13,14 @@ together, in dependency order (`snomed-core` → `snomed-rf2` → `snomed-owl`
 
 ## [Unreleased]
 
+### Changed
+
+- `snomed-fhir`: `expand` rejects an `offset + count` that overflows `usize` with the new
+  `FhirError::InvalidPaging` instead of cutting the page at the total, and no longer clamps an
+  `offset` past the end: `Expansion::offset` is the offset as supplied and the page is empty.
+- The synthetic-release and synthetic-ontology benchmark examples fail on a malformed
+  `SNOMED_BENCH_CONCEPTS`/`N` instead of using the default.
+
 ## [0.57.0] — 2026-11-17
 
 **Breaking: MSRV raised from 1.96 to 1.98** (current stable 1.100 minus two).

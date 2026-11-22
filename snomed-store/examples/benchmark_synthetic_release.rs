@@ -229,10 +229,14 @@ fn time_query<F: FnMut() -> usize>(label: &str, sample_len: usize, mut f: F) -> 
 }
 
 fn main() -> Result<(), Box<dyn Error>> {
-    let concept_count: u64 = std::env::var("SNOMED_BENCH_CONCEPTS")
-        .ok()
-        .and_then(|s| s.parse().ok())
-        .unwrap_or(DEFAULT_CONCEPT_COUNT);
+    // RCA-IN-3: absent only (the variable is unset); a set but malformed value is an error.
+    let concept_count: u64 = match std::env::var("SNOMED_BENCH_CONCEPTS") {
+        Err(std::env::VarError::NotPresent) => DEFAULT_CONCEPT_COUNT,
+        Err(e) => return Err(format!("SNOMED_BENCH_CONCEPTS: {e}").into()),
+        Ok(s) => s
+            .parse()
+            .map_err(|e| format!("SNOMED_BENCH_CONCEPTS `{s}`: {e}"))?,
+    };
 
     println!(
         "Synthetic release benchmark: {concept_count} concepts (fictional data, structurally \

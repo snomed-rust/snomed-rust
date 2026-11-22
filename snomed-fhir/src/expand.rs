@@ -78,7 +78,8 @@ pub struct Expansion {
     /// Total matches after `activeOnly`/`filter`, before `offset`/`count`
     /// pagination — i.e. how many there would be with no paging at all.
     pub total: usize,
-    /// The `offset` actually applied (clamped to `0..=total`).
+    /// The `offset` as supplied. An offset past `total` is not clamped: it
+    /// yields an empty page (RCA-IN-1).
     pub offset: usize,
     pub contains: Vec<ExpansionContains>,
 }
@@ -133,14 +134,22 @@ pub fn parse_implicit_value_set(url: &str) -> Result<ImplicitValueSet, FhirError
     Err(FhirError::UnsupportedValueSet(url.to_string()))
 }
 
-/// The exclusive end of the page that starts at `offset` (already at most `total`).
-fn page_end(offset: usize, count: Option<usize>, total: usize) -> usize {
+/// The exclusive end of the page that starts at `offset`, which is `total` or less.
+///
+/// A `count` that runs past the end of the result is a normal short last page, cut at `total`
+/// (FHIR `$expand` paging, spec/11). An `offset + count` that overflows `usize` is a
+/// malformed paging request and is rejected rather than replaced (RCA-IN-1).
+fn page_end(offset: usize, count: Option<usize>, total: usize) -> Result<usize, FhirError> {
     match count {
-        // Fallback: `total` — an `offset + count` that overflows `usize` is past the end
-        // of the result, and a page that runs past the end is cut at `total`, the same
-        // as any other too-large `_count` (FHIR `$expand` paging, spec/11).
-        Some(count) => offset.checked_add(count).unwrap_or(total).min(total),
-        None => total,
+        Some(count) => {
+            offset
+                .checked_add(count)
+                .map(|end| end.min(total))
+                .ok_or(FhirError::InvalidPaging(format!(
+                    "offset {offset} plus count {count} overflows"
+                )))
+        }
+        None => Ok(total),
     }
 }
 
@@ -170,10 +179,12 @@ pub fn expand(
         .collect();
 
     let total = filtered.len();
-    let offset = options.offset.min(total);
-    let end = page_end(offset, options.count, total);
+    let offset = options.offset;
+    // An offset past the end is a valid, empty page; it is not moved to `total`.
+    let start = offset.min(total);
+    let end = page_end(offset, options.count, total)?;
 
-    let contains = filtered[offset..end]
+    let contains = filtered[start..end]
         .iter()
         .map(|&code| ExpansionContains {
             system: SNOMED_CT_SYSTEM,
@@ -271,12 +282,15 @@ mod tests {
     use super::*;
 
     #[test]
-    fn page_end_falls_back_to_total_on_overflow() {
-        assert_eq!(page_end(3, Some(2), 10), 5);
-        assert_eq!(page_end(3, Some(7), 10), 10); // last count that fits exactly
-        assert_eq!(page_end(3, Some(8), 10), 10); // first count past the end
-        assert_eq!(page_end(1, Some(usize::MAX), 10), 10); // first overflowing sum
-        assert_eq!(page_end(3, None, 10), 10);
+    fn page_end_rejects_overflow() {
+        assert_eq!(page_end(3, Some(2), 10), Ok(5));
+        assert_eq!(page_end(3, Some(7), 10), Ok(10)); // last count that fits exactly
+        assert_eq!(page_end(3, Some(8), 10), Ok(10)); // first count past the end
+        assert!(matches!(
+            page_end(1, Some(usize::MAX), 10),
+            Err(FhirError::InvalidPaging(_))
+        ));
+        assert_eq!(page_end(3, None, 10), Ok(10));
     }
 
     #[test]
@@ -511,6 +525,33 @@ mod tests {
         assert_eq!(result.total, 3, "total reflects all matches, not the page");
         assert_eq!(result.offset, 1);
         assert_eq!(result.contains.len(), 1);
+    }
+
+    #[test]
+    fn overflowing_paging_is_rejected_and_offset_past_end_is_not_clamped() {
+        let store = fixture(true);
+        let url = "http://snomed.info/sct?fhir_vs";
+        let err = expand(
+            &store,
+            url,
+            &ExpandOptions {
+                count: Some(usize::MAX),
+                offset: 1,
+                ..Default::default()
+            },
+        )
+        .unwrap_err();
+        assert!(matches!(err, FhirError::InvalidPaging(_)));
+        let past = expand(
+            &store,
+            url,
+            &ExpandOptions {
+                offset: 99,
+                ..Default::default()
+            },
+        )
+        .unwrap();
+        assert_eq!((past.total, past.offset, past.contains.len()), (3, 99, 0));
     }
 
     #[test]

@@ -46,10 +46,12 @@ fn id(item: u64) -> SctId {
 }
 
 fn main() {
-    let n: u64 = std::env::var("N")
-        .ok()
-        .and_then(|s| s.parse().ok())
-        .unwrap_or(370_000);
+    // RCA-IN-3: absent only (N is unset); a set but malformed value is an error.
+    let n: u64 = match std::env::var("N") {
+        Err(std::env::VarError::NotPresent) => 370_000,
+        Err(e) => panic!("N: {e}"),
+        Ok(s) => s.parse().unwrap_or_else(|e| panic!("N `{s}`: {e}")),
+    };
     let mut rng = Rng(42);
     let role = id(999_998);
     let mut axioms = Vec::new();
