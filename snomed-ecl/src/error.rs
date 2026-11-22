@@ -68,6 +68,13 @@ pub enum EclError {
     MaxNestingDepthExceeded {
         pos: usize,
     },
+    /// A cardinality `[min..max]` whose `min` exceeds `max` (RCA-IN-2).
+    /// `pos` is the opening `[`.
+    InvalidCardinality {
+        pos: usize,
+        min: u32,
+        max: u32,
+    },
 }
 
 impl fmt::Display for EclError {
@@ -135,6 +142,12 @@ impl fmt::Display for EclError {
                 write!(
                     f,
                     "expression nesting too deep at position {pos} (limit: 100 levels of `(`/refinement/attribute-set nesting)"
+                )
+            }
+            EclError::InvalidCardinality { pos, min, max } => {
+                write!(
+                    f,
+                    "invalid cardinality `[{min}..{max}]` at position {pos}: the minimum {min} exceeds the maximum {max}"
                 )
             }
         }

@@ -1506,6 +1506,7 @@ impl Parser {
     /// `"[" minValue ".." maxValue "]"`; `maxValue` is a non-negative
     /// integer or `*` (unbounded — `many` in the official grammar).
     fn parse_cardinality(&mut self) -> Result<Cardinality, EclError> {
+        let open_pos = self.peek().pos;
         self.expect(TokenKind::LBracket, "`[`")?;
         let min = self.parse_nonneg_integer()?;
         self.expect(TokenKind::DotDot, "`..`")?;
@@ -1516,6 +1517,14 @@ impl Parser {
             Some(self.parse_nonneg_integer()?)
         };
         self.expect(TokenKind::RBracket, "`]`")?;
+        // RCA-IN-2: a minimum above the maximum can never match; reject it.
+        if let Some(max) = max.filter(|&m| min > m) {
+            return Err(EclError::InvalidCardinality {
+                pos: open_pos,
+                min,
+                max,
+            });
+        }
         Ok(Cardinality { min, max })
     }
 
@@ -4043,6 +4052,43 @@ mod tests {
                 );
             }
             other => panic!("expected an Attribute refinement, got {other:?}"),
+        }
+    }
+
+    /// RCA-TEST-8: `min > max` is a parse error naming the bounds and
+    /// pointing at the `[`; equal bounds, `0..0` and `*` stay valid.
+    #[test]
+    fn rejects_cardinality_min_above_max() {
+        for (src, pos, min, max) in [
+            ("404684003 : [3..1] 116676008 = 79654002", 12, 3, 1),
+            ("404684003 : [1..0] 116676008 = 79654002", 12, 1, 0),
+            ("404684003 : { [2..1] 116676008 = 79654002 }", 14, 2, 1),
+        ] {
+            let err = parse(src).unwrap_err();
+            assert_eq!(err, EclError::InvalidCardinality { pos, min, max }, "{src}");
+            let msg = err.to_string();
+            assert!(msg.contains(&format!("[{min}..{max}]")), "{msg}");
+            assert!(msg.contains(&format!("position {pos}")), "{msg}");
+        }
+    }
+
+    #[test]
+    fn accepts_cardinality_min_not_above_max() {
+        for (src, min, max) in [
+            ("[1..1]", 1, Some(1)),
+            ("[2..2]", 2, Some(2)),
+            ("[0..0]", 0, Some(0)),
+            ("[0..*]", 0, None),
+            ("[5..*]", 5, None),
+        ] {
+            let expr = parse(&format!("404684003 : {src} 116676008 = 79654002")).unwrap();
+            match expr {
+                EC::Refined {
+                    refinement: crate::ast::RefinementConstraint::Attribute(a),
+                    ..
+                } => assert_eq!(a.cardinality, crate::ast::Cardinality { min, max }, "{src}"),
+                other => panic!("expected an Attribute refinement, got {other:?}"),
+            }
         }
     }
 

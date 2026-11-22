@@ -76,6 +76,11 @@ same `Cardinality` (`AttributeConstraint::cardinality` defaults to
 `{min: 1, max: None}`, never `Option<Cardinality>` — there's no
 "unspecified" state to track separately from the default).
 
+A cardinality whose `min` exceeds `max` (`[3..1]`) can never be satisfied and
+is a **parse error** (`EclError::InvalidCardinality`, positioned at the `[`;
+RCA-IN-2), not an empty match. Equal bounds (`[2..2]`), `[0..0]` (the
+attribute must be absent) and `[n..*]` are valid.
+
 ### Reverse flag (`R`)
 
 `R attributeId = value` swaps which end of the relationship is matched:

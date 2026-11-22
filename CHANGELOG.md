@@ -15,6 +15,9 @@ together, in dependency order (`snomed-core` → `snomed-rf2` → `snomed-owl`
 
 ### Changed
 
+- `snomed-ecl`: an attribute cardinality whose minimum exceeds its maximum (`[3..1]`) is rejected
+  with the new `EclError::InvalidCardinality` (positioned at the `[`) instead of parsing to an
+  unsatisfiable constraint (RCA-IN-2).
 - `snomed-fhir`: `expand` rejects an `offset + count` that overflows `usize` with the new
   `FhirError::InvalidPaging` instead of cutting the page at the total, and rejects an `offset`
   greater than the total with `InvalidPaging` instead of clamping it (an `offset` equal to the
