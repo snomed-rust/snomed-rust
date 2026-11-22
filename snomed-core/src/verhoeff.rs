@@ -39,10 +39,10 @@ pub fn validate(digits: &str) -> bool {
     }
     let mut c: u8 = 0;
     for (i, b) in digits.bytes().rev().enumerate() {
-        if !b.is_ascii_digit() {
+        let Some(digit) = b.checked_sub(b'0').filter(|d| *d < 10) else {
             return false;
-        }
-        c = D[c as usize][P[i % 8][(b - b'0') as usize] as usize];
+        };
+        c = D[usize::from(c)][usize::from(P[i % 8][usize::from(digit)])];
     }
     c == 0
 }
@@ -55,12 +55,13 @@ pub fn check_digit(payload: &str) -> Option<char> {
     }
     let mut c: u8 = 0;
     for (i, b) in payload.bytes().rev().enumerate() {
-        if !b.is_ascii_digit() {
-            return None;
-        }
-        c = D[c as usize][P[(i + 1) % 8][(b - b'0') as usize] as usize];
+        let digit = b.checked_sub(b'0').filter(|d| *d < 10)?;
+        // `i` is an enumerate index over a string, so `i < isize::MAX` and `i + 1` cannot
+        // overflow (RCA-EXC-2: bound controlled by the allocation limit, not by input value).
+        c = D[usize::from(c)][usize::from(P[(i + 1) % 8][usize::from(digit)])];
     }
-    Some((b'0' + INV[c as usize]) as char)
+    // `INV` holds the digits 0..=9, so `from_digit` always returns `Some`.
+    char::from_digit(u32::from(INV[usize::from(c)]), 10)
 }
 
 #[cfg(test)]

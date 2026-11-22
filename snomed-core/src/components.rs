@@ -59,12 +59,10 @@ impl Description {
         }
         let t = self.term.trim_end();
         let open = t.rfind('(')?;
-        let close = t.rfind(')')?;
-        if close == t.len() - 1 && open < close {
-            Some(&t[open + 1..close])
-        } else {
-            None
-        }
+        // The term must end with `)`; the tag is whatever sits between the last `(` and it.
+        let inner = t.strip_suffix(')')?;
+        let tag = inner.get(open.checked_add(1)?..)?;
+        Some(tag)
     }
 }
 

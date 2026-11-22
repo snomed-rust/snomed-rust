@@ -2098,14 +2098,14 @@ fn evaluate_attribute_constraint(
                     .filter(|r| r.active && r.is_inferred() && attribute_types.contains(&r.type_id))
                     .filter(|r| group_scope.is_none_or(|g| r.relationship_group == g))
                     .filter(|r| value_set.contains(&r.source_id))
-                    .count() as u32
+                    .count()
             } else {
                 store
                     .relationships_of(concept)
                     .filter(|r| r.active && r.is_inferred() && attribute_types.contains(&r.type_id))
                     .filter(|r| group_scope.is_none_or(|g| r.relationship_group == g))
                     .filter(|r| value_set.contains(&r.destination_id))
-                    .count() as u32
+                    .count()
             };
             let within_cardinality = cardinality_matches(a.cardinality, count);
             if *negated {
@@ -2132,7 +2132,7 @@ fn evaluate_attribute_constraint(
                     ConcreteValue::Number(n) => numeric_matches(*operator, n, value),
                     ConcreteValue::String(_) => false,
                 })
-                .count() as u32;
+                .count();
             let within_cardinality = cardinality_matches(a.cardinality, count);
             if matches!(operator, NumericComparisonOp::NotEq) {
                 !within_cardinality
@@ -2155,7 +2155,7 @@ fn evaluate_attribute_constraint(
                     ConcreteValue::String(s) => values.iter().any(|v| v == s),
                     ConcreteValue::Number(_) => false,
                 })
-                .count() as u32;
+                .count();
             let within_cardinality = cardinality_matches(a.cardinality, count);
             if *negated {
                 !within_cardinality
@@ -2249,13 +2249,19 @@ fn evaluate_attribute_group(
     let satisfied = group_ids
         .iter()
         .filter(|&&gid| evaluate_refinement(attributes, concept, store, Some(gid)))
-        .count() as u32;
+        .count();
 
     cardinality_matches(cardinality, satisfied)
 }
 
-fn cardinality_matches(c: Cardinality, count: u32) -> bool {
-    count >= c.min && c.max.is_none_or(|max| count <= max)
+fn cardinality_matches(c: Cardinality, count: usize) -> bool {
+    match u32::try_from(count) {
+        Ok(count) => count >= c.min && c.max.is_none_or(|max| count <= max),
+        // A count above `u32::MAX` is above every `min` and above every `max` the
+        // grammar can state, so only an unbounded cardinality (`[n..*]`) matches. No
+        // value is invented: this is the exact answer for the out-of-range count.
+        Err(_) => c.max.is_none(),
+    }
 }
 
 fn evaluate_simple(s: &SimpleExpressionConstraint, store: &SnapshotStore) -> HashSet<SctId> {
@@ -2325,6 +2331,24 @@ fn evaluate_concept(op: HierarchyOp, id: SctId, store: &SnapshotStore) -> HashSe
 mod tests {
     use super::*;
     use crate::parser::parse;
+
+    #[test]
+    fn cardinality_matches_counts_beyond_u32() {
+        let at_least_one = Cardinality { min: 1, max: None };
+        let at_most_max = Cardinality {
+            min: 0,
+            max: Some(u32::MAX),
+        };
+        // Last count that fits `u32`: compared normally.
+        assert!(cardinality_matches(at_most_max, 4_294_967_295));
+        // First count that does not fit `u32` (needs a 64-bit usize): above every bound.
+        if let Ok(over) = usize::try_from(4_294_967_296_u64) {
+            assert!(cardinality_matches(at_least_one, over));
+            assert!(!cardinality_matches(at_most_max, over));
+        }
+        assert!(!cardinality_matches(at_least_one, 0));
+    }
+
     use snomed_core::components::{Concept, Description, Relationship, RelationshipConcreteValue};
     use snomed_core::concrete_value::ConcreteValue;
     use snomed_core::constants;

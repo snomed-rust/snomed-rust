@@ -30,6 +30,10 @@ pub enum SkippedConstruct {
     /// existential whose filler isn't a plain concept (spec/14). `concept`
     /// is the named subject whose stated profile the shape appeared in.
     UnmodeledAttributeShape { concept: SctId },
+    /// A concept with more role groups than a `u32` group number can
+    /// number (RCA-NONE-2: refused, not renumbered or truncated). Its
+    /// necessary normal form is omitted.
+    UnnumberableGroups { concept: SctId },
 }
 
 impl fmt::Display for SkippedConstruct {
@@ -51,6 +55,12 @@ impl fmt::Display for SkippedConstruct {
                 write!(
                     f,
                     "an empty ObjectPropertyChain under :{target} implies nothing and was dropped"
+                )
+            }
+            SkippedConstruct::UnnumberableGroups { concept } => {
+                write!(
+                    f,
+                    ":{concept} has more role groups than a u32 group number can count, so its necessary normal form was omitted"
                 )
             }
             SkippedConstruct::UnmodeledAttributeShape { concept } => {

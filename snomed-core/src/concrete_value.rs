@@ -64,10 +64,12 @@ impl ConcreteValue {
                 Err(ConcreteValueError::InvalidNumber(raw.to_string()))
             }
         } else if raw.starts_with('"') {
-            if raw.len() >= 2 && raw.ends_with('"') {
-                Ok(ConcreteValue::String(raw[1..raw.len() - 1].to_string()))
-            } else {
-                Err(ConcreteValueError::UnterminatedString(raw.to_string()))
+            match raw
+                .strip_prefix('"')
+                .and_then(|rest| rest.strip_suffix('"'))
+            {
+                Some(inner) => Ok(ConcreteValue::String(inner.to_string())),
+                None => Err(ConcreteValueError::UnterminatedString(raw.to_string())),
             }
         } else {
             Err(ConcreteValueError::Malformed(raw.to_string()))

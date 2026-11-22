@@ -85,7 +85,12 @@ pub fn necessary_normal_form(axioms: &[Axiom]) -> NecessaryNormalFormReport {
     for &c in &concepts {
         let candidates = groups_for(c, &mut ctx);
         let is_a = proximal.get(&c).cloned().unwrap_or_default();
-        forms.insert(c, finalize(is_a, candidates));
+        match finalize(is_a, candidates) {
+            Some(form) => {
+                forms.insert(c, form);
+            }
+            None => skipped.push(SkippedConstruct::UnnumberableGroups { concept: c }),
+        }
     }
 
     // Second pass: with the node graphs built, re-normalize the concepts
@@ -119,7 +124,15 @@ pub fn necessary_normal_form(axioms: &[Axiom]) -> NecessaryNormalFormReport {
             ctx.cache.remove(&c);
             let candidates = groups_for(c, &mut ctx);
             let is_a = proximal.get(&c).cloned().unwrap_or_default();
-            forms.insert(c, finalize(is_a, candidates));
+            match finalize(is_a, candidates) {
+                Some(form) => {
+                    forms.insert(c, form);
+                }
+                None => {
+                    forms.remove(&c);
+                    skipped.push(SkippedConstruct::UnnumberableGroups { concept: c });
+                }
+            }
         }
     }
 
@@ -472,7 +485,14 @@ fn fragment_is_same_or_stronger(
         })
 }
 
-fn finalize(mut is_a: Vec<SctId>, candidates: Vec<GroupCandidate>) -> NecessaryNormalForm {
+/// The 1-based group number of the `index`-th numbered group, or `None` when it does
+/// not fit a `u32` (RCA-CONV-1). The caller reports the concept instead of renumbering.
+fn group_number(index: usize) -> Option<u32> {
+    u32::try_from(index).ok()?.checked_add(1)
+}
+
+/// `None` when a group cannot be numbered; see [`group_number`].
+fn finalize(mut is_a: Vec<SctId>, candidates: Vec<GroupCandidate>) -> Option<NecessaryNormalForm> {
     is_a.sort();
     is_a.dedup();
 
@@ -502,7 +522,7 @@ fn finalize(mut is_a: Vec<SctId>, candidates: Vec<GroupCandidate>) -> NecessaryN
         })
         .collect();
     for (index, group) in numbered_groups.into_iter().enumerate() {
-        let group_number = (index + 1) as u32;
+        let group_number = group_number(index)?;
         attributes.extend(
             group
                 .into_iter()
@@ -514,12 +534,21 @@ fn finalize(mut is_a: Vec<SctId>, candidates: Vec<GroupCandidate>) -> NecessaryN
         );
     }
 
-    NecessaryNormalForm { is_a, attributes }
+    Some(NecessaryNormalForm { is_a, attributes })
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn group_number_is_one_based_and_refuses_past_u32() {
+        assert_eq!(group_number(0), Some(1));
+        if let Ok(last) = usize::try_from(4_294_967_294_u64) {
+            assert_eq!(group_number(last), Some(u32::MAX)); // last success
+            assert_eq!(group_number(last + 1), None); // first failure
+        }
+    }
     use snomed_core::sctid::ComponentType;
 
     /// A synthetic, check-digit-valid SCTID for test fixture concepts

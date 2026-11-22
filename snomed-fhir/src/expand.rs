@@ -133,6 +133,17 @@ pub fn parse_implicit_value_set(url: &str) -> Result<ImplicitValueSet, FhirError
     Err(FhirError::UnsupportedValueSet(url.to_string()))
 }
 
+/// The exclusive end of the page that starts at `offset` (already at most `total`).
+fn page_end(offset: usize, count: Option<usize>, total: usize) -> usize {
+    match count {
+        // Fallback: `total` — an `offset + count` that overflows `usize` is past the end
+        // of the result, and a page that runs past the end is cut at `total`, the same
+        // as any other too-large `_count` (FHIR `$expand` paging, spec/11).
+        Some(count) => offset.checked_add(count).unwrap_or(total).min(total),
+        None => total,
+    }
+}
+
 /// Expands the implicit value set named by `url`, per spec/11's
 /// `$expand` section. See [`parse_implicit_value_set`] for the URL forms
 /// understood and [`ExpandOptions`] for the supported optional
@@ -160,10 +171,7 @@ pub fn expand(
 
     let total = filtered.len();
     let offset = options.offset.min(total);
-    let end = match options.count {
-        Some(count) => offset.saturating_add(count).min(total),
-        None => total,
-    };
+    let end = page_end(offset, options.count, total);
 
     let contains = filtered[offset..end]
         .iter()
@@ -206,9 +214,17 @@ fn percent_decode(value: &str, url: &str) -> Result<String, FhirError> {
             i += 1;
             continue;
         }
-        let hex = bytes.get(i + 1..i + 3).ok_or_else(malformed)?;
-        let digit = |b: u8| (b as char).to_digit(16).ok_or_else(malformed);
-        out.push((digit(hex[0])? * 16 + digit(hex[1])?) as u8);
+        // `i < bytes.len() <= isize::MAX`, so `i + 1` and `i + 3` cannot overflow (RCA-EXC-2).
+        let Some(&[hi, lo]) = bytes.get(i + 1..i + 3).and_then(<[u8]>::first_chunk::<2>) else {
+            return Err(malformed());
+        };
+        let digit = |b: u8| char::from(b).to_digit(16).ok_or_else(malformed);
+        let byte = digit(hi)?
+            .checked_mul(16)
+            .and_then(|high| high.checked_add(digit(lo).ok()?))
+            .and_then(|n| u8::try_from(n).ok())
+            .ok_or_else(malformed)?;
+        out.push(byte);
         i += 3;
     }
     String::from_utf8(out).map_err(|_| malformed())
@@ -253,6 +269,22 @@ fn matches_filter(store: &SnapshotStore, id: SctId, needle: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn page_end_falls_back_to_total_on_overflow() {
+        assert_eq!(page_end(3, Some(2), 10), 5);
+        assert_eq!(page_end(3, Some(7), 10), 10); // last count that fits exactly
+        assert_eq!(page_end(3, Some(8), 10), 10); // first count past the end
+        assert_eq!(page_end(1, Some(usize::MAX), 10), 10); // first overflowing sum
+        assert_eq!(page_end(3, None, 10), 10);
+    }
+
+    #[test]
+    fn percent_decoding_rejects_bad_escapes() {
+        assert_eq!(percent_decode("a%41b", "u").ok().as_deref(), Some("aAb"));
+        assert!(percent_decode("a%4", "u").is_err());
+        assert!(percent_decode("a%zz", "u").is_err());
+    }
     use snomed_core::components::{Concept, Description, Relationship};
     use snomed_core::constants;
     use snomed_core::member_id::MemberId;

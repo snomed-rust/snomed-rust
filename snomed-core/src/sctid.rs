@@ -233,7 +233,10 @@ impl SctId {
 
     /// The trailing Verhoeff check digit.
     pub fn check_digit(self) -> u8 {
-        (self.0 % 10) as u8
+        // `% 10` is below 10, so the value is in the lowest byte; destructuring the
+        // byte array has no failure path and no lossy cast (RCA-CONV-2).
+        let [check, ..] = (self.0 % 10).to_le_bytes();
+        check
     }
 }
 
