@@ -53,7 +53,9 @@ pub struct ExpandOptions<'a> {
     /// `count` — maximum number of `contains` entries to return. `None`
     /// returns every match after `offset`.
     pub count: Option<usize>,
-    /// `offset` — how many matches (after filtering) to skip.
+    /// `offset` — how many matches (after filtering) to skip. An offset
+    /// greater than `total` is rejected with [`FhirError::InvalidPaging`];
+    /// an offset equal to `total` is an empty last page.
     pub offset: usize,
 }
 
@@ -78,8 +80,8 @@ pub struct Expansion {
     /// Total matches after `activeOnly`/`filter`, before `offset`/`count`
     /// pagination — i.e. how many there would be with no paging at all.
     pub total: usize,
-    /// The `offset` as supplied. An offset past `total` is not clamped: it
-    /// yields an empty page (RCA-IN-1).
+    /// The `offset` as supplied; never greater than `total` (a larger offset
+    /// is an error, not clamped).
     pub offset: usize,
     pub contains: Vec<ExpansionContains>,
 }
@@ -157,6 +159,12 @@ fn page_end(offset: usize, count: Option<usize>, total: usize) -> Result<usize, 
 /// `$expand` section. See [`parse_implicit_value_set`] for the URL forms
 /// understood and [`ExpandOptions`] for the supported optional
 /// parameters.
+///
+/// # Errors
+///
+/// [`FhirError::InvalidPaging`] (a client error) if `offset` is greater than
+/// the total number of matches, or `offset + count` overflows `usize`. An
+/// `offset` equal to the total is valid and gives an empty page.
 pub fn expand(
     store: &SnapshotStore,
     url: &str,
@@ -180,11 +188,14 @@ pub fn expand(
 
     let total = filtered.len();
     let offset = options.offset;
-    // An offset past the end is a valid, empty page; it is not moved to `total`.
-    let start = offset.min(total);
+    if offset > total {
+        return Err(FhirError::InvalidPaging(format!(
+            "offset {offset} is past the end of the {total} matches"
+        )));
+    }
     let end = page_end(offset, options.count, total)?;
 
-    let contains = filtered[start..end]
+    let contains = filtered[offset..end]
         .iter()
         .map(|&code| ExpansionContains {
             system: SNOMED_CT_SYSTEM,
@@ -528,7 +539,7 @@ mod tests {
     }
 
     #[test]
-    fn overflowing_paging_is_rejected_and_offset_past_end_is_not_clamped() {
+    fn overflowing_paging_and_offset_past_end_are_rejected() {
         let store = fixture(true);
         let url = "http://snomed.info/sct?fhir_vs";
         let err = expand(
@@ -542,16 +553,26 @@ mod tests {
         )
         .unwrap_err();
         assert!(matches!(err, FhirError::InvalidPaging(_)));
-        let past = expand(
+        let err = expand(
             &store,
             url,
             &ExpandOptions {
-                offset: 99,
+                offset: 4,
+                ..Default::default()
+            },
+        )
+        .unwrap_err();
+        assert!(matches!(&err, FhirError::InvalidPaging(m) if m.contains('4') && m.contains('3')));
+        let end = expand(
+            &store,
+            url,
+            &ExpandOptions {
+                offset: 3,
                 ..Default::default()
             },
         )
         .unwrap();
-        assert_eq!((past.total, past.offset, past.contains.len()), (3, 99, 0));
+        assert_eq!((end.total, end.offset, end.contains.len()), (3, 3, 0));
     }
 
     #[test]

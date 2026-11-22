@@ -44,8 +44,9 @@ pub enum FhirError {
     /// itself, so this crate's error type doesn't leak `snomed-ecl` as a
     /// public dependency of its public API.
     InvalidEcl(String),
-    /// `$expand` paging parameters that cannot be applied: `offset + count`
-    /// overflows. Supplied values are rejected, never clamped (RCA-IN-1).
+    /// `$expand` paging parameters that cannot be applied: `offset` is past
+    /// the total, or `offset + count` overflows. Supplied values are
+    /// rejected, never clamped (RCA-IN-1/5); a client error (HTTP 400).
     InvalidPaging(String),
 }
 

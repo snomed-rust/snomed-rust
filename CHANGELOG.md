@@ -16,8 +16,9 @@ together, in dependency order (`snomed-core` → `snomed-rf2` → `snomed-owl`
 ### Changed
 
 - `snomed-fhir`: `expand` rejects an `offset + count` that overflows `usize` with the new
-  `FhirError::InvalidPaging` instead of cutting the page at the total, and no longer clamps an
-  `offset` past the end: `Expansion::offset` is the offset as supplied and the page is empty.
+  `FhirError::InvalidPaging` instead of cutting the page at the total, and rejects an `offset`
+  greater than the total with `InvalidPaging` instead of clamping it (an `offset` equal to the
+  total is an empty last page).
 - The synthetic-release and synthetic-ontology benchmark examples fail on a malformed
   `SNOMED_BENCH_CONCEPTS`/`N` instead of using the default.
 
