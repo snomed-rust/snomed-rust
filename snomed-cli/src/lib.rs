@@ -128,15 +128,10 @@ fn cmd_sctid(args: &[String]) -> Result<String, Box<dyn Error>> {
     let id = SctId::parse(raw)?;
 
     let mut out = String::new();
-    writeln!(out, "{id}")?;
-    writeln!(
-        out,
-        "  component type: {}",
-        id.component_type()
-            .map(|c| c.to_string())
-            .unwrap_or_else(|| "unknown".to_string())
-    )?;
-    writeln!(
+    let _ = writeln!(out, "{id}");
+    let component_type = component_type_label(id);
+    let _ = writeln!(out, "  component type: {}", component_type);
+    let _ = writeln!(
         out,
         "  format:         {}",
         if id.is_long_format() {
@@ -144,14 +139,21 @@ fn cmd_sctid(args: &[String]) -> Result<String, Box<dyn Error>> {
         } else {
             "short (International)"
         }
-    )?;
-    writeln!(out, "  partition:      {:02}", id.partition())?;
+    );
+    let _ = writeln!(out, "  partition:      {:02}", id.partition());
     if let Some(ns) = id.namespace() {
-        writeln!(out, "  namespace:      {ns:07}")?;
+        let _ = writeln!(out, "  namespace:      {ns:07}");
     }
-    writeln!(out, "  item id:        {}", id.item_identifier())?;
-    writeln!(out, "  check digit:    {}", id.check_digit())?;
+    let _ = writeln!(out, "  item id:        {}", id.item_identifier());
+    let _ = writeln!(out, "  check digit:    {}", id.check_digit());
     Ok(out)
+}
+
+fn component_type_label(id: SctId) -> String {
+    match id.component_type() {
+        Some(component_type) => component_type.to_string(),
+        None => "unknown".to_string(),
+    }
 }
 
 fn parse_load_args<'a>(
@@ -180,14 +182,14 @@ fn load(dir: &str, release_type: ReleaseType) -> Result<(SnapshotStore, String),
     let elapsed = start.elapsed();
 
     let mut out = String::new();
-    writeln!(
+    let _ = writeln!(
         out,
         "loaded {} file(s), skipped {} in {elapsed:.2?}",
         report.loaded.len(),
         report.skipped.len()
-    )?;
+    );
     for (path, reason) in &report.skipped {
-        writeln!(out, "  skipped {}: {reason}", path.display())?;
+        let _ = writeln!(out, "  skipped {}: {reason}", path.display());
     }
     let store = builder.build();
     Ok((store, out))
@@ -196,12 +198,12 @@ fn load(dir: &str, release_type: ReleaseType) -> Result<(SnapshotStore, String),
 fn cmd_load(args: &[String]) -> Result<String, Box<dyn Error>> {
     let (dir, release_type) = parse_load_args(args, "load <release-dir> [--full]")?;
     let (store, mut out) = load(dir, release_type)?;
-    writeln!(
+    let _ = writeln!(
         out,
         "concepts: {} ({} active)",
         store.concept_count(),
         store.active_concepts().count()
-    )?;
+    );
     Ok(out)
 }
 
@@ -211,52 +213,51 @@ fn cmd_validate(args: &[String]) -> Result<String, Box<dyn Error>> {
     let report = store.validate();
 
     if report.is_clean() {
-        writeln!(
+        let _ = writeln!(
             out,
             "no issues found ({} concepts checked)",
             store.concept_count()
-        )?;
+        );
         return Ok(out);
     }
 
-    writeln!(out, "{} issue(s) found:", report.issue_count())?;
+    let _ = writeln!(out, "{} issue(s) found:", report.issue_count());
     write_ids(
         &mut out,
         "dangling description concept references",
         &report.dangling_description_concepts,
-    )?;
+    );
     write_ids(
         &mut out,
         "dangling relationship source references",
         &report.dangling_relationship_sources,
-    )?;
+    );
     write_ids(
         &mut out,
         "dangling relationship destination references",
         &report.dangling_relationship_destinations,
-    )?;
+    );
     write_ids(
         &mut out,
         "concepts on a cyclic IS-A path",
         &report.cyclic_concepts,
-    )?;
+    );
     write_ids(
         &mut out,
         "active concepts with no IS-A parent (spec/07 rule 2)",
         &report.rootless_concepts,
-    )?;
+    );
     Ok(out)
 }
 
-fn write_ids(out: &mut String, label: &str, ids: &[SctId]) -> Result<(), Box<dyn Error>> {
+fn write_ids(out: &mut String, label: &str, ids: &[SctId]) {
     if ids.is_empty() {
-        return Ok(());
+        return;
     }
-    writeln!(out, "  {label} ({}):", ids.len())?;
+    let _ = writeln!(out, "  {label} ({}):", ids.len());
     for id in ids {
-        writeln!(out, "    {id}")?;
+        let _ = writeln!(out, "    {id}");
     }
-    Ok(())
 }
 
 /// Parses every active OWLExpression refset member in the loaded release
@@ -283,16 +284,16 @@ fn cmd_classify(args: &[String]) -> Result<String, Box<dyn Error>> {
     };
 
     let (store, mut out) = load(dir, release_type)?;
-    let axioms = load_owl_axioms(&store, &mut out)?;
+    let axioms = load_owl_axioms(&store, &mut out);
 
     let report = snomed_classify::classify(&axioms);
     if !report.skipped.is_empty() {
-        writeln!(
+        let _ = writeln!(
             out,
             "{} construct(s) not modeled during classification:",
             report.skipped.len()
-        )?;
-        write_capped(&mut out, &report.skipped, |out, s| writeln!(out, "  {s}"))?;
+        );
+        write_capped(&mut out, &report.skipped, write_skipped_construct);
     }
 
     match concept_id {
@@ -300,27 +301,27 @@ fn cmd_classify(args: &[String]) -> Result<String, Box<dyn Error>> {
             let id = SctId::parse(id_str)?;
             let mut supers: Vec<SctId> = report.classification.subsumers(id).collect();
             supers.sort();
-            writeln!(
+            let _ = writeln!(
                 out,
                 "{id} is entailed to be subsumed by {} concept(s):",
                 supers.len()
-            )?;
+            );
             for s in supers {
-                let name = store.fsn(s).map(|d| d.term.as_str()).unwrap_or("?");
-                writeln!(out, "  {s}  {name}")?;
+                let name = concept_name(&store, s);
+                let _ = writeln!(out, "  {s}  {name}");
             }
         }
         None => {
             let concepts: Vec<SctId> = report.classification.concepts().collect();
-            let total_pairs: usize = concepts
-                .iter()
-                .map(|&c| report.classification.subsumers(c).count())
-                .sum();
-            writeln!(
+            let mut total_pairs = 0usize;
+            for &concept in &concepts {
+                total_pairs += report.classification.subsumers(concept).count();
+            }
+            let _ = writeln!(
                 out,
                 "{} concept(s) classified, {total_pairs} entailed subsumption pair(s) total",
                 concepts.len()
-            )?;
+            );
         }
     }
     Ok(out)
@@ -332,7 +333,7 @@ fn cmd_classify(args: &[String]) -> Result<String, Box<dyn Error>> {
 /// skipped and reported, not a hard error, same philosophy as
 /// `load`/`validate`. Shared by `classify` and `nnf`, the two subcommands
 /// that both start from "every OWL axiom in this release".
-fn load_owl_axioms(store: &SnapshotStore, out: &mut String) -> Result<Vec<Axiom>, Box<dyn Error>> {
+fn load_owl_axioms(store: &SnapshotStore, out: &mut String) -> Vec<Axiom> {
     let mut axioms = Vec::new();
     let mut parse_failures: Vec<(SctId, String)> = Vec::new();
     for member in store.all_owl_expression_members() {
@@ -341,16 +342,14 @@ fn load_owl_axioms(store: &SnapshotStore, out: &mut String) -> Result<Vec<Axiom>
             Err(e) => parse_failures.push((member.core.referenced_component_id, e.to_string())),
         }
     }
-    writeln!(
+    let _ = writeln!(
         out,
         "OWL axioms: {} parsed, {} failed to parse",
         axioms.len(),
         parse_failures.len()
-    )?;
-    write_capped(out, &parse_failures, |out, (id, reason)| {
-        writeln!(out, "  parse error on {id}: {reason}")
-    })?;
-    Ok(axioms)
+    );
+    write_capped(out, &parse_failures, write_parse_failure);
+    axioms
 }
 
 /// Computes the necessary normal form (spec/14) of the release's OWL
@@ -375,63 +374,62 @@ fn cmd_nnf(args: &[String]) -> Result<String, Box<dyn Error>> {
     };
 
     let (store, mut out) = load(dir, release_type)?;
-    let axioms = load_owl_axioms(&store, &mut out)?;
+    let axioms = load_owl_axioms(&store, &mut out);
 
     let report = snomed_classify::necessary_normal_form(&axioms);
     if !report.skipped.is_empty() {
-        writeln!(
+        let _ = writeln!(
             out,
             "{} construct(s) not modeled while computing necessary normal form:",
             report.skipped.len()
-        )?;
-        write_capped(&mut out, &report.skipped, |out, s| writeln!(out, "  {s}"))?;
+        );
+        write_capped(&mut out, &report.skipped, write_skipped_construct);
     }
 
     match concept_id {
         Some(id_str) => {
             let id = SctId::parse(id_str)?;
-            let name = |id: SctId| {
-                store
-                    .fsn(id)
-                    .map(|d| d.term.as_str())
-                    .unwrap_or("?")
-                    .to_string()
-            };
             match report.forms.get(&id) {
                 Some(form) => {
-                    writeln!(out, "{id} necessary normal form:")?;
-                    writeln!(out, "  is-a ({}):", form.is_a.len())?;
+                    let _ = writeln!(out, "{id} necessary normal form:");
+                    let _ = writeln!(out, "  is-a ({}):", form.is_a.len());
                     for &parent in &form.is_a {
-                        writeln!(out, "    {parent}  {}", name(parent))?;
+                        let _ = writeln!(out, "    {parent}  {}", concept_name(&store, parent));
                     }
-                    writeln!(out, "  attributes ({}):", form.attributes.len())?;
+                    let _ = writeln!(out, "  attributes ({}):", form.attributes.len());
                     for attr in &form.attributes {
-                        writeln!(
+                        let _ = writeln!(
                             out,
                             "    group {}: {} ({})  =  {} ({})",
                             attr.group,
                             attr.type_id,
-                            name(attr.type_id),
+                            concept_name(&store, attr.type_id),
                             attr.destination_id,
-                            name(attr.destination_id)
-                        )?;
+                            concept_name(&store, attr.destination_id)
+                        );
                     }
                 }
-                None => writeln!(
-                    out,
-                    "{id}: no necessary normal form (not named by any input axiom)"
-                )?,
+                None => {
+                    let _ = writeln!(
+                        out,
+                        "{id}: no necessary normal form (not named by any input axiom)"
+                    );
+                }
             }
         }
         None => {
             let concept_count = report.forms.len();
-            let total_parents: usize = report.forms.values().map(|f| f.is_a.len()).sum();
-            let total_attributes: usize = report.forms.values().map(|f| f.attributes.len()).sum();
-            writeln!(
+            let mut total_parents = 0usize;
+            let mut total_attributes = 0usize;
+            for form in report.forms.values() {
+                total_parents += form.is_a.len();
+                total_attributes += form.attributes.len();
+            }
+            let _ = writeln!(
                 out,
                 "{concept_count} concept(s), {total_parents} proximal parent(s), \
                  {total_attributes} attribute(s) total"
-            )?;
+            );
         }
     }
     Ok(out)
@@ -441,19 +439,30 @@ fn cmd_nnf(args: &[String]) -> Result<String, Box<dyn Error>> {
 /// more" line if there were more — used for lists that could be large
 /// (parse failures, skipped constructs) where dumping every one would
 /// swamp the summary this subcommand is meant to give.
-fn write_capped<T>(
-    out: &mut String,
-    items: &[T],
-    mut write_one: impl FnMut(&mut String, &T) -> std::fmt::Result,
-) -> Result<(), Box<dyn Error>> {
+fn write_capped<T>(out: &mut String, items: &[T], write_one: fn(&mut String, &T)) {
     const CAP: usize = 5;
     for item in items.iter().take(CAP) {
-        write_one(out, item)?;
+        write_one(out, item);
     }
-    if items.len() > CAP {
-        writeln!(out, "  ... and {} more", items.len() - CAP)?;
+    if let Some(rest) = items.get(CAP..).filter(|rest| !rest.is_empty()) {
+        let _ = writeln!(out, "  ... and {} more", rest.len());
     }
-    Ok(())
+}
+
+fn write_skipped_construct(out: &mut String, skipped: &snomed_classify::SkippedConstruct) {
+    let _ = writeln!(out, "  {skipped}");
+}
+
+fn write_parse_failure(out: &mut String, failure: &(SctId, String)) {
+    let (id, reason) = failure;
+    let _ = writeln!(out, "  parse error on {id}: {reason}");
+}
+
+fn concept_name(store: &SnapshotStore, id: SctId) -> &str {
+    match store.fsn(id) {
+        Some(description) => description.term.as_str(),
+        None => "?",
+    }
 }
 
 fn cmd_lookup(args: &[String]) -> Result<String, Box<dyn Error>> {
@@ -466,43 +475,36 @@ fn cmd_lookup(args: &[String]) -> Result<String, Box<dyn Error>> {
 
     let mut out = String::new();
     let Some(concept) = store.concept(id) else {
-        writeln!(out, "{id}: not found in this snapshot")?;
+        let _ = writeln!(out, "{id}: not found in this snapshot");
         return Ok(out);
     };
-    writeln!(
+    let _ = writeln!(
         out,
         "{id}  active={}  module={}",
         concept.active, concept.module_id
-    )?;
+    );
     if let Some(fsn) = store.fsn(id) {
-        writeln!(out, "  FSN: {}", fsn.term)?;
+        let _ = writeln!(out, "  FSN: {}", fsn.term);
     }
-    for syn in store
-        .descriptions_of(id)
-        .filter(|d| d.active && d.is_synonym())
-    {
-        writeln!(out, "  synonym: {}", syn.term)?;
+    for description in store.descriptions_of(id) {
+        if description.active && description.is_synonym() {
+            let _ = writeln!(out, "  synonym: {}", description.term);
+        }
     }
-    write_related(&mut out, "parents", store.parents(id), &store)?;
-    write_related(&mut out, "children", store.children(id), &store)?;
+    write_related(&mut out, "parents", store.parents(id), &store);
+    write_related(&mut out, "children", store.children(id), &store);
     Ok(out)
 }
 
-fn write_related(
-    out: &mut String,
-    label: &str,
-    ids: &[SctId],
-    store: &SnapshotStore,
-) -> Result<(), Box<dyn Error>> {
+fn write_related(out: &mut String, label: &str, ids: &[SctId], store: &SnapshotStore) {
     if ids.is_empty() {
-        return Ok(());
+        return;
     }
-    writeln!(out, "  {label}:")?;
+    let _ = writeln!(out, "  {label}:");
     for &id in ids {
-        let name = store.fsn(id).map(|d| d.term.as_str()).unwrap_or("?");
-        writeln!(out, "    {id}  {name}")?;
+        let name = concept_name(store, id);
+        let _ = writeln!(out, "    {id}  {name}");
     }
-    Ok(())
 }
 
 fn cmd_ecl(args: &[String]) -> Result<String, Box<dyn Error>> {
@@ -518,10 +520,10 @@ fn cmd_ecl(args: &[String]) -> Result<String, Box<dyn Error>> {
     sorted.sort();
 
     let mut out = String::new();
-    writeln!(out, "{} match(es)", sorted.len())?;
+    let _ = writeln!(out, "{} match(es)", sorted.len());
     for id in sorted {
-        let name = store.fsn(id).map(|d| d.term.as_str()).unwrap_or("?");
-        writeln!(out, "{id}  {name}")?;
+        let name = concept_name(&store, id);
+        let _ = writeln!(out, "{id}  {name}");
     }
     Ok(out)
 }
@@ -624,13 +626,13 @@ fn cmd_export_dir(args: &[String]) -> Result<String, Box<dyn Error>> {
     }
 
     let mut out = String::new();
-    writeln!(
+    let _ = writeln!(
         out,
         "exported {exported} file(s), skipped {} to {out_dir}",
         skipped.len()
-    )?;
+    );
     for (path, reason) in &skipped {
-        writeln!(out, "  skipped {}: {reason}", path.display())?;
+        let _ = writeln!(out, "  skipped {}: {reason}", path.display());
     }
     Ok(out)
 }
