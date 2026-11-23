@@ -107,6 +107,14 @@ cargo clippy --all-targets    # must be warning-free
 cargo fmt
 ```
 
+Faster local runs with cargo-nextest (optional; CI keeps `cargo test`;
+`.config/nextest.toml` configures it, retries off):
+
+```sh
+cargo nextest run --no-fail-fast   # unit + integration, one process per test
+cargo test --doc                   # nextest skips doctests, so run both
+```
+
 Then, for a behavior change, in this order:
 
 1. **Write the rule in `spec/`.** If the behavior is not in a specification
