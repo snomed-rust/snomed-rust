@@ -109,7 +109,7 @@ In ascending order of weight:
    as open — including two decisions that are *shipped* and that the maintainer
    is not confident in. Answering one of those is the most direct way to change
    this project's direction.
-3. **A fork.** The license is `MIT OR Apache-2.0 OR BSD-3-Clause OR GPL-2.0-only OR GPL-3.0-only OR OGL-UK-3.0 OR CC-BY-NC-SA-4.0`, the history is public, and —
+3. **A fork.** The license is `MIT OR Apache-2.0 OR BSD-3-Clause OR GPL-2.0-only OR GPL-3.0-only OR OGL-UK-3.0 OR CC-BY-SA-4.0`, the history is public, and —
    unusually — the reasoning is in the tree too. If the maintainer is wrong and
    will not be moved, a fork is a legitimate and fully-equipped continuation,
    and this project's position is that it should be taken rather than argued

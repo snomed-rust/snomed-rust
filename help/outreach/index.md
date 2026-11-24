@@ -128,7 +128,7 @@ grant, a thesis, or a procurement document.
 
 | Venue | Fit and requirements |
 |---|---|
-| [JOSS](https://joss.theoj.org/) | 250–1000 word paper, OSI-approved license (this workspace is MIT OR Apache-2.0 OR BSD-3-Clause OR GPL-2.0-only OR GPL-3.0-only OR OGL-UK-3.0 OR CC-BY-NC-SA-4.0, qualifying), open development, feature-complete rather than a prototype, and an obvious research application. Review happens in the open on GitHub. **Check the current scope rules on [submitting](https://joss.readthedocs.io/en/latest/submitting.html) and [review criteria](https://joss.readthedocs.io/en/latest/review_criteria.html) before writing** — JOSS has tightened what it accepts. |
+| [JOSS](https://joss.theoj.org/) | 250–1000 word paper, OSI-approved license (this workspace is MIT OR Apache-2.0 OR BSD-3-Clause OR GPL-2.0-only OR GPL-3.0-only OR OGL-UK-3.0 OR CC-BY-SA-4.0, qualifying), open development, feature-complete rather than a prototype, and an obvious research application. Review happens in the open on GitHub. **Check the current scope rules on [submitting](https://joss.readthedocs.io/en/latest/submitting.html) and [review criteria](https://joss.readthedocs.io/en/latest/review_criteria.html) before writing** — JOSS has tightened what it accepts. |
 | Zenodo | A DOI per tagged release, wired to GitHub releases; add `CITATION.cff` so GitHub renders a citation box. This is a prerequisite for the rest of this row group. |
 | [JAMIA Open](https://academic.oup.com/jamiaopen) / [JMIR Medical Informatics](https://medinform.jmir.org/) | Longer "application note" style paper: the design argument for dependency-free, auditable terminology tooling. |
 | [ICHI](https://ichi.dev/) (IEEE International Conference on Healthcare Informatics) | Software/demo tracks. |

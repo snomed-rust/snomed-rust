@@ -1,12 +1,12 @@
 # License
 
-**SPDX-License-Identifier: `MIT OR Apache-2.0 OR BSD-3-Clause OR GPL-2.0-only OR GPL-3.0-only OR OGL-UK-3.0 OR CC-BY-NC-SA-4.0`**
+**SPDX-License-Identifier: `MIT OR Apache-2.0 OR BSD-3-Clause OR GPL-2.0-only OR GPL-3.0-only OR OGL-UK-3.0 OR CC-BY-SA-4.0`**
 
 This repository contains **code only**. You may use it under **any one** of
 seven licenses, at your option: the MIT License, the Apache License 2.0, the
 BSD 3-Clause License, the GNU General Public License v2.0 only, the GNU General
 Public License v3.0 only, the UK Open Government Licence v3.0, or the Creative
-Commons Attribution Non Commercial Share Alike 4.0 International license. The
+Commons Attribution Share Alike 4.0 International license. The
 choice is the recipient's, so that this code can be used in the widest possible
 range of downstream projects, including GPL-licensed and proprietary clinical
 systems that SNOMED CT tooling typically has to live beside. Custom license
@@ -20,11 +20,11 @@ terms are available by arrangement.
 | [GNU General Public License v2.0](https://www.gnu.org/licenses/old-licenses/gpl-2.0-standalone.html) | [`GPL-2.0-only`](https://spdx.org/licenses/GPL-2.0-only.html) | [LICENSES/gpl-2.0-only/index.md](LICENSES/gpl-2.0-only/index.md) |
 | [GNU General Public License v3.0](https://www.gnu.org/licenses/gpl-3.0-standalone.html) | [`GPL-3.0-only`](https://spdx.org/licenses/GPL-3.0-only.html) | [LICENSES/gpl-3.0-only/index.md](LICENSES/gpl-3.0-only/index.md) |
 | [UK Open Government Licence v3.0](https://www.nationalarchives.gov.uk/doc/open-government-licence/version/3/) | [`OGL-UK-3.0`](https://spdx.org/licenses/OGL-UK-3.0.html) | [LICENSES/ogl-uk-3.0/index.md](LICENSES/ogl-uk-3.0/index.md) |
-| [Creative Commons Attribution Non Commercial Share Alike 4.0 International](https://creativecommons.org/licenses/by-nc-sa/4.0/) | [`CC-BY-NC-SA-4.0`](https://spdx.org/licenses/CC-BY-NC-SA-4.0.html) | [LICENSES/cc-by-nc-sa-4.0/index.md](LICENSES/cc-by-nc-sa-4.0/index.md) |
+| [Creative Commons Attribution Share Alike 4.0 International](https://creativecommons.org/licenses/by-sa/4.0/) | [`CC-BY-SA-4.0`](https://spdx.org/licenses/CC-BY-SA-4.0.html) | [LICENSES/cc-by-sa-4.0/index.md](LICENSES/cc-by-sa-4.0/index.md) |
 
 | | |
 |---|---|
-| SPDX expression | `MIT OR Apache-2.0 OR BSD-3-Clause OR GPL-2.0-only OR GPL-3.0-only OR OGL-UK-3.0 OR CC-BY-NC-SA-4.0` |
+| SPDX expression | `MIT OR Apache-2.0 OR BSD-3-Clause OR GPL-2.0-only OR GPL-3.0-only OR OGL-UK-3.0 OR CC-BY-SA-4.0` |
 | Declared in | `[workspace.package] license` in [`Cargo.toml`](Cargo.toml), inherited by every published crate |
 | Copyright holder | Joel Parker Henderson (joel@joelparkerhenderson.com) |
 
@@ -38,10 +38,10 @@ You choose. The expression is disjunctive: a recipient may comply with
 Apache-2.0 for its express patent grant and explicit contribution clause; MIT
 or BSD-3-Clause for the shortest notice obligation; GPL-2.0-only or
 GPL-3.0-only for copyleft compatibility; OGL-UK-3.0 for UK public-sector
-reuse; CC-BY-NC-SA-4.0 for attribution, non-commercial, share-alike reuse.
+reuse; CC-BY-SA-4.0 for attribution, share-alike reuse.
 Choosing one does not require the conditions of the others. Note that
-CC-BY-NC-SA-4.0 forbids commercial use, and the GPL licenses are copyleft:
-those restrictions apply only if you choose them.
+CC-BY-SA-4.0 requires adaptations to be shared under the same license, and the
+GPL licenses are copyleft: those conditions apply only if you choose them.
 
 If your tooling needs a single identifier and cannot express a choice, any
 one of the seven identifiers alone is a correct and sufficient statement of

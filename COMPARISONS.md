@@ -32,7 +32,7 @@ server and does not intend to become one.
 
 | Project | Tier | Language | Runtime dependencies | License | Classification | Server API |
 |---|---|---|---|---|---|---|
-| **this workspace** | 5 (+4) | Rust | **none** | MIT OR Apache-2.0 OR BSD-3-Clause OR GPL-2.0-only OR GPL-3.0-only OR OGL-UK-3.0 OR CC-BY-NC-SA-4.0 | yes: EL + necessary normal form | no |
+| **this workspace** | 5 (+4) | Rust | **none** | MIT OR Apache-2.0 OR BSD-3-Clause OR GPL-2.0-only OR GPL-3.0-only OR OGL-UK-3.0 OR CC-BY-SA-4.0 | yes: EL + necessary normal form | no |
 | [Snowstorm](https://github.com/IHTSDO/snowstorm) | 1, 2 | Java | JVM + Elasticsearch | Apache-2.0 | via snomed-owl-toolkit | yes: REST + FHIR |
 | Snowstorm Lite | 1 | Java | JVM | Apache-2.0 | no | yes: FHIR |
 | [Snow Owl](https://github.com/b2ihealthcare/snow-owl) | 1, 2 | Java | JVM (Elasticsearch embedded) | Apache-2.0 core, proprietary editions | yes | yes: REST + FHIR |
@@ -126,7 +126,7 @@ not measured it.
 
 Two differences decide between them, and neither is about quality:
 
-- **License.** `sct` is AGPL-3.0. This workspace is a recipient's choice of any one of seven licenses, `MIT OR Apache-2.0 OR BSD-3-Clause OR GPL-2.0-only OR GPL-3.0-only OR OGL-UK-3.0 OR CC-BY-NC-SA-4.0`. If
+- **License.** `sct` is AGPL-3.0. This workspace is a recipient's choice of any one of seven licenses, `MIT OR Apache-2.0 OR BSD-3-Clause OR GPL-2.0-only OR GPL-3.0-only OR OGL-UK-3.0 OR CC-BY-SA-4.0`. If
   you are embedding terminology logic into a product you do not intend to
   release under the AGPL, that difference is the whole conversation.
 - **Shape.** `sct` is artifact-oriented: it produces files you then query with

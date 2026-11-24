@@ -125,7 +125,7 @@ and harmonizes it with the sibling repositories (`hl7-rust`, `er7-rust`,
   `bin/check-trademarks` and the CI `trademarks` job.
   `LICENSES/` landed 2026-08-26 with `Apache-2.0.txt` and `MIT.txt`; widened
   to the seven-license choice (`MIT OR Apache-2.0 OR BSD-3-Clause OR
-  GPL-2.0-only OR GPL-3.0-only OR OGL-UK-3.0 OR CC-BY-NC-SA-4.0`), with one
+  GPL-2.0-only OR GPL-3.0-only OR OGL-UK-3.0 OR CC-BY-SA-4.0`), with one
   text per identifier in `LICENSES/`.
 - **Security and supply chain**: SECURITY.md's "Known posture" items
   (unsigned commits/tags, manual publishing, no DOI) were written down as

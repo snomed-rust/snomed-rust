@@ -15,6 +15,8 @@ together, in dependency order (`snomed-core` → `snomed-rf2` → `snomed-owl`
 
 ### Changed
 
+- License: `CC-BY-NC-SA-4.0` is replaced by `CC-BY-SA-4.0` in the license expression (`LICENSES/cc-by-sa-4.0/`);
+  the other six licenses are unchanged.
 - `snomed-ecl`: an attribute cardinality whose minimum exceeds its maximum (`[3..1]`) is rejected
   with the new `EclError::InvalidCardinality` (positioned at the `[`) instead of parsing to an
   unsatisfiable constraint (RCA-IN-2).

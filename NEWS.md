@@ -14,7 +14,7 @@ human-readable layer above it.
 | Version | **0.56.0**, released 2026-09-13 |
 | Crates | nine, released together and sharing one version number |
 | Rust MSRV | 1.98 (current stable minus two) |
-| License | `MIT OR Apache-2.0 OR BSD-3-Clause OR GPL-2.0-only OR GPL-3.0-only OR OGL-UK-3.0 OR CC-BY-NC-SA-4.0` |
+| License | `MIT OR Apache-2.0 OR BSD-3-Clause OR GPL-2.0-only OR GPL-3.0-only OR OGL-UK-3.0 OR CC-BY-SA-4.0` |
 | Source | <https://github.com/snomed-rust/snomed-rust> |
 | Packages | <https://crates.io/crates/snomed> |
 | Documentation | <https://docs.rs/snomed> · <https://snomed-rust.github.io/> |
@@ -156,7 +156,7 @@ bill of materials is these crates and the Rust standard library, and nothing
 else. It is developed specification-first: the normative rules live in a
 `spec/` directory in the repository, the code cites the rule it implements,
 and a test fails the build if a citation points at a rule that does not exist.
-It is licensed `MIT OR Apache-2.0 OR BSD-3-Clause OR GPL-2.0-only OR GPL-3.0-only OR OGL-UK-3.0 OR CC-BY-NC-SA-4.0` and contains no SNOMED CT content, which
+It is licensed `MIT OR Apache-2.0 OR BSD-3-Clause OR GPL-2.0-only OR GPL-3.0-only OR OGL-UK-3.0 OR CC-BY-SA-4.0` and contains no SNOMED CT content, which
 remains licensed material obtained separately from SNOMED International.
 
 ## Facts a reporter is likely to need

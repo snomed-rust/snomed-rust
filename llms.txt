@@ -80,6 +80,6 @@ The project homepage serves website-appropriate versions of this file at
 - [GOVERNANCE.md](GOVERNANCE.md): who decides, and what constrains them
 - [AI_STATEMENT.md](AI_STATEMENT.md): how AI is used to build this, and who is accountable
 - [RFC.md](RFC.md): what this project is unsure about, and can be settled
-- [LICENSE.md](LICENSE.md): terms — MIT OR Apache-2.0 OR BSD-3-Clause OR GPL-2.0-only OR GPL-3.0-only OR OGL-UK-3.0 OR CC-BY-NC-SA-4.0
+- [LICENSE.md](LICENSE.md): terms — MIT OR Apache-2.0 OR BSD-3-Clause OR GPL-2.0-only OR GPL-3.0-only OR OGL-UK-3.0 OR CC-BY-SA-4.0
 - [CITATION.cff](CITATION.cff): how to cite this project
 - [agents/](agents): role playbooks, one per crate with non-trivial domain logic

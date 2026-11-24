@@ -213,7 +213,7 @@ publish if you get no acknowledgement in fourteen days.
 ## Licensing of contributions
 
 Unless you state otherwise, any contribution you intentionally submit is
-licensed under the seven-way choice `MIT OR Apache-2.0 OR BSD-3-Clause OR GPL-2.0-only OR GPL-3.0-only OR OGL-UK-3.0 OR CC-BY-NC-SA-4.0`, with no additional terms (inbound equals outbound). See [LICENSE.md](LICENSE.md). There is no
+licensed under the seven-way choice `MIT OR Apache-2.0 OR BSD-3-Clause OR GPL-2.0-only OR GPL-3.0-only OR OGL-UK-3.0 OR CC-BY-SA-4.0`, with no additional terms (inbound equals outbound). See [LICENSE.md](LICENSE.md). There is no
 CLA to sign.
 
 ## Money
