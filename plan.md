@@ -412,8 +412,6 @@ bodies, ignores integration-test sources, and unions identical source regions
 across unit/integration objects. CI enforces 100.00% production
 regions/functions/lines (623 tests); LLVM's duplicate-object summary is
 99.60%/100.00%/99.84%.
-ECL 2.2 `!!>`/`!!<` now filter every focus shape through the store's
-transitive ancestor/descendant indexes (spec/10 rule 20).
 
 Since 0.9.0 the ECL surface has grown by five constructs and one grammar
 correction rather than by new crates: dot notation (`A . attribute`), the
