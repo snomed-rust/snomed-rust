@@ -55,21 +55,17 @@ chain, each seeing only what the previous one let through.
   works where the keyword form has no spelling. Both are kept, since the
   keyword form is what a human writes and the id form is what a generated
   query carries.
-- `moduleId (=|!=) subExpressionConstraint` matches concepts whose
-  `moduleId` is in the evaluated set — the same treatment attribute
-  names/values already get, reusing `parse_sub_expression_constraint`
-  directly, so `moduleId = << 900000000000012004` (a whole module
-  hierarchy, if one existed) works as naturally as a single concept
-  reference. The official grammar's `eclConceptReferenceSet` alternative
-  (`moduleId = (id1 id2)`) is **not implemented**: `(` after
-  `moduleId (=|!=)` always starts a parenthesized
-  `subExpressionConstraint`, so a set of 2+ bare references is rejected
-  (correctly, just with a generic error) when the parser reaches the
-  second reference with no operator before it. **`moduleId = (id1 OR
-  id2)` is already supported and evaluates identically** — the set form
-  is pure syntax sugar over a disjunction this grammar subset can
-  already express, which is why the gap is a spelling to accept rather
-  than a capability to add.
+- `moduleId` compares the row's module against the evaluated operand.
+  Concept, description, and member module filters, concept
+  `definitionStatusId`, and description `typeId` accept either a
+  subexpression or a parenthesized set of two or more bare concept
+  references. Whitespace or a block comment MUST separate adjacent
+  references. Each reference may include a `|term|`. The set evaluates
+  as the same references joined by `OR`, including for `!=` and when a
+  referenced concept is absent. A parenthesized single reference retains
+  its existing meaning as a subexpression. Sets are accepted only as
+  full operands in these filter positions.
+  [Official ECL grammar](https://raw.githubusercontent.com/IHTSDO/snomed-expression-constraint-language/main/syntax/abnf-brief.txt).
 - `effectiveTime (=|!=|<=|<|>=|>) "YYYYMMDD"` compares against the
   concept's own `effectiveTime` (spec/09). Unlike `Numeric`'s `Eq`/
   `NotEq` (spec/10 rule 10), no aggregate-negation trick is needed here:
@@ -117,9 +113,10 @@ Implemented filter kinds:
 |---|---|---|
 | `termFilter` | `term (=\|!=) (typedSearchTerm \| typedSearchTermSet)` | the description's `term`, by the search type each term names (`match:` when none is written) |
 | `typeTokenFilter` | `type (=\|!=) (typeToken \| typeTokenSet)`, tokens `fsn`/`syn`/`def` | the description's `typeId` against spec/06's three types |
-| `typeIdFilter` | `typeId (=\|!=) subExpressionConstraint` | the same question as `type`, with a concept expression instead of a keyword — what a generated query carries |
+| `typeIdFilter` | `typeId` with a subexpression or concept-reference set | the same question as `type`, with a concept expression instead of a keyword — what a generated query carries |
 | `languageFilter` | `language (=\|!=) (languageCode \| languageCodeSet)`, codes bare (`en`, not `"en"`) | the description's `languageCode` column (spec/06), case-insensitively |
 | `dialectIdFilter` | `dialectId (=\|!=) sctid [acceptabilitySet]` | active membership of that Language reference set (spec/08), optionally narrowed to `(preferred)` / `(acceptable)` |
+| `dialectAliasFilter` | `dialect (=\|!=) alias [acceptabilitySet]` | the same membership test after case-insensitive Appendix C alias resolution |
 | `activeFilter` | `active (=\|!=) (true\|false\|*)` | the description's own `active` column |
 
 Three rules this section fixes, each a judgment call the official sources
@@ -159,16 +156,14 @@ empty set. A real release always carries the description-type concepts; a
 hand-built store may not. The same applies to `moduleId` and
 `definitionStatusId` in `{{ C ... }}`.
 
-A language code is a bare word, and that is what forced a change in how
-this crate splits lexing from parsing: the lexer used to reject any
-alphanumeric run it had no keyword for, so `en` never reached the parser.
-Unknown words are now `TokenKind::Word` tokens, and the parser rejects one
-it can't use with the same `EclError::UnexpectedKeyword` the lexer used to
-raise — the position, not the token, is what decides. One consequence
-worth knowing: a language code spelled exactly like one of this grammar's
-keywords lexes as that keyword and is rejected. No ISO 639-1 code collides
-today; the caveat is recorded for the same reason the `R#...` alternate
-identifier one is.
+In a description language filter, each code MUST consist of exactly two
+ASCII letters, including in a parenthesized set. Case is ignored. In this
+position `or` names Odia, so `language = (or en)` selects descriptions
+in either language. Between expressions, `OR` remains the disjunction
+operator. The grammar checks the shape of the code. The descriptions in
+the loaded edition determine which codes have matches.
+[Official ECL ABNF](https://raw.githubusercontent.com/IHTSDO/snomed-expression-constraint-language/main/syntax/abnf-brief.txt)
+and [ISO language code entry](https://www.loc.gov/standards/iso639-2/php/langcodes_name.php?code_ID=342).
 
 ### Dialects
 
@@ -187,13 +182,37 @@ be nothing else. An empty `()` is rejected rather than read as "any" — it
 says nothing, and silently accepting it would accept a query that means
 nothing.
 
-**The `dialect` alias form is rejected by name**, not merely
-unimplemented. An alias like `en-us` maps to a reference set id only
-through deployment-specific policy — the same reason `snomed-fhir` takes
-a language refset id rather than a BCP-47 tag (spec/11's "Dialect instead
-of `displayLanguage`" note). A caller that has the mapping applies it and
-writes `dialectId`; a caller that doesn't would be guessing, and this
-crate would be guessing on its behalf.
+`dialectId = (X Y)` implements the official `dialectIdSet`: entries are
+OR'd, each entry may carry its own acceptability set, and a set after the
+closing parenthesis applies to every entry. If both an entry-specific and
+whole-filter set are present, both constrain that entry's one
+`acceptabilityId`; this is the direct conjunction of the two syntactic
+constraints. `!=` negates the result of the whole OR'd set. Acceptability
+sets accept both the standard `prefer`/`accept` tokens and explicit
+concept references, so extension-defined descendants of the Acceptability
+concept are not collapsed into the two International constants. This
+matches the [official ECL syntax](https://docs.snomed.org/snomed-ct-specifications/snomed-ct-expression-constraint-language/design/5-syntax-specification).
+
+`dialect = en-us` and `dialect = (en-us (preferred) en-gb)` use the same
+set/acceptability semantics after resolving aliases case-insensitively.
+The official [Appendix C alias table](https://docs.snomed.org/snomed-ct-specifications/snomed-ct-expression-constraint-language/appendices/appendix-c-dialect-aliases)
+is authoritative; the implemented pairs are:
+
+| aliases | dialect ids |
+|---|---|
+| `da-dk` | `554461000005103` |
+| `en-au`, `en-ca`, `en-gb`, `en-ie` | `32570271000036106`, `19491000087109`, `900000000000508004`, `21000220103` |
+| `en-nz`, `en-nz-x-pat`, `en-us`, `en-x-gmdn` | `271000210107`, `281000210109`, `900000000000509007`, `608771002` |
+| `en-x-nhs-clinical`, `en-x-nhs-dmd`, `en-x-nhs-pharmacy` | `999001261000000100`, `999000671000001103`, `999000691000001104` |
+| `en-gb-x-drug`, `en-gb-x-ext` | `999000681000001101`, `999001251000000103` |
+| `es`, `es-uy`, `et-ee` | `450828004`, `5641000179103`, `71000181105` |
+| `de`, `fr`, `fr-be`, `fr-ca` | `722130004`, `722131000`, `21000172104`, `20581000087109` |
+| `ja`, `mi`, `nl-be`, `nl-nl` | `722129009`, `291000210106`, `31000172101`, `31000146106` |
+| `nb-no`, `nn-no`, `sv-se`, `zh` | `61000202103`, `91000202106`, `46011000052107`, `722128001` |
+
+A syntactically valid alias absent from this table returns the typed
+`EclError::UnknownDialectAlias`; it is never guessed from descriptions or
+silently treated as an empty dialect.
 
 ### Search types
 
@@ -235,11 +254,7 @@ external dependency, which CLAUDE.md rule 2 makes a `plan.md` decision
 rather than a convenience. This is the only ECL construct this workspace
 declines for dependency reasons rather than semantic ones.
 
-**Not implemented here:** the `dialectAliasFilter` above, the
-`dialectIdSet` form (several dialects with per-dialect acceptabilities in
-one filter — write one filter per dialect, since filters in a block
-conjoin over the same description), and the
-`regex:` search type (above). A filter
+**Not implemented here:** the `regex:` search type (above). A filter
 keyword this grammar doesn't have lexes as a word, and the parser rejects
 it as an unknown keyword — the generic bucket rule 9 describes.
 

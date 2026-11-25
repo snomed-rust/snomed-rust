@@ -29,13 +29,13 @@ panics. The properties currently asserted:
 | `effective_time_parse` | An accepted time round-trips through `Display` and decomposes to the same year/month/day the integer encodes — `spec/09-versioning.md` |
 | `concrete_value_parse` | An accepted value reproduces its wire form exactly, so precision and trailing zeros survive — `spec/07-relationship-file.md` |
 | `release_file_name_parse` | Parsing terminates on any name — `spec/03-file-naming.md` |
-| `rf2_reader` | Arbitrary bytes fed to every record type: each row is a typed record or a typed error naming the column — `spec/05`..`spec/08` |
-| `ecl_parse` | Parsing is deterministic and total over arbitrary text — `spec/10-ecl.md` |
+| `rf2_reader` | Arbitrary bytes fed to every record type, including Identifier rows: each row is a typed record or a typed error naming the column — `spec/05`..`spec/08` |
+| `ecl_parse` | Parsing is deterministic over arbitrary text; generated description language filters accept exactly two ASCII letters; generated ID reference sets lower to their explicit disjunction; generated dialect-ID sets with local/shared acceptability parse; delimiter-safe UUID-like text is accepted by the string-shaped `referencedMemberId` filter; and fixed-shape history/Boolean omissions return `NotYetImplemented` — `spec/10-ecl.md` |
 | `ecl_evaluate` | Any expression the parser accepts evaluates against a fixed store, deterministically — `spec/10-ecl.md` |
 | `owl_parse` | Parsing is deterministic and total — `spec/12-owl.md` |
 | `classify_axioms` | Completion terminates, subsumer sets are strict and transitively closed, and normal-form parents are entailed, non-redundant, and never empty — `spec/13-classification.md`, `spec/14-necessary-normal-form.md` |
 | `fhir_value_set_url` | Implicit value set URLs parse deterministically, and percent-decoding survives truncated/non-hex escapes — `spec/11-fhir.md` |
-| `store_snapshot` | Latest `effectiveTime` wins, construction is insertion-order independent, derived indexes ascend, hierarchy edges are active+inferred+IS-A, traversal terminates — `spec/09-versioning.md` rules 2, 3, 6 |
+| `store_snapshot` | Latest `effectiveTime` wins, construction is insertion-order independent, derived indexes ascend, hierarchy edges are active+inferred+IS-A, traversal terminates, and cycle membership agrees with an independent reachability check (spec/07 rule 3) — `spec/09-versioning.md` rules 2, 3, 6 |
 | `history_point_in_time` | Versions come back sorted ascending, and point-in-time reconstruction returns the greatest version at or before the date — `spec/09-versioning.md` rules 3, 4 |
 
 Two targets take **rows** rather than text, decoded with `arbitrary`

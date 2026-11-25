@@ -14,3 +14,10 @@ Cargo.lock
 /data/
 sct2_*.txt
 der2_*.txt
+
+# Shared VS Code configuration (see CONTRIBUTING.md); overrides a global .vscode ignore.
+!/.vscode/
+/.vscode/*
+!/.vscode/extensions.json
+!/.vscode/launch.json
+!/.vscode/tasks.json

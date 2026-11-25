@@ -44,7 +44,11 @@ impl EffectiveTime {
         if s.len() != 8 || !s.bytes().all(|b| b.is_ascii_digit()) {
             return Err(EffectiveTimeError::Format);
         }
-        let v: u32 = s.parse().map_err(|_| EffectiveTimeError::Format)?;
+        // Exactly eight decimal digits (validated above) always fit in
+        // `u32`, so no fallible integer parse remains here.
+        let v = s
+            .bytes()
+            .fold(0_u32, |value, digit| value * 10 + u32::from(digit - b'0'));
         let (month, day) = ((v / 100) % 100, v % 100);
         if !(1..=12).contains(&month) || !(1..=31).contains(&day) {
             return Err(EffectiveTimeError::Range);
@@ -83,6 +87,7 @@ impl FromStr for EffectiveTime {
     }
 }
 
+#[cfg_attr(coverage_nightly, coverage(off))]
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -115,6 +120,20 @@ mod tests {
         assert_eq!(
             EffectiveTime::parse("20190700"),
             Err(EffectiveTimeError::Range)
+        );
+    }
+
+    #[test]
+    fn conversion_trait_and_error_messages_are_stable() {
+        let time: EffectiveTime = "20240131".parse().unwrap();
+        assert_eq!(time, EffectiveTime::new_unchecked(20240131));
+        assert_eq!(
+            EffectiveTimeError::Format.to_string(),
+            "effectiveTime must be 8 digits (YYYYMMDD)"
+        );
+        assert_eq!(
+            EffectiveTimeError::Range.to_string(),
+            "effectiveTime month/day out of range"
         );
     }
 }

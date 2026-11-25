@@ -24,8 +24,7 @@ pub enum ImplicitValueSet {
     /// `?fhir_vs=refset/[sctid]` — members of the named refset.
     Refset(SctId),
     /// `?fhir_vs=ecl/[ecl]` — an arbitrary ECL expression, evaluated via
-    /// `snomed-ecl`. Holds the raw (already percent-decoded — this crate
-    /// does no URL decoding of its own, see [`expand`]'s docs) ECL text.
+    /// `snomed-ecl`. Holds the UTF-8 ECL text after the URL parser decodes it.
     Ecl(String),
     /// `?fhir_vs=refset` (bare, no `[sctid]`) — every concept that is
     /// itself a refset identifier with at least one active member.
@@ -71,6 +70,10 @@ pub struct ExpansionContains {
     /// Populated only when `ExpandOptions::include_designations` is set;
     /// otherwise always empty.
     pub designation: Vec<Designation>,
+    /// `ValueSet.expansion.contains.inactive`: `true` when the concept is
+    /// inactive in the snapshot. Always `false` under
+    /// `ExpandOptions::active_only` (spec/11 rule 7).
+    pub inactive: bool,
 }
 
 /// The result of [`expand`]. Not a FHIR `ValueSet` resource — a hosting
@@ -93,10 +96,9 @@ pub struct Expansion {
 /// query shape that isn't one of the five (or an `isa/`/`refset/` id
 /// that isn't a syntactically valid SCTID).
 ///
-/// **No percent-decoding**: this crate has no URL/percent-decoding
-/// parser (zero external dependencies) and doesn't add one just for this.
-/// `url`'s query portion — in particular the ECL text after `ecl/` — must
-/// already be decoded by the caller (e.g. spaces as spaces, not `%20`).
+/// Pass the original URL. After splitting the query, the parser decodes
+/// the `fhir_vs` value once as UTF-8 and preserves literal `+` characters
+/// (spec/11). Invalid escapes return [`FhirError::MalformedUrlEncoding`].
 pub fn parse_implicit_value_set(url: &str) -> Result<ImplicitValueSet, FhirError> {
     let Some((base, query)) = url.split_once('?') else {
         return Err(FhirError::UnsupportedValueSet(url.to_string()));
@@ -200,6 +202,7 @@ pub fn expand(
         .map(|&code| ExpansionContains {
             system: SNOMED_CT_SYSTEM,
             code,
+            inactive: !store.is_active(code),
             display: display_for(store, options.language_refset, code),
             designation: if options.include_designations {
                 designations_for(store, options.language_refset, code)
@@ -269,10 +272,19 @@ fn evaluate(
             }
             result
         }
-        ImplicitValueSet::Refset(id) => store.refset_members(*id).collect(),
+        // A refset may reference descriptions or other components; the store
+        // and ECL preserve those raw ids, but a FHIR `code` must be a concept
+        // code, so non-concepts are dropped here, before `total` and paging
+        // (spec/11 rule 6).
+        ImplicitValueSet::Refset(id) => store
+            .refset_members(*id)
+            .filter(|&member| store.concept(member).is_some())
+            .collect(),
         ImplicitValueSet::Ecl(text) => {
             let expr = snomed_ecl::parse(text).map_err(|e| FhirError::InvalidEcl(e.to_string()))?;
-            snomed_ecl::evaluate(&expr, store)
+            let mut ids = snomed_ecl::evaluate(&expr, store);
+            ids.retain(|&member| store.concept(member).is_some());
+            ids
         }
         ImplicitValueSet::AllRefsets => store.refset_ids().collect(),
     })
@@ -288,6 +300,7 @@ fn matches_filter(store: &SnapshotStore, id: SctId, needle: &str) -> bool {
         .any(|d| d.active && d.term.to_lowercase().contains(needle))
 }
 
+#[cfg_attr(coverage_nightly, coverage(off))]
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -400,8 +413,15 @@ mod tests {
 
     #[test]
     fn rejects_a_genuinely_unrecognized_query_shape() {
-        let err = parse_implicit_value_set("http://snomed.info/sct?fhir_vs=nonsense").unwrap_err();
-        assert!(matches!(err, FhirError::UnsupportedValueSet(_)));
+        for url in [
+            "http://snomed.info/sct?not_fhir_vs=nonsense",
+            "http://snomed.info/sct?fhir_vs=nonsense",
+            "http://snomed.info/sct?fhir_vs=isa/not-an-sctid",
+            "http://snomed.info/sct?fhir_vs=refset/not-an-sctid",
+        ] {
+            let err = parse_implicit_value_set(url).unwrap_err();
+            assert!(matches!(err, FhirError::UnsupportedValueSet(_)));
+        }
     }
 
     #[test]
@@ -639,6 +659,113 @@ mod tests {
     }
 
     #[test]
+    fn a_specific_refset_form_returns_its_members() {
+        use snomed_core::member_id::MemberId;
+        use snomed_rf2::refset::{RefsetMemberCore, SimpleRefsetMember};
+
+        let refset = SctId::compose(7001, ComponentType::Concept, None).unwrap();
+        let mut b = SnapshotStore::builder();
+        b.add_concept(concept(FINDING, true));
+        b.add_simple_member(SimpleRefsetMember {
+            core: RefsetMemberCore {
+                id: MemberId::parse("80000000-0000-4000-8000-000000000041").unwrap(),
+                effective_time: EffectiveTime::new_unchecked(20260131),
+                active: true,
+                module_id: constants::CORE_MODULE,
+                refset_id: refset,
+                referenced_component_id: FINDING,
+            },
+        });
+        let result = expand(
+            &b.build(),
+            &format!("http://snomed.info/sct?fhir_vs=refset/{refset}"),
+            &ExpandOptions::default(),
+        )
+        .unwrap();
+        assert_eq!(result.contains.len(), 1);
+        assert_eq!(result.contains[0].code, FINDING);
+    }
+
+    #[test]
+    fn refset_and_ecl_expansion_drop_non_concept_members() {
+        use snomed_core::member_id::MemberId;
+        use snomed_rf2::refset::{RefsetMemberCore, SimpleRefsetMember};
+
+        // spec/11 rule 6: a refset naming a description yields no code for it.
+        let refset = SctId::compose(7002, ComponentType::Concept, None).unwrap();
+        let desc = SctId::compose(1200, ComponentType::Description, None).unwrap();
+        let member = |n: u8, component: SctId| SimpleRefsetMember {
+            core: RefsetMemberCore {
+                id: MemberId::parse(&format!("80000000-0000-4000-8000-0000000000{n:02}")).unwrap(),
+                effective_time: EffectiveTime::new_unchecked(20260131),
+                active: true,
+                module_id: constants::CORE_MODULE,
+                refset_id: refset,
+                referenced_component_id: component,
+            },
+        };
+        let mut b = SnapshotStore::builder();
+        b.add_concept(concept(FINDING, true));
+        b.add_concept(concept(DISEASE, false)); // inactive stays eligible
+        b.add_simple_member(member(51, FINDING));
+        b.add_simple_member(member(52, DISEASE));
+        b.add_simple_member(member(53, desc));
+        let store = b.build();
+        for url in [
+            format!("http://snomed.info/sct?fhir_vs=refset/{refset}"),
+            format!("http://snomed.info/sct?fhir_vs=ecl/%5E%20{refset}"),
+        ] {
+            let result = expand(&store, &url, &ExpandOptions::default()).unwrap();
+            let codes: Vec<SctId> = result.contains.iter().map(|c| c.code).collect();
+            assert_eq!(result.total, 2, "{url}");
+            assert!(!codes.contains(&desc), "{url}");
+            assert!(
+                codes.contains(&FINDING) && codes.contains(&DISEASE),
+                "{url}"
+            );
+        }
+
+        // A description-only refset contributes zero codes.
+        let mut b = SnapshotStore::builder();
+        b.add_simple_member(member(54, desc));
+        let result = expand(
+            &b.build(),
+            &format!("http://snomed.info/sct?fhir_vs=refset/{refset}"),
+            &ExpandOptions::default(),
+        )
+        .unwrap();
+        assert_eq!(result.total, 0);
+        assert!(result.contains.is_empty());
+    }
+
+    #[test]
+    fn expansion_entries_flag_inactive_concepts() {
+        // spec/11 rule 7.
+        let mut b = SnapshotStore::builder();
+        b.add_concept(concept(FINDING, true));
+        b.add_concept(concept(DISEASE, false));
+        let store = b.build();
+        let all = expand(
+            &store,
+            "http://snomed.info/sct?fhir_vs",
+            &ExpandOptions::default(),
+        )
+        .unwrap();
+        let flags: Vec<(SctId, bool)> = all.contains.iter().map(|c| (c.code, c.inactive)).collect();
+        assert_eq!(flags, vec![(DISEASE, true), (FINDING, false)]);
+        let active = expand(
+            &store,
+            "http://snomed.info/sct?fhir_vs",
+            &ExpandOptions {
+                active_only: true,
+                ..ExpandOptions::default()
+            },
+        )
+        .unwrap();
+        assert!(active.contains.iter().all(|c| !c.inactive));
+    }
+
+    #[test]
     fn percent_encoded_urls_decode() {
         // FHIR's own published example spelling of the ECL form, from the
         // R4 SNOMED CT page: the operators and spaces arrive encoded.
@@ -684,6 +811,7 @@ mod tests {
             "http://snomed.info/sct?fhir_vs=ecl/%",
             "http://snomed.info/sct?fhir_vs=ecl/%3",
             "http://snomed.info/sct?fhir_vs=ecl/%zz",
+            "http://snomed.info/sct?fhir_vs=ecl/%0z",
             "http://snomed.info/sct?fhir_vs=ecl/%ff%fe",
         ] {
             assert_eq!(
@@ -692,5 +820,12 @@ mod tests {
                 "{url} should be rejected as malformed percent-encoding"
             );
         }
+
+        let store = SnapshotStore::builder().build();
+        let url = "http://example.test/not-snomed";
+        assert!(matches!(
+            expand(&store, url, &ExpandOptions::default()),
+            Err(FhirError::UnsupportedValueSet(value)) if value == url
+        ));
     }
 }

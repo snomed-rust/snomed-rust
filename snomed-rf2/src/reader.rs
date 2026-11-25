@@ -83,11 +83,14 @@ pub fn read_all<R: BufRead, T: Rf2Record>(reader: R) -> Result<Vec<T>, Rf2Error>
     Rf2Reader::<R, T>::new(reader)?.collect()
 }
 
+#[cfg_attr(coverage_nightly, coverage(off))]
 #[cfg(test)]
 mod tests {
     use super::*;
-    use snomed_core::components::Concept;
+    use snomed_core::components::{AlternateIdentifier, Concept, RelationshipConcreteValue};
+    use snomed_core::concrete_value::ConcreteValue;
     use snomed_core::sctid::{ComponentType, SctId};
+    use std::io::{self, BufRead, BufReader, Cursor, Read};
 
     const HEADER: &str = "id\teffectiveTime\tactive\tmoduleId\tdefinitionStatusId";
 
@@ -103,6 +106,61 @@ mod tests {
     }
 
     #[test]
+    fn reads_and_validates_alternate_identifiers() {
+        let scheme = SctId::compose(2001, ComponentType::Concept, None).unwrap();
+        let component = SctId::compose(2002, ComponentType::Concept, None).unwrap();
+        let data = format!(
+            "alternateIdentifier\teffectiveTime\tactive\tmoduleId\tidentifierSchemeId\treferencedComponentId\n\
+             L-1000\t20250321\t1\t900000000000207008\t{scheme}\t{component}\n"
+        );
+        let rows: Vec<AlternateIdentifier> = read_all(data.as_bytes()).unwrap();
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].alternate_identifier, "L-1000");
+        assert_eq!(rows[0].identifier_scheme_id, scheme);
+        assert_eq!(rows[0].referenced_component_id, component);
+
+        for (invalid, column) in [
+            (data.replace("L-1000\t", "\t"), "alternateIdentifier"),
+            (data.replace("20250321", "20251340"), "effectiveTime"),
+            (data.replace("\t1\t", "\tmaybe\t"), "active"),
+            (
+                data.replace("900000000000207008", "not-an-sctid"),
+                "moduleId",
+            ),
+            (
+                data.replace(&scheme.to_string(), "not-an-sctid"),
+                "identifierSchemeId",
+            ),
+            (
+                data.replace(&component.to_string(), "not-an-sctid"),
+                "referencedComponentId",
+            ),
+        ] {
+            assert!(
+                matches!(
+                    read_all::<_, AlternateIdentifier>(invalid.as_bytes()),
+                    Err(Rf2Error::Field { column: actual, .. }) if actual == column
+                ),
+                "invalid {column} did not report that column"
+            );
+        }
+    }
+
+    #[test]
+    fn reads_concrete_relationship_values_without_losing_decimal_precision() {
+        let relationship = SctId::compose(3001, ComponentType::Relationship, None).unwrap();
+        let source = SctId::compose(3002, ComponentType::Concept, None).unwrap();
+        let data = format!(
+            "id\teffectiveTime\tactive\tmoduleId\tsourceId\tvalue\trelationshipGroup\ttypeId\tcharacteristicTypeId\tmodifierId\n\
+             {relationship}\t20250321\t1\t900000000000207008\t{source}\t#1.50\t2\t116680003\t900000000000011006\t900000000000451002\n"
+        );
+        let rows: Vec<RelationshipConcreteValue> = read_all(data.as_bytes()).unwrap();
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].value, ConcreteValue::Number("1.50".to_string()));
+        assert_eq!(rows[0].relationship_group, 2);
+    }
+
+    #[test]
     fn rejects_wrong_header() {
         let data = "id\teffectiveTime\tactive\tmoduleId\twrongColumn\n";
         let err = read_all::<_, Concept>(data.as_bytes()).unwrap_err();
@@ -113,6 +171,44 @@ mod tests {
     fn rejects_missing_header() {
         let err = read_all::<_, Concept>("".as_bytes()).unwrap_err();
         assert!(matches!(err, Rf2Error::MissingHeader));
+    }
+
+    struct FailingRead;
+
+    impl Read for FailingRead {
+        fn read(&mut self, _buf: &mut [u8]) -> io::Result<usize> {
+            Err(io::Error::other("synthetic read failure"))
+        }
+    }
+
+    impl BufRead for FailingRead {
+        fn fill_buf(&mut self) -> io::Result<&[u8]> {
+            Err(io::Error::other("synthetic read failure"))
+        }
+
+        fn consume(&mut self, _amt: usize) {}
+    }
+
+    #[test]
+    fn reports_an_io_error_after_a_valid_header() {
+        let mut direct = FailingRead;
+        let mut empty = [];
+        let _ = direct.read(&mut empty).unwrap_err();
+
+        let header = format!("{HEADER}\n");
+        let reader = Cursor::new(header.into_bytes()).chain(FailingRead);
+        let mut rows = Rf2Reader::<_, Concept>::new(reader).unwrap();
+        let error = rows.next().unwrap().unwrap_err();
+        assert!(matches!(error, Rf2Error::Io(_)));
+    }
+
+    #[test]
+    fn reports_an_io_error_while_reading_the_header() {
+        let error = match Rf2Reader::<_, Concept>::new(BufReader::new(FailingRead)) {
+            Ok(_) => panic!("a failing reader unexpectedly produced an RF2 reader"),
+            Err(error) => error,
+        };
+        assert!(matches!(error, Rf2Error::Io(_)));
     }
 
     #[test]

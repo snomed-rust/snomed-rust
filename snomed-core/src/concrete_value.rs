@@ -94,6 +94,7 @@ fn is_decimal_literal(s: &str) -> bool {
     seen_digit
 }
 
+#[cfg_attr(coverage_nightly, coverage(off))]
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -147,5 +148,27 @@ mod tests {
             ConcreteValue::parse("500"),
             Err(ConcreteValueError::Malformed("500".to_string()))
         );
+    }
+
+    #[test]
+    fn parse_errors_explain_each_wire_shape() {
+        let cases = [
+            (ConcreteValueError::Empty, "must not be empty"),
+            (
+                ConcreteValueError::InvalidNumber("#1.2.3".to_owned()),
+                "invalid concrete number literal",
+            ),
+            (
+                ConcreteValueError::UnterminatedString("\"open".to_owned()),
+                "missing its closing quote",
+            ),
+            (
+                ConcreteValueError::Malformed("plain".to_owned()),
+                "must start with `#`",
+            ),
+        ];
+        for (error, expected) in cases {
+            assert!(error.to_string().contains(expected), "{error}");
+        }
     }
 }

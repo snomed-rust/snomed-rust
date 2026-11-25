@@ -182,10 +182,8 @@ fn proximal_parents(c: SctId, classification: &Classification) -> Vec<SctId> {
 fn role_ancestor_closure(axioms: &[Axiom]) -> HashMap<SctId, HashSet<SctId>> {
     let tbox = normalize::normalize(axioms);
     let mut direct: HashMap<SctId, Vec<SctId>> = HashMap::new();
-    for (sub, sup) in &tbox.role_hierarchy {
-        if let (crate::types::RoleId::Named(s), crate::types::RoleId::Named(t)) = (sub, sup) {
-            direct.entry(*s).or_default().push(*t);
-        }
+    for &(sub, sup) in &tbox.role_hierarchy {
+        direct.entry(sub).or_default().push(sup);
     }
 
     let mut closure: HashMap<SctId, HashSet<SctId>> = HashMap::new();
@@ -537,6 +535,7 @@ fn finalize(mut is_a: Vec<SctId>, candidates: Vec<GroupCandidate>) -> Option<Nec
     Some(NecessaryNormalForm { is_a, attributes })
 }
 
+#[cfg_attr(coverage_nightly, coverage(off))]
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -934,5 +933,65 @@ mod tests {
         let mut expected = vec![hand, foot];
         expected.sort();
         assert_eq!(sites, expected, "neither site implies the other");
+    }
+
+    #[test]
+    fn graph_helpers_are_deterministic_for_duplicates_cycles_and_role_ancestors() {
+        let role = id(1300);
+        let role_parent = id(1301);
+        let destination = id(1302);
+        let inferred = id(1303);
+        let a = id(1304);
+        let b = id(1305);
+
+        let mut duplicates = vec![(role, a), (role, a), (role_parent, b)];
+        dedup_unordered(&mut duplicates);
+        assert_eq!(duplicates, vec![(role, a), (role_parent, b)]);
+
+        let role_axioms = vec![
+            ax(&format!("SubObjectPropertyOf(:{role} :{role_parent})")),
+            ax(&format!(
+                "SubObjectPropertyOf(:{role_parent} :{destination})"
+            )),
+            ax(&format!("SubObjectPropertyOf(:{destination} :{role})")),
+        ];
+        let ancestors = role_ancestor_closure(&role_axioms);
+        assert!(ancestors[&role].contains(&destination));
+
+        let chain = Axiom::SubObjectPropertyOf {
+            sub: snomed_owl::ObjectPropertyExpression::Chain(vec![role_parent, destination]),
+            sup: inferred,
+        };
+        let chains = property_chains(&[
+            Axiom::TransitiveObjectProperty(role),
+            chain.clone(),
+            chain,
+            Axiom::TransitiveObjectProperty(role),
+        ]);
+        assert_eq!(chains.len(), 2);
+
+        let graphs = NodeGraphs {
+            edges: HashMap::from([((a, destination), vec![b]), ((b, destination), vec![a])]),
+        };
+        let classification = Classification {
+            subsumers: HashMap::from([(b, HashSet::from([inferred]))]),
+        };
+        assert_eq!(
+            graphs.chain_closure(a, destination, &classification),
+            HashSet::from([a, b, inferred])
+        );
+
+        let concept = id(1306);
+        let value = id(1307);
+        let report = necessary_normal_form(&[
+            ax(&format!("SubObjectPropertyOf(:{role} :{role_parent})")),
+            ax(&format!(
+                "SubObjectPropertyOf(ObjectPropertyChain(:{role_parent} :{destination}) :{inferred})"
+            )),
+            ax(&format!(
+                "SubClassOf(:{concept} ObjectSomeValuesFrom(:{role} :{value}))"
+            )),
+        ]);
+        assert!(report.forms.contains_key(&concept));
     }
 }

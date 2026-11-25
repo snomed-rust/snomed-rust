@@ -41,7 +41,10 @@ impl Indices {
         }
         let mut role_hierarchy: HashMap<RoleId, Vec<RoleId>> = HashMap::new();
         for &(r, s) in &tbox.role_hierarchy {
-            role_hierarchy.entry(r).or_default().push(s);
+            role_hierarchy
+                .entry(RoleId::Named(r))
+                .or_default()
+                .push(RoleId::Named(s));
         }
         let mut role_composition: HashMap<(RoleId, RoleId), Vec<RoleId>> = HashMap::new();
         for &(r, s, t) in &tbox.role_composition {
@@ -83,9 +86,8 @@ pub(crate) fn saturate(tbox: &NormalizedTBox) -> CompletionState {
     let mut queue: VecDeque<Event> = VecDeque::new();
 
     for &c in &tbox.all_concepts {
-        if state.subsumers.entry(c).or_default().insert(c) {
-            queue.push_back(Event::Subsumer(c, c));
-        }
+        state.subsumers.entry(c).or_default().insert(c);
+        queue.push_back(Event::Subsumer(c, c));
     }
 
     // Every branch below follows the same two-phase shape: scan the
@@ -144,16 +146,17 @@ pub(crate) fn saturate(tbox: &NormalizedTBox) -> CompletionState {
             }
             Event::RolePair(r, x, y) => {
                 // CR3 (triggered by an R(r) change).
-                if let Some(sy) = state.subsumers.get(&y) {
-                    let newly_entailed: Vec<ConceptId> = sy
-                        .iter()
-                        .filter_map(|a| indices.nf3_by_role_filler.get(&(r, *a)))
-                        .flatten()
-                        .copied()
-                        .collect();
-                    for c in newly_entailed {
-                        add_subsumer(&mut state, &mut queue, x, c);
-                    }
+                // Normalization adds every role filler to `all_concepts`, and
+                // initialization above creates its reflexive subsumer set.
+                let sy = &state.subsumers[&y];
+                let newly_entailed: Vec<ConceptId> = sy
+                    .iter()
+                    .filter_map(|a| indices.nf3_by_role_filler.get(&(r, *a)))
+                    .flatten()
+                    .copied()
+                    .collect();
+                for c in newly_entailed {
+                    add_subsumer(&mut state, &mut queue, x, c);
                 }
                 // CR5: role hierarchy.
                 if let Some(supers) = indices.role_hierarchy.get(&r) {

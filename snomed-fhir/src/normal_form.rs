@@ -131,6 +131,7 @@ fn render_concept_ref(
     }
 }
 
+#[cfg_attr(coverage_nightly, coverage(off))]
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -241,6 +242,23 @@ mod tests {
                 id(FINDING_SITE),
                 id(KIDNEY)
             )
+        );
+    }
+
+    #[test]
+    fn renders_a_grouped_only_form_without_an_ungrouped_prefix() {
+        let store = store_with_terms();
+        let nnf = NecessaryNormalForm {
+            is_a: vec![id(DISEASE)],
+            attributes: vec![Attribute {
+                group: 1,
+                type_id: id(FINDING_SITE),
+                destination_id: id(KIDNEY),
+            }],
+        };
+        assert_eq!(
+            render(&store, None, &nnf, true),
+            format!("{}:{{{}={}}}", id(DISEASE), id(FINDING_SITE), id(KIDNEY))
         );
     }
 

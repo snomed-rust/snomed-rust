@@ -156,3 +156,64 @@ fn extract_group_attributes(filler: &ClassExpression) -> Option<Vec<Attribute>> 
         _ => None,
     }
 }
+
+#[cfg_attr(coverage_nightly, coverage(off))]
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use snomed_core::sctid::ComponentType;
+    use snomed_owl::Literal;
+
+    fn id(item: u64) -> SctId {
+        SctId::compose(item, ComponentType::Concept, None).unwrap()
+    }
+
+    #[test]
+    fn malformed_public_ast_attribute_shapes_are_reported_without_panicking() {
+        let concept = id(9101);
+        let attribute = id(9102);
+        let value = id(9103);
+        let nested = ClassExpression::ObjectIntersectionOf(vec![ClassExpression::Concept(value)]);
+        let existential = |filler| ClassExpression::ObjectSomeValuesFrom {
+            attribute,
+            filler: Box::new(filler),
+        };
+        let mut profiles = HashMap::new();
+        let mut skipped = Vec::new();
+
+        add_conjunct(
+            concept,
+            &existential(nested.clone()),
+            &mut profiles,
+            &mut skipped,
+        );
+        add_conjunct(
+            concept,
+            &ClassExpression::DataHasValue {
+                attribute,
+                value: Literal {
+                    value: "1".into(),
+                    datatype: "xsd:integer".into(),
+                },
+            },
+            &mut profiles,
+            &mut skipped,
+        );
+        add_conjunct(concept, &nested, &mut profiles, &mut skipped);
+
+        assert_eq!(skipped.len(), 3);
+        assert_eq!(extract_group_attributes(&existential(nested.clone())), None);
+        assert_eq!(
+            extract_group_attributes(&ClassExpression::ObjectIntersectionOf(vec![existential(
+                nested
+            ),])),
+            None
+        );
+        assert_eq!(
+            extract_group_attributes(&ClassExpression::ObjectIntersectionOf(vec![
+                ClassExpression::Concept(value),
+            ])),
+            None
+        );
+    }
+}

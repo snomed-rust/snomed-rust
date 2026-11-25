@@ -27,6 +27,8 @@
 //! ships no SNOMED CT content.
 
 #![forbid(unsafe_code)]
+#![cfg_attr(coverage_nightly, feature(coverage_attribute))]
+#![cfg_attr(coverage_nightly, allow(unused_features))]
 // Per spec/rust-no-unsafe/index.md: this workspace contains no `unsafe`, and
 // the compiler enforces that rather than a grep.
 

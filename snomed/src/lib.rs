@@ -51,7 +51,7 @@ pub use snomed_store as store;
 /// The commonly needed names in one import.
 pub mod prelude {
     pub use snomed_core::components::{
-        Concept, Description, Relationship, RelationshipConcreteValue,
+        AlternateIdentifier, Concept, Description, Relationship, RelationshipConcreteValue,
     };
     pub use snomed_core::concrete_value::{ConcreteValue, ConcreteValueError};
     pub use snomed_core::constants;
@@ -73,8 +73,8 @@ pub mod prelude {
 
     pub use snomed_ecl::{
         evaluate as evaluate_ecl, parse as parse_ecl, AttributeConstraint, EclError,
-        ExpressionConstraint, FocusConcept, HierarchyOp, RefinementConstraint, RefsetOperand,
-        SimpleExpressionConstraint,
+        ExpressionConstraint, FocusConcept, HierarchyOp, HistorySupplement, RefinementConstraint,
+        RefsetOperand, SimpleExpressionConstraint,
     };
 
     pub use snomed_fhir::{

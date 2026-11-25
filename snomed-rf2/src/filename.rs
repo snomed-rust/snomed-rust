@@ -130,8 +130,30 @@ impl ReleaseFileName {
             version_date,
         })
     }
+
+    /// Reconstructs the canonical base name without its `.txt` extension.
+    /// This is suitable for derived artifacts such as NDJSON exports and
+    /// preserves every parsed naming element (spec/03 rule 1).
+    pub fn file_stem(&self) -> String {
+        let language = self
+            .language_code
+            .as_deref()
+            .map(|code| format!("-{code}"))
+            .unwrap_or_default();
+        format!(
+            "{}_{}_{}{}{}_{}_{}",
+            self.file_type.as_str(),
+            self.content_type,
+            self.summary,
+            self.release_type,
+            language,
+            self.country_namespace,
+            self.version_date
+        )
+    }
 }
 
+#[cfg_attr(coverage_nightly, coverage(off))]
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -146,6 +168,7 @@ mod tests {
         assert_eq!(f.language_code, None);
         assert_eq!(f.country_namespace, "INT");
         assert_eq!(f.version_date.as_u32(), 20190731);
+        assert_eq!(f.file_stem(), "sct2_Concept_Full_INT_20190731");
     }
 
     #[test]
@@ -154,6 +177,7 @@ mod tests {
         assert_eq!(f.content_type, "Description");
         assert_eq!(f.release_type, ReleaseType::Snapshot);
         assert_eq!(f.language_code.as_deref(), Some("en"));
+        assert_eq!(f.file_stem(), "sct2_Description_Snapshot-en_INT_20190731");
     }
 
     #[test]
@@ -198,5 +222,21 @@ mod tests {
             ReleaseFileName::parse("sct2_Concept_Full_INT_2019073.txt"),
             Err(FileNameError::VersionDate("2019073".to_string()))
         );
+    }
+
+    #[test]
+    fn file_types_and_errors_have_stable_human_readable_text() {
+        assert_eq!(FileType::Sct2.as_str(), "sct2");
+        assert_eq!(FileType::Der2.as_str(), "der2");
+
+        for error in [
+            FileNameError::Extension,
+            FileNameError::Structure,
+            FileNameError::FileType("bad".to_string()),
+            FileNameError::ReleaseType("bad".to_string()),
+            FileNameError::VersionDate("bad".to_string()),
+        ] {
+            assert!(!error.to_string().is_empty());
+        }
     }
 }

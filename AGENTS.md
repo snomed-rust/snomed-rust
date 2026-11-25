@@ -64,7 +64,7 @@ the workspace so the published crates keep zero dependencies.
    `snomed/tests/spec_citations.rs` walks the repository and fails
    if a citation names a rule that doesn't exist, so inserting or
    renumbering a rule means fixing its citations in the same change.
-   `spec/10` is split across four files for size; every ECL rule number
+   `spec/10` is split across six files for size; every ECL rule number
    lives in `10-ecl.md` regardless of which file holds the prose.
 
 ## Role playbooks

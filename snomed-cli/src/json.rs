@@ -9,7 +9,9 @@
 //! bounded integers (`relationshipGroup`, `mapGroup`, `mapPriority`,
 //! `attributeOrder`, `descriptionLength`) are rendered as JSON numbers.
 
-use snomed_core::components::{Concept, Description, Relationship, RelationshipConcreteValue};
+use snomed_core::components::{
+    AlternateIdentifier, Concept, Description, Relationship, RelationshipConcreteValue,
+};
 use snomed_core::concrete_value::ConcreteValue;
 use snomed_rf2::refset::{
     AssociationRefsetMember, AttributeValueRefsetMember, ComponentAnnotationRefsetMember,
@@ -149,6 +151,26 @@ pub(crate) fn relationship_concrete_value_to_json(r: &RelationshipConcreteValue)
             JsonValue::s(r.characteristic_type_id),
         ),
         ("modifierId", JsonValue::s(r.modifier_id)),
+    ])
+}
+
+pub(crate) fn alternate_identifier_to_json(identifier: &AlternateIdentifier) -> String {
+    json_object(&[
+        (
+            "alternateIdentifier",
+            JsonValue::Str(identifier.alternate_identifier.clone()),
+        ),
+        ("effectiveTime", JsonValue::s(identifier.effective_time)),
+        ("active", JsonValue::Bool(identifier.active)),
+        ("moduleId", JsonValue::s(identifier.module_id)),
+        (
+            "identifierSchemeId",
+            JsonValue::s(identifier.identifier_scheme_id),
+        ),
+        (
+            "referencedComponentId",
+            JsonValue::s(identifier.referenced_component_id),
+        ),
     ])
 }
 
@@ -321,6 +343,7 @@ pub(crate) fn member_annotation_refset_to_json(m: &MemberAnnotationRefsetMember)
     json_object(&fields)
 }
 
+#[cfg_attr(coverage_nightly, coverage(off))]
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -333,6 +356,12 @@ mod tests {
     fn escapes_special_characters() {
         assert_eq!(json_escape("say \"hi\"\\n"), "say \\\"hi\\\"\\\\n");
         assert_eq!(json_escape("tab\there"), "tab\\there");
+        assert_eq!(json_escape("line\nreturn\r"), "line\\nreturn\\r");
+        assert_eq!(json_escape("control\u{1}"), "control\\u0001");
+        assert_eq!(
+            json_object(&[("enabled", JsonValue::Bool(false))]),
+            "{\"enabled\":false}"
+        );
     }
 
     #[test]
@@ -394,6 +423,29 @@ mod tests {
             relationship_concrete_value_to_json(&base(ConcreteValue::String("250mg".to_string())));
         assert!(s.contains("\"valueType\":\"string\""), "{s}");
         assert!(s.contains("\"value\":\"250mg\""), "{s}");
+    }
+
+    #[test]
+    fn alternate_identifier_json_preserves_string_and_identifier_types() {
+        let identifier = AlternateIdentifier {
+            alternate_identifier: "1000-1".to_owned(),
+            effective_time: EffectiveTime::new_unchecked(20250321),
+            active: true,
+            module_id: constants::CORE_MODULE,
+            identifier_scheme_id: constants::ROOT_CONCEPT,
+            referenced_component_id: SctId::compose(3001, ComponentType::Concept, None).unwrap(),
+        };
+        let json = alternate_identifier_to_json(&identifier);
+        assert!(
+            json.contains("\"alternateIdentifier\":\"1000-1\""),
+            "{json}"
+        );
+        assert!(json.contains("\"effectiveTime\":\"20250321\""), "{json}");
+        assert!(json.contains("\"active\":true"), "{json}");
+        assert!(
+            json.contains("\"identifierSchemeId\":\"138875005\""),
+            "{json}"
+        );
     }
 
     fn core(item: u64) -> RefsetMemberCore {

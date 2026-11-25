@@ -27,14 +27,16 @@ versions a module depends on.
 
 Given any mix of Full, Snapshot, and Delta rows:
 
-1. Maintain one slot per component id (and per refset member UUID).
+1. Maintain one slot per component id, per alternate-identifier composite
+   key `(identifierSchemeId, alternateIdentifier)`, and per refset member
+   UUID.
 2. On insert, replace the slot only if the incoming `effectiveTime` is
    strictly greater than the stored one.
 3. Insertion order MUST NOT affect the result (last-write-wins keyed by
    effectiveTime, not by arrival).
 4. After loading, the store exposes only latest-version rows. For the
-   four **component** types (Concept, Description, Relationship,
-   RelationshipConcreteValue), `active` filtering is applied at query
+   four SCTID **component** types (Concept, Description, Relationship,
+   RelationshipConcreteValue) and alternate identifiers, `active` filtering is applied at query
    time, not load time — inactive latest rows stay retrievable
    (`store.concept(id)` returns an inactive concept; `active_concepts()`
    filters). For **refset members**, inactive rows are dropped when the
@@ -182,20 +184,23 @@ Snapshot can't answer ("what did this concept look like a year ago",
    there, the caller is responsible for feeding Full-view rows.
 3. Per-id version lists are exposed sorted ascending by `effectiveTime`.
 4. Point-in-time reconstruction (`concept_at`/`description_at`/
-   `relationship_at(id, time)` — one method per component type): the
+   `relationship_at(id, time)` and `alternate_identifier_at(scheme, code,
+   time)` — one method per row type): the
    version with the greatest `effectiveTime` that is `<= time`, or `None`
    if the component's first version postdates `time` (it didn't exist
    yet) or the id has no history at all. This is exactly spec/02's "any
    two releases" Delta-derivation idea, generalized to an arbitrary date
    instead of just the two dates a real Delta file would span.
-5. Scope: **everything a release ships** — the four component types
+5. Scope: **everything a release ships** — the four SCTID component types
    (Concept, Description incl. TextDefinition, Relationship incl.
-   StatedRelationship, RelationshipConcreteValues) and all eighteen
-   refset member types. Two shapes, because RF2 has two identities:
-   components are keyed by SCTID, refset members by member UUID
-   (spec/08), so `concept_history(id)` and
-   `language_member_history(uuid)` are parallel structures rather than
-   one indexed map.
+   StatedRelationship, RelationshipConcreteValues), alternate identifiers,
+   and all eighteen refset member types. Three shapes, because RF2 has three
+   identities: components are keyed by SCTID, alternate identifiers by
+   `(identifierSchemeId, alternateIdentifier)` (spec/07-identifier-file),
+   and refset members by member UUID (spec/08), so `concept_history(id)`,
+   `alternate_identifier_history(scheme, code)`, and
+   `language_member_history(uuid)` are parallel structures rather than one
+   indexed map.
 
    Each type keeps its **own** history: concrete-value relationships are
    not folded in with ordinary relationships (same partition, different

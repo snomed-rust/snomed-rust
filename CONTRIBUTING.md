@@ -115,6 +115,34 @@ cargo nextest run --no-fail-fast   # unit + integration, one process per test
 cargo test --doc                   # nextest skips doctests, so run both
 ```
 
+### Visual Studio Code
+
+Open the directory that holds the root `Cargo.toml` (not a crate inside it),
+and accept the recommended extensions from `.vscode/extensions.json`
+(rust-analyzer; CodeLLDB for debugging). A first session that touches real code:
+
+1. Open `snomed-core/src/sctid.rs`, find `parses_root_concept`, and use
+   rust-analyzer's **Run Test**. Terminal equivalent:
+   `cargo test -p snomed-core --lib sctid::tests::parses_root_concept -- --exact`
+   (exactly one test runs).
+2. Run `cargo run -p snomed-cli -- sctid 138875005`. It prints component type
+   `Concept`, partition `00`, check digit `5`. **Go to Definition** on the
+   `SctId::parse` call in `cmd_sctid` crosses into `snomed-core` and confirms
+   the workspace loaded.
+3. Put a breakpoint on the first line of `SctId::parse` and start the
+   **Inspect an SCTID** launch configuration. The dev profile keeps only line
+   tables, so the configuration builds with `CARGO_PROFILE_DEV_DEBUG=2` to make
+   `s` and the caller's locals visible. (CodeLLDB, macOS/Linux; Windows is not
+   verified.)
+
+`.vscode/tasks.json` has three process tasks that run the same commands as CI:
+**Lint workspace**, **Test workspace**, and **Format check**.
+
+`benches/` and `fuzz/` are separate Cargo workspaces on purpose; open each in
+its own window (fuzz needs the nightly toolchain) and do not set
+`rust-analyzer.linkedProjects` at the root, which would replace automatic
+discovery and drop the production crates.
+
 Then, for a behavior change, in this order:
 
 1. **Write the rule in `spec/`.** If the behavior is not in a specification

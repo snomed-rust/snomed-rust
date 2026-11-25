@@ -69,6 +69,7 @@ so the paths quoted here still resolve.
 | [`tasks-archive-55.md`](tasks-archive-55.md) | 2026-09-12 | Release 0.53.0 and `memberFieldFilter`'s `typeId` column (`ComponentAnnotationRefsetMember`'s second column, the forty-first self-decided release) |
 | [`tasks-archive-56.md`](tasks-archive-56.md) | 2026-09-12 | Release 0.54.0 and `memberFieldFilter`'s `value` column, completing `ComponentAnnotationRefsetMember`'s column coverage (the forty-second self-decided release) |
 | [`tasks-archive-57.md`](tasks-archive-57.md) | 2026-09-13 | Release 0.55.0 and `memberFieldFilter`'s `typeId` extending to `MemberAnnotationRefsetMember` (the forty-third self-decided release) |
+| [`tasks-archive-58.md`](tasks-archive-58.md) | 2026-11-19 .. 2026-11-25 | Production readiness review through the deployment backlog, plus release 0.56.0 |
 
 Older entries are shorter and more granular than recent ones: they were
 written a change at a time while the workspace was being built from

@@ -6,8 +6,8 @@ AST, and evaluator.
 ## Read this first
 
 `spec/10-ecl.md` is normative, and it is the file that carries **every ECL
-rule number** even though the prose is spread over five files (see "The
-spec is five files now" below).
+rule number** even though the prose is spread over six files (see "The
+spec is six files now" below).
 
 Broadly, what is implemented: the hierarchy operators and wildcard,
 `AND`/`OR`/`MINUS`, the full `refsetOperator` surface (`^ X`, `^ *`,
@@ -18,7 +18,9 @@ numeric/string concrete values including `concreteStringSet`, `AND`/`OR`,
 parenthesized groups, cardinality `[min..max]`, the reverse flag `R`, and
 attribute groups `{ }`), and both `{{ C ... }}` concept filters and
 `{{ D ... }}` description filters — the latter including `term` with
-`match:`/`wild:`/`exact:`, `type`/`typeId`, `language`, `dialectId`,
+`match:`/`wild:`/`exact:`, `type`/`typeId`, `language`, `dialectId` and
+official Appendix C `dialect` aliases (including sets with
+per-entry/shared acceptability),
 `moduleId`, `effectiveTime`, and `active`.
 
 **Do not treat that paragraph as authoritative** — it is a summary and
@@ -55,19 +57,15 @@ guessing; see spec/10's "Attribute groups" section before changing it.
 **Never let unsupported syntax silently produce a wrong (incomplete)
 result.** Every construct spec/10 marks "not yet implemented" MUST fail
 parsing — never be silently accepted and evaluated as something else,
-and never panic. Naming the specific feature via
-`EclError::NotYetImplemented { feature, .. }` is strongly preferred (most
-of the list gets this now) but isn't yet universal: boolean concrete
-value comparisons, the history supplement (`{{+HISTORY}}`), `moduleId`'s
-`eclConceptReferenceSet` form (`moduleId = (id1 id2)`), and the
-`dialectIdSet` spelling all still surface as a generic
-`UnexpectedToken`/`UnexpectedKeyword`, because recognizing their shape
-well enough to name them isn't as simple as matching a fixed token
-sequence — see `spec/10-ecl-unimplemented.md`'s two-bucket list, which
-rule 9 governs and which is the authoritative inventory. Moving one from
-generic to named, without implementing the underlying feature, is a
-welcome, low-risk improvement on its own; see the `Top`/`Bottom`/`A#B`
-detection in `lexer.rs`/`parser.rs` for the pattern. This is the same principle the RF2 reader uses
+and never panic. `EclError::NotYetImplemented { feature, .. }` is required
+for every construct in the named bucket. Boolean concrete values and every
+history-supplement profile are recognized this way; unknown future
+`memberFieldFilter` names and the documented keyword-colliding alternate
+aliases remain generic because their shape cannot be distinguished at the
+relevant lexer/parser boundary. See
+`spec/10-ecl-unimplemented.md`'s two-bucket list, which rule 9 governs and
+which is the authoritative inventory, and the `A#B` detection in `lexer.rs`
+for the pattern. This is the same principle the RF2 reader uses
 (row-level errors instead of skipped-and-forgotten data), applied to
 syntax.
 
@@ -189,7 +187,7 @@ exists alongside the one being excluded. `Le`/`Lt`/`Ge`/`Gt` have no such
 distinction; they define the per-row predicate directly, since there's no
 "aggregate negation" reading of `<=` to preserve consistency with.
 
-## The spec is five files now
+## The spec is six files now
 
 `spec/10-ecl.md` holds the grammar, the operators, and *all* the
 normative rules; `spec/10-ecl-refinements.md` holds the `:`
@@ -200,9 +198,11 @@ values); `spec/10-ecl-filters.md` holds what each
 `memberFieldFilter` column matches — split out of `10-ecl-filters.md`
 itself (2026-09-10) once that file outgrew its own budget from
 `memberFieldFilter` columns accumulating one increment at a time;
+`spec/10-ecl-set-operators.md` holds top/bottom and history-supplement
+details;
 `spec/10-ecl-unimplemented.md` holds the rejected-construct list and why
 each one is still rejected. The split is by size, not by authority — all
-five are normative, and rule numbers stay in the first file so citations
+six are normative, and rule numbers stay in the first file so citations
 like "spec/10 rule 14" keep resolving
 (`snomed/tests/spec_citations.rs` checks that they do). When you
 add a `{{ C }}`/`{{ D }}` filter kind, its prose goes in the filters
@@ -422,7 +422,11 @@ variant, and this time not even a new row-set check, since
 `languageDialectCode`'s own extension had already put one there for
 that type. `value` extended (2026-09-13) the same way, completing
 `MemberAnnotationRefsetMember`'s column coverage but for
-`referencedMemberId`. `memberFieldFilter`
+`referencedMemberId`; that field followed (2026-11-19) as a new
+`TermFilter` variant because RF2 declares it as UUID and spec/03 maps
+UUID columns to the string `s` pattern. Evaluation uses canonical
+lowercase `MemberId` rendering and the existing term matcher, completing
+the supported row. `memberFieldFilter`
 isn't one production but five in the official grammar, chosen by the
 named column's own semantic type
 (`expressionComparisonOperator ws subExpressionConstraint` for a concept
@@ -445,10 +449,8 @@ inspection. `mapPriority` reused that same numeric shape and
 `NumericFieldFilter` grammar, not a new one to design; `mapRule` and
 `mapAdvice` did the same for `mapTarget`'s string shape, reusing
 `TermFilter`/`term_matches` verbatim. With the store side now done for
-all sixteen types, every
-*remaining* `memberFieldFilter` column
-(`referencedMemberId` on `MemberAnnotationRefsetMember`, …)
-IS a free next increment — the cadence below applies to them cleanly,
+all sixteen types, every future typed `memberFieldFilter` column
+is a free next increment — the cadence below applies to it cleanly,
 the same as any other filter kind. See `spec/10-ecl-unimplemented.md`.
 
 That cadence is the recommendation for a filter kind that IS free, not
@@ -505,26 +507,12 @@ failure straight into `EclError::InvalidEffectiveTime { pos, source }`
 — don't hand-roll a fresh `YYYYMMDD` regex/validator in `snomed-ecl`;
 the authoritative one already exists in `snomed-core::time`.
 
-**`moduleFilter` reuses `parse_sub_expression_constraint` directly, no
-new value parsing at all.** `moduleId (=|!=) subExpressionConstraint` is
-structurally identical to how attribute names/values already work
-(spec/10) — `parse_concept_filter_kind`'s `ModuleIdKeyword` branch just
-calls `self.parse_sub_expression_constraint()` for the value and wraps
-it, same pattern as `parse_attribute_constraint`. The official grammar's
-`eclConceptReferenceSet` alternative (`moduleId = (id1 id2)`, 2+ bare
-concept references) is deliberately **not** handled specially: `(`
-after `moduleId (=|!=)` always goes through the existing parenthesized-
-`subExpressionConstraint` path, which correctly rejects a genuine
-`(id1 id2)` (two bare digit tokens, no operator between them, is not
-valid `expressionConstraint`) — just with a generic error, not a named
-one. Don't add `eclConceptReferenceSet` handling by treating `(` as
-"maybe a concept ref list" the way `concreteStringSet`/
-`definitionStatusTokenSet` do; unlike those, a single-element
-`(id)` is genuinely ambiguous between "the set form with one element"
-(not valid per the grammar's `1*` meaning 2+) and "a parenthesized
-expression" — the *existing* parenthesized-expression parser already
-resolves that correctly by construction, so don't reintroduce the
-ambiguity by hand-rolling a set-detection branch.
+**Reference-set operands in ID filters.** The shared filter parser probes
+after the opening parenthesis. Two leading bare concept references select
+the list production. A single reference or an expression uses the normal
+subexpression parser. The list produces an `Or` AST and uses the existing
+evaluator. Keep this alternative confined to module, definition-status ID,
+and description-type ID filters.
 
 **`definitionStatusTokenSet` needed no ambiguity resolution**, unlike
 `concreteStringSet`. `(primitive defined)` looks like the same

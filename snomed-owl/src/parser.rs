@@ -128,11 +128,15 @@ impl Parser {
 
     fn parse_class_expression(&mut self) -> Result<ClassExpression, OwlError> {
         match self.peek() {
-            Some(TokenKind::ConceptRef(_)) => {
-                Ok(ClassExpression::Concept(self.expect_concept_ref()?))
+            Some(TokenKind::ConceptRef(id)) => {
+                let id = *id;
+                self.pos += 1;
+                Ok(ClassExpression::Concept(id))
             }
-            Some(TokenKind::Ident(_)) => {
-                let (keyword, pos) = self.expect_ident()?;
+            Some(TokenKind::Ident(keyword)) => {
+                let keyword = keyword.clone();
+                let pos = self.tokens[self.pos].pos;
+                self.pos += 1;
                 self.expect_lparen()?;
                 let expr = match keyword.as_str() {
                     "ObjectIntersectionOf" => ClassExpression::ObjectIntersectionOf(
@@ -195,11 +199,13 @@ impl Parser {
 
     fn parse_object_property_expression(&mut self) -> Result<ObjectPropertyExpression, OwlError> {
         match self.peek() {
-            Some(TokenKind::ConceptRef(_)) => {
-                Ok(ObjectPropertyExpression::Named(self.expect_concept_ref()?))
+            Some(TokenKind::ConceptRef(id)) => {
+                let id = *id;
+                self.pos += 1;
+                Ok(ObjectPropertyExpression::Named(id))
             }
             Some(TokenKind::Ident(name)) if name == "ObjectPropertyChain" => {
-                self.expect_ident()?;
+                self.pos += 1;
                 self.expect_lparen()?;
                 let mut ids = vec![self.expect_concept_ref()?];
                 while !self.at_rparen() {
@@ -213,11 +219,13 @@ impl Parser {
                         expected: "at least two operands for ObjectPropertyChain",
                     });
                 }
-                self.expect_rparen()?;
+                self.pos += 1;
                 Ok(ObjectPropertyExpression::Chain(ids))
             }
-            Some(TokenKind::Ident(_)) => {
-                let (keyword, pos) = self.expect_ident()?;
+            Some(TokenKind::Ident(keyword)) => {
+                let keyword = keyword.clone();
+                let pos = self.tokens[self.pos].pos;
+                self.pos += 1;
                 Err(OwlError::UnknownKeyword { pos, keyword })
             }
             Some(_) => {
@@ -287,6 +295,7 @@ fn describe(kind: &TokenKind) -> String {
     }
 }
 
+#[cfg_attr(coverage_nightly, coverage(off))]
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -518,6 +527,55 @@ mod tests {
     }
 
     #[test]
+    fn lexer_failures_at_every_valid_axiom_boundary_are_propagated() {
+        let valid = [
+            "SubClassOf(:404684003 ObjectIntersectionOf(:138875005 ObjectSomeValuesFrom(:116680003 :64572001) DataHasValue(:1142137007 \"1\"^^xsd:integer)))",
+            "EquivalentClasses(:784852002 ObjectIntersectionOf(:763158003 ObjectSomeValuesFrom(:609096000 ObjectIntersectionOf(ObjectSomeValuesFrom(:732943007 :386859000) DataHasValue(:1142138002 \"2.5\"^^xsd:decimal)))))",
+            "SubObjectPropertyOf(ObjectPropertyChain(:127489000 :738774007) :127489000)",
+            "SubObjectPropertyOf(:127489000 :738774007)",
+            "SubDataPropertyOf(:1142137007 :762706009)",
+            "TransitiveObjectProperty(:733928003)",
+            "ReflexiveObjectProperty(:733928003)",
+        ];
+
+        for input in valid {
+            parse(input).unwrap_or_else(|error| panic!("invalid fixture `{input}`: {error}"));
+            for (boundary, _) in input.char_indices().skip(1) {
+                let malformed = format!("{}@", &input[..boundary]);
+                assert!(
+                    parse(&malformed).is_err(),
+                    "illegal suffix unexpectedly parsed at byte {boundary}: `{malformed}`"
+                );
+            }
+            assert!(parse(&format!("{input}@")).is_err());
+        }
+    }
+
+    #[test]
+    fn nested_parser_failures_propagate_from_every_axiom_shape() {
+        for input in [
+            "SubObjectPropertyOf(:127489000)",
+            "SubDataPropertyOf()",
+            "SubDataPropertyOf(:1142137007)",
+            "TransitiveObjectProperty()",
+            "ReflexiveObjectProperty()",
+            "SubClassOf(:404684003 ObjectIntersectionOf)",
+            "SubClassOf(:404684003 ObjectIntersectionOf())",
+            "SubClassOf(:404684003 ObjectIntersectionOf(:138875005 ()))",
+            "SubClassOf(:404684003 ObjectSomeValuesFrom())",
+            "SubClassOf(:404684003 ObjectSomeValuesFrom(:116680003))",
+            "SubClassOf(:404684003 ObjectSomeValuesFrom(:116680003 :138875005 :64572001))",
+            "SubClassOf(:404684003 DataHasValue())",
+            "SubObjectPropertyOf(ObjectPropertyChain :127489000)",
+            "SubObjectPropertyOf(ObjectPropertyChain() :127489000)",
+            "SubObjectPropertyOf(ObjectPropertyChain(:127489000 :) :127489000)",
+            "SubObjectPropertyOf(ObjectPropertyChain(:127489000 :738774007 Unknown) :127489000)",
+        ] {
+            assert!(parse(input).is_err(), "malformed axiom parsed: `{input}`");
+        }
+    }
+
+    #[test]
     fn rejects_an_unsupported_construct_by_name() {
         let err = parse("SubClassOf(:404684003 ObjectUnionOf(:138875005 :138875005))").unwrap_err();
         assert!(
@@ -551,6 +609,95 @@ mod tests {
     fn rejects_too_few_intersection_operands() {
         let err = parse("SubClassOf(:404684003 ObjectIntersectionOf(:138875005))").unwrap_err();
         assert!(matches!(err, OwlError::UnexpectedToken { .. }), "{err:?}");
+    }
+
+    #[test]
+    fn malformed_axioms_report_the_exact_expected_grammar_element() {
+        let concept = "138875005";
+        let cases = [
+            ("", "an OWL keyword"),
+            (":138875005", "an OWL keyword"),
+            ("SubClassOf", "`(`"),
+            ("SubClassOf :138875005", "`(`"),
+            ("SubClassOf(", "a class expression"),
+            (
+                "SubClassOf(\"text\"^^xsd:string :138875005)",
+                "a class expression",
+            ),
+            ("SubClassOf(:138875005 :138875005", "`)`"),
+            ("SubClassOf(:138875005 :138875005 :138875005)", "`)`"),
+            (
+                "EquivalentClasses(:138875005)",
+                "at least two operands for EquivalentClasses",
+            ),
+            (
+                "SubObjectPropertyOf(ObjectPropertyChain(:138875005) :138875005)",
+                "at least two operands for ObjectPropertyChain",
+            ),
+            (
+                "SubObjectPropertyOf(Bogus :138875005)",
+                "not a recognized or supported OWL construct",
+            ),
+            (
+                "SubObjectPropertyOf(\"text\" :138875005)",
+                "an object property expression",
+            ),
+            ("SubObjectPropertyOf(", "an object property expression"),
+            ("TransitiveObjectProperty(keyword)", "a concept reference"),
+            ("TransitiveObjectProperty(", "a concept reference"),
+            (
+                "SubClassOf(:138875005 DataHasValue(:138875005))",
+                "a string literal",
+            ),
+            (
+                "SubClassOf(:138875005 DataHasValue(:138875005",
+                "a string literal",
+            ),
+            (
+                "SubClassOf(:138875005 DataHasValue(:138875005 \"1\" xsd:integer))",
+                "`^^`",
+            ),
+            (
+                "SubClassOf(:138875005 DataHasValue(:138875005 \"1\"",
+                "`^^`",
+            ),
+            (
+                "SubClassOf(:138875005 DataHasValue(:138875005 \"1\"^^ :138875005))",
+                "a datatype",
+            ),
+            (
+                "SubClassOf(:138875005 DataHasValue(:138875005 \"1\"^^",
+                "a datatype",
+            ),
+        ];
+
+        for (input, expected_fragment) in cases {
+            let error = parse(input).expect_err(input);
+            assert!(
+                error.to_string().contains(expected_fragment),
+                "{input:?}: expected {expected_fragment:?}, got {error}"
+            );
+        }
+
+        // Keep the fixture id visibly tied to a valid SCTID: malformed
+        // grammar diagnostics should not be confounded by identifier errors.
+        assert!(SctId::parse(concept).is_ok());
+    }
+
+    #[test]
+    fn every_parser_token_has_a_diagnostic_description() {
+        let concept = SctId::parse("138875005").unwrap();
+        for kind in [
+            TokenKind::LParen,
+            TokenKind::RParen,
+            TokenKind::Ident("keyword".to_string()),
+            TokenKind::ConceptRef(concept),
+            TokenKind::PrefixedName("xsd:string".to_string()),
+            TokenKind::Str("value".to_string()),
+            TokenKind::Caret2,
+        ] {
+            assert!(!describe(&kind).is_empty());
+        }
     }
 
     #[test]

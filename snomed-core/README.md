@@ -10,7 +10,7 @@ project is an independent work.
 Core SNOMED CT types shared by every crate in the `snomed` workspace:
 **SCTID** parsing/validation/generation (with the Verhoeff check digit),
 **component records** (`Concept`, `Description`, `Relationship`,
-`RelationshipConcreteValue`), **`EffectiveTime`**, and the **well-known
+`RelationshipConcreteValue`, `AlternateIdentifier`), **`EffectiveTime`**, and the **well-known
 metadata concept constants** the RF2 format itself uses as enumerated
 values.
 
@@ -24,6 +24,7 @@ No dependencies outside the Rust standard library.
 | [`spec/05-concept-file.md`](../spec/05-concept-file.md) | `components::Concept` |
 | [`spec/06-description-file.md`](../spec/06-description-file.md) | `components::Description` |
 | [`spec/07-relationship-file.md`](../spec/07-relationship-file.md) | `components::Relationship`, `components::RelationshipConcreteValue`, `concrete_value` |
+| [`spec/07-identifier-file.md`](../spec/07-identifier-file.md) | `components::AlternateIdentifier` |
 | [`spec/09-versioning.md`](../spec/09-versioning.md) — `effectiveTime` | `time` |
 | — | `constants` (well-known concept SCTIDs referenced by spec/05..08) |
 
@@ -71,7 +72,7 @@ for `item_identifier()`, rather than panicking
 
 ## Component records
 
-`Concept`, `Description`, and `Relationship` mirror the RF2 column layout
+`Concept`, `Description`, `Relationship`, and `AlternateIdentifier` mirror the RF2 column layout
 field-for-field (snake_cased). Each struct is **one version** of a
 component — see [`spec/09-versioning.md`](../spec/09-versioning.md) for
 what that means for stores built on top of this crate.
@@ -88,6 +89,9 @@ fn semantic_tag_of(d: &Description) -> Option<&str> {
 counterpart to `Relationship`, carrying a `concrete_value::ConcreteValue`
 (a decimal number or a string, per RF2's `#<number>` / `"<string>"` wire
 form) instead of a `destinationId`.
+
+`AlternateIdentifier` represents one version of an external-code mapping;
+its identity is `(identifier_scheme_id, alternate_identifier)`, not an SCTID.
 
 ## `EffectiveTime`
 

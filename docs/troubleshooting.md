@@ -71,6 +71,36 @@ cause is a file name that doesn't match SNOMED's actual naming
 convention (this project's own test fixtures have deliberately hit this
 exact trap more than once, to exercise the skip path).
 
+## "A refresh failed partway through loading RF2"
+
+Keep the last published snapshot available while loading all inputs into a
+fresh builder. If any directory fails, discard the builder. It can contain
+rows accepted before the error, including rows that a corrected package
+omits. After correction, rebuild from all required inputs and run your
+validation before publishing the replacement. The same recovery applies to
+Full history imports (spec/02 rule 5).
+
+## Rehearsing a base edition and extension import
+
+Use extracted local directories for the extension and the base release it
+depends on. Build the example before timing it so that the peak resident
+memory measurement covers the import process.
+
+```sh
+cargo build --release -p snomed-store --example rehearse_release
+# macOS. Maximum resident set size is in bytes.
+/usr/bin/time -l target/release/examples/rehearse_release "$base" "$extension"
+# Linux with GNU time. Maximum resident set size is in KiB.
+/usr/bin/time -v target/release/examples/rehearse_release "$base" "$extension"
+```
+
+Record the edition identifiers, release dates, OS, hardware, loaded and skipped
+file counts, load and indexing time, validation time, peak resident memory
+with its unit, and validation counts. Treat skipped files as inputs to review.
+The example exits with an error if either directory loads no supported
+Snapshot files or structural validation reports findings. Share aggregate
+measurements and keep RF2 files and detailed error output local.
+
 ## "ECL / OWL parsing fails with `NotYetImplemented`"
 
 Both `snomed-ecl` and `snomed-owl` implement real, documented subsets of

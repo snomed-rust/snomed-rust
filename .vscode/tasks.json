@@ -1,0 +1,30 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Lint workspace (CI)",
+      "type": "process",
+      "command": "cargo",
+      "args": ["clippy", "--all-targets", "--", "-D", "warnings"],
+      "options": { "cwd": "${workspaceFolder}" },
+      "problemMatcher": "$rustc"
+    },
+    {
+      "label": "Test workspace (CI)",
+      "type": "process",
+      "command": "cargo",
+      "args": ["test", "--workspace"],
+      "options": { "cwd": "${workspaceFolder}" },
+      "problemMatcher": "$rustc",
+      "group": "test"
+    },
+    {
+      "label": "Format check (CI)",
+      "type": "process",
+      "command": "cargo",
+      "args": ["fmt", "--all", "--", "--check"],
+      "options": { "cwd": "${workspaceFolder}" },
+      "problemMatcher": []
+    }
+  ]
+}

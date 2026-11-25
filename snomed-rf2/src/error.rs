@@ -88,3 +88,50 @@ impl From<std::io::Error> for Rf2Error {
         Rf2Error::Io(e)
     }
 }
+
+#[cfg_attr(coverage_nightly, coverage(off))]
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn every_error_variant_has_contextual_display_and_source() {
+        let cases = [
+            (Rf2Error::MissingHeader, "RF2 file has no header row"),
+            (
+                Rf2Error::Header {
+                    expected: "id".to_owned(),
+                    found: "wrong".to_owned(),
+                },
+                "RF2 header mismatch: expected `id`, found `wrong`",
+            ),
+            (
+                Rf2Error::ColumnCount {
+                    line: 3,
+                    expected: 5,
+                    found: 4,
+                },
+                "line 3: expected 5 columns, found 4",
+            ),
+            (
+                Rf2Error::Field {
+                    line: 7,
+                    column: "active",
+                    message: "expected 0 or 1".to_owned(),
+                },
+                "line 7, column `active`: expected 0 or 1",
+            ),
+        ];
+        for (error, expected) in cases {
+            assert_eq!(error.to_string(), expected);
+            assert!(std::error::Error::source(&error).is_none());
+        }
+
+        let io = Rf2Error::from(std::io::Error::new(
+            std::io::ErrorKind::PermissionDenied,
+            "denied",
+        ));
+        assert_eq!(io.to_string(), "I/O error: denied");
+        assert!(std::error::Error::source(&io).is_some());
+    }
+}

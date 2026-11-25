@@ -140,7 +140,7 @@ against a tiny hand-written two-row Concept file; the file name and the
 Single-file mode auto-detects the record type from the file name the same
 way `load` does internally. Every RF2 record type this workspace can
 parse is exportable — the three core component types,
-`RelationshipConcreteValue`, and all 18 refset types (spec/08), including
+`RelationshipConcreteValue`, `AlternateIdentifier`, and all 18 refset types (spec/08), including
 MRCM and Ordered/Annotation. Any content type this crate doesn't
 recognize at all is still skipped and reported by name (same as `load`),
 never a hard error. SCTIDs, UUIDs, and `effectiveTime` are always

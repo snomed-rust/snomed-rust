@@ -54,6 +54,7 @@ impl FromStr for ReleaseType {
     }
 }
 
+#[cfg_attr(coverage_nightly, coverage(off))]
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -73,5 +74,18 @@ mod tests {
             Some(("ExtendedMap", ReleaseType::Delta))
         );
         assert_eq!(ReleaseType::split_suffix("Nope"), None);
+    }
+
+    #[test]
+    fn display_and_from_str_cover_every_release_type() {
+        for (text, expected) in [
+            ("Full", ReleaseType::Full),
+            ("Snapshot", ReleaseType::Snapshot),
+            ("Delta", ReleaseType::Delta),
+        ] {
+            assert_eq!(expected.to_string(), text);
+            assert_eq!(text.parse(), Ok(expected));
+        }
+        assert_eq!("full".parse::<ReleaseType>(), Err(()));
     }
 }

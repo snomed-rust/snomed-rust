@@ -63,6 +63,35 @@ jobs:
       - name: Clean workspace-member artifacts before caching
         run: cargo clean --workspace
 
+  coverage:
+    name: Exact production coverage (100% regions/functions/lines)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install pinned nightly with LLVM coverage tools
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: nightly-2026-11-13
+          components: llvm-tools-preview
+
+      # Pinned per spec/rust-coverage.md rule 4. This is CI tooling, not a
+      # dependency of the zero-dependency workspace or its published crates.
+      - name: Install cargo-llvm-cov
+        run: cargo install cargo-llvm-cov --version 0.9.1 --locked
+
+      - name: Test the exact-coverage checker
+        run: bin/check-production-coverage --self-test
+
+      - name: Measure production coverage
+        run: >-
+          cargo +nightly-2026-11-13 llvm-cov --workspace --json
+          --output-path coverage.json
+          --ignore-filename-regex '(^|/)tests/'
+
+      - name: Enforce exact source-coordinate coverage
+        run: bin/check-production-coverage coverage.json
+
   trademarks:
     name: Trademark notices (rule 5 of the professionalization spec)
     runs-on: ubuntu-latest
@@ -123,8 +152,15 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-cargo-msrv-
 
+      # `rust-toolchain.toml` pins a newer compiler and would override the
+      # one installed above, so select the MSRV explicitly (as
+      # bin/make-ci-minimum-supported-rust-version does) and log what ran.
       - name: Check with the MSRV toolchain
-        run: cargo check --all-targets --workspace
+        run: |
+          msrv="$(sed -nE 's/^rust-version *= *"(1\.[0-9]+)".*/\1/p' Cargo.toml | head -1)"
+          export RUSTUP_TOOLCHAIN="${msrv}"
+          rustc -Vv
+          cargo check --all-targets --workspace
 
       # See the `test` job above for why this workspace's target/ is worth
       # emptying before it gets cached rather than kept around.

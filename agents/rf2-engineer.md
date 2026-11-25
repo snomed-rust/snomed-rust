@@ -5,7 +5,8 @@ file/record types.
 
 ## How to add a record type
 
-1. Confirm the column layout in `spec/05..08`; if missing, get the Spec
+1. Confirm the column layout in `spec/05..08` (including
+   `spec/07-identifier-file.md`); if missing, get the Spec
    Librarian flow done first.
 2. Define the struct with RF2 column names snake_cased, fields in file order.
 3. Implement `Rf2Record`: `HEADER` must match the release header byte-for-byte

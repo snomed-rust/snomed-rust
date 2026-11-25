@@ -2,7 +2,8 @@
 //!
 //! Implements `spec/04-sctid.md` (SCTID structure and Verhoeff check
 //! digit), reference set member identifiers (`spec/08-refset-files.md`),
-//! the component records of `spec/05..07`, and the well-known concept
+//! the component records of `spec/05..07` and
+//! `spec/07-identifier-file.md`, and the well-known concept
 //! constants those specs reference.
 //!
 //! This crate has no dependencies outside the Rust standard library.
@@ -17,6 +18,8 @@
 //! ships no SNOMED CT content.
 
 #![forbid(unsafe_code)]
+#![cfg_attr(coverage_nightly, feature(coverage_attribute))]
+#![cfg_attr(coverage_nightly, allow(unused_features))]
 // Per spec/rust-no-unsafe/index.md: this workspace contains no `unsafe`, and
 // the compiler enforces that rather than a grep.
 
@@ -28,7 +31,9 @@ pub mod sctid;
 pub mod time;
 pub mod verhoeff;
 
-pub use components::{Concept, Description, Relationship, RelationshipConcreteValue};
+pub use components::{
+    AlternateIdentifier, Concept, Description, Relationship, RelationshipConcreteValue,
+};
 pub use concrete_value::{ConcreteValue, ConcreteValueError};
 pub use member_id::{MemberId, MemberIdError};
 pub use sctid::{ComponentType, SctId, SctIdError};

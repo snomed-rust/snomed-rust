@@ -145,6 +145,7 @@ fn consume_word(chars: &[char]) -> usize {
         .count()
 }
 
+#[cfg_attr(coverage_nightly, coverage(off))]
 #[cfg(test)]
 mod tests {
     use super::*;

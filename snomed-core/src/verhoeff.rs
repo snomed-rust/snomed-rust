@@ -64,6 +64,7 @@ pub fn check_digit(payload: &str) -> Option<char> {
     char::from_digit(u32::from(INV[usize::from(c)]), 10)
 }
 
+#[cfg_attr(coverage_nightly, coverage(off))]
 #[cfg(test)]
 mod tests {
     use super::*;

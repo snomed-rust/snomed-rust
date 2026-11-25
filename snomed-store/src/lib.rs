@@ -5,7 +5,8 @@
 //! IS-A hierarchy rules of `spec/07-relationship-file.md`.
 //!
 //! [`SnapshotStore`] answers "what does the terminology look like now"
-//! (collapses to the latest version per component); [`HistoryStore`]
+//! (collapses to the latest version per component or alternate-identifier
+//! key); [`HistoryStore`]
 //! answers "what did it look like at some point in time" (keeps every
 //! version, built from Full-view rows — spec/09's History construction
 //! section).
@@ -20,6 +21,8 @@
 //! ships no SNOMED CT content.
 
 #![forbid(unsafe_code)]
+#![cfg_attr(coverage_nightly, feature(coverage_attribute))]
+#![cfg_attr(coverage_nightly, allow(unused_features))]
 // Per spec/rust-no-unsafe/index.md: this workspace contains no `unsafe`, and
 // the compiler enforces that rather than a grep.
 

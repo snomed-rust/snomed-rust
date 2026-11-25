@@ -6,7 +6,7 @@
 // Per spec/rust-no-unsafe/index.md.
 
 use libfuzzer_sys::fuzz_target;
-use snomed_core::components::{Concept, Description, Relationship};
+use snomed_core::components::{AlternateIdentifier, Concept, Description, Relationship};
 use snomed_rf2::refset::{LanguageRefsetMember, SimpleRefsetMember};
 use snomed_rf2::{Rf2Reader, Rf2Record};
 
@@ -25,6 +25,7 @@ fuzz_target!(|data: &[u8]| {
     drain::<Concept>(data);
     drain::<Description>(data);
     drain::<Relationship>(data);
+    drain::<AlternateIdentifier>(data);
     drain::<SimpleRefsetMember>(data);
     drain::<LanguageRefsetMember>(data);
 });

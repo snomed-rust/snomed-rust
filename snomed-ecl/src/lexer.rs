@@ -45,9 +45,9 @@ pub enum TokenKind {
     /// `.` alone — a `dottedExpressionAttribute` separator (spec/10
     /// rule 15). Distinct from [`Self::DotDot`], the cardinality range.
     Dot,
-    /// `!!>` — `top` (not yet implemented).
+    /// `!!>` — `top` of the constrained set.
     Top,
-    /// `!!<` — `bottom` (not yet implemented).
+    /// `!!<` — `bottom` of the constrained set.
     Bottom,
     /// `R` — the reverse-attribute flag.
     ReverseFlag,
@@ -218,6 +218,47 @@ impl Lexer {
             chars: input.chars().collect(),
             pos: 0,
         }
+    }
+
+    /// Probe after an opening parenthesis. A second bare id selects the
+    /// reference-set production. On success, return the first token and
+    /// leave the cursor immediately after it; otherwise restore the cursor.
+    pub(crate) fn take_concept_reference_set_start(&mut self) -> Result<Option<Token>, EclError> {
+        let saved = self.pos;
+        let probe = (|| {
+            let first = self.next_token()?;
+            if !matches!(first.kind, TokenKind::Digits(_)) {
+                return Ok(None);
+            }
+            let after_first = self.pos;
+            let mut next = self.next_token()?;
+            if matches!(next.kind, TokenKind::Term(_)) {
+                next = self.next_token()?;
+            }
+            Ok::<_, EclError>(
+                matches!(next.kind, TokenKind::Digits(_)).then_some((first, after_first)),
+            )
+        })();
+        match probe {
+            Ok(Some((first, after_first))) => {
+                self.pos = after_first;
+                Ok(Some(first))
+            }
+            Ok(None) => {
+                self.pos = saved;
+                Ok(None)
+            }
+            Err(error) => {
+                self.pos = saved;
+                Err(error)
+            }
+        }
+    }
+
+    /// A separator is whitespace or a comment skipped by `next_token`.
+    pub(crate) fn has_separator_before(&self, pos: usize) -> bool {
+        let prefix = &self.chars[..pos];
+        matches!(prefix.last(), Some(' ' | '\t' | '\r' | '\n')) || prefix.ends_with(&['*', '/'])
     }
 
     pub fn next_token(&mut self) -> Result<Token, EclError> {
@@ -493,8 +534,6 @@ impl Lexer {
                         // is what knows which position it is in; it
                         // rejects a word it can't use with the same
                         // `UnexpectedKeyword` this branch used to raise.
-                        // A word may carry the alphanumerics and dashes a
-                        // language code needs (`en-GB`).
                         let mut word = s;
                         while self.pos < self.chars.len()
                             && (self.chars[self.pos].is_ascii_alphanumeric()
@@ -536,12 +575,151 @@ pub fn lex(input: &str) -> Result<Vec<Token>, EclError> {
     Ok(tokens)
 }
 
+#[cfg_attr(coverage_nightly, coverage(off))]
 #[cfg(test)]
 mod tests {
     use super::*;
 
     fn kinds(input: &str) -> Vec<TokenKind> {
         lex(input).unwrap().into_iter().map(|t| t.kind).collect()
+    }
+
+    #[test]
+    fn concept_reference_set_probe_restores_position_on_non_id_and_lexer_error() {
+        let mut non_id = Lexer::new("true");
+        assert_eq!(non_id.take_concept_reference_set_start(), Ok(None));
+        assert_eq!(non_id.pos, 0);
+
+        let mut invalid = Lexer::new("@");
+        assert!(invalid.take_concept_reference_set_start().is_err());
+        assert_eq!(invalid.pos, 0);
+
+        let mut set = Lexer::new("404684003 138875005");
+        assert!(matches!(
+            set.take_concept_reference_set_start().unwrap(),
+            Some(Token {
+                kind: TokenKind::Digits(_),
+                ..
+            })
+        ));
+        assert!(matches!(
+            set.next_token().unwrap().kind,
+            TokenKind::Digits(_)
+        ));
+    }
+
+    #[test]
+    fn every_token_kind_has_a_description() {
+        let kinds = vec![
+            TokenKind::Lt,
+            TokenKind::LtLt,
+            TokenKind::LtBang,
+            TokenKind::LtLtBang,
+            TokenKind::Gt,
+            TokenKind::GtGt,
+            TokenKind::GtBang,
+            TokenKind::GtGtBang,
+            TokenKind::Caret,
+            TokenKind::Star,
+            TokenKind::LParen,
+            TokenKind::RParen,
+            TokenKind::And,
+            TokenKind::Or,
+            TokenKind::Minus,
+            TokenKind::Colon,
+            TokenKind::LBrace2,
+            TokenKind::LBrace,
+            TokenKind::RBrace,
+            TokenKind::LBracket,
+            TokenKind::RBracket,
+            TokenKind::DotDot,
+            TokenKind::Dot,
+            TokenKind::Top,
+            TokenKind::Bottom,
+            TokenKind::ReverseFlag,
+            TokenKind::Eq,
+            TokenKind::NotEq,
+            TokenKind::LtEq,
+            TokenKind::GtEq,
+            TokenKind::Hash,
+            TokenKind::Dash,
+            TokenKind::Plus,
+            TokenKind::Digits("123".to_string()),
+            TokenKind::Term("term".to_string()),
+            TokenKind::QuotedString("text".to_string()),
+            TokenKind::ConceptFilterMarker,
+            TokenKind::DescriptionFilterMarker,
+            TokenKind::MemberFilterMarker,
+            TokenKind::ActiveKeyword,
+            TokenKind::True,
+            TokenKind::False,
+            TokenKind::DefinitionStatusKeyword,
+            TokenKind::DefinitionStatusIdKeyword,
+            TokenKind::PrimitiveToken,
+            TokenKind::DefinedToken,
+            TokenKind::ModuleIdKeyword,
+            TokenKind::EffectiveTimeKeyword,
+            TokenKind::TermKeyword,
+            TokenKind::TypeKeyword,
+            TokenKind::TypeIdKeyword,
+            TokenKind::LanguageKeyword,
+            TokenKind::DialectIdKeyword,
+            TokenKind::DialectKeyword,
+            TokenKind::PreferredToken,
+            TokenKind::AcceptableToken,
+            TokenKind::Word("en-gb".to_string()),
+            TokenKind::FsnToken,
+            TokenKind::SynToken,
+            TokenKind::DefToken,
+            TokenKind::Eof,
+        ];
+
+        for kind in kinds {
+            assert!(
+                !describe(&kind).is_empty(),
+                "missing description for {kind:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn lexes_all_filter_keywords_and_aliases_case_insensitively() {
+        assert_eq!(
+            kinds(
+                "c d m active true false definitionStatus definitionStatusId primitive defined \
+                 moduleId effectiveTime term type typeId language dialectId dialect preferred \
+                 prefer acceptable accept fsn syn def unknown-code"
+            ),
+            vec![
+                TokenKind::ConceptFilterMarker,
+                TokenKind::DescriptionFilterMarker,
+                TokenKind::MemberFilterMarker,
+                TokenKind::ActiveKeyword,
+                TokenKind::True,
+                TokenKind::False,
+                TokenKind::DefinitionStatusKeyword,
+                TokenKind::DefinitionStatusIdKeyword,
+                TokenKind::PrimitiveToken,
+                TokenKind::DefinedToken,
+                TokenKind::ModuleIdKeyword,
+                TokenKind::EffectiveTimeKeyword,
+                TokenKind::TermKeyword,
+                TokenKind::TypeKeyword,
+                TokenKind::TypeIdKeyword,
+                TokenKind::LanguageKeyword,
+                TokenKind::DialectIdKeyword,
+                TokenKind::DialectKeyword,
+                TokenKind::PreferredToken,
+                TokenKind::PreferredToken,
+                TokenKind::AcceptableToken,
+                TokenKind::AcceptableToken,
+                TokenKind::FsnToken,
+                TokenKind::SynToken,
+                TokenKind::DefToken,
+                TokenKind::Word("unknown-code".to_string()),
+                TokenKind::Eof,
+            ]
+        );
     }
 
     #[test]
@@ -786,8 +964,23 @@ mod tests {
             lex("/* unterminated"),
             Err(EclError::UnterminatedComment { pos: 0 })
         );
+        assert_eq!(
+            lex("404684003 @"),
+            Err(EclError::UnexpectedChar { pos: 10, ch: '@' })
+        );
         // An unknown word is a token, not a lex error — see
         // `alternate_identifier_shape_is_a_named_not_yet_implemented_error`.
+    }
+
+    #[test]
+    fn concept_reference_set_probe_handles_an_error_after_a_term() {
+        let mut lexer = Lexer::new("404684003 |Finding| @");
+        assert!(lexer.take_concept_reference_set_start().is_err());
+        assert_eq!(lexer.pos, 0);
+        assert!(matches!(
+            lexer.next_token().unwrap().kind,
+            TokenKind::Digits(_)
+        ));
     }
 
     #[test]

@@ -8,7 +8,7 @@ use snomed_store::SnapshotStore;
 
 use snomed_core::concrete_value::ConcreteValue;
 use snomed_core::time::EffectiveTime;
-use snomed_core::{constants, Concept, Description};
+use snomed_core::{constants, Concept, Description, MemberId};
 
 use snomed_rf2::refset::RefsetMemberCore;
 
@@ -16,10 +16,10 @@ use crate::ast::{
     AcceptabilityValue, ActiveFilter, ActiveValue, AttributeComparison, AttributeConstraint,
     BooleanFieldFilter, Cardinality, ConceptFilterKind, DefinitionStatusFilter,
     DefinitionStatusValue, DescriptionFilterKind, DescriptionTypeValue, DialectFilter,
-    EffectiveTimeFilter, ExpressionConstraint, FocusConcept, HierarchyOp, LanguageFilter,
-    MemberFilterKind, ModuleFilter, NumericComparisonOp, NumericFieldFilter, RefinementConstraint,
-    RefsetOperand, SearchTerm, SearchType, SimpleExpressionConstraint, TermFilter,
-    TimeComparisonOp, TypeFilter,
+    EffectiveTimeFilter, ExpressionConstraint, FocusConcept, HierarchyOp, HistorySupplement,
+    LanguageFilter, MemberFilterKind, ModuleFilter, NumericComparisonOp, NumericFieldFilter,
+    RefinementConstraint, RefsetOperand, SearchTerm, SearchType, SimpleExpressionConstraint,
+    TermFilter, TimeComparisonOp, TypeFilter,
 };
 
 /// Evaluates `expr` against `store`, returning the matching concept ids.
@@ -92,6 +92,27 @@ pub fn evaluate(expr: &ExpressionConstraint, store: &SnapshotStore) -> HashSet<S
                 out.extend(evaluate_concept(*op, id, store));
             }
             out
+        }
+        // ECL 2.2 top/bottom operators filter an already-evaluated set,
+        // rather than expanding each member like a hierarchy operator.
+        // Evaluate `inner` once (spec/10 rule 0), then use the store's
+        // authoritative transitive hierarchy indexes (rules 4 and 20).
+        ExpressionConstraint::Top(inner) => {
+            let set = evaluate(inner, store);
+            set.iter()
+                .copied()
+                .filter(|id| store.ancestors(*id).is_disjoint(&set))
+                .collect()
+        }
+        ExpressionConstraint::Bottom(inner) => {
+            let set = evaluate(inner, store);
+            set.iter()
+                .copied()
+                .filter(|id| store.descendants(*id).is_disjoint(&set))
+                .collect()
+        }
+        ExpressionConstraint::History { inner, supplement } => {
+            evaluate_history(inner, supplement, store)
         }
         ExpressionConstraint::And(items) => {
             let mut sets = items.iter().map(|e| evaluate(e, store));
@@ -195,6 +216,41 @@ pub fn evaluate(expr: &ExpressionConstraint, store: &SnapshotStore) -> HashSet<S
             evaluate_refset_containing_filter(concepts, filters, store)
         }
     }
+}
+
+/// Expands a result set through the selected historical association
+/// reference sets (spec/10 rule 21). Association rows are authored on the
+/// inactive source and point at its active replacement, so the reverse
+/// index is the load-bearing direction here.
+fn evaluate_history(
+    inner: &ExpressionConstraint,
+    supplement: &HistorySupplement,
+    store: &SnapshotStore,
+) -> HashSet<SctId> {
+    let mut result = evaluate(inner, store);
+    let mut refsets: HashSet<SctId> = match supplement {
+        HistorySupplement::Minimum => HashSet::from([constants::SAME_AS_ASSOCIATION_REFSET]),
+        HistorySupplement::Moderate => HashSet::from([
+            constants::SAME_AS_ASSOCIATION_REFSET,
+            constants::REPLACED_BY_ASSOCIATION_REFSET,
+            constants::WAS_A_ASSOCIATION_REFSET,
+            constants::PARTIALLY_EQUIVALENT_TO_ASSOCIATION_REFSET,
+        ]),
+        HistorySupplement::Maximum => store.descendants(constants::HISTORICAL_ASSOCIATION_REFSET),
+        HistorySupplement::Refsets(expr) => evaluate(expr, store),
+    };
+    // These two reverse the usual historical-association direction and
+    // are explicitly excluded by the official expansion, even when a
+    // caller's custom expression happens to select them.
+    refsets.remove(&constants::MOVED_FROM_ASSOCIATION_REFSET);
+    refsets.remove(&constants::MOVED_TO_ASSOCIATION_REFSET);
+    let targets: Vec<SctId> = result.iter().copied().collect();
+    for refset in refsets {
+        for target in &targets {
+            result.extend(store.association_sources(refset, *target));
+        }
+    }
+    result
 }
 
 /// Resolves a `RefsetOperand` (the operand of `^`, `^R`, and now
@@ -328,6 +384,7 @@ fn member_row_matches(
                 | MemberFilterKind::RangeConstraint(_)
                 | MemberFilterKind::AttributeRule(_)
                 | MemberFilterKind::LanguageDialectCode(_)
+                | MemberFilterKind::ReferencedMemberId(_)
                 | MemberFilterKind::TypeId(_)
                 | MemberFilterKind::Value(_)
         )
@@ -419,8 +476,8 @@ fn member_row_matches(
 /// `MemberAnnotationRefsetMember`'s own `value` column, completing
 /// that type's column coverage too (all three columns it has —
 /// `languageDialectCode`/`typeId`/`value` — now populate from its one
-/// `member_annotation_member_rows` row; `referencedMemberId` remains
-/// its only unimplemented column).
+/// `member_annotation_member_rows` row. `referenced_member_id` is that
+/// row's remaining UUID column, completing its typed-field coverage.
 #[derive(Default)]
 struct TypedFields<'a> {
     map_target: Option<&'a str>,
@@ -458,6 +515,7 @@ struct TypedFields<'a> {
     range_constraint: Option<&'a str>,
     attribute_rule: Option<&'a str>,
     language_dialect_code: Option<&'a str>,
+    referenced_member_id: Option<MemberId>,
     type_id: Option<SctId>,
     value: Option<&'a str>,
 }
@@ -876,6 +934,7 @@ fn typed_field_row_matches(
                         p,
                         &row.core,
                         &TypedFields {
+                            referenced_member_id: Some(row.referenced_member_id),
                             language_dialect_code: Some(&row.language_dialect_code),
                             type_id: Some(row.type_id),
                             value: Some(&row.value),
@@ -1017,6 +1076,28 @@ enum PreparedMemberFilter {
     Literal,
 }
 
+impl PreparedMemberFilter {
+    fn concept_matches(&self, candidate: Option<SctId>, negated: bool) -> bool {
+        match (candidate, self) {
+            (Some(candidate), Self::Concepts(values)) => values.contains(&candidate) != negated,
+            _ => false,
+        }
+    }
+
+    fn term_matches(&self, candidate: Option<&str>, values: &[SearchTerm], negated: bool) -> bool {
+        match (candidate, self) {
+            (Some(candidate), Self::Term(searches)) => {
+                values
+                    .iter()
+                    .zip(searches)
+                    .any(|(search, prepared)| term_matches(candidate, search, prepared))
+                    != negated
+            }
+            _ => false,
+        }
+    }
+}
+
 fn prepare_member_filter(filter: &MemberFilterKind, store: &SnapshotStore) -> PreparedMemberFilter {
     match filter {
         MemberFilterKind::Module(ModuleFilter { value, .. })
@@ -1050,6 +1131,7 @@ fn prepare_member_filter(filter: &MemberFilterKind, store: &SnapshotStore) -> Pr
         | MemberFilterKind::RangeConstraint(TermFilter { values, .. })
         | MemberFilterKind::AttributeRule(TermFilter { values, .. })
         | MemberFilterKind::LanguageDialectCode(TermFilter { values, .. })
+        | MemberFilterKind::ReferencedMemberId(TermFilter { values, .. })
         | MemberFilterKind::Value(TermFilter { values, .. }) => PreparedMemberFilter::Term(
             values
                 .iter()
@@ -1078,10 +1160,7 @@ fn member_filter_matches(
 ) -> bool {
     match filter {
         MemberFilterKind::Module(ModuleFilter { negated, .. }) => {
-            let PreparedMemberFilter::Concepts(values) = prepared else {
-                unreachable!("a moduleId filter prepares to `Concepts`")
-            };
-            values.contains(&core.module_id) != *negated
+            prepared.concept_matches(Some(core.module_id), *negated)
         }
         MemberFilterKind::EffectiveTime(EffectiveTimeFilter { operator, values }) => values
             .iter()
@@ -1095,9 +1174,6 @@ fn member_filter_matches(
             matches != *negated
         }
         MemberFilterKind::MapTarget(TermFilter { negated, values }) => {
-            let PreparedMemberFilter::Term(searches) = prepared else {
-                unreachable!("a mapTarget filter prepares to `Term`")
-            };
             // No `map_target` on this row source: never matches, positive
             // or negated — the filter still names a real column, just not
             // one this row has, so "not equal" is as wrong an answer as
@@ -1105,26 +1181,13 @@ fn member_filter_matches(
             // caller that ever passes `Some`, so this arm is reachable
             // only when a `MapTarget` filter is evaluated against a row
             // that isn't `SimpleMap`/`ExtendedMap`'s own.
-            let Some(map_target) = fields.map_target else {
-                return false;
-            };
-            let matches = values
-                .iter()
-                .zip(searches)
-                .any(|(search, prepared)| term_matches(map_target, search, prepared));
-            matches != *negated
+            prepared.term_matches(fields.map_target, values, *negated)
         }
         MemberFilterKind::CorrelationId(ModuleFilter { negated, .. }) => {
-            let PreparedMemberFilter::Concepts(values) = prepared else {
-                unreachable!("a correlationId filter prepares to `Concepts`")
-            };
             // No `correlation_id` on this row source (every source but
             // `ExtendedMap`'s own, `SimpleMap` included): never matches,
             // same reasoning as `MapTarget`'s `None` case above.
-            let Some(correlation_id) = fields.correlation_id else {
-                return false;
-            };
-            values.contains(&correlation_id) != *negated
+            prepared.concept_matches(fields.correlation_id, *negated)
         }
         MemberFilterKind::MapGroup(NumericFieldFilter { operator, value }) => {
             // No `map_group` on this row source (every source but
@@ -1145,88 +1208,40 @@ fn member_filter_matches(
             field_numeric_matches(*operator, &map_priority.to_string(), value)
         }
         MemberFilterKind::MapRule(TermFilter { negated, values }) => {
-            let PreparedMemberFilter::Term(searches) = prepared else {
-                unreachable!("a mapRule filter prepares to `Term`")
-            };
             // No `map_rule` on this row source (every source but
             // `ExtendedMap`'s own, `SimpleMap` included): never matches,
             // same reasoning as `MapTarget`'s `None` case above.
-            let Some(map_rule) = fields.map_rule else {
-                return false;
-            };
-            let matches = values
-                .iter()
-                .zip(searches)
-                .any(|(search, prepared)| term_matches(map_rule, search, prepared));
-            matches != *negated
+            prepared.term_matches(fields.map_rule, values, *negated)
         }
         MemberFilterKind::MapAdvice(TermFilter { negated, values }) => {
-            let PreparedMemberFilter::Term(searches) = prepared else {
-                unreachable!("a mapAdvice filter prepares to `Term`")
-            };
             // No `map_advice` on this row source (every source but
             // `ExtendedMap`'s own, `SimpleMap` included): never matches,
             // same reasoning as `MapTarget`'s `None` case above.
-            let Some(map_advice) = fields.map_advice else {
-                return false;
-            };
-            let matches = values
-                .iter()
-                .zip(searches)
-                .any(|(search, prepared)| term_matches(map_advice, search, prepared));
-            matches != *negated
+            prepared.term_matches(fields.map_advice, values, *negated)
         }
         MemberFilterKind::MapCategoryId(ModuleFilter { negated, .. }) => {
-            let PreparedMemberFilter::Concepts(values) = prepared else {
-                unreachable!("a mapCategoryId filter prepares to `Concepts`")
-            };
             // No `map_category_id` on this row source (every source but
             // `ExtendedMap`'s own, `SimpleMap` included): never matches,
             // same reasoning as `CorrelationId`'s `None` case above.
-            let Some(map_category_id) = fields.map_category_id else {
-                return false;
-            };
-            values.contains(&map_category_id) != *negated
+            prepared.concept_matches(fields.map_category_id, *negated)
         }
         MemberFilterKind::TargetComponentId(ModuleFilter { negated, .. }) => {
-            let PreparedMemberFilter::Concepts(values) = prepared else {
-                unreachable!("a targetComponentId filter prepares to `Concepts`")
-            };
             // No `target_component_id` on this row source (every source
             // but `Association`'s own): never matches, same reasoning as
             // `CorrelationId`'s `None` case above.
-            let Some(target_component_id) = fields.target_component_id else {
-                return false;
-            };
-            values.contains(&target_component_id) != *negated
+            prepared.concept_matches(fields.target_component_id, *negated)
         }
         MemberFilterKind::ValueId(ModuleFilter { negated, .. }) => {
-            let PreparedMemberFilter::Concepts(values) = prepared else {
-                unreachable!("a valueId filter prepares to `Concepts`")
-            };
             // No `value_id` on this row source (every source but
             // `AttributeValue`'s own): never matches, same reasoning as
             // `TargetComponentId`'s `None` case above.
-            let Some(value_id) = fields.value_id else {
-                return false;
-            };
-            values.contains(&value_id) != *negated
+            prepared.concept_matches(fields.value_id, *negated)
         }
         MemberFilterKind::OwlExpression(TermFilter { negated, values }) => {
-            let PreparedMemberFilter::Term(searches) = prepared else {
-                unreachable!("an owlExpression filter prepares to `Term`")
-            };
             // No `owl_expression` on this row source (every source but
             // `OwlExpression`'s own): never matches, same reasoning as
             // `MapTarget`'s `None` case above.
-            let Some(owl_expression) = fields.owl_expression else {
-                return false;
-            };
-            let matches = values
-                .iter()
-                .zip(searches)
-                .any(|(search, prepared)| term_matches(owl_expression, search, prepared));
-            matches != *negated
+            prepared.term_matches(fields.owl_expression, values, *negated)
         }
         MemberFilterKind::Order(NumericFieldFilter { operator, value }) => {
             // No `order` on this row source (every source but
@@ -1238,40 +1253,22 @@ fn member_filter_matches(
             field_numeric_matches(*operator, &order.to_string(), value)
         }
         MemberFilterKind::MrcmRuleRefsetId(ModuleFilter { negated, .. }) => {
-            let PreparedMemberFilter::Concepts(values) = prepared else {
-                unreachable!("an mrcmRuleRefsetId filter prepares to `Concepts`")
-            };
             // No `mrcm_rule_refset_id` on this row source (every source
             // but `MrcmModuleScope`'s own): never matches, same
             // reasoning as `TargetComponentId`'s `None` case above.
-            let Some(mrcm_rule_refset_id) = fields.mrcm_rule_refset_id else {
-                return false;
-            };
-            values.contains(&mrcm_rule_refset_id) != *negated
+            prepared.concept_matches(fields.mrcm_rule_refset_id, *negated)
         }
         MemberFilterKind::AttributeDescription(ModuleFilter { negated, .. }) => {
-            let PreparedMemberFilter::Concepts(values) = prepared else {
-                unreachable!("an attributeDescription filter prepares to `Concepts`")
-            };
             // No `attribute_description` on this row source (every
             // source but `RefsetDescriptor`'s own): never matches, same
             // reasoning as `MrcmRuleRefsetId`'s `None` case above.
-            let Some(attribute_description) = fields.attribute_description else {
-                return false;
-            };
-            values.contains(&attribute_description) != *negated
+            prepared.concept_matches(fields.attribute_description, *negated)
         }
         MemberFilterKind::AttributeType(ModuleFilter { negated, .. }) => {
-            let PreparedMemberFilter::Concepts(values) = prepared else {
-                unreachable!("an attributeType filter prepares to `Concepts`")
-            };
             // No `attribute_type` on this row source (every source but
             // `RefsetDescriptor`'s own): never matches, same reasoning
             // as `AttributeDescription`'s `None` case above.
-            let Some(attribute_type) = fields.attribute_type else {
-                return false;
-            };
-            values.contains(&attribute_type) != *negated
+            prepared.concept_matches(fields.attribute_type, *negated)
         }
         MemberFilterKind::AttributeOrder(NumericFieldFilter { operator, value }) => {
             // No `attribute_order` on this row source (every source but
@@ -1283,16 +1280,10 @@ fn member_filter_matches(
             field_numeric_matches(*operator, &attribute_order.to_string(), value)
         }
         MemberFilterKind::DescriptionFormat(ModuleFilter { negated, .. }) => {
-            let PreparedMemberFilter::Concepts(values) = prepared else {
-                unreachable!("a descriptionFormat filter prepares to `Concepts`")
-            };
             // No `description_format` on this row source (every source
             // but `DescriptionType`'s own): never matches, same
             // reasoning as `AttributeType`'s `None` case above.
-            let Some(description_format) = fields.description_format else {
-                return false;
-            };
-            values.contains(&description_format) != *negated
+            prepared.concept_matches(fields.description_format, *negated)
         }
         MemberFilterKind::DescriptionLength(NumericFieldFilter { operator, value }) => {
             // No `description_length` on this row source (every source
@@ -1304,155 +1295,71 @@ fn member_filter_matches(
             field_numeric_matches(*operator, &description_length.to_string(), value)
         }
         MemberFilterKind::DomainConstraint(TermFilter { negated, values }) => {
-            let PreparedMemberFilter::Term(searches) = prepared else {
-                unreachable!("a domainConstraint filter prepares to `Term`")
-            };
             // No `domain_constraint` on this row source (every source
             // but `MrcmDomain`'s own): never matches, same reasoning as
             // `MapTarget`'s `None` case above.
-            let Some(domain_constraint) = fields.domain_constraint else {
-                return false;
-            };
-            let matches = values
-                .iter()
-                .zip(searches)
-                .any(|(search, prepared)| term_matches(domain_constraint, search, prepared));
-            matches != *negated
+            prepared.term_matches(fields.domain_constraint, values, *negated)
         }
         MemberFilterKind::ParentDomain(TermFilter { negated, values }) => {
-            let PreparedMemberFilter::Term(searches) = prepared else {
-                unreachable!("a parentDomain filter prepares to `Term`")
-            };
             // No `parent_domain` on this row source (every source but
             // `MrcmDomain`'s own): never matches, same reasoning as
             // `DomainConstraint`'s `None` case above.
-            let Some(parent_domain) = fields.parent_domain else {
-                return false;
-            };
-            let matches = values
-                .iter()
-                .zip(searches)
-                .any(|(search, prepared)| term_matches(parent_domain, search, prepared));
-            matches != *negated
+            prepared.term_matches(fields.parent_domain, values, *negated)
         }
         MemberFilterKind::ProximalPrimitiveConstraint(TermFilter { negated, values }) => {
-            let PreparedMemberFilter::Term(searches) = prepared else {
-                unreachable!("a proximalPrimitiveConstraint filter prepares to `Term`")
-            };
             // No `proximal_primitive_constraint` on this row source
             // (every source but `MrcmDomain`'s own): never matches,
             // same reasoning as `ParentDomain`'s `None` case above.
-            let Some(proximal_primitive_constraint) = fields.proximal_primitive_constraint else {
-                return false;
-            };
-            let matches = values.iter().zip(searches).any(|(search, prepared)| {
-                term_matches(proximal_primitive_constraint, search, prepared)
-            });
-            matches != *negated
+            prepared.term_matches(fields.proximal_primitive_constraint, values, *negated)
         }
         MemberFilterKind::ProximalPrimitiveRefinement(TermFilter { negated, values }) => {
-            let PreparedMemberFilter::Term(searches) = prepared else {
-                unreachable!("a proximalPrimitiveRefinement filter prepares to `Term`")
-            };
             // No `proximal_primitive_refinement` on this row source
             // (every source but `MrcmDomain`'s own): never matches,
             // same reasoning as `ProximalPrimitiveConstraint`'s `None`
             // case above.
-            let Some(proximal_primitive_refinement) = fields.proximal_primitive_refinement else {
-                return false;
-            };
-            let matches = values.iter().zip(searches).any(|(search, prepared)| {
-                term_matches(proximal_primitive_refinement, search, prepared)
-            });
-            matches != *negated
+            prepared.term_matches(fields.proximal_primitive_refinement, values, *negated)
         }
         MemberFilterKind::DomainTemplateForPrecoordination(TermFilter { negated, values }) => {
-            let PreparedMemberFilter::Term(searches) = prepared else {
-                unreachable!("a domainTemplateForPrecoordination filter prepares to `Term`")
-            };
             // No `domain_template_for_precoordination` on this row
             // source (every source but `MrcmDomain`'s own): never
             // matches, same reasoning as `ProximalPrimitiveRefinement`'s
             // `None` case above.
-            let Some(domain_template_for_precoordination) =
-                fields.domain_template_for_precoordination
-            else {
-                return false;
-            };
-            let matches = values.iter().zip(searches).any(|(search, prepared)| {
-                term_matches(domain_template_for_precoordination, search, prepared)
-            });
-            matches != *negated
+            prepared.term_matches(fields.domain_template_for_precoordination, values, *negated)
         }
         MemberFilterKind::DomainTemplateForPostcoordination(TermFilter { negated, values }) => {
-            let PreparedMemberFilter::Term(searches) = prepared else {
-                unreachable!("a domainTemplateForPostcoordination filter prepares to `Term`")
-            };
             // No `domain_template_for_postcoordination` on this row
             // source (every source but `MrcmDomain`'s own): never
             // matches, same reasoning as
             // `DomainTemplateForPrecoordination`'s `None` case above.
-            let Some(domain_template_for_postcoordination) =
-                fields.domain_template_for_postcoordination
-            else {
-                return false;
-            };
-            let matches = values.iter().zip(searches).any(|(search, prepared)| {
-                term_matches(domain_template_for_postcoordination, search, prepared)
-            });
-            matches != *negated
+            prepared.term_matches(
+                fields.domain_template_for_postcoordination,
+                values,
+                *negated,
+            )
         }
         MemberFilterKind::GuideUrl(TermFilter { negated, values }) => {
-            let PreparedMemberFilter::Term(searches) = prepared else {
-                unreachable!("a guideURL filter prepares to `Term`")
-            };
             // No `guide_url` on this row source (every source but
             // `MrcmDomain`'s own): never matches, same reasoning as
             // `DomainTemplateForPostcoordination`'s `None` case above.
-            let Some(guide_url) = fields.guide_url else {
-                return false;
-            };
-            let matches = values
-                .iter()
-                .zip(searches)
-                .any(|(search, prepared)| term_matches(guide_url, search, prepared));
-            matches != *negated
+            prepared.term_matches(fields.guide_url, values, *negated)
         }
         MemberFilterKind::DomainId(ModuleFilter { negated, .. }) => {
-            let PreparedMemberFilter::Concepts(values) = prepared else {
-                unreachable!("a domainId filter prepares to `Concepts`")
-            };
             // No `domain_id` on this row source (every source but
             // `MrcmAttributeDomain`'s own): never matches, same
             // reasoning as `GuideUrl`'s `None` case above.
-            let Some(domain_id) = fields.domain_id else {
-                return false;
-            };
-            values.contains(&domain_id) != *negated
+            prepared.concept_matches(fields.domain_id, *negated)
         }
         MemberFilterKind::RuleStrengthId(ModuleFilter { negated, .. }) => {
-            let PreparedMemberFilter::Concepts(values) = prepared else {
-                unreachable!("a ruleStrengthId filter prepares to `Concepts`")
-            };
             // No `rule_strength_id` on this row source (every source
             // but `MrcmAttributeDomain`'s own): never matches, same
             // reasoning as `DomainId`'s `None` case above.
-            let Some(rule_strength_id) = fields.rule_strength_id else {
-                return false;
-            };
-            values.contains(&rule_strength_id) != *negated
+            prepared.concept_matches(fields.rule_strength_id, *negated)
         }
         MemberFilterKind::ContentTypeId(ModuleFilter { negated, .. }) => {
-            let PreparedMemberFilter::Concepts(values) = prepared else {
-                unreachable!("a contentTypeId filter prepares to `Concepts`")
-            };
             // No `content_type_id` on this row source (every source
             // but `MrcmAttributeDomain`'s own): never matches, same
             // reasoning as `RuleStrengthId`'s `None` case above.
-            let Some(content_type_id) = fields.content_type_id else {
-                return false;
-            };
-            values.contains(&content_type_id) != *negated
+            prepared.concept_matches(fields.content_type_id, *negated)
         }
         MemberFilterKind::Grouped(BooleanFieldFilter { negated, value }) => {
             // No `grouped` on this row source (every source but
@@ -1464,36 +1371,17 @@ fn member_filter_matches(
             (grouped == *value) != *negated
         }
         MemberFilterKind::AttributeCardinality(TermFilter { negated, values }) => {
-            let PreparedMemberFilter::Term(searches) = prepared else {
-                unreachable!("an attributeCardinality filter prepares to `Term`")
-            };
             // No `attribute_cardinality` on this row source (every
             // source but `MrcmAttributeDomain`'s own): never matches,
             // same reasoning as `Grouped`'s `None` case above.
-            let Some(attribute_cardinality) = fields.attribute_cardinality else {
-                return false;
-            };
-            let matches = values
-                .iter()
-                .zip(searches)
-                .any(|(search, prepared)| term_matches(attribute_cardinality, search, prepared));
-            matches != *negated
+            prepared.term_matches(fields.attribute_cardinality, values, *negated)
         }
         MemberFilterKind::AttributeInGroupCardinality(TermFilter { negated, values }) => {
-            let PreparedMemberFilter::Term(searches) = prepared else {
-                unreachable!("an attributeInGroupCardinality filter prepares to `Term`")
-            };
             // No `attribute_in_group_cardinality` on this row source
             // (every source but `MrcmAttributeDomain`'s own): never
             // matches, same reasoning as `AttributeCardinality`'s
             // `None` case above.
-            let Some(attribute_in_group_cardinality) = fields.attribute_in_group_cardinality else {
-                return false;
-            };
-            let matches = values.iter().zip(searches).any(|(search, prepared)| {
-                term_matches(attribute_in_group_cardinality, search, prepared)
-            });
-            matches != *negated
+            prepared.term_matches(fields.attribute_in_group_cardinality, values, *negated)
         }
         MemberFilterKind::SourceEffectiveTime(EffectiveTimeFilter { operator, values }) => {
             // No `source_effective_time` on this row source (every
@@ -1520,84 +1408,45 @@ fn member_filter_matches(
                 .any(|v| time_comparison_matches(*operator, target_effective_time, *v))
         }
         MemberFilterKind::RangeConstraint(TermFilter { negated, values }) => {
-            let PreparedMemberFilter::Term(searches) = prepared else {
-                unreachable!("a rangeConstraint filter prepares to `Term`")
-            };
             // No `range_constraint` on this row source (every source
             // but `MrcmAttributeRange`'s own): never matches, same
             // reasoning as every other typed-column filter's `None`
             // case above.
-            let Some(range_constraint) = fields.range_constraint else {
-                return false;
-            };
-            let matches = values
-                .iter()
-                .zip(searches)
-                .any(|(search, prepared)| term_matches(range_constraint, search, prepared));
-            matches != *negated
+            prepared.term_matches(fields.range_constraint, values, *negated)
         }
         MemberFilterKind::AttributeRule(TermFilter { negated, values }) => {
-            let PreparedMemberFilter::Term(searches) = prepared else {
-                unreachable!("an attributeRule filter prepares to `Term`")
-            };
             // No `attribute_rule` on this row source (every source
             // but `MrcmAttributeRange`'s own): never matches, same
             // reasoning as `RangeConstraint`'s `None` case above.
-            let Some(attribute_rule) = fields.attribute_rule else {
-                return false;
-            };
-            let matches = values
-                .iter()
-                .zip(searches)
-                .any(|(search, prepared)| term_matches(attribute_rule, search, prepared));
-            matches != *negated
+            prepared.term_matches(fields.attribute_rule, values, *negated)
         }
         MemberFilterKind::LanguageDialectCode(TermFilter { negated, values }) => {
-            let PreparedMemberFilter::Term(searches) = prepared else {
-                unreachable!("a languageDialectCode filter prepares to `Term`")
-            };
             // No `language_dialect_code` on this row source (every
             // source but `ComponentAnnotation`'s and
             // `MemberAnnotation`'s own): never matches, same reasoning
             // as every other typed-column filter's `None` case above.
-            let Some(language_dialect_code) = fields.language_dialect_code else {
+            prepared.term_matches(fields.language_dialect_code, values, *negated)
+        }
+        MemberFilterKind::ReferencedMemberId(TermFilter { negated, values }) => {
+            let Some(referenced_member_id) = fields.referenced_member_id else {
                 return false;
             };
-            let matches = values
-                .iter()
-                .zip(searches)
-                .any(|(search, prepared)| term_matches(language_dialect_code, search, prepared));
-            matches != *negated
+            let canonical = referenced_member_id.to_string();
+            prepared.term_matches(Some(&canonical), values, *negated)
         }
         MemberFilterKind::TypeId(ModuleFilter { negated, .. }) => {
-            let PreparedMemberFilter::Concepts(values) = prepared else {
-                unreachable!("a typeId filter prepares to `Concepts`")
-            };
             // No `type_id` on this row source (every source but
             // `ComponentAnnotation`'s own): never matches, same
             // reasoning as every other typed-column filter's `None`
             // case above.
-            let Some(type_id) = fields.type_id else {
-                return false;
-            };
-            values.contains(&type_id) != *negated
+            prepared.concept_matches(fields.type_id, *negated)
         }
         MemberFilterKind::Value(TermFilter { negated, values }) => {
-            let PreparedMemberFilter::Term(searches) = prepared else {
-                unreachable!("a value filter prepares to `Term`")
-            };
             // No `value` on this row source (every source but
             // `ComponentAnnotation`'s own): never matches, same
             // reasoning as every other typed-column filter's `None`
             // case above.
-            let Some(value) = fields.value else {
-                return false;
-            };
-            let matches = values
-                .iter()
-                .zip(searches)
-                .any(|(search, prepared)| term_matches(value, search, prepared));
-            matches != *negated
+            prepared.term_matches(fields.value, values, *negated)
         }
     }
 }
@@ -1645,6 +1494,28 @@ enum PreparedDescriptionFilter {
     Literal,
 }
 
+impl PreparedDescriptionFilter {
+    fn concept_matches(&self, candidate: SctId, negated: bool) -> bool {
+        match self {
+            Self::Concepts(values) => values.contains(&candidate) != negated,
+            _ => false,
+        }
+    }
+
+    fn term_matches(&self, candidate: &str, values: &[SearchTerm], negated: bool) -> bool {
+        match self {
+            Self::Term(searches) => {
+                values
+                    .iter()
+                    .zip(searches)
+                    .any(|(search, prepared)| term_matches(candidate, search, prepared))
+                    != negated
+            }
+            _ => false,
+        }
+    }
+}
+
 /// One search term, in the form its search type actually compares
 /// against.
 enum PreparedSearch {
@@ -1688,14 +1559,7 @@ fn description_filter_matches(
 ) -> bool {
     match filter {
         DescriptionFilterKind::Term(TermFilter { negated, values }) => {
-            let PreparedDescriptionFilter::Term(searches) = prepared else {
-                unreachable!("a term filter prepares to `Term`")
-            };
-            let matches = values
-                .iter()
-                .zip(searches)
-                .any(|(search, prepared)| term_matches(&description.term, search, prepared));
-            matches != *negated
+            prepared.term_matches(&description.term, values, *negated)
         }
         DescriptionFilterKind::Type(TypeFilter { negated, values }) => {
             let matches = values.iter().any(|v| {
@@ -1709,10 +1573,7 @@ fn description_filter_matches(
             matches != *negated
         }
         DescriptionFilterKind::TypeId(ModuleFilter { negated, .. }) => {
-            let PreparedDescriptionFilter::Concepts(values) = prepared else {
-                unreachable!("a typeId filter prepares to `Concepts`")
-            };
-            values.contains(&description.type_id) != *negated
+            prepared.concept_matches(description.type_id, *negated)
         }
         DescriptionFilterKind::Language(LanguageFilter { negated, values }) => {
             let code = description.language_code.to_ascii_lowercase();
@@ -1721,33 +1582,34 @@ fn description_filter_matches(
         }
         DescriptionFilterKind::Dialect(DialectFilter {
             negated,
-            refset_id,
+            dialects,
             acceptability,
         }) => {
-            // `acceptability(refset, description)` is `Some` exactly when
-            // the description is an *active* member of that language
-            // refset (spec/08, spec/09 rule 4), which is the membership
-            // test; an empty acceptability list asks for nothing more.
-            let matches = match store.acceptability(*refset_id, description.id) {
-                Some(found) => {
-                    acceptability.is_empty()
-                        || acceptability.iter().any(|wanted| {
-                            found
-                                == match wanted {
-                                    AcceptabilityValue::Preferred => constants::PREFERRED,
-                                    AcceptabilityValue::Acceptable => constants::ACCEPTABLE,
-                                }
-                        })
-                }
-                None => false,
+            let accepts = |found: SctId, wanted: &[AcceptabilityValue]| {
+                wanted.is_empty()
+                    || wanted.iter().any(|wanted| {
+                        found
+                            == match wanted {
+                                AcceptabilityValue::Preferred => constants::PREFERRED,
+                                AcceptabilityValue::Acceptable => constants::ACCEPTABLE,
+                                AcceptabilityValue::Concept(id) => *id,
+                            }
+                    })
             };
+            // Entries are OR'd; entry-specific and whole-filter
+            // acceptability sets are both constraints on the same active
+            // language-refset membership.
+            let matches = dialects.iter().any(|dialect| {
+                store
+                    .acceptability(dialect.refset_id, description.id)
+                    .is_some_and(|found| {
+                        accepts(found, &dialect.acceptability) && accepts(found, acceptability)
+                    })
+            });
             matches != *negated
         }
         DescriptionFilterKind::Module(ModuleFilter { negated, .. }) => {
-            let PreparedDescriptionFilter::Concepts(values) = prepared else {
-                unreachable!("a moduleId filter prepares to `Concepts`")
-            };
-            values.contains(&description.module_id) != *negated
+            prepared.concept_matches(description.module_id, *negated)
         }
         DescriptionFilterKind::EffectiveTime(EffectiveTimeFilter { operator, values }) => values
             .iter()
@@ -1858,6 +1720,15 @@ enum PreparedConceptFilter {
     Literal,
 }
 
+impl PreparedConceptFilter {
+    fn matches(&self, candidate: SctId, negated: bool) -> bool {
+        match self {
+            Self::Concepts(values) => values.contains(&candidate) != negated,
+            Self::Literal => false,
+        }
+    }
+}
+
 fn prepare_concept_filter(
     filter: &ConceptFilterKind,
     store: &SnapshotStore,
@@ -1907,16 +1778,10 @@ fn concept_filter_matches(
             }
         }
         ConceptFilterKind::DefinitionStatusId(ModuleFilter { negated, .. }) => {
-            let PreparedConceptFilter::Concepts(values) = prepared else {
-                unreachable!("a definitionStatusId filter prepares to `Concepts`")
-            };
-            values.contains(&concept.definition_status_id) != *negated
+            prepared.matches(concept.definition_status_id, *negated)
         }
         ConceptFilterKind::Module(ModuleFilter { negated, .. }) => {
-            let PreparedConceptFilter::Concepts(values) = prepared else {
-                unreachable!("a moduleId filter prepares to `Concepts`")
-            };
-            values.contains(&concept.module_id) != *negated
+            prepared.matches(concept.module_id, *negated)
         }
         ConceptFilterKind::EffectiveTime(EffectiveTimeFilter { operator, values }) => values
             .iter()
@@ -2095,15 +1960,29 @@ fn evaluate_attribute_constraint(
             let count = if a.reverse {
                 store
                     .relationships_to(concept)
-                    .filter(|r| r.active && r.is_inferred() && attribute_types.contains(&r.type_id))
-                    .filter(|r| group_scope.is_none_or(|g| r.relationship_group == g))
+                    .filter(|r| {
+                        r.active
+                            && r.is_inferred()
+                            && attribute_types.contains(&r.type_id)
+                            && match group_scope {
+                                Some(group) => r.relationship_group == group,
+                                None => true,
+                            }
+                    })
                     .filter(|r| value_set.contains(&r.source_id))
                     .count()
             } else {
                 store
                     .relationships_of(concept)
-                    .filter(|r| r.active && r.is_inferred() && attribute_types.contains(&r.type_id))
-                    .filter(|r| group_scope.is_none_or(|g| r.relationship_group == g))
+                    .filter(|r| {
+                        r.active
+                            && r.is_inferred()
+                            && attribute_types.contains(&r.type_id)
+                            && match group_scope {
+                                Some(group) => r.relationship_group == group,
+                                None => true,
+                            }
+                    })
                     .filter(|r| value_set.contains(&r.destination_id))
                     .count()
             };
@@ -2126,8 +2005,15 @@ fn evaluate_attribute_constraint(
         PreparedComparison::Numeric { operator, value } => {
             let count = store
                 .relationship_concrete_values_of(concept)
-                .filter(|r| r.active && r.is_inferred() && attribute_types.contains(&r.type_id))
-                .filter(|r| group_scope.is_none_or(|g| r.relationship_group == g))
+                .filter(|r| {
+                    r.active
+                        && r.is_inferred()
+                        && attribute_types.contains(&r.type_id)
+                        && match group_scope {
+                            Some(group) => r.relationship_group == group,
+                            None => true,
+                        }
+                })
                 .filter(|r| match &r.value {
                     ConcreteValue::Number(n) => numeric_matches(*operator, n, value),
                     ConcreteValue::String(_) => false,
@@ -2149,8 +2035,15 @@ fn evaluate_attribute_constraint(
         PreparedComparison::String { negated, values } => {
             let count = store
                 .relationship_concrete_values_of(concept)
-                .filter(|r| r.active && r.is_inferred() && attribute_types.contains(&r.type_id))
-                .filter(|r| group_scope.is_none_or(|g| r.relationship_group == g))
+                .filter(|r| {
+                    r.active
+                        && r.is_inferred()
+                        && attribute_types.contains(&r.type_id)
+                        && match group_scope {
+                            Some(group) => r.relationship_group == group,
+                            None => true,
+                        }
+                })
                 .filter(|r| match &r.value {
                     ConcreteValue::String(s) => values.iter().any(|v| v == s),
                     ConcreteValue::Number(_) => false,
@@ -2327,6 +2220,7 @@ fn evaluate_concept(op: HierarchyOp, id: SctId, store: &SnapshotStore) -> HashSe
     result
 }
 
+#[cfg_attr(coverage_nightly, coverage(off))]
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -2411,6 +2305,20 @@ mod tests {
     }
 
     #[test]
+    fn degenerate_intersection_and_computed_refset_operands_are_total() {
+        let store = hierarchy_store();
+        assert!(evaluate(&ExpressionConstraint::And(Vec::new()), &store).is_empty());
+        assert!(resolve_refset_operand_ids(&RefsetOperand::Wildcard, &store).is_empty());
+        assert_eq!(
+            resolve_refset_operand_ids(
+                &RefsetOperand::Expression(Box::new(parse("*").unwrap())),
+                &store,
+            ),
+            HashSet::from([ROOT, FINDING, DISEASE, MI])
+        );
+    }
+
+    #[test]
     fn descendant_and_ancestor_operators() {
         let store = hierarchy_store();
         assert_eq!(eval("< 404684003", &store), HashSet::from([DISEASE, MI]));
@@ -2462,6 +2370,104 @@ mod tests {
         assert_eq!(
             eval(">! *", &store),
             HashSet::from([ROOT, FINDING, DISEASE])
+        );
+    }
+
+    #[test]
+    fn top_and_bottom_filter_by_ancestors_and_descendants_within_the_set() {
+        let store = hierarchy_store();
+
+        assert_eq!(eval("!!> *", &store), HashSet::from([ROOT]));
+        assert_eq!(eval("!!< *", &store), HashSet::from([MI]));
+
+        // The relationship is transitive within the constrained set: ROOT
+        // and DISEASE need not be adjacent for ROOT to exclude DISEASE from
+        // the top, or DISEASE to exclude ROOT from the bottom.
+        assert_eq!(
+            eval("!!> (138875005 OR 64572001)", &store),
+            HashSet::from([ROOT])
+        );
+        assert_eq!(
+            eval("!!< (138875005 OR 64572001)", &store),
+            HashSet::from([DISEASE])
+        );
+
+        // A singleton has neither an ancestor nor a descendant inside its
+        // own result set, so it is both top and bottom.
+        assert_eq!(eval("!!> 64572001", &store), HashSet::from([DISEASE]));
+        assert_eq!(eval("!!< 64572001", &store), HashSet::from([DISEASE]));
+    }
+
+    #[test]
+    fn history_supplements_expand_the_normative_profiles() {
+        let extension_history_refset = SctId::compose(3000, ComponentType::Concept, None).unwrap();
+        let retired: Vec<SctId> = (2000..2007)
+            .map(|item| SctId::compose(item, ComponentType::Concept, None).unwrap())
+            .collect();
+        let refsets = [
+            constants::SAME_AS_ASSOCIATION_REFSET,
+            constants::REPLACED_BY_ASSOCIATION_REFSET,
+            constants::WAS_A_ASSOCIATION_REFSET,
+            constants::PARTIALLY_EQUIVALENT_TO_ASSOCIATION_REFSET,
+            extension_history_refset,
+            constants::MOVED_FROM_ASSOCIATION_REFSET,
+            constants::MOVED_TO_ASSOCIATION_REFSET,
+        ];
+        let mut b = SnapshotStore::builder();
+        b.add_concept(concept(FINDING));
+        b.add_concept(concept(constants::HISTORICAL_ASSOCIATION_REFSET));
+        for (index, refset) in refsets.into_iter().enumerate() {
+            b.add_concept(concept(refset));
+            b.add_relationship(is_a(
+                100 + index as u64,
+                refset,
+                constants::HISTORICAL_ASSOCIATION_REFSET,
+            ));
+            b.add_association_member(AssociationRefsetMember {
+                core: RefsetMemberCore {
+                    id: MemberId::from_u128(index as u128 + 1),
+                    effective_time: EffectiveTime::new_unchecked(20190731),
+                    active: true,
+                    module_id: constants::CORE_MODULE,
+                    refset_id: refset,
+                    referenced_component_id: retired[index],
+                },
+                target_component_id: FINDING,
+            });
+        }
+        let store = b.build();
+
+        assert_eq!(
+            eval("404684003 {{+HISTORY-MIN}}", &store),
+            HashSet::from([FINDING, retired[0]])
+        );
+        assert_eq!(
+            eval("404684003 {{+HISTORY-MOD}}", &store),
+            HashSet::from([FINDING, retired[0], retired[1], retired[2], retired[3]])
+        );
+        let maximum = HashSet::from([
+            FINDING, retired[0], retired[1], retired[2], retired[3], retired[4],
+        ]);
+        for query in [
+            "404684003 {{+HISTORY}}",
+            "404684003 {{+HISTORY-MAX}}",
+            "404684003 {{+HISTORY (*)}}",
+        ] {
+            assert_eq!(eval(query, &store), maximum, "{query}");
+        }
+        assert_eq!(
+            eval(
+                "404684003 {{+HISTORY (900000000000527005 OR 900000000000526001)}}",
+                &store
+            ),
+            HashSet::from([FINDING, retired[0], retired[1]])
+        );
+        // MOVED FROM and MOVED TO are excluded even if custom selection
+        // names them, because their association direction is incompatible
+        // with the history-supplement expansion.
+        assert_eq!(
+            eval("404684003 {{+HISTORY (900000000000525002)}}", &store),
+            HashSet::from([FINDING])
         );
     }
 
@@ -2571,6 +2577,10 @@ mod tests {
         let expr = format!("^ {ICD10_MAP} {{{{ M active = false }}}}");
         assert_eq!(eval("^ 447562003", &store), HashSet::new());
         assert_eq!(eval(&expr, &store), HashSet::from([MI]));
+        assert_eq!(
+            eval(&format!("^ {ICD10_MAP} {{{{ M active = * }}}}"), &store),
+            HashSet::from([MI])
+        );
     }
 
     /// Without an explicit `active` filter, `{{ M }}` stays active-only —
@@ -3142,6 +3152,46 @@ mod tests {
         // single-id path already covered above.
         let expr = "^R * {{ M active = false }}";
         assert_eq!(eval(expr, &store), HashSet::from([ICD10_MAP]));
+    }
+
+    #[test]
+    fn refset_containing_filter_supports_default_active_wildcard_and_expression_operands() {
+        let mut b = SnapshotStore::builder();
+        b.add_concept(concept(MI));
+        b.add_concept(concept(constants::CORE_MODULE));
+        b.add_simple_member(simple_member(
+            "80000000-0000-4000-8000-000000000066",
+            20200131,
+            true,
+            ICD10_MAP,
+            MI,
+        ));
+        let other_refset = SctId::compose(10080, ComponentType::Concept, None).unwrap();
+        let other_module = SctId::compose(10081, ComponentType::Concept, None).unwrap();
+        b.add_simple_member(SimpleRefsetMember {
+            core: RefsetMemberCore {
+                id: MemberId::parse("80000000-0000-4000-8000-000000000067").unwrap(),
+                effective_time: EffectiveTime::new_unchecked(20200131),
+                active: true,
+                module_id: other_module,
+                refset_id: other_refset,
+                referenced_component_id: MI,
+            },
+        });
+        let store = b.build();
+        let module = constants::CORE_MODULE;
+
+        assert_eq!(
+            eval(&format!("^R * {{{{ M moduleId = {module} }}}}"), &store),
+            HashSet::from([ICD10_MAP])
+        );
+        assert_eq!(
+            eval(
+                &format!("^R ({MI} OR {MI}) {{{{ M active = true }}}}"),
+                &store
+            ),
+            HashSet::from([ICD10_MAP, other_refset])
+        );
     }
 
     fn extended_map_member(
@@ -8150,6 +8200,87 @@ mod tests {
         );
     }
 
+    /// `referencedMemberId` (spec/10 rule 18) reaches only
+    /// `MemberAnnotationRefsetMember` rows and compares their UUID in
+    /// canonical lowercase form through the standard string-search
+    /// machinery. Both `^` and reverse member-of `^R` use the same row.
+    #[test]
+    fn member_filter_referenced_member_id_matches_member_annotation_rows() {
+        let member_annotation = SctId::compose(10044, ComponentType::Concept, None).unwrap();
+        let annotation_type = SctId::compose(10045, ComponentType::Concept, None).unwrap();
+        let referenced_member_id = "80000000-0000-4000-8000-000000000194";
+        let mut b = SnapshotStore::builder();
+        b.add_concept(concept(MI));
+        b.add_concept(concept(annotation_type));
+        b.add_member_annotation_member(MemberAnnotationRefsetMember {
+            core: RefsetMemberCore {
+                id: MemberId::parse("80000000-0000-4000-8000-000000000195").unwrap(),
+                effective_time: EffectiveTime::new_unchecked(20190731),
+                active: true,
+                module_id: constants::CORE_MODULE,
+                refset_id: member_annotation,
+                referenced_component_id: MI,
+            },
+            referenced_member_id: MemberId::parse(referenced_member_id).unwrap(),
+            language_dialect_code: "en-GB".to_string(),
+            type_id: annotation_type,
+            value: "member note".to_string(),
+        });
+        b.add_simple_member(simple_member(
+            "80000000-0000-4000-8000-000000000196",
+            20190731,
+            true,
+            ICD10_MAP,
+            MI,
+        ));
+        let store = b.build();
+
+        assert_eq!(
+            eval(
+                &format!(
+                    "^ {member_annotation} {{{{ M referencedMemberId = exact:\"{referenced_member_id}\" }}}}"
+                ),
+                &store
+            ),
+            HashSet::from([MI])
+        );
+        assert!(eval(
+            &format!(
+                "^ {ICD10_MAP} {{{{ M referencedMemberId = exact:\"{referenced_member_id}\" }}}}"
+            ),
+            &store
+        )
+        .is_empty());
+        assert_eq!(
+            eval(
+                &format!(
+                    "^ {member_annotation} {{{{ M referencedMemberId = wild:\"80000000-*-000000000194\" }}}}"
+                ),
+                &store
+            ),
+            HashSet::from([MI])
+        );
+        assert_eq!(
+            eval(
+                &format!(
+                    "^ {member_annotation} {{{{ M referencedMemberId = exact:\"not-a-uuid\" }}}}"
+                ),
+                &store
+            ),
+            HashSet::new(),
+            "the string-shaped filter accepts but does not match malformed UUID text"
+        );
+        assert_eq!(
+            eval(
+                &format!(
+                    "^R {MI} {{{{ M referencedMemberId != exact:\"00000000-0000-0000-0000-000000000000\" }}}}"
+                ),
+                &store
+            ),
+            HashSet::from([member_annotation])
+        );
+    }
+
     /// `constraintOperator "(" expressionConstraint ")"` — the operator
     /// applies to each member of the set and the results union.
     #[test]
@@ -8317,7 +8448,7 @@ mod tests {
             module_id: constants::CORE_MODULE,
             source_id: fracture,
             destination_id: bone,
-            relationship_group: 0,
+            relationship_group: 1,
             type_id: finding_site,
             characteristic_type_id: constants::INFERRED_RELATIONSHIP,
             modifier_id: constants::EXISTENTIAL_MODIFIER,
@@ -8350,6 +8481,21 @@ mod tests {
             ),
             HashSet::new()
         );
+        let grouped_reverse = PreparedAttribute {
+            reverse: true,
+            cardinality: Cardinality::default(),
+            types: HashSet::from([finding_site]),
+            comparison: PreparedComparison::Expression {
+                negated: false,
+                values: HashSet::from([fracture]),
+            },
+        };
+        assert!(evaluate_attribute_constraint(
+            &grouped_reverse,
+            bone,
+            &store,
+            Some(1)
+        ));
     }
 
     /// A tiny "disorder" shape for `dottedExpressionConstraint`
@@ -8707,6 +8853,33 @@ mod tests {
             characteristic_type_id: constants::INFERRED_RELATIONSHIP,
             modifier_id: constants::EXISTENTIAL_MODIFIER,
         });
+        // Opposite wire types under the same attribute ids exercise the
+        // required type-mismatch behavior. Nonzero groups also make them
+        // candidates when a refinement is evaluated inside `{ ... }`.
+        b.add_relationship_concrete_value(RelationshipConcreteValue {
+            id: SctId::compose(4302, ComponentType::Relationship, None).unwrap(),
+            effective_time: EffectiveTime::new_unchecked(20190731),
+            active: true,
+            module_id: constants::CORE_MODULE,
+            source_id: MI,
+            value: ConcreteValue::String("not-a-number".to_string()),
+            relationship_group: 1,
+            type_id: attr_type,
+            characteristic_type_id: constants::INFERRED_RELATIONSHIP,
+            modifier_id: constants::EXISTENTIAL_MODIFIER,
+        });
+        b.add_relationship_concrete_value(RelationshipConcreteValue {
+            id: SctId::compose(4303, ComponentType::Relationship, None).unwrap(),
+            effective_time: EffectiveTime::new_unchecked(20190731),
+            active: true,
+            module_id: constants::CORE_MODULE,
+            source_id: MI,
+            value: ConcreteValue::Number("250".to_string()),
+            relationship_group: 2,
+            type_id: string_attr_type,
+            characteristic_type_id: constants::INFERRED_RELATIONSHIP,
+            modifier_id: constants::EXISTENTIAL_MODIFIER,
+        });
         (b.build(), attr_type, string_attr_type)
     }
 
@@ -8746,6 +8919,10 @@ mod tests {
             eval(&format!("{MI} : {attr_type} = #250"), &store),
             HashSet::new()
         );
+        assert_eq!(
+            eval(&format!("{MI} : {{ [0..*] {attr_type} = #10 }}"), &store),
+            HashSet::from([MI])
+        );
     }
 
     #[test]
@@ -8767,6 +8944,13 @@ mod tests {
         assert_eq!(
             eval(&format!("{MI} : {string_attr_type} = \"10\""), &store),
             HashSet::new()
+        );
+        assert_eq!(
+            eval(
+                &format!("{MI} : {{ [0..*] {string_attr_type} = \"250mg\" }}"),
+                &store
+            ),
+            HashSet::from([MI])
         );
     }
 
@@ -8971,6 +9155,18 @@ mod tests {
             ),
             HashSet::from([ROOT, FINDING, DISEASE])
         );
+        assert_eq!(
+            eval(
+                &format!("<< {ROOT} {{{{ C moduleId = ({module_a} {module_b}) }}}}"),
+                &store
+            ),
+            HashSet::from([ROOT, FINDING, DISEASE])
+        );
+        assert!(eval(
+            &format!("<< {ROOT} {{{{ C moduleId != ({module_a} {module_b}) }}}}"),
+            &store
+        )
+        .is_empty());
     }
 
     /// ROOT is 2019-01-31; FINDING is 2019-07-31; DISEASE is 2020-07-31.
@@ -9176,6 +9372,13 @@ mod tests {
                 FINDING,
                 constants::FULLY_SPECIFIED_NAME,
                 "Clinical finding (finding)",
+                true,
+            ),
+            described(
+                5005,
+                FINDING,
+                constants::TEXT_DEFINITION,
+                "A finding observed in a patient.",
                 true,
             ),
         ]);
@@ -9459,6 +9662,19 @@ mod tests {
             eval(&format!("<< {ROOT} {{{{ D dialectId = {gb} }}}}"), &store),
             HashSet::from([MI])
         );
+        // Appendix C aliases resolve to the same canonical refset ids at
+        // parse time, including alias sets and acceptability constraints.
+        assert_eq!(
+            eval(&format!("<< {ROOT} {{{{ D dialect = en-us }}}}"), &store),
+            eval(&format!("<< {ROOT} {{{{ D dialectId = {us} }}}}"), &store)
+        );
+        assert_eq!(
+            eval(
+                &format!("<< {ROOT} {{{{ D dialect = (en-us (preferred) en-gb (acceptable)) }}}}"),
+                &store
+            ),
+            HashSet::from([MI])
+        );
         // Narrowed by acceptability — the classic "preferred in US
         // English" query.
         assert_eq!(
@@ -9499,6 +9715,53 @@ mod tests {
         .is_empty());
         // A refset the store knows nothing about: no members, no match.
         assert!(eval(&format!("<< {ROOT} {{{{ D dialectId = {MI} }}}}"), &store).is_empty());
+
+        // A dialectIdSet ORs entries, while each entry may carry its own
+        // acceptability. `!=` negates the whole set.
+        assert_eq!(
+            eval(
+                &format!("<< {ROOT} {{{{ D dialectId = ({us} (acceptable) {gb} (preferred)) }}}}"),
+                &store
+            ),
+            HashSet::from([FINDING])
+        );
+        assert_eq!(
+            eval(
+                &format!("<< {ROOT} {{{{ D dialectId != ({us} (preferred) {gb} (acceptable)) }}}}"),
+                &store
+            ),
+            HashSet::from([FINDING])
+        );
+        // A trailing set applies to every dialect entry. If an entry also
+        // has a set, both constraints apply to its one acceptability.
+        assert_eq!(
+            eval(
+                &format!("<< {ROOT} {{{{ D dialectId = ({us} {gb}) (acceptable) }}}}"),
+                &store
+            ),
+            HashSet::from([MI, FINDING])
+        );
+        assert_eq!(
+            eval(
+                &format!(
+                    "<< {ROOT} {{{{ D dialectId = ({us} (preferred) {gb} (acceptable)) (acceptable) }}}}"
+                ),
+                &store
+            ),
+            HashSet::from([MI])
+        );
+        // The concept-reference acceptability spelling is equivalent to
+        // its token for the standard metadata identifiers.
+        assert_eq!(
+            eval(
+                &format!(
+                    "<< {ROOT} {{{{ D dialectId = ({us} ({} |Preferred|)) }}}}",
+                    constants::PREFERRED
+                ),
+                &store
+            ),
+            HashSet::from([MI])
+        );
     }
 
     #[test]
@@ -9605,6 +9868,10 @@ mod tests {
             eval("<< 138875005 {{ D type = syn }}", &store),
             HashSet::from([MI])
         );
+        assert_eq!(
+            eval("<< 138875005 {{ D type = def, active = true }}", &store),
+            HashSet::from([FINDING])
+        );
         // Both filters must hold of the *same* description: MI has an FSN
         // and a description matching "heart", but no FSN matching "heart".
         assert!(eval("<< 138875005 {{ D type = fsn, term = \"heart\" }}", &store).is_empty());
@@ -9612,11 +9879,11 @@ mod tests {
             eval("<< 138875005 {{ D type = syn, term = \"heart\" }}", &store),
             HashSet::from([MI])
         );
-        // `!=` applies per description: some active description of MI is
-        // not an FSN.
+        // `!=` applies per description: both concepts have some active
+        // non-FSN description.
         assert_eq!(
             eval("<< 138875005 {{ D type != fsn }}", &store),
-            HashSet::from([MI])
+            HashSet::from([FINDING, MI])
         );
     }
 
@@ -9675,5 +9942,63 @@ mod tests {
                 &store
             )
         );
+    }
+
+    #[test]
+    fn prepared_filter_helpers_reject_mismatched_internal_shapes() {
+        let search = SearchTerm {
+            search_type: SearchType::Exact,
+            text: "value".into(),
+        };
+
+        let member_literal = PreparedMemberFilter::Literal;
+        assert!(!member_literal.concept_matches(Some(ROOT), false));
+        assert!(!member_literal.term_matches(Some("value"), std::slice::from_ref(&search), false));
+        assert!(
+            !PreparedMemberFilter::Concepts(HashSet::from([ROOT])).term_matches(
+                Some("value"),
+                std::slice::from_ref(&search),
+                false
+            )
+        );
+        assert!(!PreparedMemberFilter::Term(vec![PreparedSearch::Exact])
+            .concept_matches(Some(ROOT), false));
+        assert!(!PreparedMemberFilter::Concepts(HashSet::from([ROOT])).concept_matches(None, true));
+
+        let description_literal = PreparedDescriptionFilter::Literal;
+        assert!(!description_literal.concept_matches(ROOT, false));
+        assert!(!description_literal.term_matches("value", &[search], false));
+        assert!(!PreparedConceptFilter::Literal.matches(ROOT, false));
+
+        assert!(!numeric_matches(NumericComparisonOp::Eq, "invalid", "1"));
+        assert!(numeric_matches(NumericComparisonOp::Ge, "2", "1"));
+        assert!(!field_numeric_matches(
+            NumericComparisonOp::Eq,
+            "invalid",
+            "1"
+        ));
+        assert!(field_numeric_matches(NumericComparisonOp::Ge, "2", "1"));
+
+        let referenced_member_filter = MemberFilterKind::ReferencedMemberId(TermFilter {
+            negated: false,
+            values: vec![SearchTerm {
+                search_type: SearchType::Exact,
+                text: "value".into(),
+            }],
+        });
+        let core = RefsetMemberCore {
+            id: MemberId::parse("80000000-0000-4000-8000-000000000199").unwrap(),
+            effective_time: EffectiveTime::new_unchecked(20190731),
+            active: true,
+            module_id: constants::CORE_MODULE,
+            refset_id: ICD10_MAP,
+            referenced_component_id: MI,
+        };
+        assert!(!member_filter_matches(
+            &referenced_member_filter,
+            &PreparedMemberFilter::Term(vec![PreparedSearch::Exact]),
+            &core,
+            &TypedFields::default()
+        ));
     }
 }

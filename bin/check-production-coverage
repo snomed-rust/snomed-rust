@@ -1,0 +1,175 @@
+#!/usr/bin/env python3
+"""Require exact production coverage after deduplicating LLVM object copies.
+
+Run after cargo-llvm-cov has written its JSON export:
+
+    bin/check-production-coverage coverage.json
+
+Rust builds a library once with ``cfg(test)`` for unit tests and again without
+it for integration tests. LLVM assigns those equivalent functions different
+object identities, so its file summary can report an uncovered copy even when
+the same source region ran in the other object. This checker unions identical
+production source coordinates before enforcing 100% coverage. Test sources
+and paths outside workspace crate ``src/`` trees are deliberately excluded.
+"""
+
+import json
+import pathlib
+import sys
+
+
+class CoverageError(Exception):
+    """The report is malformed or contains no production coverage."""
+
+
+def production_path(raw, root):
+    """Return a workspace-relative production Rust path, or None."""
+    try:
+        relative = pathlib.Path(raw).resolve().relative_to(root)
+    except (TypeError, ValueError):
+        return None
+    if relative.suffix != ".rs" or "src" not in relative.parts:
+        return None
+    if "tests" in relative.parts:
+        return None
+    return relative.as_posix()
+
+
+def analyze(report, root):
+    """Return deduplicated maps for regions, functions, and lines."""
+    try:
+        functions = report["data"][0]["functions"]
+    except (KeyError, IndexError, TypeError) as error:
+        raise CoverageError("input is not an LLVM coverage JSON export") from error
+    if not isinstance(functions, list):
+        raise CoverageError("LLVM coverage `functions` must be a list")
+
+    regions = {}
+    source_functions = {}
+
+    for function in functions:
+        if not isinstance(function, dict):
+            raise CoverageError("LLVM coverage function entry must be an object")
+        filenames = function.get("filenames", [])
+        function_regions = []
+        function_count = 0
+        for region in function.get("regions", []):
+            if not isinstance(region, list) or len(region) < 8 or region[7] != 0:
+                continue
+            file_id = region[5]
+            if not isinstance(file_id, int) or not 0 <= file_id < len(filenames):
+                continue
+            path = production_path(filenames[file_id], root)
+            if path is None:
+                continue
+            coordinates = region[0:4]
+            count = region[4]
+            if not all(isinstance(value, int) for value in [*coordinates, count]):
+                raise CoverageError("LLVM coverage region coordinates must be integers")
+            key = (path, *coordinates)
+            regions[key] = max(regions.get(key, 0), count)
+            function_regions.append(key)
+            function_count = max(function_count, count)
+        if function_regions:
+            # The region-coordinate set is the stable source identity shared
+            # by cfg(test), integration, and generic object copies.
+            key = tuple(sorted(set(function_regions)))
+            source_functions[key] = max(source_functions.get(key, 0), function_count)
+
+    if not regions:
+        raise CoverageError("no production Rust regions found")
+
+    lines = {}
+    for (path, start_line, _start_col, end_line, _end_col), count in regions.items():
+        for line in range(start_line, end_line + 1):
+            key = (path, line)
+            lines[key] = max(lines.get(key, 0), count)
+
+    return regions, source_functions, lines
+
+
+def uncovered(maps):
+    """Return the zero-count keys in each coverage map."""
+    return tuple([key for key, count in values.items() if count == 0] for values in maps)
+
+
+def self_test():
+    """Exercise deduplication, failure detection, and source filtering."""
+    root = pathlib.Path("/workspace")
+
+    def report(*counts):
+        functions = []
+        for count in counts:
+            functions.append(
+                {
+                    "filenames": ["/workspace/crate/src/lib.rs"],
+                    "regions": [[10, 1, 10, 8, count, 0, 0, 0]],
+                }
+            )
+        functions.append(
+            {
+                "filenames": ["/workspace/crate/tests/api.rs"],
+                "regions": [[1, 1, 1, 4, 0, 0, 0, 0]],
+            }
+        )
+        return {"data": [{"functions": functions}]}
+
+    if any(uncovered(analyze(report(0, 3), root))):
+        raise AssertionError("a covered duplicate did not cover its source coordinate")
+    missing = uncovered(analyze(report(0, 0), root))
+    if [len(items) for items in missing] != [1, 1, 1]:
+        raise AssertionError("an uncovered coordinate was not reported in every metric")
+    try:
+        analyze({"data": []}, root)
+    except CoverageError:
+        pass
+    else:
+        raise AssertionError("malformed coverage report was accepted")
+    print("Production coverage checker self-test passed.")
+
+
+def main():
+    if len(sys.argv) == 2 and sys.argv[1] == "--self-test":
+        self_test()
+        return 0
+    if len(sys.argv) != 2:
+        print(
+            "usage: bin/check-production-coverage COVERAGE.json\n"
+            "       bin/check-production-coverage --self-test",
+            file=sys.stderr,
+        )
+        return 2
+
+    try:
+        with open(sys.argv[1], encoding="utf-8") as handle:
+            report = json.load(handle)
+        maps = analyze(report, pathlib.Path.cwd().resolve())
+    except (CoverageError, OSError, json.JSONDecodeError) as error:
+        print(f"Exact production coverage failed: {error}")
+        return 1
+
+    uncovered_regions, uncovered_functions, uncovered_lines = uncovered(maps)
+    if uncovered_regions or uncovered_functions or uncovered_lines:
+        print(
+            "Exact production coverage failed: "
+            f"{len(uncovered_regions)} region(s), "
+            f"{len(uncovered_functions)} function(s), and "
+            f"{len(uncovered_lines)} line(s) uncovered."
+        )
+        for path, start_line, start_col, end_line, end_col in uncovered_regions[:20]:
+            print(f"  {path}:{start_line}:{start_col}-{end_line}:{end_col}")
+        return 1
+
+    regions, source_functions, lines = maps
+    print(
+        "Exact production coverage passed: "
+        f"{len(regions)}/{len(regions)} regions, "
+        f"{len(source_functions)}/{len(source_functions)} functions, and "
+        f"{len(lines)}/{len(lines)} lines (100.00% each; equivalent LLVM object "
+        "copies unioned by source coordinate)."
+    )
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

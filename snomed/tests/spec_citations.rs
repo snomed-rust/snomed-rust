@@ -61,11 +61,19 @@ fn markdown_and_rust_files(dir: &Path, out: &mut Vec<PathBuf>) {
 
 /// `spec/09` -> `09-versioning.md`; `spec/rust-bench.md` -> itself. A bare
 /// number resolves to the shortest matching file, so `spec/10` is
-/// `10-ecl.md` rather than the split-off `10-ecl-filters.md`.
+/// `10-ecl.md` rather than the split-off `10-ecl-filters.md`. The one
+/// exception is `spec/07`, whose two files both define rules 1-5: the bare
+/// shorthand is the relationship file (the original `07`), and the
+/// identifier file must be cited by its full name, `spec/07-identifier-file`.
 fn resolve<'a>(token: &str, specs: &'a HashMap<String, HashSet<u32>>) -> Option<&'a str> {
     let token = token.trim_end_matches(['`', ',', '\'', 's']);
     if let Some((name, _)) = specs.get_key_value(token) {
         return Some(name);
+    }
+    if token == "07" {
+        return specs
+            .get_key_value("07-relationship-file.md")
+            .map(|(k, _)| k.as_str());
     }
     let with_ext = format!("{token}.md");
     if specs.contains_key(&with_ext) {
@@ -155,4 +163,22 @@ fn every_spec_rule_citation_names_a_rule_that_exists() {
         "stale spec citations:\n  {}",
         problems.join("\n  ")
     );
+}
+
+#[test]
+fn bare_spec_07_means_the_relationship_file() {
+    let mut specs: HashMap<String, HashSet<u32>> = HashMap::new();
+    for name in [
+        "07-identifier-file.md",
+        "07-relationship-file.md",
+        "10-ecl.md",
+    ] {
+        specs.insert(name.to_string(), HashSet::new());
+    }
+    assert_eq!(resolve("07", &specs), Some("07-relationship-file.md"));
+    assert_eq!(
+        resolve("07-identifier-file", &specs),
+        Some("07-identifier-file.md")
+    );
+    assert_eq!(resolve("10", &specs), Some("10-ecl.md"));
 }

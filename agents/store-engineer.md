@@ -75,11 +75,10 @@ hierarchy, dangling references, and concepts detached from the hierarchy
 survived. Keep the split clear: invariant 3 above (cycle-safe BFS) means
 traversal never hangs on corrupt data; `validate()` is the separate,
 explicit "tell me what's wrong" pass — don't fold reporting logic into the
-traversal methods themselves. `find_cyclic_concepts` is a private,
-from-scratch iterative DFS (white/gray/black coloring) over the same
-`parents` map traversal uses; it does not reuse `ancestors`/`descendants`
-because those intentionally don't distinguish "cyclic" from "has many
-ancestors". Scope is deliberately limited to concept/description/
+traversal methods themselves. `find_cyclic_concepts` is an iterative
+strongly connected component search over the existing parent and child
+indexes. Every member of a multi-node component and every singleton with
+a self-loop belongs in the report (spec/07 rule 3). Scope is deliberately limited to concept/description/
 relationship referential integrity — refset `referencedComponentId`
 checking is out (a member can reference a concept, description, or other
 component depending on refset semantics, and validating that generically
@@ -208,11 +207,11 @@ its inactive rows.
 `descriptionFormat`/`descriptionLength`/`domainConstraint`/
 `parentDomain`/`proximalPrimitiveConstraint`/
 `proximalPrimitiveRefinement`/`domainTemplateForPrecoordination`/
-`domainTemplateForPostcoordination`/`guideURL`/`domainId`/`ruleStrengthId`/`contentTypeId`/`grouped`/`attributeCardinality`/`attributeInGroupCardinality`/`sourceEffectiveTime`/`targetEffectiveTime`/`rangeConstraint`/`attributeRule`/`languageDialectCode`/`typeId`/`value`
+`domainTemplateForPostcoordination`/`guideURL`/`domainId`/`ruleStrengthId`/`contentTypeId`/`grouped`/`attributeCardinality`/`attributeInGroupCardinality`/`sourceEffectiveTime`/`targetEffectiveTime`/`rangeConstraint`/`attributeRule`/`languageDialectCode`/`referencedMemberId`/`typeId`/`value`
 filters
 (`spec/10-ecl.md` rule
 18) are
-the first thirty-seven
+the first thirty-eight
 consumers: the first seven dispatch directly to
 `simple_map_member_rows`/`extended_map_member_rows`
 (`correlationId`/`mapGroup`/`mapPriority`/`mapRule`/`mapAdvice`/
@@ -223,8 +222,8 @@ consumers: the first seven dispatch directly to
 `descriptionFormat`/`descriptionLength`/`domainConstraint`/
 `parentDomain`/`proximalPrimitiveConstraint`/`proximalPrimitiveRefinement`/
 `domainTemplateForPrecoordination`/`domainTemplateForPostcoordination`/
-`guideURL`/`domainId`/`ruleStrengthId`/`contentTypeId`/`grouped`/`attributeCardinality`/`attributeInGroupCardinality`/`sourceEffectiveTime`/`targetEffectiveTime`/`rangeConstraint`/`attributeRule`/`languageDialectCode`/`typeId`/`value`
-— the first thirty
+`guideURL`/`domainId`/`ruleStrengthId`/`contentTypeId`/`grouped`/`attributeCardinality`/`attributeInGroupCardinality`/`sourceEffectiveTime`/`targetEffectiveTime`/`rangeConstraint`/`attributeRule`/`languageDialectCode`/`referencedMemberId`/`typeId`/`value`
+— the first thirty-one
 outside
 the two map types — dispatch to `association_member_rows`/
 `attribute_value_member_rows`/`owl_expression_member_rows`/
@@ -349,12 +348,14 @@ already added a `member_annotation_member_rows` block that this
 column's `TypedFields` entry could simply join. `value` extended
 (2026-09-13) the same way — no second variant, no new row-set check,
 completing `MemberAnnotationRefsetMember`'s column coverage but for
-`referencedMemberId`. All
+`referencedMemberId`. That UUID-valued field followed (2026-11-19),
+using canonical `MemberId` rendering and the ECL string-search shape,
+so every additional column on the supported row is now covered. All
 row sets are still
 tested whenever any field-filter kind appears in a block, since a row
 missing the column simply fails that filter rather than needing its
 own excluded code path. Every future `memberFieldFilter` column on
 another type reads its own `*_member_rows` accessor the same way — the
 store side is done for all
-sixteen types; each remaining column is a `snomed-ecl` parser/eval
+sixteen types; each future column is a `snomed-ecl` parser/eval
 increment only.

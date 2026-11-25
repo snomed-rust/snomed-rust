@@ -3,9 +3,9 @@
 SNOMED CT is distributed as **Release Format 2 (RF2)**: a set of UTF-8,
 tab-separated text files. RF2 "formally defines the format in which SNOMED CT
 is provided to licensees" (SNOMED International). Every distributed unit of
-meaning is a **component** (Concept, Description, Relationship) or a
-**reference set member**, and every row is an immutable *version* of one of
-those, stamped with an `effectiveTime`.
+meaning is a **component** (Concept, Description, Relationship), an
+alternate-identifier association, or a **reference set member**, and every
+row is an immutable *version* stamped with an `effectiveTime`.
 
 ## Design principles this workspace relies on
 
@@ -37,8 +37,8 @@ Implemented: core component files, every refset pattern this workspace
 tracks (spec/08's full table, including MRCM and the current Ordered/
 Annotation variants), file naming, SCTID validation/generation, snapshot
 construction, and version history over everything a release ships — all
-four component types (Concept, Description, Relationship, and
-`RelationshipConcreteValues`) plus all eighteen refset member types
+four SCTID component types (Concept, Description, Relationship, and
+`RelationshipConcreteValues`), alternate identifiers, plus all eighteen refset member types
 (spec/09 rule 5) — IS-A hierarchy queries, Expression Constraint Language
 (spec/10), FHIR terminology-service building blocks (spec/11), OWL axiom
 parsing (spec/12), EL-profile subsumption classification (spec/13), and

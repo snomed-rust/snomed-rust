@@ -79,12 +79,20 @@ SnomedCT_InternationalRF2_PRODUCTION_<date>/
    hard error, not a skip.
 4. `SnapshotStoreBuilder::load_release_dir` dispatches every component
    type (Concept, Description/TextDefinition,
-   Relationship/StatedRelationship, RelationshipConcreteValues) and every
+   Relationship/StatedRelationship, RelationshipConcreteValues, Identifier)
+   and every
    refset type this workspace parses — spec/08's full table, including
    all four MRCM types and the current Ordered/Annotation variants
    (spec/05..08). No refset pattern this workspace tracks is
    recognized-but-not-loaded; a genuinely unrecognized (content type,
    summary) combination still skip-and-reports per rule 3.
+
+5. Both loaders stream rows into the supplied builder. Successfully parsed
+   rows remain applied if a later row or file fails. For a refresh, use a
+   fresh builder, load every required directory, and publish the completed
+   store only after every load succeeds and application validation passes.
+   After an error, discard that builder and reload all required directories
+   on retry. This also removes rows the corrected input omits.
 
 A second public entry point, `list_release_files(dir, release_type)`,
 implements rules 1-2's *file selection* half only (recurse, parse names,

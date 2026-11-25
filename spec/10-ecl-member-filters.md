@@ -28,8 +28,8 @@ every refset member type shares (`RefsetMemberCore`, spec/08) — reusing
 the exact `ModuleFilter`/`EffectiveTimeFilter`/`ActiveFilter` AST shapes
 `{{ C }}` already has:
 
-- `moduleId (=|!=) subExpressionConstraint` matches member rows whose own
-  `moduleId` is in the evaluated set — the member row's `moduleId`, not
+- `moduleId` accepts a subexpression or a concept-reference set and
+  matches member rows whose own `moduleId` is in the evaluated set — the member row's `moduleId`, not
   the referenced component's own. A row and its referenced component can
   legitimately disagree (a member added by an extension module against a
   core-module concept, say), which is exactly why this asks about the
@@ -482,12 +482,24 @@ has two):
   `value` column too (a distinct row, sharing only the RF2 field name
   — the same pairing `languageDialectCode`/`typeId` already have
   between the two types): no new variant, not even a new row-set
-  check, completing `MemberAnnotationRefsetMember`'s column coverage
-  but for `referencedMemberId`.
+  check.
+- `referencedMemberId (=|!=) (typedSearchTerm | typedSearchTermSet)`
+  — the string-search shape. The
+  [official RF2 Member Annotation reference-set specification](https://docs.snomed.org/snomed-ct-specifications/snomed-ct-release-file-specification/reference-set-release-file-specification/5.2-reference-set-types/5.2.4-metadata-reference-sets/5.2.4.9-member-annotation-string-value-reference-set)
+  declares this column as a UUID, and spec/03 represents UUID columns
+  with the `s` (string) pattern, so it is not a concept-reference
+  comparison. Evaluation renders the stored `MemberId` in canonical
+  lowercase 8-4-4-4-12 form and applies the same match/wild/exact
+  semantics as `mapTarget`. A syntactically valid search term need not
+  itself be a valid UUID; such a term simply does not exactly match a
+  stored member identifier. This is a new `MemberFilterKind` variant
+  but no new row-set check: it joins the existing
+  `member_annotation_member_rows` dispatch and completes every
+  additional column on the supported `MemberAnnotationRefsetMember`.
 
-All thirty-seven reuse the shared dispatch `mapTarget` introduced
+All thirty-eight reuse the shared dispatch `mapTarget` introduced
 (renamed `typed_field_row_matches` once a non-map type joined it): a
-block naming *any* of the thirty-seven kinds is tested against
+block naming *any* of the thirty-eight kinds is tested against
 `SimpleMap`/`ExtendedMap`/`Association`/`AttributeValue`/`OwlExpression`/
 `OrderedComponent`/`OrderedAssociation`/`MrcmModuleScope`/
 `RefsetDescriptor`/`DescriptionType`/`MrcmDomain`/`MrcmAttributeDomain`/
@@ -505,16 +517,14 @@ any of `correlationId`/
 `attributeOrder`/`descriptionFormat`/`descriptionLength`/
 `domainConstraint`/`parentDomain`/`proximalPrimitiveConstraint`/
 `proximalPrimitiveRefinement`/`domainTemplateForPrecoordination`/
-`domainTemplateForPostcoordination`/`guideURL`/`domainId`/`ruleStrengthId`/`contentTypeId`/`grouped`/`attributeCardinality`/`attributeInGroupCardinality`/`sourceEffectiveTime`/`targetEffectiveTime`/`rangeConstraint`/`attributeRule`/`languageDialectCode`/`typeId`/`value`
+`domainTemplateForPostcoordination`/`guideURL`/`domainId`/`ruleStrengthId`/`contentTypeId`/`grouped`/`attributeCardinality`/`attributeInGroupCardinality`/`sourceEffectiveTime`/`targetEffectiveTime`/`rangeConstraint`/`attributeRule`/`languageDialectCode`/`referencedMemberId`/`typeId`/`value`
 (the column is
 simply
 absent on that row source, the same "not this row's type" answer a
 shared-column filter gets from a row of the wrong refset type), so it
 can never be a spurious match.
 
-**Not implemented:** every other `memberFieldFilter` column (see
-`spec/10-ecl-unimplemented.md`); the store retention
-that made these columns possible already covers every non-Simple/
-Language refset type (decided 2026-09-03, `plan.md`'s "Open decisions"),
-so each remaining column is a parser/eval increment only, not a further
-store decision.
+Other field names remain extensible under the official `1*alpha`
+`refsetFieldName` grammar, but a field without a typed row in this
+workspace is rejected rather than guessed (see
+`spec/10-ecl-unimplemented.md`).

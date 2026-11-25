@@ -85,3 +85,44 @@ impl fmt::Display for FhirError {
 }
 
 impl std::error::Error for FhirError {}
+
+#[cfg_attr(coverage_nightly, coverage(off))]
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn every_error_variant_names_the_failed_input() {
+        let id = SctId::new_unchecked(138875005);
+        let cases = [
+            (
+                FhirError::UnsupportedSystem("urn:other".to_owned()),
+                "unsupported system `urn:other`",
+            ),
+            (FhirError::UnknownCode(id), "unknown code `138875005`"),
+            (
+                FhirError::UnsupportedProperty("inactive".to_owned()),
+                "property `inactive` is not yet supported",
+            ),
+            (
+                FhirError::MissingClassification("normalForm".to_owned()),
+                "property `normalForm` requires a NecessaryNormalFormReport",
+            ),
+            (
+                FhirError::UnsupportedValueSet("bad-url".to_owned()),
+                "`bad-url` is not a supported implicit value set",
+            ),
+            (
+                FhirError::MalformedUrlEncoding("bad%".to_owned()),
+                "malformed percent-encoding in url `bad%`",
+            ),
+            (
+                FhirError::InvalidEcl("unexpected token".to_owned()),
+                "invalid ECL in implicit value set: unexpected token",
+            ),
+        ];
+        for (error, expected) in cases {
+            assert!(error.to_string().contains(expected), "{error}");
+        }
+    }
+}

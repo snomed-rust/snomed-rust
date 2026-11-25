@@ -113,6 +113,7 @@ pub fn parse_member_id(value: &str, column: &'static str) -> Result<MemberId, Fi
         .map_err(|_| FieldError::new(column, format!("expected a UUID, got `{value}`")))
 }
 
+#[cfg_attr(coverage_nightly, coverage(off))]
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -163,5 +164,49 @@ mod tests {
         assert_eq!(parse_active("1", "active"), Ok(true));
         assert_eq!(parse_active("0", "active"), Ok(false));
         assert!(parse_active("true", "active").is_err());
+    }
+
+    #[test]
+    fn shared_field_parsers_report_their_column() {
+        assert_eq!(parse_u32("12", "group"), Ok(12));
+        assert_eq!(parse_nonempty("value", "term"), Ok("value".to_string()));
+        assert_eq!(
+            parse_concrete_value("#1.50", "value"),
+            Ok(ConcreteValue::Number("1.50".to_string()))
+        );
+
+        for error in [
+            parse_effective_time("20241340", "effectiveTime").unwrap_err(),
+            parse_u32("-1", "group").unwrap_err(),
+            parse_nonempty("", "term").unwrap_err(),
+            parse_concrete_value("plain", "value").unwrap_err(),
+        ] {
+            assert!(!error.column.is_empty());
+            assert!(!error.message.is_empty());
+        }
+    }
+
+    #[test]
+    fn partition_mismatch_messages_name_all_component_types() {
+        let ids = [
+            (ComponentType::Concept, "concept"),
+            (ComponentType::Description, "description"),
+            (ComponentType::Relationship, "relationship"),
+        ];
+        for (found, found_name) in ids {
+            let id = SctId::compose(2001, found, None).unwrap();
+            for (expected, expected_name) in ids {
+                if found == expected {
+                    assert_eq!(
+                        parse_component_sctid(&id.to_string(), "id", expected),
+                        Ok(id)
+                    );
+                } else {
+                    let error = parse_component_sctid(&id.to_string(), "id", expected).unwrap_err();
+                    assert!(error.message.contains(found_name));
+                    assert!(error.message.contains(expected_name));
+                }
+            }
+        }
     }
 }

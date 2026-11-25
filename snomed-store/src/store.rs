@@ -6,7 +6,9 @@ pub use validate::ValidationReport;
 
 use std::collections::{HashMap, HashSet, VecDeque};
 
-use snomed_core::components::{Concept, Description, Relationship, RelationshipConcreteValue};
+use snomed_core::components::{
+    AlternateIdentifier, Concept, Description, Relationship, RelationshipConcreteValue,
+};
 use snomed_core::constants;
 use snomed_core::member_id::MemberId;
 use snomed_core::sctid::{ComponentType, SctId};
@@ -30,6 +32,7 @@ pub struct SnapshotStoreBuilder {
     descriptions: HashMap<SctId, Description>,
     relationships: HashMap<SctId, Relationship>,
     relationship_concrete_values: HashMap<SctId, RelationshipConcreteValue>,
+    alternate_identifiers: HashMap<(SctId, String), AlternateIdentifier>,
     // Refset members, all keyed by member UUID (spec/08: versioning is
     // identical to components, keyed by the member UUID).
     simple_members: HashMap<MemberId, SimpleRefsetMember>,
@@ -234,6 +237,17 @@ impl SnapshotStoreBuilder {
         self
     }
 
+    /// Adds an RF2 Identifier row, resolving versions by its composite
+    /// `(identifierSchemeId, alternateIdentifier)` identity
+    /// (spec/07-identifier-file.md rule 2).
+    pub fn add_alternate_identifier(&mut self, row: AlternateIdentifier) -> &mut Self {
+        let key = (row.identifier_scheme_id, row.alternate_identifier.clone());
+        upsert(&mut self.alternate_identifiers, key, row, |identifier| {
+            identifier.effective_time.as_u32()
+        });
+        self
+    }
+
     refset_member_methods!(
         add_simple_member,
         add_simple_members,
@@ -370,6 +384,16 @@ impl SnapshotStoreBuilder {
     ) -> &mut Self {
         rows.into_iter().for_each(|r| {
             self.add_relationship_concrete_value(r);
+        });
+        self
+    }
+
+    pub fn add_alternate_identifiers(
+        &mut self,
+        rows: impl IntoIterator<Item = AlternateIdentifier>,
+    ) -> &mut Self {
+        rows.into_iter().for_each(|row| {
+            self.add_alternate_identifier(row);
         });
         self
     }
@@ -547,17 +571,10 @@ impl SnapshotStoreBuilder {
             }
             let key = (m.core.refset_id, m.core.referenced_component_id);
             let candidate = (m.core.id, m.core.effective_time, m.acceptability_id);
-            match resolved.entry(key) {
-                std::collections::hash_map::Entry::Vacant(e) => {
-                    e.insert(candidate);
-                }
-                std::collections::hash_map::Entry::Occupied(mut e) => {
-                    let (uuid, time, _) = *e.get();
-                    if (candidate.1, candidate.0) > (time, uuid) {
-                        e.insert(candidate);
-                    }
-                }
-            }
+            resolved
+                .entry(key)
+                .and_modify(|stored| *stored = std::cmp::max(*stored, candidate))
+                .or_insert(candidate);
         }
         let acceptability: HashMap<(SctId, SctId), SctId> = resolved
             .into_iter()
@@ -696,6 +713,7 @@ impl SnapshotStoreBuilder {
             descriptions: self.descriptions,
             relationships: self.relationships,
             relationship_concrete_values: self.relationship_concrete_values,
+            alternate_identifiers: self.alternate_identifiers,
             descriptions_by_concept,
             relationships_by_source,
             relationships_by_destination,
@@ -763,6 +781,7 @@ pub struct SnapshotStore {
     descriptions: HashMap<SctId, Description>,
     relationships: HashMap<SctId, Relationship>,
     relationship_concrete_values: HashMap<SctId, RelationshipConcreteValue>,
+    alternate_identifiers: HashMap<(SctId, String), AlternateIdentifier>,
     descriptions_by_concept: HashMap<SctId, Vec<SctId>>,
     relationships_by_source: HashMap<SctId, Vec<SctId>>,
     relationships_by_destination: HashMap<SctId, Vec<SctId>>,
@@ -855,6 +874,30 @@ impl SnapshotStore {
 
     pub fn relationship_concrete_value(&self, id: SctId) -> Option<&RelationshipConcreteValue> {
         self.relationship_concrete_values.get(&id)
+    }
+
+    /// The latest row for an alternate identifier, including an inactive
+    /// row (spec/07-identifier-file.md rule 3).
+    pub fn alternate_identifier(
+        &self,
+        identifier_scheme_id: SctId,
+        alternate_identifier: &str,
+    ) -> Option<&AlternateIdentifier> {
+        self.alternate_identifiers
+            .get(&(identifier_scheme_id, alternate_identifier.to_owned()))
+    }
+
+    /// Resolves an active alternate identifier to its SNOMED CT component.
+    /// Unknown and inactive identifiers return `None`
+    /// (spec/07-identifier-file.md rule 3).
+    pub fn resolve_alternate_identifier(
+        &self,
+        identifier_scheme_id: SctId,
+        alternate_identifier: &str,
+    ) -> Option<SctId> {
+        self.alternate_identifier(identifier_scheme_id, alternate_identifier)
+            .filter(|row| row.active)
+            .map(|row| row.referenced_component_id)
     }
 
     /// True when the concept exists and its latest version is active.
@@ -1401,6 +1444,7 @@ impl SnapshotStore {
     member_rows_accessor!(member_annotation_member_rows, MemberAnnotationRefsetMember);
 }
 
+#[cfg_attr(coverage_nightly, coverage(off))]
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1416,6 +1460,77 @@ mod tests {
             module_id: constants::CORE_MODULE,
             definition_status_id: constants::PRIMITIVE,
         }
+    }
+
+    fn alternate_identifier(
+        scheme: SctId,
+        code: &str,
+        component: SctId,
+        time: u32,
+        active: bool,
+    ) -> AlternateIdentifier {
+        AlternateIdentifier {
+            alternate_identifier: code.to_owned(),
+            effective_time: EffectiveTime::new_unchecked(time),
+            active,
+            module_id: constants::CORE_MODULE,
+            identifier_scheme_id: scheme,
+            referenced_component_id: component,
+        }
+    }
+
+    #[test]
+    fn alternate_identifier_resolution_is_latest_active_and_scheme_scoped() {
+        let scheme_a = SctId::compose(2001, ComponentType::Concept, None).unwrap();
+        let scheme_b = SctId::compose(2002, ComponentType::Concept, None).unwrap();
+        let component_a = SctId::compose(3001, ComponentType::Concept, None).unwrap();
+        let component_b = SctId::compose(3002, ComponentType::Concept, None).unwrap();
+
+        let mut builder = SnapshotStore::builder();
+        builder.add_alternate_identifiers([
+            alternate_identifier(scheme_a, "CODE-1", component_a, 20240131, true),
+            alternate_identifier(scheme_a, "CODE-1", component_a, 20250131, false),
+            alternate_identifier(scheme_b, "CODE-1", component_b, 20250131, true),
+        ]);
+        let store = builder.build();
+
+        assert!(
+            !store
+                .alternate_identifier(scheme_a, "CODE-1")
+                .unwrap()
+                .active
+        );
+        assert_eq!(store.resolve_alternate_identifier(scheme_a, "CODE-1"), None);
+        assert_eq!(
+            store.resolve_alternate_identifier(scheme_b, "CODE-1"),
+            Some(component_b)
+        );
+        assert!(store.alternate_identifier(scheme_a, "missing").is_none());
+    }
+
+    #[test]
+    fn alternate_identifier_equal_time_conflicts_resolve_deterministically() {
+        let scheme = SctId::compose(2001, ComponentType::Concept, None).unwrap();
+        let first = SctId::compose(3001, ComponentType::Concept, None).unwrap();
+        let second = SctId::compose(3002, ComponentType::Concept, None).unwrap();
+        let inactive = alternate_identifier(scheme, "CODE-1", first, 20250131, false);
+        let active = alternate_identifier(scheme, "CODE-1", second, 20250131, true);
+
+        let build = |rows: [AlternateIdentifier; 2]| {
+            let mut builder = SnapshotStore::builder();
+            builder.add_alternate_identifiers(rows);
+            builder.build()
+        };
+        let left = build([inactive.clone(), active.clone()]);
+        let right = build([active, inactive]);
+        assert_eq!(
+            left.resolve_alternate_identifier(scheme, "CODE-1"),
+            right.resolve_alternate_identifier(scheme, "CODE-1")
+        );
+        assert_eq!(
+            left.resolve_alternate_identifier(scheme, "CODE-1"),
+            Some(second)
+        );
     }
 
     fn is_a(item: u64, source: SctId, destination: SctId) -> Relationship {
@@ -1548,6 +1663,10 @@ mod tests {
         };
         let build = |rows: [LanguageRefsetMember; 2]| {
             let mut b = SnapshotStore::builder();
+            let mut inactive = rows[0].clone();
+            inactive.core.id = MemberId::parse("00000000-0000-4000-8000-00000000000c").unwrap();
+            inactive.core.active = false;
+            b.add_language_member(inactive);
             b.add_language_members(rows);
             b.build()
                 .acceptability(constants::US_ENGLISH_LANGUAGE_REFSET, description_id)
@@ -1613,6 +1732,75 @@ mod tests {
         // A cycle is data corruption per spec/07, but queries must not hang.
         assert_eq!(store.ancestors(FINDING), HashSet::from([DISEASE]));
         assert!(store.is_ancestor_of(DISEASE, FINDING));
+        assert!(!store.is_ancestor_of(ROOT, FINDING));
+    }
+
+    #[test]
+    fn component_bulk_adders_resolve_versions_and_empty_typed_accessors_are_total() {
+        let description_id = SctId::compose(1010, ComponentType::Description, None).unwrap();
+        let description = |time| Description {
+            id: description_id,
+            effective_time: EffectiveTime::new_unchecked(time),
+            active: true,
+            module_id: constants::CORE_MODULE,
+            concept_id: MI,
+            language_code: "en".into(),
+            type_id: constants::SYNONYM,
+            term: format!("term-{time}"),
+            case_significance_id: constants::CASE_INSENSITIVE,
+        };
+        let mut old_relationship = is_a(90, MI, DISEASE);
+        old_relationship.effective_time = EffectiveTime::new_unchecked(20200131);
+        let mut new_relationship = old_relationship.clone();
+        new_relationship.effective_time = EffectiveTime::new_unchecked(20210131);
+        let concrete_id = SctId::compose(1091, ComponentType::Relationship, None).unwrap();
+        let concrete = |time| RelationshipConcreteValue {
+            id: concrete_id,
+            effective_time: EffectiveTime::new_unchecked(time),
+            active: true,
+            module_id: constants::CORE_MODULE,
+            source_id: MI,
+            value: ConcreteValue::Number(time.to_string()),
+            relationship_group: 0,
+            type_id: constants::IS_A,
+            characteristic_type_id: constants::INFERRED_RELATIONSHIP,
+            modifier_id: constants::EXISTENTIAL_MODIFIER,
+        };
+
+        let mut builder = SnapshotStore::builder();
+        builder.add_descriptions([description(20200131), description(20210131)]);
+        builder.add_relationships([old_relationship, new_relationship]);
+        builder.add_relationship_concrete_values([concrete(20200131), concrete(20210131)]);
+        let store = builder.build();
+
+        assert_eq!(
+            store
+                .description(description_id)
+                .unwrap()
+                .effective_time
+                .as_u32(),
+            20210131
+        );
+        assert_eq!(
+            store
+                .relationship(is_a(90, MI, DISEASE).id)
+                .unwrap()
+                .effective_time
+                .as_u32(),
+            20210131
+        );
+        assert_eq!(
+            store
+                .relationship_concrete_value(concrete_id)
+                .unwrap()
+                .effective_time
+                .as_u32(),
+            20210131
+        );
+        assert!(store.attribute_value_members(ICD10_MAP, MI).is_empty());
+        assert!(store.simple_map_members(ICD10_MAP, MI).is_empty());
+        assert!(store.owl_expression_members(ICD10_MAP, MI).is_empty());
+        assert!(store.module_dependency_members(ICD10_MAP, MI).is_empty());
     }
 
     fn core(

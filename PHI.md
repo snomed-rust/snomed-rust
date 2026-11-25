@@ -37,6 +37,18 @@ written, not transmitted, and not retained by anything in this workspace. The
 one realistic leak path is the one named in the headline — you log the query
 you made, next to something identifying — and that log is yours.
 
+**Error text echoes caller input.** A user can paste free text into a search
+box, and several errors carry that input: `FhirError::MalformedUrlEncoding`,
+`UnsupportedValueSet`, `UnsupportedSystem` and `InvalidEcl` (and the ECL/OWL
+parse errors) include the offending URL, system or expression in their
+`Display` text. A host that forwards every formatted error to monitoring
+retains whatever was typed. For routine telemetry, record the operation, an
+error category (the enum variant, not its text) and a request id; check the
+reverse proxy and error reporter as well as the application logger. To test
+it, submit a malformed request containing a unique synthetic marker and
+confirm the marker is absent from routine logs and exported monitoring
+events.
+
 Two properties make the claim stronger than a promise:
 
 - **Zero external dependencies**, enforced: the nine published crates depend

@@ -72,3 +72,28 @@ impl fmt::Display for SkippedConstruct {
         }
     }
 }
+
+#[cfg_attr(coverage_nightly, coverage(off))]
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use snomed_core::sctid::ComponentType;
+
+    #[test]
+    fn every_skipped_construct_explains_what_was_omitted() {
+        let id = SctId::compose(1001, ComponentType::Concept, None).unwrap();
+        let values = [
+            SkippedConstruct::ReflexiveProperty(id),
+            SkippedConstruct::DataProperty(id),
+            SkippedConstruct::ConcreteValue { attribute: id },
+            SkippedConstruct::EmptyRoleChain(id),
+            SkippedConstruct::UnmodeledAttributeShape { concept: id },
+            SkippedConstruct::UnnumberableGroups { concept: id },
+        ];
+        for value in values {
+            let message = value.to_string();
+            assert!(message.contains(&id.to_string()));
+            assert!(!message.is_empty());
+        }
+    }
+}

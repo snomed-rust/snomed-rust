@@ -46,6 +46,23 @@ pub struct SimpleExpressionConstraint {
     pub focus: FocusConcept,
 }
 
+/// The association-reference-set selection used by an ECL history
+/// supplement (spec/10 rule 21).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum HistorySupplement {
+    /// `HISTORY-MIN`: SAME AS associations only.
+    Minimum,
+    /// `HISTORY-MOD`: SAME AS, REPLACED BY, WAS A, and PARTIALLY
+    /// EQUIVALENT TO associations.
+    Moderate,
+    /// `HISTORY`, `HISTORY-MAX`, or `HISTORY (*)`: every supported
+    /// historical association reference set.
+    Maximum,
+    /// `HISTORY ( expressionConstraint )`: the reference sets selected by
+    /// the expression constraint.
+    Refsets(Box<ExpressionConstraint>),
+}
+
 /// A parsed ECL simple expression constraint (spec/10's grammar subset).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ExpressionConstraint {
@@ -76,6 +93,19 @@ pub enum ExpressionConstraint {
     Operated {
         op: HierarchyOp,
         inner: Box<ExpressionConstraint>,
+    },
+    /// `!!> inner` — the top of `inner`: members with no ancestor that is
+    /// also in the evaluated set (spec/10 rule 20).
+    Top(Box<ExpressionConstraint>),
+    /// `!!< inner` — the bottom of `inner`: members with no descendant that
+    /// is also in the evaluated set (spec/10 rule 20).
+    Bottom(Box<ExpressionConstraint>),
+    /// `inner {{ + HISTORY... }}` — `inner` plus inactive concepts whose
+    /// selected historical association points to a member of `inner`
+    /// (spec/10 rule 21).
+    History {
+        inner: Box<ExpressionConstraint>,
+        supplement: HistorySupplement,
     },
     /// `AND`-joined operands (set intersection); flat, since a run of `AND`
     /// needs no parenthesization (spec/10 rule 5).
@@ -213,7 +243,7 @@ pub enum DescriptionFilterKind {
     /// `fsn`/`syn`/`def` keyword form. The id form is
     /// [`Self::TypeId`].
     Type(TypeFilter),
-    /// `typeId (=|!=) subExpressionConstraint` — spec/10, the
+    /// `typeId (=|!=) (subExpressionConstraint | eclConceptReferenceSet)` — spec/10, the
     /// concept-expression form of the type filter. `type = fsn` and
     /// `typeId = 900000000000003001` ask the same question; the token
     /// form is what a human writes, the id form what a generated query
@@ -224,15 +254,14 @@ pub enum DescriptionFilterKind {
     /// case-insensitively, since RF2 writes it lowercase and a query
     /// shouldn't have to know that.
     Language(LanguageFilter),
-    /// `dialectId (=|!=) eclConceptReference [acceptabilitySet]` —
-    /// spec/10. Matches a description that is an active member of that
-    /// language reference set (spec/08), optionally narrowed to an
-    /// acceptability. The `dialect` alias form is not implemented: an
-    /// alias like `en-us` maps to a refset id only through
-    /// deployment-specific policy, the same reason `snomed-fhir` takes a
-    /// language refset id rather than a BCP-47 tag (spec/11).
+    /// `dialectId (=|!=) ...` or `dialect (=|!=) ...` — spec/10 rule 14.
+    /// Matches a description that is an active member of any named language
+    /// reference set (spec/08), optionally narrowed per dialect and/or
+    /// across the whole filter. Alias forms resolve through the official
+    /// ECL Appendix C table at parse time, so evaluation has one canonical
+    /// representation.
     Dialect(DialectFilter),
-    /// `moduleId (=|!=) subExpressionConstraint` — the description's own
+    /// `moduleId (=|!=) (subExpressionConstraint | eclConceptReferenceSet)` — the description's own
     /// `moduleId` column (spec/06), not its concept's.
     Module(ModuleFilter),
     /// `effectiveTime (=|!=|<=|<|>=|>) (timeValue | timeValueSet)` — the
@@ -281,16 +310,27 @@ pub enum SearchType {
     Exact,
 }
 
-/// `dialectIdKeyword ws booleanComparisonOperator ws eclConceptReference
-/// [ws acceptabilitySet]`.
+/// A `dialectId` or Appendix C `dialect` alias filter (spec/10 rule 14).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DialectFilter {
     /// `true` for `!=`.
     pub negated: bool,
+    /// One or more language reference sets, OR'd. A single-reference
+    /// filter is represented by a one-entry vector too.
+    pub dialects: Vec<DialectEntry>,
+    /// Acceptabilities applied to every entry. Empty means no shared
+    /// restriction. An entry-specific set and this set both apply.
+    pub acceptability: Vec<AcceptabilityValue>,
+}
+
+/// One dialect reference/alias and its optional acceptability set
+/// (spec/10 rule 14).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DialectEntry {
     /// The language reference set the description must belong to.
     pub refset_id: SctId,
-    /// Which acceptabilities count. Empty means "any" — membership alone
-    /// is the test, which is what a bare `dialectId = X` asks.
+    /// Acceptabilities for this dialect. Empty means membership alone,
+    /// subject to [`DialectFilter::acceptability`].
     pub acceptability: Vec<AcceptabilityValue>,
 }
 
@@ -300,6 +340,11 @@ pub struct DialectFilter {
 pub enum AcceptabilityValue {
     Preferred,
     Acceptable,
+    /// An explicit acceptability concept reference. This supports
+    /// extension-defined descendants of the Acceptability concept rather
+    /// than assuming only the two International metadata constants exist
+    /// (spec/10).
+    Concept(SctId),
 }
 
 /// `languageKeyword ws booleanComparisonOperator ws (languageCode /
@@ -308,8 +353,7 @@ pub enum AcceptabilityValue {
 pub struct LanguageFilter {
     /// `true` for `!=`.
     pub negated: bool,
-    /// 1+ language codes, lowercased at parse time; 2+ for a
-    /// `languageCodeSet`, matched OR-wise.
+    /// One or more two-letter codes, lowercased at parse time and matched OR-wise.
     pub values: Vec<String>,
 }
 
@@ -336,7 +380,7 @@ pub enum DescriptionTypeValue {
 
 /// One filter inside a `{{ C ... }}` concept filter constraint. Currently
 /// `activeFilter`, `definitionStatusTokenFilter`, the
-/// `subExpressionConstraint` form of `moduleFilter`, and
+/// `definitionStatusIdFilter`, `moduleFilter`, and
 /// `effectiveTimeFilter` — see [`ExpressionConstraint::ConceptFilter`].
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ConceptFilterKind {
@@ -346,17 +390,17 @@ pub enum ConceptFilterKind {
     /// — spec/10, the `primitive`/`defined` keyword form. The concept
     /// reference form is [`Self::DefinitionStatusId`].
     DefinitionStatus(DefinitionStatusFilter),
-    /// `definitionStatusId (=|!=) subExpressionConstraint` — spec/10, the
+    /// `definitionStatusId (=|!=) (subExpressionConstraint | eclConceptReferenceSet)` — spec/10, the
     /// concept-expression form of the definition status filter. Matches
     /// concepts whose `definitionStatusId` is in the evaluated set, so
     /// `definitionStatusId = << 900000000000444006` works as naturally as
     /// naming one id. `definitionStatus = primitive` is the same question
     /// asked with keywords ([`ConceptFilterKind::DefinitionStatus`]).
     DefinitionStatusId(ModuleFilter),
-    /// `moduleId (=|!=) subExpressionConstraint` — spec/10. Matches
-    /// concepts whose `moduleId` is in the evaluated set. The
-    /// `eclConceptReferenceSet` alternative (`moduleId = (id1 id2)`) is
-    /// not implemented — see [`ExpressionConstraint::ConceptFilter`].
+    /// `moduleId (=|!=) (subExpressionConstraint | eclConceptReferenceSet)` — spec/10. Matches
+    /// concepts whose `moduleId` is in the evaluated set, including the
+    /// whitespace-separated `eclConceptReferenceSet` alternative
+    /// (`moduleId = (id1 id2)`).
     Module(ModuleFilter),
     /// `effectiveTime timeComparisonOperator (timeValue | timeValueSet)`
     /// — spec/10.
@@ -528,7 +572,7 @@ pub enum ConceptFilterKind {
 /// `spec/10-ecl-unimplemented.md`.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum MemberFilterKind {
-    /// `moduleId (=|!=) subExpressionConstraint` — the member row's own
+    /// `moduleId (=|!=) (subExpressionConstraint | eclConceptReferenceSet)` — the member row's own
     /// `moduleId` (spec/08), not the referenced component's.
     Module(ModuleFilter),
     /// `effectiveTime (=|!=|<=|<|>=|>) (timeValue | timeValueSet)` — the
@@ -1109,7 +1153,14 @@ pub enum MemberFilterKind {
     /// field name `languageDialectCode`, so this needed its own
     /// variant when first implemented.
     LanguageDialectCode(TermFilter),
-    /// `typeId (=|!=) subExpressionConstraint` — a `memberFieldFilter`
+    /// `referencedMemberId (=|!=) (typedSearchTerm | typedSearchTermSet)`
+    /// — a `memberFieldFilter` (spec/10 rule 18) using the string-search
+    /// shape because RF2 defines the column as a UUID, represented by
+    /// [`snomed_core::MemberId`] and matched in its canonical lowercase
+    /// 8-4-4-4-12 rendering. This is `MemberAnnotationRefsetMember`'s
+    /// referenced-member column; no other supported row type exposes it.
+    ReferencedMemberId(TermFilter),
+    /// `typeId (=|!=) (subExpressionConstraint | eclConceptReferenceSet)` — a `memberFieldFilter`
     /// (spec/10 rule 18), the concept-reference shape, reusing
     /// [`ModuleFilter`]'s exact shape and grammar — the same
     /// production `correlationId`/`domainId`/`ruleStrengthId` use.
@@ -1157,7 +1208,7 @@ pub enum MemberFilterKind {
     /// already have between the two types): tested against
     /// `SnapshotStore::member_annotation_member_rows` too, no second
     /// variant needed. Completes `MemberAnnotationRefsetMember`'s
-    /// column coverage but for `referencedMemberId`.
+    /// other annotation-text column coverage.
     Value(TermFilter),
 }
 

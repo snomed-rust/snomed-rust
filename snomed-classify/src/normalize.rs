@@ -19,7 +19,7 @@ pub(crate) struct NormalizedTBox {
     /// `∃r.A ⊑ B` rules (NF3), as `(r, A, B)`.
     pub(crate) nf3: Vec<(RoleId, ConceptId, ConceptId)>,
     /// `r ⊑ s` role hierarchy axioms.
-    pub(crate) role_hierarchy: Vec<(RoleId, RoleId)>,
+    pub(crate) role_hierarchy: Vec<(SctId, SctId)>,
     /// `r ∘ s ⊑ t` role composition axioms.
     pub(crate) role_composition: Vec<(RoleId, RoleId, RoleId)>,
     /// Every concept id (named or fresh) that appeared anywhere — the
@@ -82,15 +82,12 @@ impl Normalizer {
                     self.add_subclass_of(&ops[i], &ops[j]);
                 }
             }
-            Axiom::SubObjectPropertyOf { sub, sup } => {
-                let target = RoleId::Named(*sup);
-                match sub {
-                    ObjectPropertyExpression::Named(r) => {
-                        self.tbox.role_hierarchy.push((RoleId::Named(*r), target));
-                    }
-                    ObjectPropertyExpression::Chain(ids) => self.add_role_chain(ids, target),
+            Axiom::SubObjectPropertyOf { sub, sup } => match sub {
+                ObjectPropertyExpression::Named(r) => {
+                    self.tbox.role_hierarchy.push((*r, *sup));
                 }
-            }
+                ObjectPropertyExpression::Chain(ids) => self.add_role_chain(ids, *sup),
+            },
             Axiom::SubDataPropertyOf { sub, .. } => {
                 self.tbox.skipped.push(SkippedConstruct::DataProperty(*sub));
             }
@@ -116,17 +113,15 @@ impl Normalizer {
     /// degenerate lengths are handled rather than left to panic
     /// (spec/13 rule 1): one operand is exactly a role hierarchy axiom,
     /// and zero operands say nothing at all and are reported as skipped.
-    fn add_role_chain(&mut self, ids: &[SctId], target: RoleId) {
+    fn add_role_chain(&mut self, ids: &[SctId], target: SctId) {
         match ids {
             [] => {
-                if let RoleId::Named(t) = target {
-                    self.tbox.skipped.push(SkippedConstruct::EmptyRoleChain(t));
-                }
+                self.tbox
+                    .skipped
+                    .push(SkippedConstruct::EmptyRoleChain(target));
             }
             [only] => {
-                self.tbox
-                    .role_hierarchy
-                    .push((RoleId::Named(*only), target));
+                self.tbox.role_hierarchy.push((*only, target));
             }
             [first, middle @ .., last] => {
                 let mut acc = RoleId::Named(*first);
@@ -139,7 +134,7 @@ impl Normalizer {
                 }
                 self.tbox
                     .role_composition
-                    .push((acc, RoleId::Named(*last), target));
+                    .push((acc, RoleId::Named(*last), RoleId::Named(target)));
             }
         }
     }
@@ -263,5 +258,91 @@ impl Normalizer {
                 });
             }
         }
+    }
+}
+
+#[cfg_attr(coverage_nightly, coverage(off))]
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use snomed_core::sctid::ComponentType;
+    use snomed_owl::Literal;
+
+    fn id(item: u64) -> SctId {
+        SctId::compose(item, ComponentType::Concept, None).unwrap()
+    }
+
+    fn concrete(attribute: SctId) -> ClassExpression {
+        ClassExpression::DataHasValue {
+            attribute,
+            value: Literal {
+                value: "1".to_string(),
+                datatype: "xsd:integer".to_string(),
+            },
+        }
+    }
+
+    #[test]
+    fn normalizes_long_and_degenerate_public_ast_shapes_without_panicking() {
+        let a = id(1001);
+        let b = id(1002);
+        let c = id(1003);
+        let d = id(1004);
+        let role = id(2001);
+        let axioms = vec![
+            Axiom::SubObjectPropertyOf {
+                sub: ObjectPropertyExpression::Chain(vec![]),
+                sup: role,
+            },
+            Axiom::SubObjectPropertyOf {
+                sub: ObjectPropertyExpression::Chain(vec![a]),
+                sup: role,
+            },
+            Axiom::SubObjectPropertyOf {
+                sub: ObjectPropertyExpression::Chain(vec![a, b, c, d]),
+                sup: role,
+            },
+            Axiom::SubClassOf {
+                sub: concrete(role),
+                sup: ClassExpression::Concept(a),
+            },
+            Axiom::SubClassOf {
+                sub: ClassExpression::ObjectIntersectionOf(vec![
+                    ClassExpression::Concept(a),
+                    ClassExpression::Concept(b),
+                ]),
+                sup: ClassExpression::ObjectSomeValuesFrom {
+                    attribute: role,
+                    filler: Box::new(ClassExpression::Concept(c)),
+                },
+            },
+            Axiom::SubClassOf {
+                sub: ClassExpression::Concept(a),
+                sup: concrete(role),
+            },
+            Axiom::SubClassOf {
+                sub: ClassExpression::Concept(a),
+                sup: ClassExpression::ObjectSomeValuesFrom {
+                    attribute: role,
+                    filler: Box::new(ClassExpression::ObjectIntersectionOf(vec![concrete(role)])),
+                },
+            },
+            Axiom::SubClassOf {
+                sub: ClassExpression::Concept(a),
+                sup: ClassExpression::ObjectSomeValuesFrom {
+                    attribute: role,
+                    filler: Box::new(ClassExpression::ObjectIntersectionOf(vec![
+                        ClassExpression::Concept(b),
+                        concrete(role),
+                    ])),
+                },
+            },
+        ];
+
+        let normalized = normalize(&axioms);
+        assert_eq!(normalized.role_composition.len(), 3);
+        assert!(!normalized.nf1.is_empty());
+        assert!(!normalized.nf2.is_empty());
+        assert!(normalized.skipped.len() >= 3);
     }
 }

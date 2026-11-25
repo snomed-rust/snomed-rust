@@ -1,0 +1,16 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Inspect an SCTID (snomed-cli sctid 138875005)",
+      "type": "lldb",
+      "request": "launch",
+      "cargo": {
+        "args": ["build", "-p", "snomed-cli", "--bin", "snomed-cli"],
+        "env": { "CARGO_PROFILE_DEV_DEBUG": "2" }
+      },
+      "args": ["sctid", "138875005"],
+      "cwd": "${workspaceFolder}"
+    }
+  ]
+}

@@ -101,6 +101,7 @@ impl FromStr for MemberId {
     }
 }
 
+#[cfg_attr(coverage_nightly, coverage(off))]
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -138,5 +139,15 @@ mod tests {
             let id = MemberId::from_u128(raw);
             assert_eq!(MemberId::parse(&id.to_string()), Ok(id));
         }
+    }
+
+    #[test]
+    fn conversion_traits_and_error_message_are_canonical() {
+        let id: MemberId = "800aa109-431f-4407-a431-6fe65e9db160".parse().unwrap();
+        assert_eq!(MemberId::from_u128(id.as_u128()), id);
+        assert_eq!(
+            MemberIdError::Malformed.to_string(),
+            "member id must be a UUID in 8-4-4-4-12 hex form"
+        );
     }
 }

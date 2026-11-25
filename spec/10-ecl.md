@@ -1,9 +1,9 @@
 # 10 — Expression Constraint Language (ECL) — simple constraints + refinements
 
-Split across four files by size, all normative, with the rule numbers
-(and therefore every `spec/10 rule N` citation) living here: this one,
+Six files; rules live here:
 `spec/10-ecl-refinements.md` (`:` attribute-value constraints),
 `spec/10-ecl-filters.md` (what each `{{ }}` filter kind matches), and
+`spec/10-ecl-set-operators.md` (top/bottom and history supplements), and
 `spec/10-ecl-unimplemented.md` (what is still rejected, and why).
 
 Official sources:
@@ -48,15 +48,12 @@ member row matching — `moduleId`/`effectiveTime`/`active`, the columns
 every refset member type shares, plus a growing set of
 `memberFieldFilter` kinds (refset-type-specific columns — see
 `spec/10-ecl-filters.md` for the current list and each one's grammar
-shape, rather than re-enumerating it here).
-Boolean concrete value comparisons (not
-representable in RF2 — see below), `moduleId`'s
-`eclConceptReferenceSet` spelling, every other `memberFieldFilter`
-column (`domainConstraint`, `grouped`, …), the
-remaining description filter kinds (the `dialect` alias form), the
-history supplement, and alternate identifiers are **out of scope for this
-version** — see
-`spec/10-ecl-unimplemented.md`.
+shape, rather than re-enumerating it here), and **history supplements**
+(`{{ + HISTORY... }}`, adding inactive concepts linked to the result by
+selected historical associations).
+Boolean concrete values (not representable in RF2), unknown future
+`memberFieldFilter` columns, and alternate identifiers remain out of scope;
+see `spec/10-ecl-unimplemented.md`.
 
 ## Grammar (this subset only, derived from `syntax/abnf-brief.txt`)
 
@@ -88,7 +85,8 @@ exclusionExpressionConstraint
                       := subExpressionConstraint "MINUS" subExpressionConstraint
 subExpressionConstraint
                       := (simpleExpressionConstraint | memberOf | "(" expressionConstraint ")")
-                         *(conceptFilterConstraint | descriptionFilterConstraint)
+                         *(conceptFilterConstraint | descriptionFilterConstraint
+                           | historySupplement)
                         -- conceptFilterConstraint and
                         -- descriptionFilterConstraint are both recognized
                         -- here, after any focus shape.
@@ -107,6 +105,10 @@ subExpressionConstraint
                         -- official grammar reserves for the top level; a
                         -- deliberate leniency, never a misparse
 memberOf              := "^" conceptReference
+historySupplement     := "{{" "+" ("HISTORY-MIN" | "HISTORY-MOD"
+                           | "HISTORY-MAX" | "HISTORY"
+                             ["(" ("*" | expressionConstraint) ")"])
+                           "}}"
 simpleExpressionConstraint
                       := [hierarchyPrefix] focusConcept
 hierarchyPrefix       := "<<!" | "<<" | "<!" | "<"
@@ -127,7 +129,7 @@ conceptFilter         := activeFilter | definitionStatusTokenFilter
                         | effectiveTimeFilter
 definitionStatusIdFilter
                       := "definitionStatusId" ws booleanComparisonOp ws
-                         subExpressionConstraint
+                         (subExpressionConstraint | eclConceptReferenceSet)
 
 descriptionFilterConstraint
                       := "{{" ws ["D" ws] descriptionFilter
@@ -135,7 +137,8 @@ descriptionFilterConstraint
                         -- the `D` marker is optional: an unmarked block
                         -- is a description filter
 descriptionFilter     := termFilter | typeTokenFilter | typeIdFilter
-                        | languageFilter | dialectIdFilter | activeFilter
+                        | languageFilter | dialectIdFilter
+                        | dialectAliasFilter | activeFilter
 termFilter            := "term" ws booleanComparisonOp ws
                          (typedSearchTerm
                           | "(" ws typedSearchTerm *(mws typedSearchTerm) ws ")")
@@ -147,19 +150,28 @@ typeTokenFilter       := "type" ws booleanComparisonOp ws
                          (typeToken | "(" ws typeToken *(mws typeToken) ws ")")
 typeToken             := "fsn" | "syn" | "def"
 typeIdFilter          := "typeId" ws booleanComparisonOp ws
-                         subExpressionConstraint
+                         (subExpressionConstraint | eclConceptReferenceSet)
 languageFilter        := "language" ws booleanComparisonOp ws
                          (languageCode | "(" ws languageCode
                           *(mws languageCode) ws ")")
-languageCode          := alpha *(alpha | digit | "-")   -- bare, unquoted
-dialectIdFilter       := "dialectId" ws booleanComparisonOp ws sctid
+languageCode          := 2alpha   -- exactly two unquoted ASCII letters
+dialectIdFilter       := "dialectId" ws booleanComparisonOp ws
+                         (eclConceptReference | dialectIdSet)
                          [ws acceptabilitySet]
-acceptabilitySet      := "(" ws acceptabilityToken
-                         *(mws acceptabilityToken) ws ")"
+dialectIdSet          := "(" ws eclConceptReference [ws acceptabilitySet]
+                         *(mws eclConceptReference [ws acceptabilitySet])
+                         ws ")"
+dialectAliasFilter    := "dialect" ws booleanComparisonOp ws
+                         (dialectAlias | dialectAliasSet) [ws acceptabilitySet]
+dialectAliasSet       := "(" ws dialectAlias [ws acceptabilitySet]
+                         *(mws dialectAlias [ws acceptabilitySet]) ws ")"
+dialectAlias          := alpha *("-" | alpha | digit)
+                        -- resolved through official Appendix C
+acceptabilitySet      := "(" ws
+                         (acceptabilityToken *(mws acceptabilityToken)
+                          | eclConceptReference *(mws eclConceptReference))
+                         ws ")"
 acceptabilityToken    := "preferred" | "prefer" | "acceptable" | "accept"
-                        -- the dialectAlias form (`dialect = en-us`) is
-                        -- rejected by name: an alias maps to a refset id
-                        -- only by deployment policy
                         -- both definitionStatus spellings are
                         -- implemented: the keyword form below and
                         -- definitionStatusIdFilter, which takes a
@@ -178,12 +190,9 @@ definitionStatusTokenSet
                       := "(" definitionStatusToken *(ws definitionStatusToken) ")"
                         -- a single-element set `(primitive)` is accepted
                         -- (the official ABNF requires 2+; leniency)
-moduleFilter          := "moduleId" ws booleanComparisonOp ws subExpressionConstraint
-                        -- the official grammar also allows
-                        -- eclConceptReferenceSet (`moduleId = (id1 id2)`)
-                        -- here; not implemented — `(` after `moduleId
-                        -- (=|!=)` is always treated as a parenthesized
-                        -- subExpressionConstraint
+moduleFilter          := "moduleId" ws booleanComparisonOp ws
+                         (subExpressionConstraint | eclConceptReferenceSet)
+eclConceptReferenceSet := "(" ws eclConceptReference 1*(mws eclConceptReference) ws ")"
 effectiveTimeFilter   := "effectiveTime" ws timeComparisonOp ws
                          (timeValue | timeValueSet)
 timeComparisonOp      := "=" | "!=" | "<=" | "<" | ">=" | ">"
@@ -265,25 +274,9 @@ token.
 
 ## Hierarchy operators
 
-| brief | long form | meaning | maps to `SnapshotStore` |
-|---|---|---|---|
-| *(none)* | *(none)* | self | `{ id }` |
-| `<` | `descendantOf` | strict descendants | `descendants(id)` |
-| `<<` | `descendantOrSelfOf` | descendants + self | `descendants(id) ∪ { id }` |
-| `<!` | `childOf` | direct children only | `children(id)` |
-| `<<!` | `childOrSelfOf` | direct children + self | `children(id) ∪ { id }` |
-| `>` | `ancestorOf` | strict ancestors | `ancestors(id)` |
-| `>>` | `ancestorOrSelfOf` | ancestors + self | `ancestors(id) ∪ { id }` |
-| `>!` | `parentOf` | direct parents only | `parents(id)` |
-| `>>!` | `parentOrSelfOf` | direct parents + self | `parents(id) ∪ { id }` |
-
-All eight operate on `SnapshotStore`'s existing hierarchy primitives
-(spec/09) — no new store-side hierarchy indexing was needed for this subset.
-The official grammar's `constraintOperator` also includes `!!>` (`top`) and
-`!!<` (`bottom`) — "top/bottom of the constrained set" — which this version
-does **not** implement (see below); they're syntactically a hierarchy
-prefix, not a separate filter construct as an earlier draft of this spec
-miscategorized them.
+The operator table, top/bottom behavior, and history-supplement profiles live
+in [`10-ecl-set-operators.md`](10-ecl-set-operators.md). Normative compact
+requirements remain rules 20-21 below.
 
 ## `memberOf`
 
@@ -584,10 +577,10 @@ still governs it: nothing on that list may be silently accepted.
    `Relationship` and `RelationshipConcreteValue` views.
 9. Nothing in `spec/10-ecl-unimplemented.md` MAY be silently accepted and
    evaluated as something else, or panic — every one MUST be rejected.
-   Naming the missing feature via `EclError::NotYetImplemented` is
-   preferred but not required of every item (see the two-group split
-   there); moving an item from generic to named is a welcome, low-risk
-   improvement needing no `plan.md` decision.
+   Every construct in that document's named bucket MUST use
+   `EclError::NotYetImplemented`. An unknown future member-field name and
+   explicitly documented lexical-collision cases may remain generic parse
+   errors (see the two-group split and caveats there).
 10. For a numeric concrete value comparison's `=`/`!=`, the row-level
     predicate MUST always be equality, with `!=` negating the
     **aggregate** cardinality check afterwards — never a per-row "not
@@ -615,7 +608,9 @@ still governs it: nothing on that list may be silently accepted.
     the block writes an `active` filter of its own (see "Description
     filter constraint"). `term` matching MUST be the grammar's default
     `match:` word-prefix semantics — never a substring search, which
-    would accept mid-word matches the search type excludes.
+    would accept mid-word matches the search type excludes. `dialect`
+    aliases MUST resolve case-insensitively through the official Appendix C
+    table; an unknown alias MUST return `EclError::UnknownDialectAlias`.
 15. A `dottedExpressionConstraint` (`A . attributeName`) MUST evaluate to
     the **destinations** of active inferred relationships whose source is
     in `A` and whose `typeId` is in the evaluated `attributeName` — the
@@ -678,3 +673,17 @@ still governs it: nothing on that list may be silently accepted.
     `subAttributeSet` nesting beyond 100 levels with
     `EclError::MaxNestingDepthExceeded`, never recurse until the call
     stack overflows — a real crash the `ecl_parse` fuzz target found.
+20. `!!>` and `!!<` MUST evaluate their operand exactly once, then return
+    respectively the members with no transitive ancestor or no transitive
+    descendant inside that evaluated set. They MUST use
+    `SnapshotStore::ancestors`/`descendants`, not a second hierarchy
+    traversal, and MUST preserve isolated members (including a singleton).
+21. A history supplement MUST preserve its operand's evaluated set and add
+    the sources returned by `SnapshotStore::association_sources` for every
+    selected refset/target pair. `HISTORY-MIN` MUST select SAME AS;
+    `HISTORY-MOD` MUST select SAME AS, REPLACED BY, WAS A, and PARTIALLY
+    EQUIVALENT TO; `HISTORY`, `HISTORY-MAX`, and `HISTORY (*)` MUST select
+    descendants of Historical association reference set; and
+    `HISTORY ( expressionConstraint )` MUST select the expression's result.
+    MOVED FROM and MOVED TO MUST be excluded for every form. The operand and
+    a custom refset expression MUST each be evaluated no more than once.

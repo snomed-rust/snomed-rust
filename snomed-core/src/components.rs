@@ -1,4 +1,5 @@
-//! The three RF2 core component records, per `spec/05..07`.
+//! RF2 core component records, per `spec/05..07` and
+//! `spec/07-identifier-file.md`.
 //!
 //! Field names mirror the RF2 column names (snake_cased). Each struct is one
 //! *version* of a component — see `spec/09-versioning.md`.
@@ -6,6 +7,21 @@
 use crate::concrete_value::ConcreteValue;
 use crate::sctid::SctId;
 use crate::time::EffectiveTime;
+
+/// One version of an alternate identifier association
+/// (`sct2_Identifier_*`), per `spec/07-identifier-file.md`.
+///
+/// Its identity is the composite `(identifier_scheme_id,
+/// alternate_identifier)`, not an SCTID of its own.
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+pub struct AlternateIdentifier {
+    pub alternate_identifier: String,
+    pub effective_time: EffectiveTime,
+    pub active: bool,
+    pub module_id: SctId,
+    pub identifier_scheme_id: SctId,
+    pub referenced_component_id: SctId,
+}
 
 /// One version of a concept (`sct2_Concept_*`), per `spec/05-concept-file.md`.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
@@ -120,6 +136,7 @@ impl RelationshipConcreteValue {
     }
 }
 
+#[cfg_attr(coverage_nightly, coverage(off))]
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -153,5 +170,14 @@ mod tests {
         let mut syn = fsn("Heart attack (disorder)");
         syn.type_id = constants::SYNONYM;
         assert_eq!(syn.semantic_tag(), None);
+    }
+
+    #[test]
+    fn semantic_tag_rejects_incomplete_or_nonterminal_parentheses() {
+        let mut description = fsn("Finding (finding)");
+        for term in ["Finding", "Finding (finding", "Finding (finding) suffix"] {
+            description.term = term.to_string();
+            assert_eq!(description.semantic_tag(), None);
+        }
     }
 }

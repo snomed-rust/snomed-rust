@@ -6,14 +6,54 @@ use snomed_core::time::EffectiveTime;
 use crate::ast::{
     AcceptabilityValue, ActiveFilter, ActiveValue, AttributeComparison, AttributeConstraint,
     AttributeGroup, BooleanFieldFilter, Cardinality, ConceptFilterKind, DefinitionStatusFilter,
-    DefinitionStatusValue, DescriptionFilterKind, DescriptionTypeValue, DialectFilter,
-    EffectiveTimeFilter, ExpressionConstraint, FocusConcept, HierarchyOp, LanguageFilter,
-    MemberFilterKind, ModuleFilter, NumericComparisonOp, NumericFieldFilter, RefinementConstraint,
-    RefsetOperand, SearchTerm, SearchType, SimpleExpressionConstraint, TermFilter,
-    TimeComparisonOp, TypeFilter,
+    DefinitionStatusValue, DescriptionFilterKind, DescriptionTypeValue, DialectEntry,
+    DialectFilter, EffectiveTimeFilter, ExpressionConstraint, FocusConcept, HierarchyOp,
+    HistorySupplement, LanguageFilter, MemberFilterKind, ModuleFilter, NumericComparisonOp,
+    NumericFieldFilter, RefinementConstraint, RefsetOperand, SearchTerm, SearchType,
+    SimpleExpressionConstraint, TermFilter, TimeComparisonOp, TypeFilter,
 };
 use crate::error::EclError;
 use crate::lexer::{describe, Lexer, Token, TokenKind};
+
+/// Official ECL Appendix C dialect aliases. Aliases are compared
+/// case-insensitively; the canonical lowercase spelling is retained here.
+const DIALECT_ALIASES: &[(&str, SctId)] = &[
+    ("da-dk", SctId::new_unchecked(554461000005103)),
+    ("en-au", SctId::new_unchecked(32570271000036106)),
+    ("en-ca", SctId::new_unchecked(19491000087109)),
+    ("en-gb", SctId::new_unchecked(900000000000508004)),
+    ("en-ie", SctId::new_unchecked(21000220103)),
+    ("en-nz", SctId::new_unchecked(271000210107)),
+    ("en-nz-x-pat", SctId::new_unchecked(281000210109)),
+    ("en-us", SctId::new_unchecked(900000000000509007)),
+    ("en-x-gmdn", SctId::new_unchecked(608771002)),
+    (
+        "en-x-nhs-clinical",
+        SctId::new_unchecked(999001261000000100),
+    ),
+    ("en-x-nhs-dmd", SctId::new_unchecked(999000671000001103)),
+    (
+        "en-x-nhs-pharmacy",
+        SctId::new_unchecked(999000691000001104),
+    ),
+    ("en-gb-x-drug", SctId::new_unchecked(999000681000001101)),
+    ("en-gb-x-ext", SctId::new_unchecked(999001251000000103)),
+    ("es", SctId::new_unchecked(450828004)),
+    ("es-uy", SctId::new_unchecked(5641000179103)),
+    ("et-ee", SctId::new_unchecked(71000181105)),
+    ("de", SctId::new_unchecked(722130004)),
+    ("fr", SctId::new_unchecked(722131000)),
+    ("fr-be", SctId::new_unchecked(21000172104)),
+    ("fr-ca", SctId::new_unchecked(20581000087109)),
+    ("ja", SctId::new_unchecked(722129009)),
+    ("mi", SctId::new_unchecked(291000210106)),
+    ("nl-be", SctId::new_unchecked(31000172101)),
+    ("nl-nl", SctId::new_unchecked(31000146106)),
+    ("nb-no", SctId::new_unchecked(61000202103)),
+    ("nn-no", SctId::new_unchecked(91000202106)),
+    ("sv-se", SctId::new_unchecked(46011000052107)),
+    ("zh", SctId::new_unchecked(722128001)),
+];
 
 /// Parses a complete ECL expression constraint.
 pub fn parse(input: &str) -> Result<ExpressionConstraint, EclError> {
@@ -36,6 +76,14 @@ struct Parser {
     current: Token,
     /// Shared recursive-descent nesting counter — see [`Parser::enter_nesting`].
     depth: u32,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum ConstraintOperator {
+    None,
+    Hierarchy(HierarchyOp),
+    Top,
+    Bottom,
 }
 
 /// Every grammar production with a `"(" ... ")"` recursive alternative
@@ -280,21 +328,37 @@ impl Parser {
             let inner = self.parse_parenthesized_expression_constraint_tail()?;
             return Ok(Self::apply_operator(op, inner));
         }
-        Ok(ExpressionConstraint::Simple(self.parse_focus_concept(op)?))
+        match op {
+            // A hierarchy operator on a plain focus has its canonical,
+            // compact representation inside `Simple`; wrapping it in
+            // `Operated` as well would apply the operator twice.
+            ConstraintOperator::Hierarchy(op) => {
+                Ok(ExpressionConstraint::Simple(self.parse_focus_concept(op)?))
+            }
+            ConstraintOperator::None => Ok(ExpressionConstraint::Simple(
+                self.parse_focus_concept(HierarchyOp::SelfOnly)?,
+            )),
+            ConstraintOperator::Top | ConstraintOperator::Bottom => {
+                let inner =
+                    ExpressionConstraint::Simple(self.parse_focus_concept(HierarchyOp::SelfOnly)?);
+                Ok(Self::apply_operator(op, inner))
+            }
+        }
     }
 
     /// Wraps `inner` in the constraint operator, if there was one.
     /// `SelfOnly` is the absence of an operator, not an operator that
     /// happens to be the identity, so it produces no node — otherwise
     /// every `^ X` in the AST would gain a redundant `Operated` layer.
-    fn apply_operator(op: HierarchyOp, inner: ExpressionConstraint) -> ExpressionConstraint {
-        if matches!(op, HierarchyOp::SelfOnly) {
-            inner
-        } else {
-            ExpressionConstraint::Operated {
+    fn apply_operator(op: ConstraintOperator, inner: ExpressionConstraint) -> ExpressionConstraint {
+        match op {
+            ConstraintOperator::None => inner,
+            ConstraintOperator::Hierarchy(op) => ExpressionConstraint::Operated {
                 op,
                 inner: Box::new(inner),
-            }
+            },
+            ConstraintOperator::Top => ExpressionConstraint::Top(Box::new(inner)),
+            ConstraintOperator::Bottom => ExpressionConstraint::Bottom(Box::new(inner)),
         }
     }
 
@@ -341,6 +405,12 @@ impl Parser {
         let brace_pos = self.peek().pos;
         self.advance()?; // consume `{{`
         match &self.peek().kind {
+            // `historySupplement = "{{" ws "+" ws historyProfileSuffix
+            // ws "}}"` (spec/10 rule 21).
+            TokenKind::Plus => {
+                self.advance()?;
+                self.parse_history_supplement(inner)
+            }
             TokenKind::ConceptFilterMarker => {
                 self.advance()?;
                 let filters = self.parse_concept_filter_list()?;
@@ -369,6 +439,52 @@ impl Parser {
         }
     }
 
+    /// Parses a history supplement after its leading `{{ +` (spec/10
+    /// rule 21), including the two closing braces.
+    fn parse_history_supplement(
+        &mut self,
+        inner: ExpressionConstraint,
+    ) -> Result<ExpressionConstraint, EclError> {
+        let token = self.peek().clone();
+        let TokenKind::Word(word) = &token.kind else {
+            return Err(Self::unexpected(
+                &token,
+                "`HISTORY`, `HISTORY-MIN`, `HISTORY-MOD`, or `HISTORY-MAX`",
+            ));
+        };
+        let profile = word.to_ascii_uppercase();
+        self.advance()?;
+        let supplement = match profile.as_str() {
+            "HISTORY-MIN" => HistorySupplement::Minimum,
+            "HISTORY-MOD" => HistorySupplement::Moderate,
+            "HISTORY-MAX" => HistorySupplement::Maximum,
+            "HISTORY" if matches!(self.peek().kind, TokenKind::LParen) => {
+                self.advance()?;
+                if matches!(self.peek().kind, TokenKind::Star) {
+                    self.advance()?;
+                    self.expect(TokenKind::RParen, "`)`")?;
+                    HistorySupplement::Maximum
+                } else {
+                    let refsets = self.parse_parenthesized_expression_constraint_tail()?;
+                    HistorySupplement::Refsets(Box::new(refsets))
+                }
+            }
+            "HISTORY" => HistorySupplement::Maximum,
+            _ => {
+                return Err(Self::unexpected(
+                    &token,
+                    "`HISTORY`, `HISTORY-MIN`, `HISTORY-MOD`, or `HISTORY-MAX`",
+                ));
+            }
+        };
+        self.expect(TokenKind::RBrace, "`}`")?;
+        self.expect(TokenKind::RBrace, "`}`")?;
+        Ok(ExpressionConstraint::History {
+            inner: Box::new(inner),
+            supplement,
+        })
+    }
+
     /// Attaches a parsed `{{ M ... }}` filter list to whatever
     /// `parse_operated_focus` already built as `inner`.
     ///
@@ -395,11 +511,36 @@ impl Parser {
     /// position at all per the grammar — a syntax error, not a missing
     /// capability.
     fn apply_member_filter(
-        inner: ExpressionConstraint,
+        mut inner: ExpressionConstraint,
         filters: Vec<MemberFilterKind>,
         brace_pos: usize,
     ) -> Result<ExpressionConstraint, EclError> {
-        match inner {
+        enum Wrapper {
+            Operated(HierarchyOp),
+            Top,
+            Bottom,
+        }
+
+        let mut wrappers = Vec::new();
+        loop {
+            match inner {
+                ExpressionConstraint::Operated { op, inner: nested } => {
+                    wrappers.push(Wrapper::Operated(op));
+                    inner = *nested;
+                }
+                ExpressionConstraint::Top(nested) => {
+                    wrappers.push(Wrapper::Top);
+                    inner = *nested;
+                }
+                ExpressionConstraint::Bottom(nested) => {
+                    wrappers.push(Wrapper::Bottom);
+                    inner = *nested;
+                }
+                _ => break,
+            }
+        }
+
+        let mut filtered = match inner {
             ExpressionConstraint::MemberOf { refsets } => {
                 Ok(ExpressionConstraint::MemberFilter { refsets, filters })
             }
@@ -426,19 +567,24 @@ impl Parser {
                     filters: existing,
                 })
             }
-            ExpressionConstraint::Operated { op, inner } => {
-                let rewrapped = Self::apply_member_filter(*inner, filters, brace_pos)?;
-                Ok(ExpressionConstraint::Operated {
-                    op,
-                    inner: Box::new(rewrapped),
-                })
-            }
             _ => Err(EclError::UnexpectedToken {
                 pos: brace_pos,
                 found: "`{{ M`".to_string(),
                 expected: "`{{ M ... }}` directly after `^` or `^R`, per spec/10 rule 18",
             }),
+        }?;
+
+        for wrapper in wrappers.into_iter().rev() {
+            filtered = match wrapper {
+                Wrapper::Operated(op) => ExpressionConstraint::Operated {
+                    op,
+                    inner: Box::new(filtered),
+                },
+                Wrapper::Top => ExpressionConstraint::Top(Box::new(filtered)),
+                Wrapper::Bottom => ExpressionConstraint::Bottom(Box::new(filtered)),
+            };
         }
+        Ok(filtered)
     }
 
     /// `memberFilter *(ws "," ws memberFilter)` — `,` lexes as
@@ -485,13 +631,7 @@ impl Parser {
     fn parse_member_filter_kind(&mut self) -> Result<MemberFilterKind, EclError> {
         match &self.peek().kind {
             TokenKind::ModuleIdKeyword => {
-                self.advance()?;
-                let negated = self.parse_boolean_comparison_operator()?;
-                let value = self.parse_sub_expression_constraint()?;
-                Ok(MemberFilterKind::Module(ModuleFilter {
-                    negated,
-                    value: Box::new(value),
-                }))
+                Ok(MemberFilterKind::Module(self.parse_reference_filter()?))
             }
             TokenKind::EffectiveTimeKeyword => {
                 self.advance()?;
@@ -789,6 +929,15 @@ impl Parser {
                     values,
                 }))
             }
+            TokenKind::Word(word) if word == "referencedMemberId" => {
+                self.advance()?;
+                let negated = self.parse_boolean_comparison_operator()?;
+                let values = self.parse_typed_search_term_set()?;
+                Ok(MemberFilterKind::ReferencedMemberId(TermFilter {
+                    negated,
+                    values,
+                }))
+            }
             TokenKind::TypeIdKeyword => {
                 self.advance()?;
                 let negated = self.parse_boolean_comparison_operator()?;
@@ -808,7 +957,7 @@ impl Parser {
                 let tok = self.peek().clone();
                 Err(Self::unexpected(
                     &tok,
-                    "`moduleId`, `effectiveTime`, `active`, `mapTarget`, `correlationId`, `mapGroup`, `mapPriority`, `mapRule`, `mapAdvice`, `mapCategoryId`, `targetComponentId`, `valueId`, `owlExpression`, `order`, `mrcmRuleRefsetId`, `attributeDescription`, `attributeType`, `attributeOrder`, `descriptionFormat`, `descriptionLength`, `domainConstraint`, `parentDomain`, `proximalPrimitiveConstraint`, `proximalPrimitiveRefinement`, `domainTemplateForPrecoordination`, `domainTemplateForPostcoordination`, `guideURL`, `domainId`, `ruleStrengthId`, `contentTypeId`, `grouped`, `attributeCardinality`, `attributeInGroupCardinality`, `sourceEffectiveTime`, `targetEffectiveTime`, `rangeConstraint`, `attributeRule`, `languageDialectCode`, `typeId`, or `value`",
+                    "`moduleId`, `effectiveTime`, `active`, `mapTarget`, `correlationId`, `mapGroup`, `mapPriority`, `mapRule`, `mapAdvice`, `mapCategoryId`, `targetComponentId`, `valueId`, `owlExpression`, `order`, `mrcmRuleRefsetId`, `attributeDescription`, `attributeType`, `attributeOrder`, `descriptionFormat`, `descriptionLength`, `domainConstraint`, `parentDomain`, `proximalPrimitiveConstraint`, `proximalPrimitiveRefinement`, `domainTemplateForPrecoordination`, `domainTemplateForPostcoordination`, `guideURL`, `domainId`, `ruleStrengthId`, `contentTypeId`, `grouped`, `attributeCardinality`, `attributeInGroupCardinality`, `sourceEffectiveTime`, `targetEffectiveTime`, `rangeConstraint`, `attributeRule`, `languageDialectCode`, `referencedMemberId`, `typeId`, or `value`",
                 ))
             }
         }
@@ -960,12 +1109,8 @@ impl Parser {
         Ok(filters)
     }
 
-    /// A single `descriptionFilter`: `termFilter`, the token form of
-    /// `typeFilter`, or `activeFilter` — spec/10's three implemented
-    /// kinds. `moduleId`/`effectiveTime` are tokenized (the concept
-    /// filter uses them) so they are rejected here by name; `language`,
-    /// and `dialect` are not tokenized at all and fail earlier with a
-    /// generic lexer error, the bucket spec/10 rule 9 describes.
+    /// A single implemented `descriptionFilter`, including dialect ids and
+    /// official Appendix C aliases (spec/10 rule 14).
     fn parse_description_filter_kind(&mut self) -> Result<DescriptionFilterKind, EclError> {
         match &self.peek().kind {
             TokenKind::TermKeyword => {
@@ -983,20 +1128,25 @@ impl Parser {
             TokenKind::DialectIdKeyword => {
                 self.advance()?;
                 let negated = self.parse_boolean_comparison_operator()?;
-                let (refset_id, _term) = self.parse_concept_reference()?;
+                let dialects = self.parse_dialect_id_set()?;
                 let acceptability = self.parse_acceptability_set()?;
                 Ok(DescriptionFilterKind::Dialect(DialectFilter {
                     negated,
-                    refset_id,
+                    dialects,
                     acceptability,
                 }))
             }
-            TokenKind::DialectKeyword => Err(EclError::NotYetImplemented {
-                pos: self.peek().pos,
-                feature: "`dialect` (the alias form — an alias like `en-us` \
-                          maps to a refset id only by deployment policy; \
-                          use `dialectId` with the refset's SCTID)",
-            }),
+            TokenKind::DialectKeyword => {
+                self.advance()?;
+                let negated = self.parse_boolean_comparison_operator()?;
+                let dialects = self.parse_dialect_alias_set()?;
+                let acceptability = self.parse_acceptability_set()?;
+                Ok(DescriptionFilterKind::Dialect(DialectFilter {
+                    negated,
+                    dialects,
+                    acceptability,
+                }))
+            }
             TokenKind::LanguageKeyword => {
                 self.advance()?;
                 let negated = self.parse_boolean_comparison_operator()?;
@@ -1006,15 +1156,9 @@ impl Parser {
                     values,
                 }))
             }
-            TokenKind::TypeIdKeyword => {
-                self.advance()?;
-                let negated = self.parse_boolean_comparison_operator()?;
-                let value = self.parse_sub_expression_constraint()?;
-                Ok(DescriptionFilterKind::TypeId(ModuleFilter {
-                    negated,
-                    value: Box::new(value),
-                }))
-            }
+            TokenKind::TypeIdKeyword => Ok(DescriptionFilterKind::TypeId(
+                self.parse_reference_filter()?,
+            )),
             TokenKind::ActiveKeyword => {
                 self.advance()?;
                 let negated = self.parse_boolean_comparison_operator()?;
@@ -1024,15 +1168,9 @@ impl Parser {
                     value,
                 }))
             }
-            TokenKind::ModuleIdKeyword => {
-                self.advance()?;
-                let negated = self.parse_boolean_comparison_operator()?;
-                let value = self.parse_sub_expression_constraint()?;
-                Ok(DescriptionFilterKind::Module(ModuleFilter {
-                    negated,
-                    value: Box::new(value),
-                }))
-            }
+            TokenKind::ModuleIdKeyword => Ok(DescriptionFilterKind::Module(
+                self.parse_reference_filter()?,
+            )),
             TokenKind::EffectiveTimeKeyword => {
                 self.advance()?;
                 let operator = self.parse_time_comparison_operator()?;
@@ -1077,8 +1215,82 @@ impl Parser {
         }
     }
 
+    /// `eclConceptReference / dialectIdSet`. Each set entry can carry its
+    /// own acceptability set; the caller parses the optional set applying
+    /// to the whole dialect filter afterward.
+    fn parse_dialect_id_set(&mut self) -> Result<Vec<DialectEntry>, EclError> {
+        if !matches!(self.peek().kind, TokenKind::LParen) {
+            let (refset_id, _term) = self.parse_concept_reference()?;
+            return Ok(vec![DialectEntry {
+                refset_id,
+                acceptability: Vec::new(),
+            }]);
+        }
+
+        self.advance()?;
+        let mut dialects = Vec::new();
+        while !matches!(self.peek().kind, TokenKind::RParen) {
+            let (refset_id, _term) = self.parse_concept_reference()?;
+            let acceptability = self.parse_acceptability_set()?;
+            dialects.push(DialectEntry {
+                refset_id,
+                acceptability,
+            });
+        }
+        self.expect(TokenKind::RParen, "`)`")?;
+        if dialects.is_empty() {
+            let tok = self.peek().clone();
+            return Err(Self::unexpected(&tok, "a dialect concept reference"));
+        }
+        Ok(dialects)
+    }
+
+    /// `dialectAlias / dialectAliasSet`, resolved through the official ECL
+    /// Appendix C table (spec/10 rule 14). Each set entry may carry its own
+    /// acceptability set; the caller parses the optional shared set.
+    fn parse_dialect_alias_set(&mut self) -> Result<Vec<DialectEntry>, EclError> {
+        let take_one = |parser: &mut Self| -> Result<DialectEntry, EclError> {
+            let token = parser.advance()?;
+            let TokenKind::Word(alias) = &token.kind else {
+                return Err(Self::unexpected(&token, "a dialect alias"));
+            };
+            let lowercase = alias.to_ascii_lowercase();
+            let Some((_, refset_id)) = DIALECT_ALIASES
+                .iter()
+                .find(|(known, _)| *known == lowercase)
+            else {
+                return Err(EclError::UnknownDialectAlias {
+                    pos: token.pos,
+                    alias: alias.clone(),
+                });
+            };
+            Ok(DialectEntry {
+                refset_id: *refset_id,
+                acceptability: Vec::new(),
+            })
+        };
+
+        if !matches!(self.peek().kind, TokenKind::LParen) {
+            return Ok(vec![take_one(self)?]);
+        }
+        self.advance()?;
+        let mut dialects = Vec::new();
+        while !matches!(self.peek().kind, TokenKind::RParen) {
+            let mut dialect = take_one(self)?;
+            dialect.acceptability = self.parse_acceptability_set()?;
+            dialects.push(dialect);
+        }
+        self.expect(TokenKind::RParen, "`)`")?;
+        if dialects.is_empty() {
+            let token = self.peek().clone();
+            return Err(Self::unexpected(&token, "a dialect alias"));
+        }
+        Ok(dialects)
+    }
+
     /// An optional `acceptabilitySet` following a dialect: `(preferred)`,
-    /// `(preferred acceptable)`, or absent for "any acceptability".
+    /// `(preferred acceptable)`, an explicit concept-reference set, or
+    /// absent for "any acceptability".
     ///
     /// No lookahead is needed to spot it, unlike `concreteStringSet`: a
     /// filter is followed only by `,` or `}}`, so a `(` in this position
@@ -1090,11 +1302,26 @@ impl Parser {
         self.advance()?; // `(`
         let mut values = Vec::new();
         while !matches!(self.peek().kind, TokenKind::RParen) {
-            let tok = self.advance()?;
-            match tok.kind {
-                TokenKind::PreferredToken => values.push(AcceptabilityValue::Preferred),
-                TokenKind::AcceptableToken => values.push(AcceptabilityValue::Acceptable),
-                _ => return Err(Self::unexpected(&tok, "`preferred` or `acceptable`")),
+            match &self.peek().kind {
+                TokenKind::PreferredToken => {
+                    self.advance()?;
+                    values.push(AcceptabilityValue::Preferred);
+                }
+                TokenKind::AcceptableToken => {
+                    self.advance()?;
+                    values.push(AcceptabilityValue::Acceptable);
+                }
+                TokenKind::Digits(_) => {
+                    let (id, _term) = self.parse_concept_reference()?;
+                    values.push(AcceptabilityValue::Concept(id));
+                }
+                _ => {
+                    let tok = self.peek().clone();
+                    return Err(Self::unexpected(
+                        &tok,
+                        "`preferred`, `acceptable`, or an acceptability concept reference",
+                    ));
+                }
             }
         }
         self.expect(TokenKind::RParen, "`)`")?;
@@ -1103,26 +1330,28 @@ impl Parser {
             // least one token, and silently reading it as "any" would
             // accept a query that means nothing.
             let tok = self.peek().clone();
-            return Err(Self::unexpected(&tok, "`preferred` or `acceptable`"));
+            return Err(Self::unexpected(
+                &tok,
+                "`preferred`, `acceptable`, or an acceptability concept reference",
+            ));
         }
         Ok(values)
     }
 
     /// `languageCode / languageCodeSet` — one bare code (`en`), or a
-    /// parenthesized set of them, OR'd. A code is lexed as a
-    /// [`TokenKind::Word`]: the lexer has no keyword for `en`, which is
-    /// exactly why unknown words are tokens rather than lex errors.
-    ///
-    /// A code spelled exactly like one of this grammar's keywords (`def`,
-    /// say) lexes as that keyword and is rejected here — the same
-    /// tradeoff the `R#...` alternate-identifier caveat records, and no
-    /// ISO 639-1 code collides today.
+    /// parenthesized set. Each value is two ASCII letters (spec/10).
     fn parse_language_code_set(&mut self) -> Result<Vec<String>, EclError> {
         let take_one = |p: &mut Self| -> Result<String, EclError> {
             let tok = p.advance()?;
             match &tok.kind {
-                TokenKind::Word(code) => Ok(code.to_ascii_lowercase()),
-                _ => Err(Self::unexpected(&tok, "a language code")),
+                TokenKind::Word(code)
+                    if code.len() == 2 && code.bytes().all(|byte| byte.is_ascii_alphabetic()) =>
+                {
+                    Ok(code.to_ascii_lowercase())
+                }
+                // The two-letter code for Odia also spells the OR operator.
+                TokenKind::Or => Ok("or".to_owned()),
+                _ => Err(Self::unexpected(&tok, "a two-letter language code")),
             }
         };
         if matches!(self.peek().kind, TokenKind::LParen) {
@@ -1224,28 +1453,11 @@ impl Parser {
                     DefinitionStatusFilter { negated, values },
                 ))
             }
-            TokenKind::DefinitionStatusIdKeyword => {
-                self.advance()?;
-                let negated = self.parse_boolean_comparison_operator()?;
-                let value = self.parse_sub_expression_constraint()?;
-                Ok(ConceptFilterKind::DefinitionStatusId(ModuleFilter {
-                    negated,
-                    value: Box::new(value),
-                }))
-            }
+            TokenKind::DefinitionStatusIdKeyword => Ok(ConceptFilterKind::DefinitionStatusId(
+                self.parse_reference_filter()?,
+            )),
             TokenKind::ModuleIdKeyword => {
-                self.advance()?;
-                let negated = self.parse_boolean_comparison_operator()?;
-                // Only the `subExpressionConstraint` alternative — the
-                // official grammar's `eclConceptReferenceSet` (`moduleId
-                // = (id1 id2)`) isn't implemented; `(` here is always
-                // treated as a parenthesized expression, same scoping
-                // call already made for attribute names/values.
-                let value = self.parse_sub_expression_constraint()?;
-                Ok(ConceptFilterKind::Module(ModuleFilter {
-                    negated,
-                    value: Box::new(value),
-                }))
+                Ok(ConceptFilterKind::Module(self.parse_reference_filter()?))
             }
             TokenKind::EffectiveTimeKeyword => {
                 self.advance()?;
@@ -1351,6 +1563,45 @@ impl Parser {
         }
     }
 
+    /// Parses an ID filter whose grammar allows a subexpression or a
+    /// complete concept-reference set. Lower the set to the same AST as
+    /// an explicit disjunction (spec/10).
+    fn parse_reference_filter(&mut self) -> Result<ModuleFilter, EclError> {
+        self.advance()?;
+        let negated = self.parse_boolean_comparison_operator()?;
+        let set_start = if matches!(self.peek().kind, TokenKind::LParen) {
+            self.lexer.take_concept_reference_set_start()?
+        } else {
+            None
+        };
+        let value = if let Some(first) = set_start {
+            self.current = first;
+            let mut items = Vec::new();
+            loop {
+                items.push(ExpressionConstraint::Simple(
+                    self.parse_focus_concept(HierarchyOp::SelfOnly)?,
+                ));
+                if !matches!(self.peek().kind, TokenKind::Digits(_)) {
+                    break;
+                }
+                if !self.lexer.has_separator_before(self.peek().pos) {
+                    return Err(Self::unexpected(
+                        self.peek(),
+                        "whitespace or a comment before the next concept reference",
+                    ));
+                }
+            }
+            self.expect(TokenKind::RParen, "`)`")?;
+            ExpressionConstraint::Or(items)
+        } else {
+            self.parse_sub_expression_constraint()?
+        };
+        Ok(ModuleFilter {
+            negated,
+            value: Box::new(value),
+        })
+    }
+
     /// Parses `expressionConstraint ")"` — the part of a parenthesized
     /// `subExpressionConstraint` after its opening `(` has already been
     /// consumed by the caller. Factored out so [`Self::parse_attribute_comparison`]
@@ -1433,6 +1684,7 @@ impl Parser {
             let attributes = self.parse_attribute_set()?;
             self.expect(TokenKind::RBrace, "`}`")?;
             return Ok(RefinementConstraint::Group(AttributeGroup {
+                // RCA-IN-3: absent only; ECL grammar default cardinality when none is written (ast::Cardinality).
                 cardinality: cardinality.unwrap_or_default(),
                 attributes: Box::new(attributes),
             }));
@@ -1578,6 +1830,7 @@ impl Parser {
         }
         Ok(AttributeConstraint {
             attribute: Box::new(attribute),
+            // RCA-IN-3: absent only; ECL grammar default cardinality when none is written (ast::Cardinality).
             cardinality: cardinality.unwrap_or_default(),
             reverse,
             comparison,
@@ -1598,18 +1851,10 @@ impl Parser {
     /// `AttributeComparison`'s own doc).
     fn parse_attribute_comparison(&mut self) -> Result<AttributeComparison, EclError> {
         match &self.peek().kind {
-            TokenKind::LtEq | TokenKind::Lt | TokenKind::GtEq | TokenKind::Gt => {
-                let operator = match self.advance()?.kind {
-                    TokenKind::LtEq => NumericComparisonOp::Le,
-                    TokenKind::Lt => NumericComparisonOp::Lt,
-                    TokenKind::GtEq => NumericComparisonOp::Ge,
-                    TokenKind::Gt => NumericComparisonOp::Gt,
-                    _ => unreachable!("matched above"),
-                };
-                self.expect(TokenKind::Hash, "`#`")?;
-                let value = self.parse_numeric_value()?;
-                Ok(AttributeComparison::Numeric { operator, value })
-            }
+            TokenKind::LtEq => self.parse_ordered_numeric_attribute(NumericComparisonOp::Le),
+            TokenKind::Lt => self.parse_ordered_numeric_attribute(NumericComparisonOp::Lt),
+            TokenKind::GtEq => self.parse_ordered_numeric_attribute(NumericComparisonOp::Ge),
+            TokenKind::Gt => self.parse_ordered_numeric_attribute(NumericComparisonOp::Gt),
             TokenKind::Eq | TokenKind::NotEq => {
                 let negated = matches!(self.peek().kind, TokenKind::NotEq);
                 self.advance()?;
@@ -1624,23 +1869,25 @@ impl Parser {
                         };
                         Ok(AttributeComparison::Numeric { operator, value })
                     }
-                    TokenKind::QuotedString(_) => {
-                        let TokenKind::QuotedString(s) = self.advance()?.kind else {
-                            unreachable!("matched above")
-                        };
+                    TokenKind::QuotedString(s) => {
+                        let s = s.clone();
+                        self.advance()?;
                         Ok(AttributeComparison::String {
                             negated,
                             values: vec![s],
                         })
                     }
+                    TokenKind::True | TokenKind::False => Err(EclError::NotYetImplemented {
+                        pos: self.peek().pos,
+                        feature: "boolean concrete value comparisons",
+                    }),
                     TokenKind::LParen => {
                         self.advance()?;
                         if matches!(self.peek().kind, TokenKind::QuotedString(_)) {
                             let mut values = Vec::new();
-                            while let TokenKind::QuotedString(_) = &self.peek().kind {
-                                let TokenKind::QuotedString(s) = self.advance()?.kind else {
-                                    unreachable!("matched above")
-                                };
+                            while let TokenKind::QuotedString(s) = &self.peek().kind {
+                                let s = s.clone();
+                                self.advance()?;
                                 values.push(s);
                             }
                             self.expect(TokenKind::RParen, "`)`")?;
@@ -1667,6 +1914,16 @@ impl Parser {
                 Err(Self::unexpected(&tok, "`=`, `!=`, `<=`, `<`, `>=`, or `>`"))
             }
         }
+    }
+
+    fn parse_ordered_numeric_attribute(
+        &mut self,
+        operator: NumericComparisonOp,
+    ) -> Result<AttributeComparison, EclError> {
+        self.advance()?;
+        self.expect(TokenKind::Hash, "`#`")?;
+        let value = self.parse_numeric_value()?;
+        Ok(AttributeComparison::Numeric { operator, value })
     }
 
     /// `["-" / "+"] (decimalValue / integerValue)` — the literal is kept
@@ -1716,53 +1973,49 @@ impl Parser {
     }
 
     /// `[constraintOperator ws]` — `HierarchyOp::SelfOnly` when absent.
-    fn parse_optional_constraint_operator(&mut self) -> Result<HierarchyOp, EclError> {
+    fn parse_optional_constraint_operator(&mut self) -> Result<ConstraintOperator, EclError> {
         let op = match &self.peek().kind {
             TokenKind::LtLtBang => {
                 self.advance()?;
-                HierarchyOp::ChildOrSelfOf
+                ConstraintOperator::Hierarchy(HierarchyOp::ChildOrSelfOf)
             }
             TokenKind::LtLt => {
                 self.advance()?;
-                HierarchyOp::DescendantOrSelfOf
+                ConstraintOperator::Hierarchy(HierarchyOp::DescendantOrSelfOf)
             }
             TokenKind::LtBang => {
                 self.advance()?;
-                HierarchyOp::ChildOf
+                ConstraintOperator::Hierarchy(HierarchyOp::ChildOf)
             }
             TokenKind::Lt => {
                 self.advance()?;
-                HierarchyOp::DescendantOf
+                ConstraintOperator::Hierarchy(HierarchyOp::DescendantOf)
             }
             TokenKind::GtGtBang => {
                 self.advance()?;
-                HierarchyOp::ParentOrSelfOf
+                ConstraintOperator::Hierarchy(HierarchyOp::ParentOrSelfOf)
             }
             TokenKind::GtGt => {
                 self.advance()?;
-                HierarchyOp::AncestorOrSelfOf
+                ConstraintOperator::Hierarchy(HierarchyOp::AncestorOrSelfOf)
             }
             TokenKind::GtBang => {
                 self.advance()?;
-                HierarchyOp::ParentOf
+                ConstraintOperator::Hierarchy(HierarchyOp::ParentOf)
             }
             TokenKind::Gt => {
                 self.advance()?;
-                HierarchyOp::AncestorOf
+                ConstraintOperator::Hierarchy(HierarchyOp::AncestorOf)
             }
             TokenKind::Top => {
-                return Err(EclError::NotYetImplemented {
-                    pos: self.peek().pos,
-                    feature: "`!!>` (top)",
-                })
+                self.advance()?;
+                ConstraintOperator::Top
             }
             TokenKind::Bottom => {
-                return Err(EclError::NotYetImplemented {
-                    pos: self.peek().pos,
-                    feature: "`!!<` (bottom)",
-                })
+                self.advance()?;
+                ConstraintOperator::Bottom
             }
-            _ => HierarchyOp::SelfOnly,
+            _ => ConstraintOperator::None,
         };
         Ok(op)
     }
@@ -1818,10 +2071,12 @@ impl Parser {
     }
 }
 
+#[cfg_attr(coverage_nightly, coverage(off))]
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::ast::ExpressionConstraint as EC;
+    use snomed_core::constants;
 
     fn concept(digits: &str) -> SctId {
         SctId::parse(digits).unwrap()
@@ -2822,6 +3077,30 @@ mod tests {
         assert_eq!(values[0].search_type, crate::ast::SearchType::Match);
     }
 
+    /// `referencedMemberId` (spec/10 rule 18) uses the string-search
+    /// shape: RF2 declares the value as a UUID, not an SCTID concept
+    /// reference, so the grammar accepts a typed search term.
+    #[test]
+    fn parses_member_filter_referenced_member_id() {
+        let EC::MemberFilter { filters, .. } = parse(
+            "^ 1292992004 {{ M referencedMemberId = exact:\"80000000-0000-4000-8000-000000000194\" }}",
+        )
+        .unwrap()
+        else {
+            panic!("expected a member filter");
+        };
+        let crate::ast::MemberFilterKind::ReferencedMemberId(crate::ast::TermFilter {
+            negated,
+            values,
+        }) = &filters[0]
+        else {
+            panic!("expected a ReferencedMemberId filter, got {:?}", filters[0]);
+        };
+        assert!(!negated);
+        assert_eq!(values[0].text, "80000000-0000-4000-8000-000000000194");
+        assert_eq!(values[0].search_type, crate::ast::SearchType::Exact);
+    }
+
     /// `typeId` (spec/10 rule 18) — `ComponentAnnotationRefsetMember`'s
     /// second column, back on the concept-reference shape. `typeId`
     /// already lexes as a dedicated `TokenKind::TypeIdKeyword` (from
@@ -2964,10 +3243,8 @@ mod tests {
         assert_eq!(values[0].search_type, crate::ast::SearchType::Wild);
     }
 
-    /// A field name this crate doesn't recognize (`referencedMemberId`,
-    /// say — `MemberAnnotationRefsetMember`'s own column, distinct
-    /// from `targetComponentId`, still unimplemented) falls to the
-    /// generic bucket, not `NotYetImplemented` — the same "genuinely
+    /// A field name this crate doesn't recognize (`futureField`, say)
+    /// falls to the generic bucket, not `NotYetImplemented` — the same "genuinely
     /// unimplemented" distinction rule 9 draws elsewhere. Not `typeId`
     /// or `value` any more: both used to be good examples of a
     /// lexer-keyword collision (`typeId` is `TokenKind::TypeIdKeyword`,
@@ -2981,7 +3258,7 @@ mod tests {
     #[test]
     fn rejects_an_unrecognized_member_field_filter_generically() {
         assert!(matches!(
-            parse("^ 447562003 {{ M referencedMemberId = \"x\" }}"),
+            parse("^ 447562003 {{ M futureField = \"x\" }}"),
             Err(EclError::UnexpectedKeyword { .. })
         ));
     }
@@ -3249,11 +3526,97 @@ mod tests {
         }
     }
 
+    /// The official `dialectIdSet` grammar permits an acceptability set
+    /// on each dialect plus one applying to the whole filter (spec/10).
+    #[test]
+    fn parses_dialect_id_set_with_local_and_shared_acceptability() {
+        let us = SctId::parse("900000000000509007").unwrap();
+        let gb = SctId::parse("900000000000508004").unwrap();
+        let preferred = SctId::parse("900000000000548007").unwrap();
+        let expr = parse(
+            "404684003 {{ D dialectId != (900000000000509007 (preferred) 900000000000508004 (900000000000548007 |Preferred|)) (acceptable preferred) }}",
+        )
+        .unwrap();
+        let EC::DescriptionFilter { filters, .. } = expr else {
+            panic!("expected a description filter");
+        };
+        assert_eq!(
+            filters,
+            vec![DescriptionFilterKind::Dialect(DialectFilter {
+                negated: true,
+                dialects: vec![
+                    DialectEntry {
+                        refset_id: us,
+                        acceptability: vec![AcceptabilityValue::Preferred],
+                    },
+                    DialectEntry {
+                        refset_id: gb,
+                        acceptability: vec![AcceptabilityValue::Concept(preferred)],
+                    },
+                ],
+                acceptability: vec![
+                    AcceptabilityValue::Acceptable,
+                    AcceptabilityValue::Preferred,
+                ],
+            })]
+        );
+
+        assert!(parse("404684003 {{ D dialectId = () }}").is_err());
+    }
+
+    #[test]
+    fn parses_official_dialect_aliases_and_acceptability_sets() {
+        for &(alias, refset_id) in DIALECT_ALIASES {
+            assert_eq!(SctId::parse(&refset_id.to_string()).unwrap(), refset_id);
+            let query = format!("404684003 {{{{ D dialect = {alias} }}}}");
+            let EC::DescriptionFilter { filters, .. } = parse(&query).unwrap() else {
+                panic!("expected a description filter for {alias}");
+            };
+            assert!(matches!(
+                filters.as_slice(),
+                [DescriptionFilterKind::Dialect(DialectFilter { dialects, .. })]
+                    if dialects[0].refset_id == refset_id
+            ));
+        }
+
+        let EC::DescriptionFilter { filters, .. } =
+            parse("404684003 {{ D dialect != (EN-US (preferred) en-gb) (acceptable preferred) }}")
+                .unwrap()
+        else {
+            panic!("expected a description filter");
+        };
+        assert_eq!(
+            filters,
+            vec![DescriptionFilterKind::Dialect(DialectFilter {
+                negated: true,
+                dialects: vec![
+                    DialectEntry {
+                        refset_id: constants::US_ENGLISH_LANGUAGE_REFSET,
+                        acceptability: vec![AcceptabilityValue::Preferred],
+                    },
+                    DialectEntry {
+                        refset_id: constants::GB_ENGLISH_LANGUAGE_REFSET,
+                        acceptability: Vec::new(),
+                    },
+                ],
+                acceptability: vec![
+                    AcceptabilityValue::Acceptable,
+                    AcceptabilityValue::Preferred,
+                ],
+            })]
+        );
+        assert!(matches!(
+            parse("404684003 {{ D dialect = en-unknown }}"),
+            Err(EclError::UnknownDialectAlias { alias, .. }) if alias == "en-unknown"
+        ));
+        for invalid in ["()", "123", "en-us (bogus)"] {
+            let query = format!("404684003 {{{{ D dialect = {invalid} }}}}");
+            assert!(parse(&query).is_err(), "{query}");
+        }
+    }
+
     #[test]
     fn rejects_unimplemented_filter_kinds_by_name() {
-        // The description-filter kinds whose keywords *are* tokenized get
-        // a feature-naming error (spec/10 rule 9) when the kind itself
-        // isn't implemented — the `dialect` alias case below.
         // `moduleId`/`effectiveTime` inside `{{ D }}` are implemented now:
         // they filter the *description's* own columns, which the store has.
         for input in [
@@ -3269,12 +3632,7 @@ mod tests {
             Err(EclError::UnexpectedToken { .. })
         ));
         assert!(parse("404684003 {{ D language = en }}").is_ok());
-        // The `dialect` alias form is recognized and rejected by name:
-        // an alias maps to a refset id only by deployment policy.
-        assert!(matches!(
-            parse("404684003 {{ D dialect = en-us }}"),
-            Err(EclError::NotYetImplemented { .. })
-        ));
+        assert!(parse("404684003 {{ D dialect = en-us }}").is_ok());
         // A filter keyword this lexer doesn't tokenize is a `Word`, and
         // the parser rejects it as an unknown keyword — the same error
         // the lexer used to raise, from the place that can tell.
@@ -3725,21 +4083,94 @@ mod tests {
     }
 
     #[test]
-    fn rejects_top_and_bottom_with_a_named_error() {
+    fn parses_top_and_bottom_over_every_focus_shape() {
         assert!(matches!(
             parse("!!> 404684003"),
-            Err(EclError::NotYetImplemented {
-                feature: "`!!>` (top)",
+            Ok(ExpressionConstraint::Top(inner))
+                if matches!(*inner, ExpressionConstraint::Simple(_))
+        ));
+        assert!(matches!(
+            parse("!!< (404684003 OR 64572001)"),
+            Ok(ExpressionConstraint::Bottom(inner))
+                if matches!(*inner, ExpressionConstraint::Or(_))
+        ));
+
+        let ExpressionConstraint::Top(inner) =
+            parse("!!> ^ 447562003 {{ M active = true }}").unwrap()
+        else {
+            panic!("expected top-of-set wrapper");
+        };
+        assert!(matches!(*inner, ExpressionConstraint::MemberFilter { .. }));
+
+        let ExpressionConstraint::Bottom(inner) =
+            parse("!!< ^R 73211009 {{ M active = true }}").unwrap()
+        else {
+            panic!("expected bottom-of-set wrapper");
+        };
+        assert!(matches!(
+            *inner,
+            ExpressionConstraint::RefsetContainingFilter { .. }
+        ));
+
+        assert!(matches!(
+            parse("!!>"),
+            Err(EclError::UnexpectedToken { .. })
+        ));
+    }
+
+    #[test]
+    fn parses_history_supplement_profiles_and_explicit_refsets() {
+        for (suffix, expected) in [
+            ("", HistorySupplement::Maximum),
+            ("-MIN", HistorySupplement::Minimum),
+            ("-MOD", HistorySupplement::Moderate),
+            ("-MAX", HistorySupplement::Maximum),
+        ] {
+            let query = format!("404684003 {{{{+HISTORY{suffix}}}}}");
+            let ExpressionConstraint::History { supplement, .. } = parse(&query).unwrap() else {
+                panic!("expected history supplement for {query}");
+            };
+            assert_eq!(supplement, expected);
+        }
+        assert!(matches!(
+            parse("404684003 {{+HISTORY (*)}}"),
+            Ok(ExpressionConstraint::History {
+                supplement: HistorySupplement::Maximum,
                 ..
             })
         ));
         assert!(matches!(
-            parse("!!< 404684003"),
-            Err(EclError::NotYetImplemented {
-                feature: "`!!<` (bottom)",
+            parse("404684003 {{+HISTORY (900000000000527005 OR 900000000000526001)}}"),
+            Ok(ExpressionConstraint::History {
+                supplement: HistorySupplement::Refsets(_),
                 ..
             })
         ));
+        for malformed in [
+            "404684003 {{+HISTORY-BOGUS}}",
+            "404684003 {{+123}}",
+            "404684003 {{+HISTORY ()}}",
+        ] {
+            assert!(parse(malformed).is_err(), "{malformed}");
+        }
+        assert!(parse("404684003 {{+HISTORY-MIN (*)}}").is_err());
+    }
+
+    /// RF2 concrete values have numeric and string wire forms only. ECL's
+    /// boolean form is therefore rejected explicitly rather than being
+    /// mistaken for a concept expression (spec/10 rule 9).
+    #[test]
+    fn rejects_boolean_concrete_values_with_a_named_error() {
+        for comparison in ["= true", "!= false"] {
+            let query = format!("404684003 : 116676008 {comparison}");
+            assert!(matches!(
+                parse(&query),
+                Err(EclError::NotYetImplemented {
+                    feature: "boolean concrete value comparisons",
+                    ..
+                })
+            ));
+        }
     }
 
     #[test]
@@ -4310,5 +4741,160 @@ mod tests {
             ),
             "{err}"
         );
+    }
+
+    #[test]
+    fn malformed_grammar_boundaries_return_errors_without_panicking() {
+        let malformed = [
+            "404684003 AND 64572001 MINUS 138875005",
+            "404684003 OR 64572001 AND 138875005",
+            "^ 447562003 {{ M mapGroup true }}",
+            "* {{ C active = primitive }}",
+            "^ 447562003 {{ M grouped = * }}",
+            "* {{ D term = bogus:\"x\" }}",
+            "* {{ D term = match:123 }}",
+            "* {{ C effectiveTime = true }}",
+            "* {{ D dialectId = 900000000000509007 () }}",
+            "* {{ D type = primitive }}",
+            "* {{ C definitionStatus = true }}",
+            "* {{ C term = \"x\" }}",
+            "* {{ C effectiveTime true \"20200131\" }}",
+            "* {{ C effectiveTime = (true) }}",
+            "* {{ C active < true }}",
+            "* {{ C definitionStatus = () }}",
+            "* : 116676008 = 79654002 AND 363698007 = 91723000 OR 272741003 = 7771000",
+            "* : 116676008 = 79654002 OR 363698007 = 91723000 AND 272741003 = 7771000",
+            "* : [4294967296..*] 116676008 = 79654002",
+            "* : [*..*] 116676008 = 79654002",
+            "* : 116676008 = #true",
+            "* : 116676008 = #1.",
+        ];
+        for input in malformed {
+            let _ = parse(input).unwrap_err();
+        }
+    }
+
+    #[test]
+    fn less_common_valid_grammar_paths_parse() {
+        for input in [
+            "* {{ D type = def }}",
+            "* : { 116676008 = 79654002 OR 363698007 = 91723000 }",
+            "* : { (116676008 = 79654002 OR 363698007 = 91723000) }",
+            "* : 1142135004 = #+5",
+        ] {
+            let _ = parse(input).unwrap();
+        }
+    }
+
+    #[test]
+    fn lexer_failures_at_every_valid_grammar_boundary_are_propagated() {
+        // These are deliberately dense, synthetic expressions: together
+        // they traverse every implemented filter family and the recursive
+        // expression/refinement shapes. Appending an illegal character at
+        // every UTF-8 boundary verifies that a lexer failure is propagated
+        // from each parser state rather than panicking or being swallowed.
+        let valid = [
+            r#"^ 447562003 {{ M moduleId = 900000000000207008, effectiveTime >= ("20190731" "20200131"), active != false, mapTarget = (match:"a" wild:"b*" exact:"C"), correlationId != << 900000000000207008, mapGroup >= #1, mapPriority < #-2.5, mapRule = "TRUE", mapAdvice != "none", mapCategoryId = 900000000000207008, targetComponentId != 404684003, valueId = 900000000000548007, owlExpression = wild:"SubClassOf(*)", order <= #3, mrcmRuleRefsetId = 900000000000445007, attributeDescription = 900000000000550004, attributeType = 900000000000461009, attributeOrder > #0, descriptionFormat = 900000000000446008, descriptionLength != #20, domainConstraint = "<< 404684003", parentDomain != "*", proximalPrimitiveConstraint = exact:"< 138875005", proximalPrimitiveRefinement = "*", domainTemplateForPrecoordination = "template", domainTemplateForPostcoordination != "template", guideURL = wild:"https://*", domainId = 404684003, ruleStrengthId != 723597001, contentTypeId = 723596005, grouped != true, attributeCardinality = "1..*", attributeInGroupCardinality != "0..1", sourceEffectiveTime > "20190731", targetEffectiveTime < ("20200131" "20210131"), rangeConstraint = "int(>#0)", attributeRule != "rule", languageDialectCode = "en-GB", referencedMemberId = "00000000-0000-0000-0000-000000000000", typeId = 900000000000461009, value != "annotation" }}"#,
+            r#"* {{ D term = (match:"heart" wild:"cardi*" exact:"Heart"), type != (fsn syn def), dialectId = (900000000000509007 (preferred acceptable) 900000000000508004 (900000000000548007)) (acceptable), dialect = (en-gb (preferred) en-us (acceptable)) (preferred acceptable), language = (en or sv), typeId = (900000000000003001 OR 900000000000013009), active != *, moduleId = 900000000000207008, effectiveTime <= ("20190731" "20200131") }}"#,
+            r#"* {{ C active != *, definitionStatus = (primitive defined), definitionStatusId != (900000000000074008 OR 900000000000073002), moduleId = 900000000000207008, effectiveTime > ("20190731" "20200131") }}"#,
+            r#"< 404684003 : [1..*] { [0..1] R (<< 116676008) != (<< 79654002) AND 363698007 = #1 } OR ([1..2] 1142135004 >= #-2.5 AND 3311487004 != ("a" "b"))"#,
+            r#"(!!> (404684003 OR 64572001) AND !!< (^ 447562003 {{ M active = true }})) MINUS ((< 19829001 . << 116676008) OR ^R (< 73211009) {{ M moduleId != 900000000000207008 }})"#,
+            r#"404684003 {{+HISTORY-MAX}}"#,
+            r#"404684003 {{+HISTORY (900000000000527005 OR 900000000000526001)}}"#,
+        ];
+
+        for input in valid {
+            parse(input).unwrap_or_else(|error| panic!("invalid fixture `{input}`: {error}"));
+            for (boundary, _) in input.char_indices().skip(1) {
+                let malformed = format!("{}@", &input[..boundary]);
+                assert!(
+                    parse(&malformed).is_err(),
+                    "illegal suffix unexpectedly parsed at byte {boundary}: `{malformed}`"
+                );
+            }
+            assert!(parse(&format!("{input}@")).is_err());
+        }
+    }
+
+    #[test]
+    fn lexer_failures_propagate_from_less_common_token_boundaries() {
+        for input in [
+            "@",
+            "^*@",
+            "404684003 {{+HISTORY (*@",
+            "404684003 {{+HISTORY (*)@",
+            "* {{ D dialectId = fsn }}",
+            "* {{ C definitionStatus = primitive@",
+            "* {{ C effectiveTime =@",
+            "* {{ C effectiveTime !=@",
+            "* {{ C moduleId = (@",
+            "* {{ C moduleId = (404684003 @",
+            "* : 116676008 = 79654002 AND @",
+            "* : 116676008 = 79654002 OR @",
+            "* : (@",
+            "* : (116676008 = 79654002)@",
+            "* : 3311487004 = \"value\"@",
+            "* : 116676008 = @",
+            "* : 1142135004 = #+@",
+            "<<!@ 404684003",
+            "<<@ 404684003",
+            "<!@ 404684003",
+            "<@ 404684003",
+            ">>!@ 404684003",
+            ">>@ 404684003",
+            ">!@ 404684003",
+            ">@ 404684003",
+            "!!>@ 404684003",
+            "!!<@ 404684003",
+            "404684003 |term|@",
+            "< 404684003 {{ M active = true }}",
+            "!!> 404684003 {{ M active = true }}",
+            "!!< 404684003 {{ M active = true }}",
+            "* {{ C moduleId = (1 404684003) }}",
+            "* : 116676008 = 79654002 AND 363698007 = 91723000 OR 272741003 = 7771000",
+            "* : 116676008 = 79654002 OR@",
+            "* : 116676008 = 79654002 OR )",
+            "* : 116676008 = 79654002 OR 363698007 = 91723000 AND 272741003 = 7771000",
+            "* : 116676008 = }",
+        ] {
+            assert!(parse(input).is_err(), "malformed ECL parsed: `{input}`");
+        }
+    }
+
+    #[test]
+    fn internal_refinement_and_member_filter_errors_propagate() {
+        fn parser(input: &str) -> Parser {
+            let mut lexer = Lexer::new(input);
+            let current = lexer.next_token().unwrap();
+            Parser {
+                lexer,
+                current,
+                depth: 0,
+            }
+        }
+
+        let operated_plain_focus = parse("< 404684003").unwrap();
+        assert!(Parser::apply_member_filter(operated_plain_focus, Vec::new(), 0).is_err());
+        for wrapped in [
+            ExpressionConstraint::Top(Box::new(parse("404684003").unwrap())),
+            ExpressionConstraint::Bottom(Box::new(parse("404684003").unwrap())),
+        ] {
+            assert!(Parser::apply_member_filter(wrapped, Vec::new(), 0).is_err());
+        }
+
+        for input in [
+            "116676008 = 79654002 AND 363698007 = 91723000 OR 272741003 = 7771000",
+            "116676008 = 79654002 OR@",
+            "116676008 = 79654002 OR )",
+            "116676008 = 79654002 OR 363698007 = 91723000 AND 272741003 = 7771000",
+        ] {
+            assert!(parser(input).parse_attribute_set().is_err(), "`{input}`");
+        }
+        for input in ["(@", "(116676008 = 79654002)@"] {
+            assert!(
+                parser(input).parse_sub_attribute_set().is_err(),
+                "`{input}`"
+            );
+        }
     }
 }

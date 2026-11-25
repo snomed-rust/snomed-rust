@@ -83,6 +83,22 @@ fuzz_target!(|rows: Vec<RowSpec>| {
     // is self-consistent.
     let report = store.validate();
     assert_eq!(report.is_clean(), report.issue_count() == 0);
+    // An independent reachability check on the bounded synthetic id space:
+    // a cycle starts with a parent edge and has a path back (spec/07 rule 3).
+    let mut sources: Vec<_> = rows
+        .iter()
+        .filter_map(RowSpec::relationship)
+        .map(|r| r.source_id)
+        .collect();
+    sources.sort_unstable();
+    sources.dedup();
+    sources.retain(|&id| {
+        store
+            .parents(id)
+            .iter()
+            .any(|&p| p == id || store.is_ancestor_of(id, p))
+    });
+    assert_eq!(report.cyclic_concepts, sources);
     for id in &report.rootless_concepts {
         assert!(store.parents(*id).is_empty());
         assert!(store.is_active(*id));

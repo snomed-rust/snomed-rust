@@ -2,7 +2,8 @@
 //!
 //! Implements `spec/02-release-types.md` (release types),
 //! `spec/03-file-naming.md` (file names), `spec/05..07` (core component
-//! files), and `spec/08-refset-files.md` (reference sets).
+//! files), `spec/07-identifier-file.md` (alternate identifiers), and
+//! `spec/08-refset-files.md` (reference sets).
 //!
 //! The entry points are:
 //!
@@ -31,6 +32,8 @@
 //! ships no SNOMED CT content.
 
 #![forbid(unsafe_code)]
+#![cfg_attr(coverage_nightly, feature(coverage_attribute))]
+#![cfg_attr(coverage_nightly, allow(unused_features))]
 // Per spec/rust-no-unsafe/index.md: this workspace contains no `unsafe`, and
 // the compiler enforces that rather than a grep.
 

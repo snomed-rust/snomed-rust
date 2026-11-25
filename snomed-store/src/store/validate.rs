@@ -4,10 +4,12 @@
 //! and general referential-integrity expectations RF2 doesn't enforce at
 //! the file-format level.
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use snomed_core::constants;
+use snomed_core::member_id::MemberId;
 use snomed_core::sctid::SctId;
+use snomed_core::time::EffectiveTime;
 
 use super::SnapshotStore;
 
@@ -35,6 +37,13 @@ pub struct ValidationReport {
     /// the root, so no hierarchy query — and no ECL expression built on
     /// one — can ever find it.
     pub rootless_concepts: Vec<SctId>,
+    /// Ids of active Module Dependency refset rows whose target module is
+    /// not loaded at the version the row requires (spec/08 rule 5): the
+    /// target module is absent, or its latest loaded version is older than
+    /// the row's `targetEffectiveTime`. A clean hierarchy does not rule
+    /// this out — an extension loaded on the wrong (older) base can still
+    /// be structurally consistent.
+    pub unsatisfied_module_dependencies: Vec<MemberId>,
 }
 
 impl ValidationReport {
@@ -45,6 +54,7 @@ impl ValidationReport {
             && self.dangling_relationship_destinations.is_empty()
             && self.cyclic_concepts.is_empty()
             && self.rootless_concepts.is_empty()
+            && self.unsatisfied_module_dependencies.is_empty()
     }
 
     /// Total finding count across every category.
@@ -54,6 +64,7 @@ impl ValidationReport {
             + self.dangling_relationship_destinations.len()
             + self.cyclic_concepts.len()
             + self.rootless_concepts.len()
+            + self.unsatisfied_module_dependencies.len()
     }
 }
 
@@ -101,71 +112,112 @@ impl SnapshotStore {
             .collect();
         report.rootless_concepts.sort_unstable();
 
+        report.unsatisfied_module_dependencies = self.unsatisfied_module_dependencies();
+
         report.dangling_description_concepts.sort_unstable();
         report.dangling_relationship_sources.sort_unstable();
         report.dangling_relationship_destinations.sort_unstable();
         report
     }
 
-    /// Iterative (non-recursive, so a very deep chain can't blow the
-    /// stack) DFS over the active inferred IS-A graph (child -> parents),
-    /// using the standard white/gray/black coloring to find back edges.
-    /// On a back edge to a gray node `next`, only the stack segment from
-    /// `next` to the top is the actual cycle — earlier stack entries are
-    /// ancestors that merely lead into it, not cycle members themselves.
-    fn find_cyclic_concepts(&self) -> Vec<SctId> {
-        #[derive(Clone, Copy, PartialEq, Eq)]
-        enum Color {
-            Gray,
-            Black,
+    /// Active Module Dependency rows whose target module is not loaded at
+    /// the required version (spec/08 rule 5), sorted by member id.
+    ///
+    /// A module's loaded version is the latest `effectiveTime` among its
+    /// concepts, descriptions, relationships, and the `sourceEffectiveTime`
+    /// of any dependency row it declares itself. It is a lower bound on the
+    /// release the module was published in (a module unchanged in a release
+    /// keeps older component dates), which is why the check only fails when
+    /// that bound is *below* the required date — never on an equal or newer
+    /// one.
+    fn unsatisfied_module_dependencies(&self) -> Vec<MemberId> {
+        let mut loaded: HashMap<SctId, EffectiveTime> = HashMap::new();
+        let mut note = |module: SctId, time: EffectiveTime| {
+            let slot = loaded.entry(module).or_insert(time);
+            if time > *slot {
+                *slot = time;
+            }
+        };
+        for c in self.concepts.values() {
+            note(c.module_id, c.effective_time);
         }
+        for d in self.descriptions.values() {
+            note(d.module_id, d.effective_time);
+        }
+        for r in self.relationships.values() {
+            note(r.module_id, r.effective_time);
+        }
+        for row in self.module_dependency_members.values().flatten() {
+            note(row.core.module_id, row.source_effective_time);
+        }
+        let mut found: Vec<MemberId> = self
+            .module_dependency_members
+            .values()
+            .flatten()
+            .filter(|row| {
+                loaded
+                    .get(&row.core.referenced_component_id)
+                    .is_none_or(|&have| have < row.target_effective_time)
+            })
+            .map(|row| row.core.id)
+            .collect();
+        found.sort_unstable();
+        found
+    }
 
-        let mut color: HashMap<SctId, Color> = HashMap::new();
-        let mut cyclic: Vec<SctId> = Vec::new();
-
-        for &start in self.concepts.keys() {
-            if color.contains_key(&start) {
+    /// Finds the strongly connected components of the active inferred IS-A
+    /// graph (Kosaraju's algorithm, spec/07 rule 3). Both passes use explicit
+    /// stacks or queues so release depth does not consume the call stack.
+    fn find_cyclic_concepts(&self) -> Vec<SctId> {
+        let mut visited = HashSet::new();
+        let mut finished = Vec::new();
+        let mut stack = Vec::new();
+        for &start in self.parents.keys() {
+            if !visited.insert(start) {
                 continue;
             }
-            let mut stack: Vec<(SctId, usize)> = vec![(start, 0)];
-            color.insert(start, Color::Gray);
-            while let Some(top) = stack.last_mut() {
-                let node = top.0;
-                let idx = top.1;
-                let next = self.parents.get(&node).and_then(|v| v.get(idx)).copied();
-                match next {
-                    Some(next) => {
-                        top.1 += 1;
-                        match color.get(&next) {
-                            None => {
-                                color.insert(next, Color::Gray);
-                                stack.push((next, 0));
-                            }
-                            Some(Color::Gray) => {
-                                if let Some(pos) = stack.iter().position(|&(n, _)| n == next) {
-                                    for &(n, _) in &stack[pos..] {
-                                        if !cyclic.contains(&n) {
-                                            cyclic.push(n);
-                                        }
-                                    }
-                                }
-                            }
-                            Some(Color::Black) => {}
-                        }
+            stack.push((start, self.parents(start).iter()));
+            while let Some((node, parents)) = stack.last_mut() {
+                if let Some(&parent) = parents.next() {
+                    if visited.insert(parent) {
+                        stack.push((parent, self.parents(parent).iter()));
                     }
-                    None => {
-                        color.insert(node, Color::Black);
-                        stack.pop();
-                    }
+                } else {
+                    finished.push(*node);
+                    stack.pop();
                 }
             }
         }
 
+        // In reverse finish order, each walk over the reverse (children)
+        // index reaches exactly one remaining strongly connected component.
+        let mut cyclic = Vec::new();
+        let mut component = Vec::new();
+        for start in finished.into_iter().rev() {
+            if !visited.remove(&start) {
+                continue;
+            }
+            component.clear();
+            component.push(start);
+            let mut index = 0;
+            while index < component.len() {
+                for &child in self.children(component[index]) {
+                    if visited.remove(&child) {
+                        component.push(child);
+                    }
+                }
+                index += 1;
+            }
+            if component.len() > 1 || self.parents(start).binary_search(&start).is_ok() {
+                cyclic.extend_from_slice(&component);
+            }
+        }
         cyclic.sort_unstable();
         cyclic
     }
 }
 
+#[cfg_attr(coverage_nightly, coverage(off))]
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -252,6 +304,16 @@ mod tests {
     }
 
     #[test]
+    fn detects_a_dangling_relationship_source() {
+        let mut b = SnapshotStore::builder();
+        b.add_concept(concept(ROOT));
+        b.add_relationship(is_a(1, FINDING, ROOT));
+        let report = b.build().validate();
+        assert_eq!(report.dangling_relationship_sources.len(), 1);
+        assert!(report.dangling_relationship_destinations.is_empty());
+    }
+
+    #[test]
     fn detects_a_two_node_cycle() {
         let mut b = SnapshotStore::builder();
         b.add_concept(concept(FINDING));
@@ -283,6 +345,22 @@ mod tests {
         );
         assert!(report.cyclic_concepts.contains(&DISEASE));
         assert!(report.cyclic_concepts.contains(&FINDING));
+    }
+
+    #[test]
+    fn overlapping_cycles_report_every_branch() {
+        let [a, b, c, d] = [MI, DISEASE, ROOT, FINDING]; // ascending id order
+        let mut builder = SnapshotStore::builder();
+        builder.add_concepts([a, b, c, d].map(concept));
+        // a <-> b, plus the return paths a -> c -> b and b -> d -> a.
+        // Whichever vertex DFS starts at, one branch rejoins a finished path.
+        for (i, (from, to)) in [(a, b), (a, c), (b, a), (b, d), (c, b), (d, a)]
+            .into_iter()
+            .enumerate()
+        {
+            builder.add_relationship(is_a(i as u64, from, to));
+        }
+        assert_eq!(builder.build().validate().cyclic_concepts, [a, b, c, d]);
     }
 
     #[test]
@@ -339,5 +417,53 @@ mod tests {
             ..is_a(1, MI, ROOT)
         });
         assert_eq!(b.build().validate().rootless_concepts, vec![MI]);
+    }
+
+    fn dependency(
+        n: u8,
+        source: SctId,
+        target: SctId,
+        target_time: u32,
+    ) -> snomed_rf2::refset::ModuleDependencyRefsetMember {
+        use snomed_rf2::refset::RefsetMemberCore;
+        snomed_rf2::refset::ModuleDependencyRefsetMember {
+            core: RefsetMemberCore {
+                id: MemberId::parse(&format!("80000000-0000-4000-8000-0000000000{n:02}")).unwrap(),
+                effective_time: EffectiveTime::new_unchecked(20200131),
+                active: true,
+                module_id: source,
+                refset_id: SctId::new_unchecked(900000000000534007),
+                referenced_component_id: target,
+            },
+            source_effective_time: EffectiveTime::new_unchecked(20200131),
+            target_effective_time: EffectiveTime::new_unchecked(target_time),
+        }
+    }
+
+    #[test]
+    fn module_dependency_needs_the_target_loaded_at_the_required_version() {
+        // spec/08 rule 5. An extension module requires the core module at
+        // 20190731: a base at that date (or newer) satisfies it; an older
+        // base, or no base at all, does not — though the hierarchy is clean.
+        let ext = SctId::new_unchecked(11000003104);
+        let build = |base_time: Option<u32>, required: u32| {
+            let mut b = SnapshotStore::builder();
+            b.add_concept(Concept {
+                module_id: ext,
+                ..concept(MI)
+            });
+            if let Some(t) = base_time {
+                b.add_concept(Concept {
+                    effective_time: EffectiveTime::new_unchecked(t),
+                    ..concept(ROOT)
+                });
+            }
+            b.add_module_dependency_member(dependency(1, ext, constants::CORE_MODULE, required));
+            b.build().validate().unsatisfied_module_dependencies
+        };
+        assert!(build(Some(20190731), 20190731).is_empty());
+        assert!(build(Some(20200131), 20190731).is_empty());
+        assert_eq!(build(Some(20180131), 20190731).len(), 1);
+        assert_eq!(build(None, 20190731).len(), 1);
     }
 }

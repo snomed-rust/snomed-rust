@@ -58,6 +58,7 @@ pub fn subsumes(
     })
 }
 
+#[cfg_attr(coverage_nightly, coverage(off))]
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -141,10 +142,9 @@ mod tests {
     #[test]
     fn unrelated_codes_are_not_subsumed() {
         let store = fixture();
-        assert_eq!(
-            subsumes(&store, SNOMED_CT_SYSTEM, DISEASE, procedure()).unwrap(),
-            SubsumeOutcome::NotSubsumed
-        );
+        let outcome = subsumes(&store, SNOMED_CT_SYSTEM, DISEASE, procedure()).unwrap();
+        assert_eq!(outcome, SubsumeOutcome::NotSubsumed);
+        assert_eq!(outcome.as_fhir_code(), "not-subsumed");
     }
 
     #[test]
@@ -160,5 +160,15 @@ mod tests {
         let unknown = SctId::compose(9999, ComponentType::Concept, None).unwrap();
         let err = subsumes(&store, SNOMED_CT_SYSTEM, unknown, ROOT).unwrap_err();
         assert_eq!(err, FhirError::UnknownCode(unknown));
+        let err = subsumes(&store, SNOMED_CT_SYSTEM, ROOT, unknown).unwrap_err();
+        assert_eq!(err, FhirError::UnknownCode(unknown));
+    }
+
+    #[test]
+    fn every_outcome_has_its_normative_fhir_code() {
+        assert_eq!(SubsumeOutcome::Equivalent.as_fhir_code(), "equivalent");
+        assert_eq!(SubsumeOutcome::Subsumes.as_fhir_code(), "subsumes");
+        assert_eq!(SubsumeOutcome::SubsumedBy.as_fhir_code(), "subsumed-by");
+        assert_eq!(SubsumeOutcome::NotSubsumed.as_fhir_code(), "not-subsumed");
     }
 }

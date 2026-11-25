@@ -6,23 +6,13 @@
 //! `{{ C ... }}`/`{{ D ... }}`/`{{ M ... }}` filter constraints, per
 //! `spec/10-ecl.md`.
 //!
-//! What remains unimplemented (boolean concrete comparisons, every
-//! `memberFieldFilter` column but
-//! `mapTarget`/`correlationId`/`mapGroup`/`mapPriority`/`mapRule`/
-//! `mapAdvice`/`mapCategoryId`/`targetComponentId`/`valueId`/
-//! `owlExpression`/`order`/`mrcmRuleRefsetId`/`attributeDescription`/
-//! `attributeType`/`attributeOrder`/`descriptionFormat`/
-//! `descriptionLength`/`domainConstraint`/`parentDomain`/
-//! `proximalPrimitiveConstraint`/`proximalPrimitiveRefinement`/
-//! `domainTemplateForPrecoordination`/`domainTemplateForPostcoordination`/
-//! `guideURL`/`domainId`/`ruleStrengthId`/`contentTypeId`/`grouped`/
-//! `attributeCardinality`/`attributeInGroupCardinality`/`sourceEffectiveTime`/
-//! `targetEffectiveTime`/`rangeConstraint`/`attributeRule`/`languageDialectCode`/
-//! `typeId`/`value`,
-//! the history supplement,
+//! What remains unimplemented (boolean concrete comparisons, unknown
+//! future `memberFieldFilter` columns without a typed RF2 row, the
+//! `dialect` alias form, the history supplement,
 //! alternate identifiers, …) is listed in
-//! `spec/10-ecl-unimplemented.md`. Encountering one is a parse error,
-//! never a silently incomplete result.
+//! `spec/10-ecl-unimplemented.md`. Recognized omissions return
+//! [`EclError::NotYetImplemented`]; encountering any omission is a parse
+//! error, never a silently incomplete result (spec/10 rule 9).
 //!
 //! Parenthesized/refinement/attribute-set nesting beyond 100 levels is
 //! also a parse error (`EclError::MaxNestingDepthExceeded`, spec/10 rule
@@ -60,6 +50,8 @@
 //! ships no SNOMED CT content.
 
 #![forbid(unsafe_code)]
+#![cfg_attr(coverage_nightly, feature(coverage_attribute))]
+#![cfg_attr(coverage_nightly, allow(unused_features))]
 // Per spec/rust-no-unsafe/index.md: this workspace contains no `unsafe`, and
 // the compiler enforces that rather than a grep.
 
@@ -70,8 +62,8 @@ pub mod lexer;
 pub mod parser;
 
 pub use ast::{
-    AttributeConstraint, ExpressionConstraint, FocusConcept, HierarchyOp, RefinementConstraint,
-    RefsetOperand, SimpleExpressionConstraint,
+    AttributeConstraint, ExpressionConstraint, FocusConcept, HierarchyOp, HistorySupplement,
+    RefinementConstraint, RefsetOperand, SimpleExpressionConstraint,
 };
 pub use error::EclError;
 pub use eval::evaluate;

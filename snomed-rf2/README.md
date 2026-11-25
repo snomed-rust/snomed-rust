@@ -10,8 +10,9 @@ project is an independent work.
 Parses SNOMED CT **RF2** release files: file name decoding, a streaming
 typed reader with header validation and line-numbered errors, the four
 core component record types (Concept, Description, Relationship,
-RelationshipConcreteValue), and all eighteen reference set member types
-this workspace tracks (spec/08's full table) — 22 record types in total.
+RelationshipConcreteValue), the alternate Identifier record, and all eighteen
+reference set member types this workspace tracks (spec/08's full table) — 23
+record types in total.
 
 Depends only on `snomed-core`.
 
@@ -22,6 +23,7 @@ Depends only on `snomed-core`.
 | [`spec/02-release-types.md`](../spec/02-release-types.md) — Full/Snapshot/Delta | `release_type` |
 | [`spec/03-file-naming.md`](../spec/03-file-naming.md) — release file name grammar | `filename` |
 | [`spec/05..07`](../spec/05-concept-file.md) — core component files | `records` (impls on `snomed_core::components` types) |
+| [`spec/07-identifier-file.md`](../spec/07-identifier-file.md) — alternate identifiers | `records` |
 | [`spec/08-refset-files.md`](../spec/08-refset-files.md) — reference sets | `refset` |
 | — | `record` (the `Rf2Record` trait and shared field-parsing helpers), `reader` (the streaming reader), `error` |
 
@@ -71,8 +73,8 @@ bare "parse failed".
 
 ## Record types
 
-**Core components** (`Concept`, `Description`, `Relationship` from
-`snomed-core`, plus `RelationshipConcreteValue`) each get an `Rf2Record`
+**Core records** (`Concept`, `Description`, `Relationship` from
+`snomed-core`, plus `RelationshipConcreteValue` and `AlternateIdentifier`) each get an `Rf2Record`
 impl in `records.rs`; `Description`'s impl is shared by both
 `sct2_Description_*` and `sct2_TextDefinition_*` files (identical column
 layout), and `Relationship`'s by both `sct2_Relationship_*` and

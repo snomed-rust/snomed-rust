@@ -567,12 +567,122 @@ impl_refset_member!(
     MemberAnnotationRefsetMember,
 );
 
+#[cfg_attr(coverage_nightly, coverage(off))]
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::reader::read_all;
     use snomed_core::constants;
     use snomed_core::sctid::ComponentType;
+
+    fn assert_blank_fields_error<T: Rf2Record>(row: &[&str], indexes: &[usize]) {
+        T::parse_fields(row).unwrap();
+        for &index in indexes {
+            let mut malformed = row.to_vec();
+            malformed[index] = "";
+            assert!(
+                T::parse_fields(&malformed).is_err(),
+                "{} accepted an empty required field at index {index}",
+                std::any::type_name::<T>()
+            );
+        }
+    }
+
+    #[test]
+    fn every_typed_refset_field_propagates_parse_errors() {
+        let core = [
+            "80000000-0000-4000-8000-000000000001",
+            "20190731",
+            "1",
+            "900000000000207008",
+            "447562003",
+            "404684003",
+        ];
+        for index in 0..core.len() {
+            let mut malformed = core;
+            malformed[index] = "";
+            assert!(RefsetMemberCore::parse(&malformed).is_err());
+        }
+
+        macro_rules! check {
+            ($ty:ty, [$($extra:expr),* $(,)?], [$($index:expr),* $(,)?]) => {{
+                let row = [core.as_slice(), &[$($extra),*]].concat();
+                assert_blank_fields_error::<$ty>(&row, &[0, $($index),*]);
+            }};
+        }
+
+        check!(SimpleRefsetMember, [], []);
+        check!(LanguageRefsetMember, ["900000000000548007"], [6]);
+        check!(AssociationRefsetMember, ["64572001"], [6]);
+        check!(AttributeValueRefsetMember, ["900000000000548007"], [6]);
+        check!(SimpleMapRefsetMember, ["I21.9"], [6]);
+        check!(
+            ExtendedMapRefsetMember,
+            ["1", "1", "", "", "I21.9", "447561005", "447637006"],
+            [6, 7, 11, 12]
+        );
+        check!(
+            OwlExpressionRefsetMember,
+            ["SubClassOf(:404684003 :138875005)"],
+            [6]
+        );
+        check!(
+            ModuleDependencyRefsetMember,
+            ["20190731", "20200131"],
+            [6, 7]
+        );
+        check!(
+            RefsetDescriptorRefsetMember,
+            ["900000000000017005", "900000000000003001", "0"],
+            [6, 7, 8]
+        );
+        check!(
+            DescriptionTypeRefsetMember,
+            ["900000000000003001", "255"],
+            [6, 7]
+        );
+        check!(
+            MrcmDomainRefsetMember,
+            [
+                "*",
+                "",
+                "*",
+                "",
+                "template",
+                "template",
+                "https://example.test"
+            ],
+            []
+        );
+        check!(
+            MrcmAttributeDomainRefsetMember,
+            ["404684003", "1", "0..*", "0..*", "723597001", "723596005"],
+            [6, 7, 10, 11]
+        );
+        check!(
+            MrcmAttributeRangeRefsetMember,
+            ["int(>#0)", "rule", "723597001", "723596005"],
+            [8, 9]
+        );
+        check!(MrcmModuleScopeRefsetMember, ["723562003"], [6]);
+        check!(OrderedComponentRefsetMember, ["1"], [6]);
+        check!(OrderedAssociationRefsetMember, ["64572001", "1"], [6, 7]);
+        check!(
+            ComponentAnnotationRefsetMember,
+            ["en", "900000000000461009", "value"],
+            [7, 8]
+        );
+        check!(
+            MemberAnnotationRefsetMember,
+            [
+                "00000000-0000-0000-0000-000000000001",
+                "en",
+                "900000000000461009",
+                "value"
+            ],
+            [6, 8, 9]
+        );
+    }
 
     #[test]
     fn parses_language_refset_rows() {

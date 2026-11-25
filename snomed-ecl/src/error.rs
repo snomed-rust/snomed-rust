@@ -37,6 +37,12 @@ pub enum EclError {
         pos: usize,
         source: EffectiveTimeError,
     },
+    /// A syntactically valid dialect alias that is absent from the official
+    /// ECL Appendix C alias table (spec/10 rule 14).
+    UnknownDialectAlias {
+        pos: usize,
+        alias: String,
+    },
     UnexpectedToken {
         pos: usize,
         found: String,
@@ -56,7 +62,7 @@ pub enum EclError {
         pos: usize,
     },
     /// A grammar construct spec/10 documents but this version doesn't
-    /// evaluate (`^ [A, B]`, `!!>`/`!!<`, …). Surfaced as a parse error
+    /// evaluate (`^ [A, B]`, regex search, …). Surfaced as a parse error
     /// rather than a silently incomplete result.
     NotYetImplemented {
         pos: usize,
@@ -113,6 +119,9 @@ impl fmt::Display for EclError {
             EclError::InvalidEffectiveTime { pos, source } => {
                 write!(f, "invalid effectiveTime at position {pos}: {source}")
             }
+            EclError::UnknownDialectAlias { pos, alias } => {
+                write!(f, "unknown dialect alias `{alias}` at position {pos}")
+            }
             EclError::UnexpectedToken {
                 pos,
                 found,
@@ -161,5 +170,61 @@ impl std::error::Error for EclError {
             EclError::InvalidEffectiveTime { source, .. } => Some(source),
             _ => None,
         }
+    }
+}
+
+#[cfg_attr(coverage_nightly, coverage(off))]
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use snomed_core::sctid::SctId;
+    use snomed_core::time::EffectiveTime;
+
+    #[test]
+    fn every_error_variant_has_stable_diagnostic_context() {
+        let cases = [
+            EclError::UnexpectedChar { pos: 1, ch: '?' },
+            EclError::UnexpectedKeyword {
+                pos: 2,
+                found: "XOR".to_owned(),
+            },
+            EclError::UnterminatedTerm { pos: 3 },
+            EclError::UnterminatedComment { pos: 4 },
+            EclError::UnterminatedString { pos: 5 },
+            EclError::InvalidSctId {
+                pos: 6,
+                source: SctId::parse("123").unwrap_err(),
+            },
+            EclError::InvalidEffectiveTime {
+                pos: 7,
+                source: EffectiveTime::parse("20251340").unwrap_err(),
+            },
+            EclError::UnknownDialectAlias {
+                pos: 8,
+                alias: "en-unknown".to_owned(),
+            },
+            EclError::UnexpectedToken {
+                pos: 9,
+                found: "end of input".to_owned(),
+                expected: "a concept",
+            },
+            EclError::MixedOperators {
+                pos: 10,
+                first: "AND",
+                found: "OR",
+            },
+            EclError::ExclusionTakesTwoOperands { pos: 11 },
+            EclError::NotYetImplemented {
+                pos: 12,
+                feature: "history supplement",
+            },
+            EclError::MaxNestingDepthExceeded { pos: 13 },
+        ];
+        for error in &cases {
+            assert!(!error.to_string().is_empty());
+        }
+        assert!(std::error::Error::source(&cases[5]).is_some());
+        assert!(std::error::Error::source(&cases[6]).is_some());
+        assert!(std::error::Error::source(&cases[0]).is_none());
     }
 }

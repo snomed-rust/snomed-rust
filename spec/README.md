@@ -3,7 +3,7 @@
 These documents distill the parts of the official **SNOMED CT Release File
 Specification** (and the other normative sources listed below) that this
 workspace implements, plus a short set of project policies this workspace
-sets for itself — the seventeen policy files listed after the index, which have
+sets for itself — the eighteen policy files listed after the index, which have
 no external specification behind them but bind the code here exactly the
 same way. They are the authoritative
 source for this codebase: code follows spec, not the other way around. When a
@@ -49,10 +49,12 @@ Official sources:
 | [05-concept-file.md](05-concept-file.md) | Concept file columns and semantics | `snomed-core`, `snomed-rf2` |
 | [06-description-file.md](06-description-file.md) | Description and TextDefinition files | `snomed-core`, `snomed-rf2` |
 | [07-relationship-file.md](07-relationship-file.md) | Relationship files | `snomed-core`, `snomed-rf2` |
+| [07-identifier-file.md](07-identifier-file.md) | Alternate Identifier component files | `snomed-core`, `snomed-rf2`, `snomed-store`, `snomed-cli` |
 | [08-refset-files.md](08-refset-files.md) | Reference set file patterns | `snomed-rf2::refset` |
 | [09-versioning.md](09-versioning.md) | effectiveTime, active, moduleId, snapshot semantics | `snomed-store` |
 | [10-ecl.md](10-ecl.md) | Expression Constraint Language: grammar, hierarchy operators, `memberOf`/`^R`, dot notation, **and all of ECL's normative rules** | `snomed-ecl` |
 | [10-ecl-refinements.md](10-ecl-refinements.md) | ECL `:` attribute-value constraints: cardinality, reverse flag, attribute groups, concrete values | `snomed-ecl` |
+| [10-ecl-set-operators.md](10-ecl-set-operators.md) | ECL top/bottom set operators and history supplements | `snomed-ecl` |
 | [10-ecl-filters.md](10-ecl-filters.md) | ECL filter constraints: `{{ C ... }}` concept filters, `{{ D ... }}` description filters | `snomed-ecl` |
 | [10-ecl-member-filters.md](10-ecl-member-filters.md) | ECL `{{ M ... }}` member filter constraints: what each `memberFieldFilter` column matches | `snomed-ecl` |
 | [10-ecl-unimplemented.md](10-ecl-unimplemented.md) | ECL constructs still rejected, and what each one is blocked on | `snomed-ecl` |
@@ -69,6 +71,7 @@ binding on this workspace in the same way):
 | [rust-msrv-n-minus-2/](rust-msrv-n-minus-2/index.md) | Minimum Supported Rust Version: current stable minus two | `Cargo.toml`, `.github/workflows/ci.yml` |
 | [rust-fuzz.md](rust-fuzz.md) | Fuzz targets, the no-panic invariant, seed corpora | `fuzz/` |
 | [rust-bench.md](rust-bench.md) | Criterion benchmarks: what is measured and how | `benches/` |
+| [rust-coverage.md](rust-coverage.md) | Workspace line-coverage floor and CI gate | `.github/workflows/ci.yml` |
 | [rust-api-stability.md](rust-api-stability.md) | Which public enums are `#[non_exhaustive]`, and why the ASTs are not | every crate's public enums |
 | [rust-no-unsafe/](rust-no-unsafe/index.md) | No `unsafe` anywhere; `#![forbid(unsafe_code)]` at every crate root | every crate root, including `fuzz/` and `benches/` |
 | [professionalization/](professionalization/index.md) | What "professional" means here: verified plans, accurate special files, CI-backed claims, SNOMED® trademark notice presence, PHI and conduct documents | root documents, `help/`, crate rustdoc, `bin/check-trademarks`, CI |
@@ -84,10 +87,11 @@ binding on this workspace in the same way):
 | [node-current-version/](node-current-version/index.md) | The GitHub Pages site's Node.js version: current major (26), enforced at both CI and install time | `snomed-rust.github.io/.github/workflows/deploy.yml`, `package.json`, `pnpm-workspace.yaml`, `.npmrc` |
 | [monorepo-github-pages/](monorepo-github-pages/index.md) | The GitHub Pages site publishes via `git subtree` to a read-only sibling repo (`snomed-rust/snomed-rust.github.io`), never edited directly | `Makefile`, `snomed-rust.github.io/README.md` |
 
-`spec/10` is five files because it outgrew the 40 KB per-document budget
-twice — first splitting the unimplemented-construct list out of
+`spec/10` is six files because it outgrew the 40 KB per-document budget
+three times — first splitting the unimplemented-construct list out of
 `10-ecl.md`, then the `{{ M ... }}` member filter section out of
-`10-ecl-filters.md` as `memberFieldFilter` columns accumulated — not
+`10-ecl-filters.md` as `memberFieldFilter` columns accumulated, then the
+set-operator details out of `10-ecl.md` — not
 because parts of it are less binding. **All ECL rule numbers live in
 `10-ecl.md`**, so a `spec/10 rule N` citation always resolves there
 regardless of which file the prose sits in;

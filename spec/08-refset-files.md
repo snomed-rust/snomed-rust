@@ -135,3 +135,15 @@ directly).
    a concept in an ICD-10 map row is a member of `447562003`; the extra
    columns a refset type carries are additional data about the membership,
    not a precondition for it.
+5. **Module dependencies.** An active Module Dependency row (`moduleId` =
+   dependent module, `referencedComponentId` = target module,
+   `targetEffectiveTime` = required target version) is *satisfied* when the
+   target module is loaded at that version or later.
+   `SnapshotStore::validate()` reports each unsatisfied row's member id, sorted,
+   as `unsatisfied_module_dependencies`. A module's loaded version is the
+   latest `effectiveTime` among its concepts, descriptions, relationships
+   and the `sourceEffectiveTime` of dependency rows it declares itself — a
+   lower bound on its release date, so the check never fails on an equal or
+   newer version, and an absent target module is unsatisfied. A hierarchy
+   with no cycles or dangling references does not imply this: an extension
+   loaded on an older base can be structurally consistent.

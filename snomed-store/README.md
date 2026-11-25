@@ -55,7 +55,8 @@ file it recognized and started reading; that's real data corruption, not
 an anomaly to shrug off. You can also build a store purely
 programmatically with `add_concept`/`add_concepts`,
 `add_description(s)`, `add_relationship(s)`, and one `add_x_member(s)`
-pair per refset type, then call `.build()`.
+pair per refset type, then call `.build()`. Alternate identifiers use
+`add_alternate_identifier(s)`.
 
 The directory-walking/file-selection half of `load_release_dir` is also
 available standalone as `list_release_files(dir, release_type) ->
@@ -72,6 +73,7 @@ methods, which do a cycle-safe breadth-first search):
 # use snomed_core::sctid::SctId;
 # fn f(store: &SnapshotStore, mi: SctId, finding: SctId, description_id: SctId) {
 store.concept(mi);                          // -> Option<&Concept>
+store.resolve_alternate_identifier(mi, "external-code"); // scheme SCTID + code -> Option<SctId>
 store.is_active(mi);                        // -> bool
 store.fsn(mi);                              // -> Option<&Description>
 store.preferred_term(mi, snomed_core::constants::US_ENGLISH_LANGUAGE_REFSET);
@@ -123,6 +125,7 @@ if !report.is_clean() {
     for id in &report.dangling_relationship_sources { /* relationship ids whose sourceId doesn't resolve */ }
     for id in &report.dangling_relationship_destinations { /* ... destinationId ... */ }
     for id in &report.rootless_concepts { /* active concepts with no IS-A parent */ }
+    for id in &report.unsatisfied_module_dependencies { /* module dependency rows whose target is not loaded at the required version */ }
 }
 # }
 ```
@@ -159,12 +162,14 @@ let as_of = store.concept_at(mi, EffectiveTime::parse("20200101")?); // -> Optio
 `HistoryStoreBuilder::load_release_dir` has no `release_type` parameter —
 it always filters to Full, because history built from Snapshot or Delta
 rows would be silently incomplete (spec/09 rule 2). `concept_at`/
-`description_at`/`relationship_at`/`relationship_concrete_value_at` return
+`description_at`/`relationship_at`/`relationship_concrete_value_at` and
+`alternate_identifier_at` return
 the version with the greatest `effectiveTime <= at`, i.e. "what was true as
 of this date" — `None` if the component didn't exist yet, or is unknown
-entirely. Scope: everything a release ships — all four component types (including
-`RelationshipConcreteValues`, kept separate from ordinary relationships:
-same partition, different component type) and all eighteen refset member
+entirely. Scope: everything a release ships — all four SCTID component types
+(including `RelationshipConcreteValues`, kept separate from ordinary
+relationships: same partition, different component type), alternate
+identifiers keyed by scheme and code, and all eighteen refset member
 types, keyed by member UUID rather than SCTID
 (`store.language_member_history(uuid)`,
 `store.language_member_at(uuid, at)`). No type answers for another, so a

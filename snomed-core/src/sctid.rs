@@ -102,14 +102,19 @@ impl SctId {
         if !verhoeff::validate(s) {
             return Err(SctIdError::CheckDigit);
         }
-        let id = SctId(s.parse::<u64>().map_err(|_| SctIdError::NonDigit)?);
+        // At most 18 decimal digits (validated above), so this cannot
+        // overflow `u64`; folding avoids retaining an impossible parse
+        // error branch in the validated path.
+        let id = SctId(
+            s.bytes()
+                .fold(0_u64, |value, digit| value * 10 + u64::from(digit - b'0')),
+        );
         // Validate the partition and (for long format) the minimum length:
         // item(>=1) + namespace(7) + partition(2) + check(1) = 11.
         // The length check above guarantees at least 6 digits, so the
         // partition digits are always present here.
-        let partition = id
-            .partition_digits(s.as_bytes())
-            .ok_or(SctIdError::InvalidLength(len))?;
+        let bytes = s.as_bytes();
+        let partition = (bytes[len - 3] - b'0') * 10 + (bytes[len - 2] - b'0');
         match partition {
             0..=2 => {}
             10..=12 => {
@@ -260,6 +265,7 @@ impl From<SctId> for u64 {
     }
 }
 
+#[cfg_attr(coverage_nightly, coverage(off))]
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -296,6 +302,20 @@ mod tests {
         let check = crate::verhoeff::check_digit(payload).unwrap();
         let s = format!("{payload}{check}");
         assert_eq!(SctId::parse(&s), Err(SctIdError::InvalidPartition(3)));
+    }
+
+    #[test]
+    fn rejects_too_short_long_format_and_conversion_traits_round_trip() {
+        let payload = "123410";
+        let check = crate::verhoeff::check_digit(payload).unwrap();
+        let text = format!("{payload}{check}");
+        assert_eq!(
+            text.parse::<SctId>(),
+            Err(SctIdError::InvalidLength(text.len()))
+        );
+
+        let id = SctId::parse("138875005").unwrap();
+        assert_eq!(u64::from(id), 138875005);
     }
 
     #[test]
@@ -357,5 +377,25 @@ mod tests {
             SctId::compose(1, ComponentType::Concept, Some(10_000_000)),
             Err(SctIdError::InvalidNamespace(10_000_000))
         );
+    }
+
+    #[test]
+    fn component_and_error_displays_cover_every_public_variant() {
+        assert_eq!(ComponentType::Concept.to_string(), "Concept");
+        assert_eq!(ComponentType::Description.to_string(), "Description");
+        assert_eq!(ComponentType::Relationship.to_string(), "Relationship");
+
+        let cases = [
+            SctIdError::InvalidLength(2),
+            SctIdError::NonDigit,
+            SctIdError::LeadingZero,
+            SctIdError::CheckDigit,
+            SctIdError::InvalidPartition(99),
+            SctIdError::ZeroItemIdentifier,
+            SctIdError::InvalidNamespace(10_000_000),
+        ];
+        for error in cases {
+            assert!(!error.to_string().is_empty());
+        }
     }
 }

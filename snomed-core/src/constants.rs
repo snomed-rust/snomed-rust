@@ -103,6 +103,24 @@ pub const COMPONENT_ANNOTATION_REFSET: SctId = SctId::new_unchecked(1292992004);
 /// (spec/08).
 pub const MEMBER_ANNOTATION_REFSET: SctId = SctId::new_unchecked(1292995002);
 
+// -- Historical association reference sets -------------------------------
+
+/// `900000000000522004 |Historical association reference set|` (spec/10 rule 21).
+pub const HISTORICAL_ASSOCIATION_REFSET: SctId = SctId::new_unchecked(900000000000522004);
+/// `900000000000527005 |SAME AS association reference set|` (spec/10 rule 21).
+pub const SAME_AS_ASSOCIATION_REFSET: SctId = SctId::new_unchecked(900000000000527005);
+/// `900000000000526001 |REPLACED BY association reference set|` (spec/10 rule 21).
+pub const REPLACED_BY_ASSOCIATION_REFSET: SctId = SctId::new_unchecked(900000000000526001);
+/// `900000000000528000 |WAS A association reference set|` (spec/10 rule 21).
+pub const WAS_A_ASSOCIATION_REFSET: SctId = SctId::new_unchecked(900000000000528000);
+/// `1186924009 |PARTIALLY EQUIVALENT TO association reference set|` (spec/10 rule 21).
+pub const PARTIALLY_EQUIVALENT_TO_ASSOCIATION_REFSET: SctId = SctId::new_unchecked(1186924009);
+/// `900000000000525002 |MOVED FROM association reference set|` (spec/10 rule 21).
+pub const MOVED_FROM_ASSOCIATION_REFSET: SctId = SctId::new_unchecked(900000000000525002);
+/// `900000000000524003 |MOVED TO association reference set|` (spec/10 rule 21).
+pub const MOVED_TO_ASSOCIATION_REFSET: SctId = SctId::new_unchecked(900000000000524003);
+
+#[cfg_attr(coverage_nightly, coverage(off))]
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -142,6 +160,13 @@ mod tests {
             ORDERED_ASSOCIATION_TYPE_REFSET,
             COMPONENT_ANNOTATION_REFSET,
             MEMBER_ANNOTATION_REFSET,
+            HISTORICAL_ASSOCIATION_REFSET,
+            SAME_AS_ASSOCIATION_REFSET,
+            REPLACED_BY_ASSOCIATION_REFSET,
+            WAS_A_ASSOCIATION_REFSET,
+            PARTIALLY_EQUIVALENT_TO_ASSOCIATION_REFSET,
+            MOVED_FROM_ASSOCIATION_REFSET,
+            MOVED_TO_ASSOCIATION_REFSET,
         ];
         for id in all {
             let parsed = SctId::parse(&id.to_string()).expect("constant must be a valid SCTID");

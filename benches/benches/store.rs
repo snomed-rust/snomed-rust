@@ -44,6 +44,9 @@ fn bench_store(c: &mut Criterion) {
     group.finish();
 
     let (store, ids) = synthetic_store(CONCEPTS);
+    c.bench_function("store_validate/acyclic_release", |b| {
+        b.iter(|| black_box(black_box(&store).validate()))
+    });
     let sample = sample_ids(&ids);
     let root = ids[0];
 

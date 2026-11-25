@@ -3,6 +3,7 @@
 
 use std::fs;
 use std::path::{Path, PathBuf};
+use std::process::Command;
 
 use snomed_core::sctid::{ComponentType, SctId};
 
@@ -75,6 +76,46 @@ fn write_synthetic_release(root: &Path) {
             rel(2002),
         ),
     );
+}
+
+#[test]
+fn binary_entry_point_prints_success_and_error_results() {
+    let binary = env!("CARGO_BIN_EXE_snomed-cli");
+    let help = Command::new(binary).arg("help").output().unwrap();
+    assert!(help.status.success());
+    assert!(String::from_utf8(help.stdout).unwrap().contains("USAGE:"));
+
+    let error = Command::new(binary).arg("not-a-command").output().unwrap();
+    assert_eq!(error.status.code(), Some(1));
+    assert!(String::from_utf8(error.stderr).unwrap().contains("error:"));
+
+    let sctid = Command::new(binary)
+        .args(["sctid", "138875005"])
+        .output()
+        .unwrap();
+    assert!(sctid.status.success());
+
+    let tmp = TempDir::new("binary-classify-skipped");
+    write_synthetic_release(tmp.path());
+    write(
+        tmp.path(),
+        "Snapshot/Refset/OWL/der2_sRefset_OWLExpressionSnapshot_INT_20190731.txt",
+        "id\teffectiveTime\tactive\tmoduleId\trefsetId\treferencedComponentId\towlExpression\n\
+         80000000-0000-4000-8000-000000000099\t20190731\t1\t900000000000207008\t733073007\t404684003\tReflexiveObjectProperty(:116680003)\n",
+    );
+    for command in ["classify", "nnf"] {
+        let output = Command::new(binary)
+            .args([command, tmp.path().to_str().unwrap()])
+            .output()
+            .unwrap();
+        assert!(output.status.success(), "{command}: {output:?}");
+        assert!(
+            String::from_utf8(output.stdout)
+                .unwrap()
+                .contains("not modeled"),
+            "{command}"
+        );
+    }
 }
 
 #[test]
@@ -185,6 +226,30 @@ fn export_writes_ndjson_to_stdout() {
 }
 
 #[test]
+fn export_identifier_file_writes_typed_ndjson() {
+    let tmp = TempDir::new("export-identifier");
+    let scheme = SctId::compose(2001, ComponentType::Concept, None).unwrap();
+    let component = SctId::compose(3001, ComponentType::Concept, None).unwrap();
+    let file = tmp.path().join("sct2_Identifier_Snapshot_INT_20250321.txt");
+    fs::write(
+        &file,
+        format!(
+            "alternateIdentifier\teffectiveTime\tactive\tmoduleId\tidentifierSchemeId\treferencedComponentId\n\
+             CODE-1\t20250321\t1\t900000000000207008\t{scheme}\t{component}\n"
+        ),
+    )
+    .unwrap();
+
+    let out = snomed_cli::run(&["export".to_string(), file.to_str().unwrap().to_string()]).unwrap();
+    assert!(out.contains("\"alternateIdentifier\":\"CODE-1\""), "{out}");
+    assert!(
+        out.contains(&format!("\"identifierSchemeId\":\"{scheme}\"")),
+        "{out}"
+    );
+    assert!(out.contains("\"active\":true"), "{out}");
+}
+
+#[test]
 fn export_writes_ndjson_to_an_output_file() {
     let tmp = TempDir::new("export-file");
     write_synthetic_release(tmp.path());
@@ -250,6 +315,10 @@ fn export_dir_converts_every_file_in_a_release_directory() {
     assert_eq!(concepts.lines().count(), 3, "{concepts}");
     assert!(concepts.contains("\"id\":\"138875005\""));
 
+    assert!(out_dir
+        .join("sct2_Description_Snapshot-en_INT_20190731.ndjson")
+        .exists());
+
     let relationships =
         fs::read_to_string(out_dir.join("sct2_Relationship_Snapshot_INT_20190731.ndjson")).unwrap();
     assert_eq!(relationships.lines().count(), 2, "{relationships}");
@@ -295,6 +364,11 @@ fn export_covers_the_mrcm_and_ordered_annotation_refset_types() {
     let mrcm_file = tmp
         .path()
         .join("der2_cRefset_MRCMModuleScopeSnapshot_INT_20200731.txt");
+    assert!(snomed_cli::run(&[
+        "export".to_string(),
+        mrcm_file.to_str().unwrap().to_string(),
+    ])
+    .is_err());
     fs::write(
         &mrcm_file,
         "id\teffectiveTime\tactive\tmoduleId\trefsetId\treferencedComponentId\tmrcmRuleRefsetId\n\
@@ -308,10 +382,24 @@ fn export_covers_the_mrcm_and_ordered_annotation_refset_types() {
     ])
     .unwrap();
     assert!(out.contains("\"mrcmRuleRefsetId\":\"723560006\""), "{out}");
+    for malformed in [
+        String::new(),
+        "wrong\n".to_string(),
+        "id\teffectiveTime\tactive\tmoduleId\trefsetId\treferencedComponentId\tmrcmRuleRefsetId\nwrong\n".to_string(),
+        "id\teffectiveTime\tactive\tmoduleId\trefsetId\treferencedComponentId\tmrcmRuleRefsetId\nx\tx\tx\tx\tx\tx\tx\n".to_string(),
+    ] {
+        fs::write(&mrcm_file, malformed).unwrap();
+        assert!(snomed_cli::run(&["export".to_string(), mrcm_file.to_str().unwrap().to_string()]).is_err());
+    }
 
     let ordered_file = tmp
         .path()
         .join("der2_iRefset_OrderedComponentSnapshot_INT_20200731.txt");
+    assert!(snomed_cli::run(&[
+        "export".to_string(),
+        ordered_file.to_str().unwrap().to_string(),
+    ])
+    .is_err());
     fs::write(
         &ordered_file,
         "id\teffectiveTime\tactive\tmoduleId\trefsetId\treferencedComponentId\torder\n\
@@ -325,6 +413,293 @@ fn export_covers_the_mrcm_and_ordered_annotation_refset_types() {
     ])
     .unwrap();
     assert!(out.contains("\"order\":1"), "{out}");
+    for malformed in [
+        String::new(),
+        "wrong\n".to_string(),
+        "id\teffectiveTime\tactive\tmoduleId\trefsetId\treferencedComponentId\torder\nwrong\n"
+            .to_string(),
+        "id\teffectiveTime\tactive\tmoduleId\trefsetId\treferencedComponentId\torder\nx\tx\tx\tx\tx\tx\tx\n"
+            .to_string(),
+    ] {
+        fs::write(&ordered_file, malformed).unwrap();
+        assert!(snomed_cli::run(&[
+            "export".to_string(),
+            ordered_file.to_str().unwrap().to_string()
+        ])
+        .is_err());
+    }
+}
+
+#[test]
+fn export_covers_every_remaining_refset_shape() {
+    let tmp = TempDir::new("export-all-refset-shapes");
+    const COMMON: &str = "80000000-0000-4000-8000-000000000081\t20190731\t1\t900000000000207008\t138875005\t138875005";
+    let cases = [
+        (
+            "der2_Refset_SimpleSnapshot_INT_20190731.txt",
+            "id\teffectiveTime\tactive\tmoduleId\trefsetId\treferencedComponentId",
+            COMMON.to_string(),
+            "\"referencedComponentId\":\"138875005\"",
+        ),
+        (
+            "der2_cRefset_LanguageSnapshot-en_INT_20190731.txt",
+            "id\teffectiveTime\tactive\tmoduleId\trefsetId\treferencedComponentId\tacceptabilityId",
+            format!("{COMMON}\t900000000000548007"),
+            "\"acceptabilityId\":\"900000000000548007\"",
+        ),
+        (
+            "der2_cRefset_AssociationSnapshot_INT_20190731.txt",
+            "id\teffectiveTime\tactive\tmoduleId\trefsetId\treferencedComponentId\ttargetComponentId",
+            format!("{COMMON}\t138875005"),
+            "\"targetComponentId\":\"138875005\"",
+        ),
+        (
+            "der2_cRefset_AttributeValueSnapshot_INT_20190731.txt",
+            "id\teffectiveTime\tactive\tmoduleId\trefsetId\treferencedComponentId\tvalueId",
+            format!("{COMMON}\t138875005"),
+            "\"valueId\":\"138875005\"",
+        ),
+        (
+            "der2_sRefset_SimpleMapSnapshot_INT_20190731.txt",
+            "id\teffectiveTime\tactive\tmoduleId\trefsetId\treferencedComponentId\tmapTarget",
+            format!("{COMMON}\tMAP-1"),
+            "\"mapTarget\":\"MAP-1\"",
+        ),
+        (
+            "der2_iisssccRefset_ExtendedMapSnapshot_INT_20190731.txt",
+            "id\teffectiveTime\tactive\tmoduleId\trefsetId\treferencedComponentId\tmapGroup\tmapPriority\tmapRule\tmapAdvice\tmapTarget\tcorrelationId\tmapCategoryId",
+            format!("{COMMON}\t1\t2\tRULE\tADVICE\tMAP-2\t138875005\t138875005"),
+            "\"mapPriority\":2",
+        ),
+        (
+            "der2_sRefset_OWLExpressionSnapshot_INT_20190731.txt",
+            "id\teffectiveTime\tactive\tmoduleId\trefsetId\treferencedComponentId\towlExpression",
+            format!("{COMMON}\tSubClassOf(:138875005 :138875005)"),
+            "\"owlExpression\":\"SubClassOf(:138875005 :138875005)\"",
+        ),
+        (
+            "der2_ssRefset_ModuleDependencySnapshot_INT_20190731.txt",
+            "id\teffectiveTime\tactive\tmoduleId\trefsetId\treferencedComponentId\tsourceEffectiveTime\ttargetEffectiveTime",
+            format!("{COMMON}\t20190131\t20180731"),
+            "\"sourceEffectiveTime\":\"20190131\"",
+        ),
+        (
+            "der2_cciRefset_RefsetDescriptorSnapshot_INT_20190731.txt",
+            "id\teffectiveTime\tactive\tmoduleId\trefsetId\treferencedComponentId\tattributeDescription\tattributeType\tattributeOrder",
+            format!("{COMMON}\t138875005\t138875005\t3"),
+            "\"attributeOrder\":3",
+        ),
+        (
+            "der2_ciRefset_DescriptionTypeSnapshot_INT_20190731.txt",
+            "id\teffectiveTime\tactive\tmoduleId\trefsetId\treferencedComponentId\tdescriptionFormat\tdescriptionLength",
+            format!("{COMMON}\t138875005\t255"),
+            "\"descriptionLength\":255",
+        ),
+        (
+            "der2_sssssssRefset_MRCMDomainSnapshot_INT_20190731.txt",
+            "id\teffectiveTime\tactive\tmoduleId\trefsetId\treferencedComponentId\tdomainConstraint\tparentDomain\tproximalPrimitiveConstraint\tproximalPrimitiveRefinement\tdomainTemplateForPrecoordination\tdomainTemplateForPostcoordination\tguideURL",
+            format!("{COMMON}\t<< 138875005\tparent\tproximal\trefinement\tpre\tpost\thttps://example.test"),
+            "\"guideURL\":\"https://example.test\"",
+        ),
+        (
+            "der2_cissccRefset_MRCMAttributeDomainSnapshot_INT_20190731.txt",
+            "id\teffectiveTime\tactive\tmoduleId\trefsetId\treferencedComponentId\tdomainId\tgrouped\tattributeCardinality\tattributeInGroupCardinality\truleStrengthId\tcontentTypeId",
+            format!("{COMMON}\t138875005\t1\t0..*\t0..1\t138875005\t138875005"),
+            "\"grouped\":true",
+        ),
+        (
+            "der2_ssccRefset_MRCMAttributeRangeSnapshot_INT_20190731.txt",
+            "id\teffectiveTime\tactive\tmoduleId\trefsetId\treferencedComponentId\trangeConstraint\tattributeRule\truleStrengthId\tcontentTypeId",
+            format!("{COMMON}\t<< 138875005\trule\t138875005\t138875005"),
+            "\"attributeRule\":\"rule\"",
+        ),
+        (
+            "der2_scsRefset_ComponentAnnotationStringValueSnapshot_INT_20190731.txt",
+            "id\teffectiveTime\tactive\tmoduleId\trefsetId\treferencedComponentId\tlanguageDialectCode\ttypeId\tvalue",
+            format!("{COMMON}\ten-GB\t138875005\tannotation"),
+            "\"languageDialectCode\":\"en-GB\"",
+        ),
+        (
+            "der2_ciRefset_OrderedAssociationSnapshot_INT_20190731.txt",
+            "id\teffectiveTime\tactive\tmoduleId\trefsetId\treferencedComponentId\ttargetComponentId\torder",
+            format!("{COMMON}\t138875005\t1"),
+            "\"order\":1",
+        ),
+        (
+            "der2_sscsRefset_MemberAnnotationStringValueSnapshot_INT_20190731.txt",
+            "id\teffectiveTime\tactive\tmoduleId\trefsetId\treferencedComponentId\treferencedMemberId\tlanguageDialectCode\ttypeId\tvalue",
+            format!("{COMMON}\t90000000-0000-4000-8000-000000000001\ten-GB\t138875005\tmember annotation"),
+            "\"referencedMemberId\":\"90000000-0000-4000-8000-000000000001\"",
+        ),
+    ];
+
+    for (name, header, row, expected) in cases {
+        let path = tmp.path().join(name);
+        assert!(
+            snomed_cli::run(&["export".to_string(), path.to_str().unwrap().to_string()]).is_err()
+        );
+        fs::write(&path, format!("{header}\n{row}\n")).unwrap();
+        let out = snomed_cli::run(&["export".to_string(), path.to_str().unwrap().to_string()])
+            .unwrap_or_else(|error| panic!("{name}: {error}"));
+        assert!(out.contains(expected), "{name}: {out}");
+        let invalid_fields = header
+            .split('\t')
+            .map(|_| "x")
+            .collect::<Vec<_>>()
+            .join("\t");
+        for malformed in [
+            String::new(),
+            "wrong\n".to_string(),
+            format!("{header}\nwrong\n"),
+            format!("{header}\n{invalid_fields}\n"),
+        ] {
+            fs::write(&path, malformed).unwrap();
+            assert!(
+                snomed_cli::run(&["export".to_string(), path.to_str().unwrap().to_string()])
+                    .is_err(),
+                "export accepted malformed {name}"
+            );
+        }
+    }
+
+    let concrete = tmp
+        .path()
+        .join("sct2_RelationshipConcreteValues_Snapshot_INT_20190731.txt");
+    assert!(
+        snomed_cli::run(&["export".to_string(), concrete.to_str().unwrap().to_string(),]).is_err()
+    );
+    let relationship_id = SctId::compose(8081, ComponentType::Relationship, None).unwrap();
+    fs::write(
+        &concrete,
+        format!(
+            "id\teffectiveTime\tactive\tmoduleId\tsourceId\tvalue\trelationshipGroup\ttypeId\tcharacteristicTypeId\tmodifierId\n\
+             {relationship_id}\t20190731\t1\t900000000000207008\t138875005\t#1.50\t0\t138875005\t138875005\t138875005\n"
+        ),
+    )
+    .unwrap();
+    let out =
+        snomed_cli::run(&["export".to_string(), concrete.to_str().unwrap().to_string()]).unwrap();
+    assert!(out.contains("\"value\":\"1.50\""), "{out}");
+    let concrete_header = "id\teffectiveTime\tactive\tmoduleId\tsourceId\tvalue\trelationshipGroup\ttypeId\tcharacteristicTypeId\tmodifierId";
+    let invalid_fields = concrete_header
+        .split('\t')
+        .map(|_| "x")
+        .collect::<Vec<_>>()
+        .join("\t");
+    for malformed in [
+        String::new(),
+        "wrong\n".to_string(),
+        format!("{concrete_header}\nwrong\n"),
+        format!("{concrete_header}\n{invalid_fields}\n"),
+    ] {
+        fs::write(&concrete, malformed).unwrap();
+        assert!(
+            snomed_cli::run(&["export".to_string(), concrete.to_str().unwrap().to_string()])
+                .is_err()
+        );
+    }
+}
+
+#[test]
+fn export_propagates_errors_for_every_component_shape() {
+    let tmp = TempDir::new("export-component-errors");
+    let common = "id\teffectiveTime\tactive\tmoduleId";
+    let cases = [
+        ("sct2_Concept_Snapshot_INT_20190731.txt", format!("{common}\tdefinitionStatusId")),
+        ("sct2_Description_Snapshot-en_INT_20190731.txt", format!("{common}\tconceptId\tlanguageCode\ttypeId\tterm\tcaseSignificanceId")),
+        ("sct2_Relationship_Snapshot_INT_20190731.txt", format!("{common}\tsourceId\tdestinationId\trelationshipGroup\ttypeId\tcharacteristicTypeId\tmodifierId")),
+        ("sct2_RelationshipConcreteValues_Snapshot_INT_20190731.txt", format!("{common}\tsourceId\tvalue\trelationshipGroup\ttypeId\tcharacteristicTypeId\tmodifierId")),
+        ("sct2_Identifier_Snapshot_INT_20190731.txt", "alternateIdentifier\teffectiveTime\tactive\tmoduleId\tidentifierSchemeId\treferencedComponentId".to_string()),
+    ];
+    for (name, header) in cases {
+        let path = tmp.path().join(name);
+        assert!(
+            snomed_cli::run(&["export".to_string(), path.to_str().unwrap().to_string()]).is_err()
+        );
+        let invalid_fields = header
+            .split('\t')
+            .map(|_| "x")
+            .collect::<Vec<_>>()
+            .join("\t");
+        for malformed in [
+            String::new(),
+            "wrong\n".to_string(),
+            format!("{header}\nwrong\n"),
+            format!("{header}\n{invalid_fields}\n"),
+        ] {
+            fs::write(&path, malformed).unwrap();
+            assert!(
+                snomed_cli::run(&["export".to_string(), path.to_str().unwrap().to_string()])
+                    .is_err()
+            );
+        }
+    }
+}
+
+#[test]
+fn command_error_boundaries_propagate_in_the_integration_build() {
+    let tmp = TempDir::new("command-error-boundaries");
+    let dir = tmp.path().to_str().unwrap();
+
+    for command in ["load", "validate"] {
+        assert!(snomed_cli::run(&[command.to_string()]).is_err());
+        assert!(
+            snomed_cli::run(&[command.to_string(), dir.to_string(), "extra".to_string(),]).is_err()
+        );
+    }
+    assert!(snomed_cli::run(&[
+        "lookup".to_string(),
+        dir.to_string(),
+        "not-an-id".to_string(),
+    ])
+    .is_err());
+    assert!(snomed_cli::run(&["ecl".to_string(), dir.to_string(), "<<<".to_string(),]).is_err());
+    for command in ["classify", "nnf"] {
+        assert!(snomed_cli::run(&[
+            command.to_string(),
+            dir.to_string(),
+            "not-an-id".to_string(),
+        ])
+        .is_err());
+    }
+
+    let missing = tmp.path().join("sct2_Concept_Snapshot_INT_20190731.txt");
+    assert!(
+        snomed_cli::run(&["export".to_string(), missing.to_str().unwrap().to_string(),]).is_err()
+    );
+}
+
+#[test]
+fn classification_summaries_cap_long_failure_and_skip_lists() {
+    let tmp = TempDir::new("classification-capped-lists");
+    let mut contents = String::from(
+        "id\teffectiveTime\tactive\tmoduleId\trefsetId\treferencedComponentId\towlExpression\n",
+    );
+    for index in 1..=6 {
+        contents.push_str(&format!(
+            "80000000-0000-4000-8000-{index:012}\t20190731\t1\t900000000000207008\t733073007\t138875005\tSubClassOf(:138875005 ObjectUnionOf(:138875005 :138875005))\n"
+        ));
+    }
+    for index in 7..=12 {
+        contents.push_str(&format!(
+            "80000000-0000-4000-8000-{index:012}\t20190731\t1\t900000000000207008\t733073007\t138875005\tReflexiveObjectProperty(:116680003)\n"
+        ));
+    }
+    write(
+        tmp.path(),
+        "Snapshot/Refset/OWL/der2_sRefset_OWLExpressionSnapshot_INT_20190731.txt",
+        &contents,
+    );
+
+    for command in ["classify", "nnf"] {
+        let output = snomed_cli::run(&[
+            command.to_string(),
+            tmp.path().to_str().unwrap().to_string(),
+        ])
+        .unwrap();
+        assert!(output.contains("6 failed to parse"), "{command}: {output}");
+        assert!(output.contains("... and 1 more"), "{command}: {output}");
+    }
 }
 
 #[test]
@@ -581,4 +956,60 @@ fn export_rejects_unrecognized_file_name() {
     ])
     .unwrap_err();
     assert!(!err.to_string().is_empty());
+}
+
+#[test]
+fn cli_boundary_outputs_cover_skips_empty_relations_and_unsupported_exports() {
+    let tmp = TempDir::new("cli-boundaries");
+    write_synthetic_release(tmp.path());
+    write(tmp.path(), "Snapshot/notes.txt", "ignored\n");
+    let synonym_id = SctId::compose(8111, ComponentType::Description, None).unwrap();
+    write(
+        tmp.path(),
+        "Snapshot/Terminology/sct2_TextDefinition_Snapshot-en_INT_20190731.txt",
+        &format!(
+            "id\teffectiveTime\tactive\tmoduleId\tconceptId\tlanguageCode\ttypeId\tterm\tcaseSignificanceId\n\
+             {synonym_id}\t20190731\t1\t900000000000207008\t404684003\ten\t900000000000013009\tFinding synonym\t900000000000448009\n"
+        ),
+    );
+
+    let load = snomed_cli::run(&["load".into(), tmp.path().to_str().unwrap().into()]).unwrap();
+    assert!(load.contains("skipped"), "{load}");
+
+    let lookup = snomed_cli::run(&[
+        "lookup".into(),
+        tmp.path().to_str().unwrap().into(),
+        "404684003".into(),
+    ])
+    .unwrap();
+    assert!(lookup.contains("synonym: Finding synonym"), "{lookup}");
+    let root_lookup = snomed_cli::run(&[
+        "lookup".into(),
+        tmp.path().to_str().unwrap().into(),
+        "138875005".into(),
+    ])
+    .unwrap();
+    assert!(!root_lookup.contains("parents:"), "{root_lookup}");
+
+    let unknown = SctId::compose(8121, ComponentType::Concept, None).unwrap();
+    let nnf = snomed_cli::run(&[
+        "nnf".into(),
+        tmp.path().to_str().unwrap().into(),
+        unknown.to_string(),
+    ])
+    .unwrap();
+    assert!(nnf.contains("no necessary normal form"), "{nnf}");
+
+    let unsupported = tmp
+        .path()
+        .join("der2_cRefset_OrderedComponentSnapshot_INT_20190731.txt");
+    fs::write(
+        &unsupported,
+        "id\teffectiveTime\tactive\tmoduleId\trefsetId\treferencedComponentId\torder\n",
+    )
+    .unwrap();
+    let error =
+        snomed_cli::run(&["export".into(), unsupported.to_str().unwrap().into()]).unwrap_err();
+    assert!(error.to_string().contains("not yet exportable"));
+    assert!(snomed_cli::run(&["export".into(), tmp.path().to_str().unwrap().into(),]).is_err());
 }

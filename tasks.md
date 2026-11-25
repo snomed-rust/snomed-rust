@@ -81,96 +81,104 @@ shape's first implemented column, release 0.46.0,
 `memberFieldFilter`'s `typeId` extending to
 `MemberAnnotationRefsetMember`, and release 0.55.0,
 live in
-[`docs/tasks-archive.md`](docs/tasks-archive.md) — moved there verbatim,
-most recently on 2026-09-13, to keep this file inside the repository's
-40 KB per-document budget. Search both when asking "has this come up
-before".
+[`docs/tasks-archive.md`](docs/tasks-archive.md), archived verbatim through
+2026-09-13 for the 40 KB budget. Search both files for earlier work.
 
-## Done (2026-09-13, Release 0.56.0 — `memberFieldFilter`'s `value` extends to `MemberAnnotationRefsetMember`, forty-fourth self-decided release)
-
-- [x] **Decided and executed the release itself**, per §1-5 of
-      `spec/ai-release-authority/`: §1 CI independently green on the
-      pushed merge commit (`a6923b6`, all jobs, confirmed via `gh run
-      view` on the exact commit); §2 `CHANGELOG.md`'s `[Unreleased]`
-      verified against the actual diff and moved under `## [0.56.0]`,
-      minor bump (purely additive: the existing `Value` variant now
-      also dispatches to `MemberAnnotationRefsetMember`'s own column,
-      no new variant, not even a new row-set check, nothing removed
-      or changed signature); §3 no rule oversteps — the same "reuse
-      the variant, add nothing" call this authority already covers,
-      not a `plan.md` "Open decisions" item; §4 all nine crates, one
-      version, standard dependency order; §5 tagged `v0.56.0` (signed,
-      verified against the merge commit) and ran `cargo publish` for
-      each crate in order — `snomed-core`'s first publish attempt
-      again hit the shell's 2-minute timeout before any output
-      appeared, the same pattern seen at 0.55.0; a plain retry
-      completed within the timeout this time (took 2m 30s inside its
-      own background run, mostly `cargo` compiling the verification
-      build), and the rest published without incident.
-- [x] **Verified against crates.io's own API afterward**: `GET
-      /api/v1/crates/<name>` for all nine names returns
-      `max_version: "0.56.0"`.
-- [x] Version bumped everywhere the 0.13.0-0.55.0 precedent bumped it:
-      `Cargo.toml` (workspace + seven pins), `CITATION.cff` (version;
-      `date-released` unchanged — same day as 0.55.0), `NEWS.md`,
-      `INSTALL.md`, `SECURITY.md`.
-- [x] Same `release/0.56.0` branch/merge shape as 0.12.0-0.55.0, not a
-      direct commit to `main`; branch deleted locally once GitHub,
-      GitLab, and Codeberg confirmed the merge commit and CI came
-      back green.
-- [x] All three forges pushed cleanly via `git push origin` in one
-      command, for both `main` and the `v0.56.0` tag — the
-      twenty-second release in a row with no GitLab connectivity
-      issue.
-- [x] Verified: build/clippy/fmt/test (531/531)/check-docs/
-      check-trademarks/spec_citations all clean before tagging.
-
-## Done (2026-09-13, ECL `{{ M ... }}` `memberFieldFilter`: `value` extends to `MemberAnnotationRefsetMember`)
-
-- [x] **`snomed-ecl`**: `MemberFilterKind::Value` now also dispatches
-      to `MemberAnnotationRefsetMember`'s own `value` column (a
-      distinct row, sharing only the RF2 field name with
-      `ComponentAnnotationRefsetMember`'s). No new variant, and not
-      even a new row-set check — the same cheapest-of-three shape
-      `typeId` established last cycle: `languageDialectCode`'s own
-      earlier extension had already added the
-      `member_annotation_member_rows` block this column's
-      `TypedFields` entry simply joins.
-      Completes `MemberAnnotationRefsetMember`'s column coverage but
-      for `referencedMemberId` — every column that type has except
-      that one is now a filterable `memberFieldFilter` kind.
-- [x] 1 new eval test (`member_filter_value_matches_member_annotation_rows`,
-      mirroring `typeId`'s own extension test) — 531/531 total, up
-      from 530.
-- [x] Updated: `spec/10-ecl-member-filters.md` (bullet extended),
-      `spec/10-ecl-unimplemented.md` (narrative history, dropped
-      `value` from the still-unimplemented list for this type),
-      `snomed-ecl/src/ast.rs` (variant doc comment, narrative
-      history), `snomed-ecl/src/eval.rs`
-      (`TypedFields`/`typed_field_row_matches` doc comments),
-      `snomed-ecl/README.md` (table row), `agents/ecl-engineer.md`,
-      `agents/store-engineer.md`, `plan.md` (Open decisions
-      paragraph, Current status test count and date, Since 0.9.0
-      narrative), `CHANGELOG.md`.
-- [x] **`docs/changelog-archive.md` finally needed the cascade
-      flagged last cycle**: down to 3.3 KB free before this entry, so
-      its own oldest section (`[0.11.0]`) moved verbatim into
-      `docs/changelog-archive-2.md` first (which had 5.7 KB free,
-      enough), then `CHANGELOG.md`'s oldest section (`[0.35.0]`)
-      moved into the now-roomier `docs/changelog-archive.md` — the
-      same two-hop cascade shape used earlier this session for
-      `tasks-archive.md`, now confirmed for `changelog-archive.md`
-      too.
-- [x] Verified: build/clippy/fmt/test (531/531)/check-docs/
-      check-trademarks/spec_citations all clean.
+Completed work from 2026-11-19 onward through release 0.56.0 is in
+[`docs/tasks-archive-58.md`](docs/tasks-archive-58.md).
 
 ## Next up
 
-- [ ] Nothing currently scoped beyond the `{{ M ... }}` remainder below.
-      State as of 2026-09-13: **0.56.0 released**,
+- [x] Raised exact production region, function, and line coverage to 100% and
+      raised CI. The pinned-nightly metric excludes test source while running
+      all 623 tests and unions only identical source coordinates across LLVM's
+      separately compiled unit/integration objects. Raw duplicate-object
+      summary: 99.60%/100.00%/99.84%; exact source coverage: 100% throughout.
+- [ ] Run the licensed base-plus-extension rehearsal. The tool and procedure
+      are ready. Supply extracted directories for the extension and its
+      matching base. Record edition identifiers, release dates, load and
+      validation time, peak resident memory, and aggregate finding counts.
+      The tool now prints platform plus sorted edition/date identities itself.
+      A synthetic base/extension smoke run verifies that output and clean
+      validation; only the licensed release-scale evidence remains.
+
+### Audit follow-ups (2026-11-25)
+
+Assessed from three external audits (since deleted). The Mistral audit was
+generic marketing/roadmap advice, much of it already done or contrary to the
+zero-dependency and spec-driven rules (serde, rayon, memmap, wasm, GraphQL/REST,
+Discord, video) — none adopted. The two GPT audits were source-verified.
+
+- [x] **FHIR `$expand` can return non-concept codes.** (Done: spec/11 rule 6;
+      `refset/` and `ecl/` forms drop non-concepts before total/paging.)
+      Original note: `refset/<id>` expansion
+      (`snomed-fhir/src/expand.rs`) emits every refset member's
+      `referencedComponentId`, so a language refset yields description ids as
+      `code`. Fix spec/11 and the adapter together: every returned code in the
+      concept-code forms must resolve to a concept in the snapshot, filtered
+      before `total` and paging. Keep raw membership in store/ECL. Tests: a
+      concept refset, a description-only language refset (zero codes), an
+      inactive concept still included when inactive content is requested, and
+      ECL still returning raw description membership.
+- [x] **MSRV CI job may check with the wrong compiler.** (Done.) `rust-toolchain.toml`
+      pins 1.100.0 and overrides `dtolnay/rust-toolchain@1.98` in the `msrv`
+      job. Set `RUSTUP_TOOLCHAIN` (sourced from the declared MSRV, as
+      `bin/make-ci-minimum-supported-rust-version` does) on the check step and
+      print `rustc -Vv` in the same environment.
+- [x] **Spec-citation resolver picks the wrong `spec/07`.** (Done.)
+      `snomed/tests/spec_citations.rs` resolves a bare number to the shortest
+      filename, so `spec/07 rule 3` lands on `07-identifier-file.md`, not
+      `07-relationship-file.md` (cycle detection in the store validator). Add
+      an explicit mapping for the relationship shorthand (keep the existing
+      ECL mapping), keep full-filename citations, and add resolver tests for
+      both meanings.
+- [x] **`bin/check-docs` fails on three files** (Done: changelog-archive-3, plan-archive-2, tasks-archive-58, arithmetic spec split into index/domain-values/enforcement; check passes.) (40,960-byte budget):
+      `CHANGELOG.md` (41,332), `plan.md` (40,989),
+      `spec/rust-checked-arithmetic/index.md` (56,763). Archive older
+      changelog/plan entries per the existing convention; split the arithmetic
+      spec by topic, keeping `index.md` as the stable entry point so links and
+      rule ids survive.
+- [x] **FHIR `ExpansionContains` has no `inactive` flag.** (Done: spec/11 rule 7.) A host serializing
+      it cannot distinguish inactive entries when `active_only` is false. Add
+      the field (maps to `ValueSet.expansion.contains.inactive`) with a test.
+- [x] **Error text can carry user input.** (Done as documentation in PHI.md;
+      a redacting `Display` variant was considered and not done — the
+      variants' text deliberately names the failed input, and the enum
+      variant already gives hosts a log-safe category.) Original note: `FhirError::MalformedUrlEncoding`
+      embeds the whole URL, so `Display` leaks pasted search text into host
+      logs. Document in `PHI.md` (log operation + error category + request id
+      only) and consider a variant that omits the URL from `Display`.
+- [x] **Module-dependency compatibility check.** (Done: spec/08 rule 5,
+      `ValidationReport::unsatisfied_module_dependencies`, CLI `validate` and the
+      rehearsal tool report it. The edition-URI/manifest binding remains host
+      guidance, not code.) Original note: The rehearsal's validation
+      stops at cycles/rootless/dangling references; add a check of the Module
+      Dependency refset (source module's required target-module version vs.
+      the loaded one), with a wrong-base fixture that has a clean hierarchy.
+      Document binding a snapshot to an edition URI/manifest in the host
+      guidance.
+- [x] **Contributor docs for VS Code.** (Done: CONTRIBUTING.md section,
+      `.vscode/{extensions,launch,tasks}.json`, `.gitignore` negations so a
+      global `.vscode` ignore doesn't hide them. F5 debugging is an editor
+      acceptance test not run here.) Original note: Short `CONTRIBUTING.md` subsection
+      (open root, run one test via rust-analyzer, debug `snomed-cli sctid
+      138875005` with CodeLLDB and `CARGO_PROFILE_DEV_DEBUG=2`), a recommended
+      `.vscode/extensions.json`, and optional `tasks.json`/`launch.json` for
+      clippy/test/fmt. Check `.vscode` files are not swallowed by a global
+      ignore (`git ls-files -- .vscode`). Keep `benches/` and `fuzz/` as
+      separate windows; don't set `rust-analyzer.linkedProjects` at the root.
+- [x] **Host guidance (docs only):** (Done: `snomed-fhir/README.md` "Host guidance for clinical use".) document search-match display (show the
+      matched term, language-fallback, FSN/semantic tag for disambiguation),
+      active-only for new entry vs. preserving original codes for history,
+      and ECL history-profile / assertion-status caveats for cohort queries.
+
+### ECL member-filter backlog (supported typed rows complete)
+
+- [x] State as of 2026-11-19: **0.57.0 released** and the next additive
+      change implemented locally,
       `ComponentAnnotationRefsetMember`'s column coverage complete,
       `typeId`/`value` extended to `MemberAnnotationRefsetMember` —
-      `referencedMemberId` is that type's only remaining gap —
+      and `referencedMemberId` now completes that type —
       `mapTarget`
       (0.15.0),
       `correlationId` (0.16.0), `mapGroup` (0.17.0), `mapPriority`
@@ -335,36 +343,17 @@ before".
       alternative (0.15.0-0.56.0),
       all decided and executed under
       `spec/ai-release-authority/`'s criteria rather than a fresh
-      per-release maintainer go-ahead (see `CHANGELOG.md`). 9 crates, 531
-      tests,
-      clippy/fmt clean on stable, MSRV 1.98 (current
-      stable minus two, `spec/rust-msrv-n-minus-2/index.md`), `fuzz/`,
-      and `benches/`; 13 fuzz targets; 6 criterion benchmark files; 36
-      `spec/` documents (18 specification distillations, the README
-      index, and 17 project policies — `ai-release-authority/` added
-      2026-09-02), every one registered in the
-      README index. Commit/tag signing verified on all three forges —
+      per-release maintainer go-ahead (see `CHANGELOG.md`). Current verified
+      totals are recorded above. Commit/tag signing passed on all three forges —
       see the Done sections above for how Codeberg's part closed. Every
       gap `spec/` documents as missing is closed, reclassified, or
       blocked on a decision below.
-      Checked on 2026-08-27 for anything actually pickable without a
-      decision: the two "spelling gap" ECL items below —
-      `moduleId`'s `eclConceptReferenceSet` form and `dialectIdSet` — are
-      not free pickups despite the label. `agents/ecl-engineer.md`
-      explicitly says not to implement `eclConceptReferenceSet`: a
-      single-element `(id)` is genuinely ambiguous between the set form
-      (grammar requires 2+) and a parenthesized expression, and the
-      current parser resolves that correctly by construction only because
-      it doesn't special-case `(` there. `dialectIdSet` has the same
-      shape. Alternate identifiers (`A#B`) need an identifier-refset
-      lookup the store doesn't have, which is a `plan.md`-level design
-      question, not a lexer/parser gap. Nothing here was actually
-      unblocked.
-- [ ] **`{{ M ... }}` member filters, remaining scope** (`snomed-ecl`) —
+- [x] **`{{ M ... }}` member filters, supported typed-row scope complete** (`snomed-ecl`) —
       the `moduleId`/`effectiveTime`/`active` kinds are done after both
       `^` (2026-09-01) and `^R` (2026-09-02); the fourth grammar
       alternative, `memberFieldFilter`, now has its store-retention
-      decided and twenty-two columns done after both `^` and `^R`:
+      decided and all thirty-eight supported columns done after both `^`
+      and `^R`:
       `mapTarget`, `correlationId`, `mapGroup` (2026-09-03),
       `mapPriority`, `mapRule`, `mapAdvice` (2026-09-04), `mapCategoryId`
       (2026-09-05, completes `ExtendedMap`'s column coverage),
@@ -415,12 +404,10 @@ before".
       (2026-09-08, see Done above — `MrcmDomainRefsetMember`'s fifth
       column, another genuinely new variant, no new row-set check
       since all five columns share one row) followed.
-      What is still open:
-      - Every other `memberFieldFilter` column — no longer blocked on a
-        store decision (all sixteen non-Simple/Language types already
-        retain typed active-and-inactive rows via `*_member_rows`), so
-        each is now a free `snomed-ecl` parser/eval increment, same
-        cadence as any other filter kind. **`memberFieldFilter` is not
+      Completion record (the fields below are all implemented; this keeps
+      the grammar/dispatch rationale that guided the work):
+      - Every supported `memberFieldFilter` column uses the retained typed
+        active-and-inactive `*_member_rows`. **`memberFieldFilter` is not
         one grammar shape but five, confirmed against the official ABNF**
         (`syntax/abnf-brief.txt`) — chosen by the named column's own
         semantic type: `expressionComparisonOperator ws
@@ -436,8 +423,8 @@ before".
         `stringComparisonOperator ws (typedSearchTerm | typedSearchTermSet)`
         (`mapTarget`'s shape, reuse `TermFilter`),
         `booleanComparisonOperator ws booleanValue`, or
-        `timeComparisonOperator ws (timeValue | timeValueSet)` — the last
-        two still have no implemented example. Confirm which shape a
+        `timeComparisonOperator ws (timeValue | timeValueSet)` — all five
+        now have worked examples. Confirm which shape a
         column actually uses before implementing it; do not assume
         string search just because `mapTarget` was first. Extend
         `TypedFields` (`snomed-ecl/src/eval.rs`) with one more
@@ -451,7 +438,7 @@ before".
         map-only, 2026-09-05) — not a new dispatch function, but not
         nothing either; don't assume the field-only change suffices
         without checking whether the type is already covered. The full
-        remaining list, one bullet per refset type, RF2 column names
+        completion list, one bullet per refset type, RF2 column names
         from `snomed-rf2/src/refset.rs`'s `HEADER` consts
         (Simple/Language excluded — spec/09 rule 4, they keep no typed
         rows at all), each annotated with its Rust field type and the
@@ -465,14 +452,9 @@ before".
           `mapCategoryId` (2026-09-05) cover every column it has.
         - OwlExpression: **done** — `owlExpression` (2026-09-06) covers
           the only column it has.
-        - ModuleDependency: `sourceEffectiveTime`, `targetEffectiveTime`
-          (`EffectiveTime` — time shape, no implemented example yet) —
-          would close a real gap (the *only* remaining shape with zero
-          worked examples besides boolean), but per
-          `agents/ecl-engineer.md`'s standing rule, confirm the exact
-          `timeValue`/`timeComparisonOperator` production against the
-          official ABNF before writing any Rust — not a routine
-          "reuse the shape" pick like the others on this list.
+        - ModuleDependency: **done** — `sourceEffectiveTime` and
+          `targetEffectiveTime` use the time-comparison shape and share a
+          typed row.
         - RefsetDescriptor: **done** — `attributeDescription`,
           `attributeType` (both 2026-09-06, reused
           `correlationId`/`mrcmRuleRefsetId`'s exact concept-reference
@@ -508,7 +490,7 @@ before".
           columns share one row) cover every column this type has, the
           third refset type outside the two map types with full
           column coverage.
-        - MrcmAttributeDomain: `domainId`, `ruleStrengthId`,
+        - MrcmAttributeDomain: **done** — `domainId`, `ruleStrengthId`,
           `contentTypeId` (`SctId` — concept-reference shape, reused
           `correlationId`'s exact grammar, tested against a new
           twelfth typed row set, `mrcm_attribute_domain_member_rows`,
@@ -520,14 +502,10 @@ before".
           four columns share one row), and `attributeCardinality`
           (2026-09-10, `String` — string shape, reused
           `mapTarget`'s exact grammar, no new row-set check since all
-          five columns share one row) are done —
-          `attributeInGroupCardinality` (`String` — string shape) is
-          the one remaining column, free to pick up whenever, no new
-          row-set check needed since it would share the same row too
-          — completing this would make `MrcmAttributeDomainRefsetMember`
-          the fourth refset type outside the two map types with full
-          column coverage.
-        - MrcmAttributeRange: `rangeConstraint`, `attributeRule`
+          five columns share one row), plus
+          `attributeInGroupCardinality` (`String` — string shape), complete
+          that type's column coverage.
+        - MrcmAttributeRange: **done** — `rangeConstraint`, `attributeRule`
           (`String` — string shape); `ruleStrengthId`, `contentTypeId`
           (`SctId` — concept-reference shape).
         - MrcmModuleScope: **done** (2026-09-06) — `mrcmRuleRefsetId`
@@ -538,18 +516,13 @@ before".
           `targetComponentId` and `order` now match its rows too,
           reusing the variants `Association`/`OrderedComponent`
           introduced rather than adding new ones.
-        - ComponentAnnotation: `languageDialectCode`, `value` (`String`
+        - ComponentAnnotation: **done** — `languageDialectCode`, `value` (`String`
           — string shape); `typeId` (`SctId` — concept-reference shape).
-        - MemberAnnotation: `languageDialectCode`, `value` (`String` —
+        - MemberAnnotation: **done** — `languageDialectCode`, `value` (`String` —
           string shape); `typeId` (`SctId` — concept-reference shape);
-          `referencedMemberId` (`MemberId`, a member UUID rather than a
-          concept or a string — which of the five shapes, if any, this
-          maps to hasn't been checked; don't assume `SctId`'s shape works
-          for a non-concept id without confirming).
-        Pick up whichever field is actually requested next; this list
-        exists so "which fields remain" is answerable without re-reading
-        `snomed-rf2/src/refset.rs`, not as a commitment to build
-        all of them.
+          `referencedMemberId` (`MemberId` UUID — implemented 2026-11-19
+          with the string-search shape and canonical UUID rendering).
+        This list is retained as a completion map, not as remaining work.
 - [ ] Decisions, not tasks — each needs a call before code:
       - **`$expand` inline `valueSet`** (`snomed-fhir`): shape already
         determined — a typed compose model the caller maps its JSON onto
@@ -558,21 +531,11 @@ before".
       - **A `snomed-fhir` HTTP server crate**: would need a new external
         dependency, so it is explicitly a user decision against the
         zero-dependency policy, not an autonomous pick.
-- [ ] **ECL history supplement (`{{+HISTORY}}`) — blocked on a citable
-      source, not on effort.** Each profile is defined by which historical
-      association refsets it includes, and that list could not be
-      established from the official specification page, the docs site's
-      query interface, or its `llms-full.txt` corpus; a secondary source
-      covers `MIN` and `MAX` only. Guessing would silently return the
-      wrong inactive concepts. The store side is ready
-      (`association_sources`), so this is one afternoon's work the day the
-      profile membership can be cited.
-- [ ] Smaller documented gaps, each independently pickable: the `dialect`
-      alias form (needs an alias→refset mapping this crate deliberately
-      doesn't own), the `dialectIdSet` spelling, `regex:` search terms
-      (an engine is a dependency); `moduleId`'s
-      `eclConceptReferenceSet` spelling (sugar for `(id1 OR id2)`, which
-      works); the ECL history supplement; alternate identifiers;
+- [ ] Remaining documented gaps, each awaiting external input or a surface
+      decision: `regex:` search terms
+      (an engine is a dependency); ECL alternate
+      identifiers (the RF2/store substrate is complete, but alias→scheme-SCTID
+      policy belongs to the caller);
       `^ [A, B]` field selection (blocked on what a non-id result type
       looks like, since `evaluate` returns `HashSet<SctId>`); the reverse
       flag inside `{ }` comparing unrelated group numbers

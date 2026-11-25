@@ -231,6 +231,43 @@ Scoped in `spec/11-fhir.md`, not yet built (see the root `tasks.md`):
   once and passes the same one into every `lookup` call, mirroring how
   `version` is supplied rather than derived.
 
+## Host guidance for clinical use
+
+These are decisions the hosting server owns; the crate supplies the pieces.
+
+- **New entry vs. historical records.** For new coding, expand the field's
+  value set with `active_only: true` and re-check the submitted code against
+  the same snapshot and binding on save (a code outside the first page of a
+  search is still valid; do not validate by scanning a page). For existing
+  records, keep the recorded system, code, original display and version; show
+  the current term and `inactive` status (`ExpansionContains::inactive`,
+  `$lookup`'s `inactive` property) separately. Distinguish four answers when
+  validating: unknown system, unknown code, known code outside the value set,
+  and an unavailable edition.
+- **Replacing an inactive code.** Historical association refsets can give
+  several possible targets (SAME AS, POSSIBLY EQUIVALENT TO, ...). Show all
+  candidates with the association type and inactivation reason, and do not
+  substitute automatically unless the association is an exact one.
+- **Search display.** `filter` matches any active description term (including
+  synonyms in other languages), and results are sorted by identifier for
+  determinism, so identifier order is not a relevance order. For interactive
+  entry, show the preferred display (set `language_refset`) beside the term
+  that matched, make a language fallback visible, and use the fully specified
+  name or its semantic tag to tell similar choices apart. Never auto-select
+  the first hit.
+- **Which edition answered.** The host chooses the snapshot and supplies the
+  version label; bind them to an edition URI and a manifest of source
+  packages, and have `SnapshotStore::validate()` (module dependencies,
+  spec/08 rule 5) run before activating a release. Use the same binding for
+  lookup responses, expansion caches and classification reports.
+- **Cohorts across upgrades.** ECL returns terminology ids only: a confirmed
+  and a refuted condition with the same code both match. Define clinical and
+  verification status in the host's own rules. Pin edition, expression and
+  ECL history profile (a broader profile can change which old entries
+  qualify), and compare added/removed ids, not just totals, when moving to a
+  new release.
+- **Logs.** Error text can echo caller input; see [`PHI.md`](../PHI.md).
+
 ## Trademarks
 
 SNOMED®, SNOMED CT®, and IHTSDO® are registered trademarks of International

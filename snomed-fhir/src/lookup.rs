@@ -352,6 +352,7 @@ fn designation_use(
     }
 }
 
+#[cfg_attr(coverage_nightly, coverage(off))]
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -518,6 +519,65 @@ mod tests {
         let codes: Vec<String> = result.property.iter().map(|p| p.code()).collect();
         assert_eq!(codes, vec!["inactive", "moduleId", "sufficientlyDefined"]);
         assert!(result.property.contains(&LookupProperty::Inactive(false)));
+    }
+
+    #[test]
+    fn every_lookup_property_reports_its_fhir_code() {
+        let dynamic = SctId::compose(9100, ComponentType::Concept, None).unwrap();
+        let cases = [
+            (LookupProperty::Inactive(false), "inactive".to_string()),
+            (LookupProperty::ModuleId(dynamic), "moduleId".to_string()),
+            (
+                LookupProperty::SufficientlyDefined(false),
+                "sufficientlyDefined".to_string(),
+            ),
+            (
+                LookupProperty::NormalForm(String::new()),
+                "normalForm".to_string(),
+            ),
+            (
+                LookupProperty::NormalFormTerse(String::new()),
+                "normalFormTerse".to_string(),
+            ),
+            (LookupProperty::Parent(dynamic), "parent".to_string()),
+            (LookupProperty::Child(dynamic), "child".to_string()),
+            (
+                LookupProperty::ConceptModelAttribute {
+                    type_id: dynamic,
+                    value: dynamic,
+                },
+                dynamic.to_string(),
+            ),
+            (
+                LookupProperty::ConceptModelConcreteValue {
+                    type_id: dynamic,
+                    value: snomed_core::ConcreteValue::Number("1".to_string()),
+                },
+                dynamic.to_string(),
+            ),
+        ];
+        for (property, expected) in cases {
+            assert_eq!(property.code(), expected);
+        }
+    }
+
+    #[test]
+    fn acceptable_designation_is_distinct_from_preferred() {
+        let description_id = SctId::compose(2999, ComponentType::Description, None).unwrap();
+        let mut b = SnapshotStore::builder();
+        b.add_language_member(language_member(
+            MemberId::parse("80000000-0000-4000-8000-000000000022").unwrap(),
+            description_id,
+            constants::ACCEPTABLE,
+        ));
+        assert_eq!(
+            designation_use(
+                &b.build(),
+                Some(constants::US_ENGLISH_LANGUAGE_REFSET),
+                description_id,
+            ),
+            DesignationUse::Acceptable
+        );
     }
 
     #[test]

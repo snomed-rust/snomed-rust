@@ -20,6 +20,8 @@
 //! ships no SNOMED CT content.
 
 #![forbid(unsafe_code)]
+#![cfg_attr(coverage_nightly, feature(coverage_attribute))]
+#![cfg_attr(coverage_nightly, allow(unused_features))]
 // Per spec/rust-no-unsafe/index.md: this workspace contains no `unsafe`, and
 // the compiler enforces that rather than a grep.
 
@@ -32,7 +34,9 @@ use std::io::BufReader;
 use std::path::Path;
 use std::time::Instant;
 
-use snomed_core::components::{Concept, Description, Relationship, RelationshipConcreteValue};
+use snomed_core::components::{
+    AlternateIdentifier, Concept, Description, Relationship, RelationshipConcreteValue,
+};
 use snomed_core::sctid::SctId;
 use snomed_rf2::filename::ReleaseFileName;
 use snomed_rf2::reader::Rf2Reader;
@@ -247,6 +251,16 @@ fn cmd_validate(args: &[String]) -> Result<String, Box<dyn Error>> {
         "active concepts with no IS-A parent (spec/07 rule 2)",
         &report.rootless_concepts,
     );
+    if !report.unsatisfied_module_dependencies.is_empty() {
+        let _ = writeln!(
+            out,
+            "  module dependencies whose target module is not loaded at the required version (spec/08 rule 5) ({}):",
+            report.unsatisfied_module_dependencies.len()
+        );
+        for id in &report.unsatisfied_module_dependencies {
+            let _ = writeln!(out, "    {id}");
+        }
+    }
     Ok(out)
 }
 
@@ -554,17 +568,18 @@ fn cmd_export_file(args: &[String]) -> Result<String, Box<dyn Error>> {
     };
 
     let path = Path::new(input);
-    let file_name = path
-        .file_name()
-        .and_then(|n| n.to_str())
-        .ok_or("input file name is not valid UTF-8")?;
+    let file_name = utf8_file_name(path)?;
     let parsed = ReleaseFileName::parse(file_name)?;
-    let ndjson = export_to_ndjson(path, &parsed)?.ok_or_else(|| {
-        format!(
-            "content type `{}` (summary `{}`) is not yet exportable",
-            parsed.content_type, parsed.summary
-        )
-    })?;
+    let ndjson = match export_to_ndjson(path, &parsed)? {
+        Some(ndjson) => ndjson,
+        None => {
+            return Err(format!(
+                "content type `{}` (summary `{}`) is not yet exportable",
+                parsed.content_type, parsed.summary
+            )
+            .into())
+        }
+    };
 
     match output {
         Some(out_path) => {
@@ -608,10 +623,7 @@ fn cmd_export_dir(args: &[String]) -> Result<String, Box<dyn Error>> {
     for (path, parsed) in &files {
         match export_to_ndjson(path, parsed)? {
             Some(ndjson) => {
-                let stem = path
-                    .file_stem()
-                    .and_then(|s| s.to_str())
-                    .ok_or("input file name is not valid UTF-8")?;
+                let stem = parsed.file_stem();
                 fs::write(Path::new(out_dir).join(format!("{stem}.ndjson")), &ndjson)?;
                 exported += 1;
             }
@@ -637,124 +649,122 @@ fn cmd_export_dir(args: &[String]) -> Result<String, Box<dyn Error>> {
     Ok(out)
 }
 
+fn utf8_file_name(path: &Path) -> Result<&str, Box<dyn Error>> {
+    match path.file_name() {
+        Some(name) => match name.to_str() {
+            Some(name) => Ok(name),
+            None => Err("input file name is not valid UTF-8".into()),
+        },
+        None => Err("input file name is not valid UTF-8".into()),
+    }
+}
+
 /// `Ok(None)` means the (content type, summary) combination isn't wired up
 /// for export yet — a skip, not an error (mirrors `load.rs::dispatch`'s
 /// `Ok(Some(reason))` shape for the same distinction). `Err` is reserved
 /// for genuine I/O/RF2-parsing failure on a file this function recognized.
 fn export_to_ndjson(path: &Path, f: &ReleaseFileName) -> Result<Option<String>, Box<dyn Error>> {
     let mut out = String::new();
+    macro_rules! export {
+        ($record:ty, $to_json:path) => {
+            return finish_export(export_rows::<$record, _>(path, &mut out, $to_json), out)
+        };
+    }
     match (f.content_type.as_str(), f.summary.as_str()) {
-        ("Concept", _) => export_rows::<Concept, _>(path, &mut out, json::concept_to_json)?,
+        ("Concept", _) => export!(Concept, json::concept_to_json),
         ("Description", _) | ("TextDefinition", _) => {
-            export_rows::<Description, _>(path, &mut out, json::description_to_json)?
+            export!(Description, json::description_to_json)
         }
         ("Relationship", _) | ("StatedRelationship", _) => {
-            export_rows::<Relationship, _>(path, &mut out, json::relationship_to_json)?
+            export!(Relationship, json::relationship_to_json)
         }
-        ("RelationshipConcreteValues", _) => export_rows::<RelationshipConcreteValue, _>(
-            path,
-            &mut out,
-            json::relationship_concrete_value_to_json,
-        )?,
-        ("Refset", _) => {
-            export_rows::<SimpleRefsetMember, _>(path, &mut out, json::simple_refset_to_json)?
-        }
-        ("cRefset", "Language") => {
-            export_rows::<LanguageRefsetMember, _>(path, &mut out, json::language_refset_to_json)?
-        }
+        ("RelationshipConcreteValues", _) => export!(
+            RelationshipConcreteValue,
+            json::relationship_concrete_value_to_json
+        ),
+        ("Identifier", _) => export!(AlternateIdentifier, json::alternate_identifier_to_json),
+        ("Refset", _) => export!(SimpleRefsetMember, json::simple_refset_to_json),
+        ("cRefset", "Language") => export!(LanguageRefsetMember, json::language_refset_to_json),
         ("cRefset", summary) if summary.contains("Association") => {
-            export_rows::<AssociationRefsetMember, _>(
-                path,
-                &mut out,
-                json::association_refset_to_json,
-            )?
+            export!(AssociationRefsetMember, json::association_refset_to_json)
         }
         ("cRefset", summary) if summary.contains("AttributeValue") => {
-            export_rows::<AttributeValueRefsetMember, _>(
-                path,
-                &mut out,
-                json::attribute_value_refset_to_json,
-            )?
+            export!(
+                AttributeValueRefsetMember,
+                json::attribute_value_refset_to_json
+            )
         }
-        ("sRefset", "SimpleMap") => export_rows::<SimpleMapRefsetMember, _>(
-            path,
-            &mut out,
-            json::simple_map_refset_to_json,
-        )?,
-        ("sRefset", "OWLExpression") => export_rows::<OwlExpressionRefsetMember, _>(
-            path,
-            &mut out,
-            json::owl_expression_refset_to_json,
-        )?,
-        ("iisssccRefset", _) => export_rows::<ExtendedMapRefsetMember, _>(
-            path,
-            &mut out,
-            json::extended_map_refset_to_json,
-        )?,
-        ("ssRefset", "ModuleDependency") => export_rows::<ModuleDependencyRefsetMember, _>(
-            path,
-            &mut out,
-            json::module_dependency_refset_to_json,
-        )?,
-        ("cciRefset", "RefsetDescriptor") => export_rows::<RefsetDescriptorRefsetMember, _>(
-            path,
-            &mut out,
-            json::refset_descriptor_refset_to_json,
-        )?,
-        ("ciRefset", "DescriptionType") => export_rows::<DescriptionTypeRefsetMember, _>(
-            path,
-            &mut out,
-            json::description_type_refset_to_json,
-        )?,
-        ("cRefset", "MRCMModuleScope") => export_rows::<MrcmModuleScopeRefsetMember, _>(
-            path,
-            &mut out,
-            json::mrcm_module_scope_refset_to_json,
-        )?,
-        ("sssssssRefset", "MRCMDomain") => export_rows::<MrcmDomainRefsetMember, _>(
-            path,
-            &mut out,
-            json::mrcm_domain_refset_to_json,
-        )?,
+        ("sRefset", "SimpleMap") => export!(SimpleMapRefsetMember, json::simple_map_refset_to_json),
+        ("sRefset", "OWLExpression") => {
+            export!(
+                OwlExpressionRefsetMember,
+                json::owl_expression_refset_to_json
+            )
+        }
+        ("iisssccRefset", _) => {
+            export!(ExtendedMapRefsetMember, json::extended_map_refset_to_json)
+        }
+        ("ssRefset", "ModuleDependency") => export!(
+            ModuleDependencyRefsetMember,
+            json::module_dependency_refset_to_json
+        ),
+        ("cciRefset", "RefsetDescriptor") => export!(
+            RefsetDescriptorRefsetMember,
+            json::refset_descriptor_refset_to_json
+        ),
+        ("ciRefset", "DescriptionType") => export!(
+            DescriptionTypeRefsetMember,
+            json::description_type_refset_to_json
+        ),
+        ("cRefset", "MRCMModuleScope") => export!(
+            MrcmModuleScopeRefsetMember,
+            json::mrcm_module_scope_refset_to_json
+        ),
+        ("sssssssRefset", "MRCMDomain") => {
+            export!(MrcmDomainRefsetMember, json::mrcm_domain_refset_to_json)
+        }
         ("cissccRefset", "MRCMAttributeDomain") => {
-            export_rows::<MrcmAttributeDomainRefsetMember, _>(
-                path,
-                &mut out,
-                json::mrcm_attribute_domain_refset_to_json,
-            )?
+            export!(
+                MrcmAttributeDomainRefsetMember,
+                json::mrcm_attribute_domain_refset_to_json
+            )
         }
-        ("ssccRefset", "MRCMAttributeRange") => export_rows::<MrcmAttributeRangeRefsetMember, _>(
-            path,
-            &mut out,
-            json::mrcm_attribute_range_refset_to_json,
-        )?,
-        ("iRefset", "OrderedComponent") => export_rows::<OrderedComponentRefsetMember, _>(
-            path,
-            &mut out,
-            json::ordered_component_refset_to_json,
-        )?,
-        ("ciRefset", "OrderedAssociation") => export_rows::<OrderedAssociationRefsetMember, _>(
-            path,
-            &mut out,
-            json::ordered_association_refset_to_json,
-        )?,
+        ("ssccRefset", "MRCMAttributeRange") => export!(
+            MrcmAttributeRangeRefsetMember,
+            json::mrcm_attribute_range_refset_to_json
+        ),
+        ("iRefset", "OrderedComponent") => export!(
+            OrderedComponentRefsetMember,
+            json::ordered_component_refset_to_json
+        ),
+        ("ciRefset", "OrderedAssociation") => export!(
+            OrderedAssociationRefsetMember,
+            json::ordered_association_refset_to_json
+        ),
         ("scsRefset", "ComponentAnnotationStringValue") => {
-            export_rows::<ComponentAnnotationRefsetMember, _>(
-                path,
-                &mut out,
-                json::component_annotation_refset_to_json,
-            )?
+            export!(
+                ComponentAnnotationRefsetMember,
+                json::component_annotation_refset_to_json
+            )
         }
         ("sscsRefset", "MemberAnnotationStringValue") => {
-            export_rows::<MemberAnnotationRefsetMember, _>(
-                path,
-                &mut out,
-                json::member_annotation_refset_to_json,
-            )?
+            export!(
+                MemberAnnotationRefsetMember,
+                json::member_annotation_refset_to_json
+            )
         }
-        (_, _) => return Ok(None),
+        (_, _) => Ok(None),
     }
-    Ok(Some(out))
+}
+
+fn finish_export(
+    result: Result<(), Box<dyn Error>>,
+    out: String,
+) -> Result<Option<String>, Box<dyn Error>> {
+    match result {
+        Ok(()) => Ok(Some(out)),
+        Err(error) => Err(error),
+    }
 }
 
 fn export_rows<T, F>(path: &Path, out: &mut String, to_json: F) -> Result<(), Box<dyn Error>>
@@ -771,6 +781,7 @@ where
     Ok(())
 }
 
+#[cfg_attr(coverage_nightly, coverage(off))]
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -814,5 +825,272 @@ mod tests {
     fn load_missing_dir_errors() {
         let err = run(&args(&["load"])).unwrap_err();
         assert!(err.to_string().contains("usage"));
+    }
+
+    #[test]
+    fn sctid_reports_extension_namespace() {
+        let id = SctId::compose(
+            1234,
+            snomed_core::sctid::ComponentType::Concept,
+            Some(1000124),
+        )
+        .unwrap();
+        let out = run(&args(&["sctid", &id.to_string()])).unwrap();
+        assert!(out.contains("long (extension)"));
+        assert!(out.contains("namespace:      1000124"));
+    }
+
+    #[test]
+    fn load_argument_parser_accepts_full_and_rejects_extras() {
+        let full_args = args(&["release", "--full"]);
+        let parsed = parse_load_args(&full_args, "load <release-dir>").unwrap();
+        assert_eq!(parsed, ("release", ReleaseType::Full));
+
+        let error = parse_load_args(&args(&["one", "two"]), "load <release-dir>").unwrap_err();
+        assert!(error.to_string().contains("unexpected argument `two`"));
+    }
+
+    #[test]
+    fn commands_validate_required_arguments_before_io() {
+        for command in [
+            "sctid", "load", "validate", "lookup", "ecl", "classify", "nnf", "export",
+        ] {
+            let error = run(&args(&[command])).unwrap_err();
+            assert!(error.to_string().contains("usage"), "{command}: {error}");
+        }
+
+        for command in ["classify", "nnf"] {
+            let error = run(&args(&[command, "--full"])).unwrap_err();
+            assert!(error.to_string().contains("usage"), "{command}: {error}");
+        }
+
+        let error = run(&args(&["export", "one", "two", "three"])).unwrap_err();
+        assert!(error.to_string().contains("usage: export"));
+    }
+
+    #[test]
+    fn commands_propagate_io_identifier_and_rf2_failures() {
+        let missing = "/definitely/not/a/snomed-release";
+        for command in ["load", "validate", "classify", "nnf", "ecl"] {
+            let mut command_args = vec![command.to_string(), missing.to_string()];
+            if command == "ecl" {
+                command_args.push("*".to_string());
+            }
+            assert!(run(&command_args).is_err(), "{command} hid a load failure");
+        }
+        assert!(run(&args(&["lookup", missing, "138875005"])).is_err());
+        assert!(run(&args(&["lookup", missing, "not-an-id"])).is_err());
+
+        let root = std::env::temp_dir().join(format!(
+            "snomed-cli-unit-errors-{}-{:?}",
+            std::process::id(),
+            std::thread::current().id()
+        ));
+        let _ = fs::remove_dir_all(&root);
+        fs::create_dir_all(&root).unwrap();
+        let root_text = root.to_str().unwrap();
+        assert!(run(&args(&["classify", root_text, "not-an-id"])).is_err());
+        assert!(run(&args(&["nnf", root_text, "not-an-id"])).is_err());
+
+        let missing_file = root.join("sct2_Concept_Snapshot_INT_20240131.txt");
+        assert!(run(&args(&["export", missing_file.to_str().unwrap()])).is_err());
+
+        fs::write(&missing_file, "malformed header\n").unwrap();
+        assert!(run(&args(&["export", missing_file.to_str().unwrap()])).is_err());
+
+        fs::write(
+            &missing_file,
+            "id\teffectiveTime\tactive\tmoduleId\tdefinitionStatusId\nmalformed\n",
+        )
+        .unwrap();
+        assert!(run(&args(&["export", missing_file.to_str().unwrap()])).is_err());
+
+        fs::write(
+            &missing_file,
+            "id\teffectiveTime\tactive\tmoduleId\tdefinitionStatusId\n\
+             138875005\t20240131\t1\t900000000000207008\t900000000000074008\n",
+        )
+        .unwrap();
+        let lookup = run(&args(&["lookup", root_text, "138875005"])).unwrap();
+        assert!(lookup.contains("active=true"));
+        assert!(!lookup.contains("FSN:"));
+        let unwritable = root.join("missing-parent/out.ndjson");
+        assert!(run(&args(&[
+            "export",
+            missing_file.to_str().unwrap(),
+            unwritable.to_str().unwrap(),
+        ]))
+        .is_err());
+
+        let out_file = root.join("out-file");
+        fs::write(&out_file, "not a directory").unwrap();
+        assert!(cmd_export_dir(&args(&[root_text, out_file.to_str().unwrap()])).is_err());
+
+        let release = root.join("release");
+        let out_dir = root.join("out-dir");
+        fs::create_dir_all(&release).unwrap();
+        let malformed = release.join("sct2_Concept_Snapshot_INT_20240131.txt");
+        fs::write(&malformed, "malformed header\n").unwrap();
+        assert!(cmd_export_dir(&args(&[
+            release.to_str().unwrap(),
+            out_dir.to_str().unwrap()
+        ]))
+        .is_err());
+
+        fs::write(
+            &malformed,
+            "id\teffectiveTime\tactive\tmoduleId\tdefinitionStatusId\n\
+             138875005\t20240131\t1\t900000000000207008\t900000000000074008\n",
+        )
+        .unwrap();
+        fs::create_dir_all(&out_dir).unwrap();
+        fs::create_dir_all(out_dir.join("sct2_Concept_Snapshot_INT_20240131.ndjson")).unwrap();
+        assert!(cmd_export_dir(&args(&[
+            release.to_str().unwrap(),
+            out_dir.to_str().unwrap()
+        ]))
+        .is_err());
+
+        assert!(cmd_export_dir(&args(&[missing, out_dir.to_str().unwrap()])).is_err());
+
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn unchecked_identifier_and_non_utf8_path_helpers_are_total() {
+        assert_eq!(component_type_label(SctId::new_unchecked(1)), "unknown");
+        assert!(cmd_export_file(&args(&["/"])).is_err());
+
+        #[cfg(unix)]
+        {
+            use std::ffi::OsString;
+            use std::os::unix::ffi::OsStringExt;
+
+            let path = std::path::PathBuf::from(OsString::from_vec(b"invalid-\xff.txt".to_vec()));
+            assert!(utf8_file_name(&path).is_err());
+        }
+    }
+
+    #[test]
+    fn every_export_shape_propagates_typed_field_errors() {
+        let root = std::env::temp_dir().join(format!(
+            "snomed-cli-export-fields-{}-{:?}",
+            std::process::id(),
+            std::thread::current().id()
+        ));
+        let _ = fs::remove_dir_all(&root);
+        fs::create_dir_all(&root).unwrap();
+        let common = "id\teffectiveTime\tactive\tmoduleId";
+        let member = format!("{common}\trefsetId\treferencedComponentId");
+        let cases = [
+            ("sct2_Concept_Snapshot_INT_20190731.txt", format!("{common}\tdefinitionStatusId")),
+            ("sct2_Description_Snapshot-en_INT_20190731.txt", format!("{common}\tconceptId\tlanguageCode\ttypeId\tterm\tcaseSignificanceId")),
+            ("sct2_Relationship_Snapshot_INT_20190731.txt", format!("{common}\tsourceId\tdestinationId\trelationshipGroup\ttypeId\tcharacteristicTypeId\tmodifierId")),
+            ("sct2_RelationshipConcreteValues_Snapshot_INT_20190731.txt", format!("{common}\tsourceId\tvalue\trelationshipGroup\ttypeId\tcharacteristicTypeId\tmodifierId")),
+            ("sct2_Identifier_Snapshot_INT_20190731.txt", "alternateIdentifier\teffectiveTime\tactive\tmoduleId\tidentifierSchemeId\treferencedComponentId".to_string()),
+            ("der2_Refset_SimpleSnapshot_INT_20190731.txt", member.clone()),
+            ("der2_cRefset_LanguageSnapshot-en_INT_20190731.txt", format!("{member}\tacceptabilityId")),
+            ("der2_cRefset_AssociationSnapshot_INT_20190731.txt", format!("{member}\ttargetComponentId")),
+            ("der2_cRefset_AttributeValueSnapshot_INT_20190731.txt", format!("{member}\tvalueId")),
+            ("der2_sRefset_SimpleMapSnapshot_INT_20190731.txt", format!("{member}\tmapTarget")),
+            ("der2_iisssccRefset_ExtendedMapSnapshot_INT_20190731.txt", format!("{member}\tmapGroup\tmapPriority\tmapRule\tmapAdvice\tmapTarget\tcorrelationId\tmapCategoryId")),
+            ("der2_sRefset_OWLExpressionSnapshot_INT_20190731.txt", format!("{member}\towlExpression")),
+            ("der2_ssRefset_ModuleDependencySnapshot_INT_20190731.txt", format!("{member}\tsourceEffectiveTime\ttargetEffectiveTime")),
+            ("der2_cciRefset_RefsetDescriptorSnapshot_INT_20190731.txt", format!("{member}\tattributeDescription\tattributeType\tattributeOrder")),
+            ("der2_ciRefset_DescriptionTypeSnapshot_INT_20190731.txt", format!("{member}\tdescriptionFormat\tdescriptionLength")),
+            ("der2_sssssssRefset_MRCMDomainSnapshot_INT_20190731.txt", format!("{member}\tdomainConstraint\tparentDomain\tproximalPrimitiveConstraint\tproximalPrimitiveRefinement\tdomainTemplateForPrecoordination\tdomainTemplateForPostcoordination\tguideURL")),
+            ("der2_cissccRefset_MRCMAttributeDomainSnapshot_INT_20190731.txt", format!("{member}\tdomainId\tgrouped\tattributeCardinality\tattributeInGroupCardinality\truleStrengthId\tcontentTypeId")),
+            ("der2_ssccRefset_MRCMAttributeRangeSnapshot_INT_20190731.txt", format!("{member}\trangeConstraint\tattributeRule\truleStrengthId\tcontentTypeId")),
+            ("der2_cRefset_MRCMModuleScopeSnapshot_INT_20190731.txt", format!("{member}\tmrcmRuleRefsetId")),
+            ("der2_iRefset_OrderedComponentSnapshot_INT_20190731.txt", format!("{member}\torder")),
+            ("der2_ciRefset_OrderedAssociationSnapshot_INT_20190731.txt", format!("{member}\ttargetComponentId\torder")),
+            ("der2_scsRefset_ComponentAnnotationStringValueSnapshot_INT_20190731.txt", format!("{member}\tlanguageDialectCode\ttypeId\tvalue")),
+            ("der2_sscsRefset_MemberAnnotationStringValueSnapshot_INT_20190731.txt", format!("{member}\treferencedMemberId\tlanguageDialectCode\ttypeId\tvalue")),
+        ];
+        for (name, header) in cases {
+            let valid_row = header
+                .split('\t')
+                .map(|column| match column {
+                    "id" if name.starts_with("sct2_Concept") => "138875005".to_string(),
+                    "id" if name.starts_with("sct2_Description") => {
+                        SctId::compose(1001, snomed_core::sctid::ComponentType::Description, None)
+                            .unwrap()
+                            .to_string()
+                    }
+                    "id" if name.starts_with("sct2_") => {
+                        SctId::compose(1001, snomed_core::sctid::ComponentType::Relationship, None)
+                            .unwrap()
+                            .to_string()
+                    }
+                    "id" => "80000000-0000-4000-8000-000000000001".to_string(),
+                    "alternateIdentifier" => "CODE-1".to_string(),
+                    "referencedMemberId" => "90000000-0000-4000-8000-000000000001".to_string(),
+                    "effectiveTime" | "sourceEffectiveTime" | "targetEffectiveTime" => {
+                        "20190731".to_string()
+                    }
+                    "active" | "grouped" => "1".to_string(),
+                    "mapGroup" | "mapPriority" | "attributeOrder" | "descriptionLength"
+                    | "order" | "relationshipGroup" => "1".to_string(),
+                    "languageCode" => "en".to_string(),
+                    "languageDialectCode" => "en-GB".to_string(),
+                    "value" if name.contains("RelationshipConcreteValues") => "#1".to_string(),
+                    "moduleId" => "900000000000207008".to_string(),
+                    "definitionStatusId" => "900000000000074008".to_string(),
+                    "caseSignificanceId" => "900000000000448009".to_string(),
+                    "characteristicTypeId" => "900000000000011006".to_string(),
+                    "modifierId" => "900000000000451002".to_string(),
+                    "attributeDescription" | "attributeType" | "descriptionFormat" => {
+                        "138875005".to_string()
+                    }
+                    column if column.ends_with("Id") => "138875005".to_string(),
+                    _ => "x".to_string(),
+                })
+                .collect::<Vec<_>>()
+                .join("\t");
+            let invalid_fields = header
+                .split('\t')
+                .map(|_| "x")
+                .collect::<Vec<_>>()
+                .join("\t");
+            let path = root.join(name);
+            assert!(run(&args(&["export", path.to_str().unwrap()])).is_err());
+            fs::write(&path, "").unwrap();
+            assert!(run(&args(&["export", path.to_str().unwrap()])).is_err());
+            fs::write(&path, "wrong\n").unwrap();
+            assert!(run(&args(&["export", path.to_str().unwrap()])).is_err());
+            fs::write(&path, format!("{header}\n{invalid_fields}\n")).unwrap();
+            assert!(run(&args(&["export", path.to_str().unwrap()])).is_err());
+            fs::write(&path, format!("{header}\n{valid_row}\n")).unwrap();
+            assert!(!run(&args(&["export", path.to_str().unwrap()]))
+                .unwrap()
+                .is_empty());
+        }
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn summary_writers_handle_empty_present_and_capped_lists() {
+        let id = SctId::parse("138875005").unwrap();
+        let mut out = String::new();
+        write_ids(&mut out, "none", &[]);
+        assert!(out.is_empty());
+        write_ids(&mut out, "roots", &[id]);
+        assert!(out.contains("roots (1)"));
+
+        let values = [1, 2, 3, 4, 5, 6];
+        write_capped(&mut out, &values, |out, value| {
+            let _ = writeln!(out, "  {value}");
+        });
+        assert!(out.contains("... and 1 more"));
+        assert!(!out.contains("  6\n"));
+
+        write_parse_failure(&mut out, &(id, "bad axiom".to_string()));
+        assert!(out.contains("parse error on 138875005: bad axiom"));
+        let skipped = [snomed_classify::SkippedConstruct::ReflexiveProperty(id); 6];
+        write_capped(&mut out, &skipped, write_skipped_construct);
+        assert!(out.contains("ReflexiveObjectProperty"));
+        let failures = std::array::from_fn::<_, 6, _>(|_| (id, "bad axiom".to_string()));
+        write_capped(&mut out, &failures, write_parse_failure);
+        assert_eq!(concept_name(&SnapshotStore::builder().build(), id), "?");
     }
 }

@@ -51,9 +51,12 @@ code systems is expected to dispatch by `system` *before* calling in here.
   this crate has one store, loaded from one release, and honouring a
   version in the URL would mean either ignoring it (answering from the
   wrong release without saying so) or resolving it (a release-management
-  job outside this crate). A caller that receives a versioned URL strips
-  the version and passes it through the `version` parameter, which is
-  where this crate has always kept it.
+  job outside this crate). A host receiving a versioned URL must first
+  select the snapshot for that edition and date. It can then pass the
+  canonical unversioned URL with the original encoded query to `expand`.
+  For a request naming an explicit version, the host MUST reject an
+  unavailable edition or date before calling the semantic layer. For
+  `lookup`, pass the version of the snapshot selected by the host.
 
 ## `$lookup` ✅
 
@@ -194,7 +197,9 @@ spelling of the ECL form is
 accepts a `url` and cannot read that one is not accepting URLs. Decoding
 is ~20 lines of `std`, needs no dependency, and happens *after* the `?`
 and `fhir_vs=` splits, so an encoded `%3F`/`%3D` inside the payload can
-never be mistaken for a real delimiter.
+never be mistaken for a real delimiter. The caller passes the original URL.
+A query value is decoded exactly once, so `%2520` denotes the literal text
+`%20` inside an ECL term.
 
 Two decisions worth stating, since both could reasonably go the other
 way:
@@ -249,10 +254,9 @@ such, not claimed to be feature-complete text search.
    `SnapshotStore::subsumes` (spec/09) — no separate hierarchy walk, so
    subsumption semantics (active + inferred + IS-A only) stay in exactly
    one place, same discipline as `snomed-ecl` rule 4.
-3. Looking up a code absent from the store MUST NOT panic — it's a normal
-   "not found" outcome (`None`/`not-subsumed`-shaped), not an error, unless
-   the caller asked for a related operation that's structurally impossible
-   without it existing.
+3. For a supported system, `lookup` and `subsumes` MUST return
+   `FhirError::UnknownCode` for a code absent from the snapshot. A known
+   concept without a display term can still yield a successful lookup.
 4. A requested `$lookup` `property` this crate cannot compute at all MUST
    be rejected with `FhirError::UnsupportedProperty` naming that
    property, not silently dropped from the response — a caller asking
@@ -267,3 +271,16 @@ such, not claimed to be feature-complete text search.
 5. Implicit value set URI parsing MUST reuse `snomed-ecl`'s parser for the
    `ecl/` form and `SnapshotStore`'s existing hierarchy/membership queries
    for `isa/`/`refset/` — never a bespoke re-implementation of either.
+6. `$expand` MUST return only concept codes: for the `refset/` and `ecl/`
+   forms, a result identifier that is not a concept in the snapshot (e.g. a
+   description id from a language refset, or any other referenced component)
+   MUST be dropped before `total` is computed and the page is sliced. The
+   store and ECL keep raw membership (spec/08, spec/10); only the FHIR
+   boundary narrows it, because a FHIR `code` that does not resolve as a
+   concept is not a SNOMED CT code. An inactive concept stays eligible
+   (`activeOnly` is a separate filter).
+7. Each `$expand` `contains` entry MUST carry `inactive`
+   (`ValueSet.expansion.contains.inactive`), `true` exactly when the concept
+   is inactive in the snapshot, so a host that expands with `activeOnly`
+   false (e.g. to review historical entries) can tell them apart without a
+   second lookup.

@@ -5,25 +5,30 @@
 use std::collections::HashMap;
 use std::path::Path;
 
-use snomed_core::components::{Concept, Description, Relationship, RelationshipConcreteValue};
+use snomed_core::components::{
+    AlternateIdentifier, Concept, Description, Relationship, RelationshipConcreteValue,
+};
 use snomed_core::member_id::MemberId;
 use snomed_core::sctid::SctId;
 use snomed_core::time::EffectiveTime;
-use snomed_rf2::filename::{FileNameError, ReleaseFileName};
+use snomed_rf2::filename::ReleaseFileName;
 use snomed_rf2::refset::*;
 use snomed_rf2::release_type::ReleaseType;
 
 use crate::load::{collect_txt_files, load_rows, LoadError, LoadReport};
 
 /// Accumulates **every** version of a component (Concept, Description,
-/// Relationship) — the Full-view counterpart to [`crate::SnapshotStoreBuilder`],
-/// which keeps only the latest. See spec/09's History construction rules.
+/// Relationship, RelationshipConcreteValue), alternate identifier, and
+/// refset member — the Full-view counterpart to
+/// [`crate::SnapshotStoreBuilder`], which keeps only the latest. See spec/09's
+/// History construction rules.
 #[derive(Debug, Default)]
 pub struct HistoryStoreBuilder {
     concepts: HashMap<SctId, Vec<Concept>>,
     descriptions: HashMap<SctId, Vec<Description>>,
     relationships: HashMap<SctId, Vec<Relationship>>,
     relationship_concrete_values: HashMap<SctId, Vec<RelationshipConcreteValue>>,
+    alternate_identifiers: HashMap<(SctId, String), Vec<AlternateIdentifier>>,
     refsets: RefsetHistories,
 }
 
@@ -52,6 +57,12 @@ impl HistoryStoreBuilder {
             .entry(row.id)
             .or_default()
             .push(row);
+        self
+    }
+
+    pub fn add_alternate_identifier(&mut self, row: AlternateIdentifier) -> &mut Self {
+        let key = (row.identifier_scheme_id, row.alternate_identifier.clone());
+        self.alternate_identifiers.entry(key).or_default().push(row);
         self
     }
 
@@ -86,12 +97,25 @@ impl HistoryStoreBuilder {
         self
     }
 
-    /// Recursively loads every Full-view file under `dir`: the four
-    /// component types and all eighteen refset member types. Unlike [`crate::SnapshotStoreBuilder::load_release_dir`],
+    pub fn add_alternate_identifiers(
+        &mut self,
+        rows: impl IntoIterator<Item = AlternateIdentifier>,
+    ) -> &mut Self {
+        rows.into_iter().for_each(|row| {
+            self.add_alternate_identifier(row);
+        });
+        self
+    }
+
+    /// Recursively loads every Full-view file under `dir`: the four component
+    /// types, alternate identifiers, and all eighteen refset member types.
+    /// Unlike [`crate::SnapshotStoreBuilder::load_release_dir`],
     /// there's no `release_type` parameter — history only makes sense
     /// built from Full (spec/09 rule 2), so this always filters to Full.
     /// A file whose content type this workspace doesn't recognize is
     /// reported in [`LoadReport::skipped`], not treated as an error.
+    /// On error, previously applied rows remain in this builder. Stage a
+    /// refresh in a fresh builder and discard it on failure (spec/02 rule 5).
     pub fn load_release_dir(&mut self, dir: &Path) -> Result<LoadReport, LoadError> {
         let mut paths = Vec::new();
         collect_txt_files(dir, &mut paths)?;
@@ -99,19 +123,10 @@ impl HistoryStoreBuilder {
 
         let mut report = LoadReport::default();
         for path in paths {
-            let Some(file_name) = path.file_name().and_then(|n| n.to_str()) else {
-                report
-                    .skipped
-                    .push((path, "non-UTF-8 file name".to_string()));
-                continue;
-            };
-            let parsed = match ReleaseFileName::parse(file_name) {
-                Ok(p) => p,
-                Err(FileNameError::Extension) => continue,
-                Err(e) => {
-                    report
-                        .skipped
-                        .push((path, format!("not an RF2 release file name: {e}")));
+            let parsed = match crate::load::parse_release_path(&path) {
+                Ok(parsed) => parsed,
+                Err(reason) => {
+                    report.skipped.push((path, reason));
                     continue;
                 }
             };
@@ -127,140 +142,102 @@ impl HistoryStoreBuilder {
     }
 
     fn dispatch(&mut self, path: &Path, f: &ReleaseFileName) -> Result<Option<String>, LoadError> {
+        macro_rules! load {
+            ($record:ty, $add:ident) => {
+                return crate::load::finish_dispatch(load_rows::<$record, _>(path, |row| {
+                    self.$add(row);
+                }))
+            };
+        }
+
         match (f.content_type.as_str(), f.summary.as_str()) {
-            ("Concept", _) => {
-                load_rows::<Concept, _>(path, |r| {
-                    self.add_concept(r);
-                })?;
-            }
-            ("Description", _) | ("TextDefinition", _) => {
-                load_rows::<Description, _>(path, |r| {
-                    self.add_description(r);
-                })?;
-            }
+            ("Concept", _) => load!(Concept, add_concept),
+            ("Description", _) | ("TextDefinition", _) => load!(Description, add_description),
             ("Relationship", _) | ("StatedRelationship", _) => {
-                load_rows::<Relationship, _>(path, |r| {
-                    self.add_relationship(r);
-                })?;
+                load!(Relationship, add_relationship)
             }
             ("RelationshipConcreteValues", _) => {
-                load_rows::<RelationshipConcreteValue, _>(path, |r| {
-                    self.add_relationship_concrete_value(r);
-                })?;
+                load!(RelationshipConcreteValue, add_relationship_concrete_value)
             }
+            ("Identifier", _) => load!(AlternateIdentifier, add_alternate_identifier),
             // Refset files are classified by `load::refset_kind`, the one
             // place that knows RF2's file-naming heuristics — this match
             // only names the row type each kind loads.
             (content_type, summary) => match crate::load::refset_kind(content_type, summary) {
-                Some(crate::load::RefsetKind::Simple) => {
-                    load_rows::<SimpleRefsetMember, _>(path, |r| {
-                        self.add_simple_member(r);
-                    })?;
-                }
+                Some(crate::load::RefsetKind::Simple) => load!(SimpleRefsetMember, add_simple_member),
                 Some(crate::load::RefsetKind::Language) => {
-                    load_rows::<LanguageRefsetMember, _>(path, |r| {
-                        self.add_language_member(r);
-                    })?;
+                    load!(LanguageRefsetMember, add_language_member)
                 }
                 Some(crate::load::RefsetKind::Association) => {
-                    load_rows::<AssociationRefsetMember, _>(path, |r| {
-                        self.add_association_member(r);
-                    })?;
+                    load!(AssociationRefsetMember, add_association_member)
                 }
                 Some(crate::load::RefsetKind::AttributeValue) => {
-                    load_rows::<AttributeValueRefsetMember, _>(path, |r| {
-                        self.add_attribute_value_member(r);
-                    })?;
+                    load!(AttributeValueRefsetMember, add_attribute_value_member)
                 }
                 Some(crate::load::RefsetKind::SimpleMap) => {
-                    load_rows::<SimpleMapRefsetMember, _>(path, |r| {
-                        self.add_simple_map_member(r);
-                    })?;
+                    load!(SimpleMapRefsetMember, add_simple_map_member)
                 }
                 Some(crate::load::RefsetKind::ExtendedMap) => {
-                    load_rows::<ExtendedMapRefsetMember, _>(path, |r| {
-                        self.add_extended_map_member(r);
-                    })?;
+                    load!(ExtendedMapRefsetMember, add_extended_map_member)
                 }
                 Some(crate::load::RefsetKind::OwlExpression) => {
-                    load_rows::<OwlExpressionRefsetMember, _>(path, |r| {
-                        self.add_owl_expression_member(r);
-                    })?;
+                    load!(OwlExpressionRefsetMember, add_owl_expression_member)
                 }
                 Some(crate::load::RefsetKind::ModuleDependency) => {
-                    load_rows::<ModuleDependencyRefsetMember, _>(path, |r| {
-                        self.add_module_dependency_member(r);
-                    })?;
+                    load!(ModuleDependencyRefsetMember, add_module_dependency_member)
                 }
                 Some(crate::load::RefsetKind::RefsetDescriptor) => {
-                    load_rows::<RefsetDescriptorRefsetMember, _>(path, |r| {
-                        self.add_refset_descriptor_member(r);
-                    })?;
+                    load!(RefsetDescriptorRefsetMember, add_refset_descriptor_member)
                 }
                 Some(crate::load::RefsetKind::DescriptionType) => {
-                    load_rows::<DescriptionTypeRefsetMember, _>(path, |r| {
-                        self.add_description_type_member(r);
-                    })?;
+                    load!(DescriptionTypeRefsetMember, add_description_type_member)
                 }
                 Some(crate::load::RefsetKind::MrcmDomain) => {
-                    load_rows::<MrcmDomainRefsetMember, _>(path, |r| {
-                        self.add_mrcm_domain_member(r);
-                    })?;
+                    load!(MrcmDomainRefsetMember, add_mrcm_domain_member)
                 }
                 Some(crate::load::RefsetKind::MrcmAttributeDomain) => {
-                    load_rows::<MrcmAttributeDomainRefsetMember, _>(path, |r| {
-                        self.add_mrcm_attribute_domain_member(r);
-                    })?;
+                    load!(MrcmAttributeDomainRefsetMember, add_mrcm_attribute_domain_member)
                 }
                 Some(crate::load::RefsetKind::MrcmAttributeRange) => {
-                    load_rows::<MrcmAttributeRangeRefsetMember, _>(path, |r| {
-                        self.add_mrcm_attribute_range_member(r);
-                    })?;
+                    load!(MrcmAttributeRangeRefsetMember, add_mrcm_attribute_range_member)
                 }
                 Some(crate::load::RefsetKind::MrcmModuleScope) => {
-                    load_rows::<MrcmModuleScopeRefsetMember, _>(path, |r| {
-                        self.add_mrcm_module_scope_member(r);
-                    })?;
+                    load!(MrcmModuleScopeRefsetMember, add_mrcm_module_scope_member)
                 }
                 Some(crate::load::RefsetKind::OrderedComponent) => {
-                    load_rows::<OrderedComponentRefsetMember, _>(path, |r| {
-                        self.add_ordered_component_member(r);
-                    })?;
+                    load!(OrderedComponentRefsetMember, add_ordered_component_member)
                 }
                 Some(crate::load::RefsetKind::OrderedAssociation) => {
-                    load_rows::<OrderedAssociationRefsetMember, _>(path, |r| {
-                        self.add_ordered_association_member(r);
-                    })?;
+                    load!(OrderedAssociationRefsetMember, add_ordered_association_member)
                 }
                 Some(crate::load::RefsetKind::ComponentAnnotation) => {
-                    load_rows::<ComponentAnnotationRefsetMember, _>(path, |r| {
-                        self.add_component_annotation_member(r);
-                    })?;
+                    load!(ComponentAnnotationRefsetMember, add_component_annotation_member)
                 }
                 Some(crate::load::RefsetKind::MemberAnnotation) => {
-                    load_rows::<MemberAnnotationRefsetMember, _>(path, |r| {
-                        self.add_member_annotation_member(r);
-                    })?;
+                    load!(MemberAnnotationRefsetMember, add_member_annotation_member)
                 }
                 None => {
-                    return Ok(Some(format!(
+                    Ok(Some(format!(
                         "content type `{content_type}` (summary `{summary}`) is not yet loaded into HistoryStore"
                     )))
                 }
             },
         }
-        Ok(None)
     }
 
     /// Freezes the builder: sorts each component's versions ascending by
     /// `effectiveTime` (spec/09 rule 3).
     pub fn build(self) -> HistoryStore {
-        fn sorted<T>(
-            mut map: HashMap<SctId, Vec<T>>,
+        fn sorted<K: std::hash::Hash + Eq, T: Ord>(
+            mut map: HashMap<K, Vec<T>>,
             time_of: impl Fn(&T) -> u32,
-        ) -> HashMap<SctId, Vec<T>> {
+        ) -> HashMap<K, Vec<T>> {
             for versions in map.values_mut() {
-                versions.sort_by_key(&time_of);
+                versions.sort_by(|left, right| {
+                    time_of(left)
+                        .cmp(&time_of(right))
+                        .then_with(|| left.cmp(right))
+                });
             }
             map
         }
@@ -304,6 +281,9 @@ impl HistoryStoreBuilder {
                 self.relationship_concrete_values,
                 |r: &RelationshipConcreteValue| r.effective_time.as_u32(),
             ),
+            alternate_identifiers: sorted(self.alternate_identifiers, |identifier| {
+                identifier.effective_time.as_u32()
+            }),
             refsets,
         }
     }
@@ -317,6 +297,7 @@ pub struct HistoryStore {
     descriptions: HashMap<SctId, Vec<Description>>,
     relationships: HashMap<SctId, Vec<Relationship>>,
     relationship_concrete_values: HashMap<SctId, Vec<RelationshipConcreteValue>>,
+    alternate_identifiers: HashMap<(SctId, String), Vec<AlternateIdentifier>>,
     refsets: RefsetHistories,
 }
 
@@ -381,6 +362,32 @@ impl HistoryStore {
         point_in_time(self.relationship_concrete_value_history(id), at, |r| {
             r.effective_time
         })
+    }
+
+    /// Every version of an RF2 alternate-identifier association, oldest to
+    /// newest (spec/07-identifier-file.md rule 4).
+    pub fn alternate_identifier_history(
+        &self,
+        identifier_scheme_id: SctId,
+        alternate_identifier: &str,
+    ) -> &[AlternateIdentifier] {
+        self.alternate_identifiers
+            .get(&(identifier_scheme_id, alternate_identifier.to_owned()))
+            .map(Vec::as_slice)
+            .unwrap_or(&[])
+    }
+
+    pub fn alternate_identifier_at(
+        &self,
+        identifier_scheme_id: SctId,
+        alternate_identifier: &str,
+        at: EffectiveTime,
+    ) -> Option<&AlternateIdentifier> {
+        point_in_time(
+            self.alternate_identifier_history(identifier_scheme_id, alternate_identifier),
+            at,
+            |identifier| identifier.effective_time,
+        )
     }
 }
 
@@ -605,12 +612,67 @@ refset_member_history!(
     "member annotation"
 );
 
+#[cfg_attr(coverage_nightly, coverage(off))]
 #[cfg(test)]
 mod tests {
     use super::*;
+    use snomed_core::concrete_value::ConcreteValue;
     use snomed_core::constants;
+    use snomed_core::sctid::ComponentType;
 
     const MI: SctId = SctId::new_unchecked(22298006);
+
+    #[test]
+    fn history_dispatch_propagates_open_and_empty_file_errors_for_every_shape() {
+        let root = std::env::temp_dir().join(format!(
+            "snomed-history-dispatch-{}-{:?}",
+            std::process::id(),
+            std::thread::current().id()
+        ));
+        let _ = std::fs::remove_dir_all(&root);
+        std::fs::create_dir_all(&root).unwrap();
+        let names = [
+            "sct2_Concept_Full_INT_20190731.txt",
+            "sct2_Description_Full-en_INT_20190731.txt",
+            "sct2_Relationship_Full_INT_20190731.txt",
+            "sct2_RelationshipConcreteValues_Full_INT_20190731.txt",
+            "sct2_Identifier_Full_INT_20190731.txt",
+            "der2_Refset_SimpleFull_INT_20190731.txt",
+            "der2_cRefset_LanguageFull-en_INT_20190731.txt",
+            "der2_cRefset_AssociationFull_INT_20190731.txt",
+            "der2_cRefset_AttributeValueFull_INT_20190731.txt",
+            "der2_sRefset_SimpleMapFull_INT_20190731.txt",
+            "der2_iisssccRefset_ExtendedMapFull_INT_20190731.txt",
+            "der2_sRefset_OWLExpressionFull_INT_20190731.txt",
+            "der2_ssRefset_ModuleDependencyFull_INT_20190731.txt",
+            "der2_cciRefset_RefsetDescriptorFull_INT_20190731.txt",
+            "der2_ciRefset_DescriptionTypeFull_INT_20190731.txt",
+            "der2_sssssssRefset_MRCMDomainFull_INT_20190731.txt",
+            "der2_cissccRefset_MRCMAttributeDomainFull_INT_20190731.txt",
+            "der2_ssccRefset_MRCMAttributeRangeFull_INT_20190731.txt",
+            "der2_cRefset_MRCMModuleScopeFull_INT_20190731.txt",
+            "der2_iRefset_OrderedComponentFull_INT_20190731.txt",
+            "der2_ciRefset_OrderedAssociationFull_INT_20190731.txt",
+            "der2_scsRefset_ComponentAnnotationStringValueFull_INT_20190731.txt",
+            "der2_sscsRefset_MemberAnnotationStringValueFull_INT_20190731.txt",
+        ];
+        let mut builder = HistoryStoreBuilder::new();
+        for name in names {
+            let path = root.join(name);
+            let parsed = ReleaseFileName::parse(name).unwrap();
+            assert!(matches!(
+                builder.dispatch(&path, &parsed),
+                Err(LoadError::Io { .. })
+            ));
+            std::fs::write(&path, "").unwrap();
+            assert!(matches!(
+                builder.dispatch(&path, &parsed),
+                Err(LoadError::Rf2 { .. })
+            ));
+            std::fs::remove_file(path).unwrap();
+        }
+        std::fs::remove_dir_all(root).unwrap();
+    }
 
     fn concept(time: u32, active: bool) -> Concept {
         Concept {
@@ -619,6 +681,22 @@ mod tests {
             active,
             module_id: constants::CORE_MODULE,
             definition_status_id: constants::PRIMITIVE,
+        }
+    }
+
+    fn alternate_identifier(
+        scheme: SctId,
+        component: SctId,
+        time: u32,
+        active: bool,
+    ) -> AlternateIdentifier {
+        AlternateIdentifier {
+            alternate_identifier: "CODE-1".to_owned(),
+            effective_time: EffectiveTime::new_unchecked(time),
+            active,
+            module_id: constants::CORE_MODULE,
+            identifier_scheme_id: scheme,
+            referenced_component_id: component,
         }
     }
 
@@ -672,6 +750,143 @@ mod tests {
     }
 
     #[test]
+    fn alternate_identifier_history_is_composite_and_point_in_time() {
+        let scheme = SctId::compose(2001, ComponentType::Concept, None).unwrap();
+        let component = SctId::compose(3001, ComponentType::Concept, None).unwrap();
+        let mut builder = HistoryStore::builder();
+        builder.add_alternate_identifiers([
+            alternate_identifier(scheme, component, 20250131, false),
+            alternate_identifier(scheme, component, 20240131, true),
+        ]);
+        let store = builder.build();
+
+        let history = store.alternate_identifier_history(scheme, "CODE-1");
+        assert_eq!(
+            history
+                .iter()
+                .map(|row| row.effective_time.as_u32())
+                .collect::<Vec<_>>(),
+            vec![20240131, 20250131]
+        );
+        assert!(
+            store
+                .alternate_identifier_at(scheme, "CODE-1", EffectiveTime::new_unchecked(20241231))
+                .unwrap()
+                .active
+        );
+        assert!(store
+            .alternate_identifier_at(scheme, "CODE-1", EffectiveTime::new_unchecked(20230131))
+            .is_none());
+        assert!(
+            !store
+                .alternate_identifier_at(scheme, "CODE-1", EffectiveTime::new_unchecked(20260131))
+                .unwrap()
+                .active
+        );
+        assert!(store
+            .alternate_identifier_at(scheme, "missing", EffectiveTime::new_unchecked(20241231))
+            .is_none());
+    }
+
+    #[test]
+    fn alternate_identifier_equal_time_history_is_deterministic() {
+        let scheme = SctId::compose(2001, ComponentType::Concept, None).unwrap();
+        let component = SctId::compose(3001, ComponentType::Concept, None).unwrap();
+        let active = alternate_identifier(scheme, component, 20250131, true);
+        let inactive = alternate_identifier(scheme, component, 20250131, false);
+
+        let build = |rows: [AlternateIdentifier; 2]| {
+            let mut builder = HistoryStore::builder();
+            builder.add_alternate_identifiers(rows);
+            builder.build()
+        };
+        let forward = build([active.clone(), inactive.clone()]);
+        let reverse = build([inactive, active]);
+
+        assert_eq!(
+            forward.alternate_identifier_history(scheme, "CODE-1"),
+            reverse.alternate_identifier_history(scheme, "CODE-1")
+        );
+        assert!(!forward.alternate_identifier_history(scheme, "CODE-1")[0].active);
+    }
+
+    #[test]
+    fn bulk_component_paths_preserve_each_types_own_history() {
+        let description_id = SctId::compose(4001, ComponentType::Description, None).unwrap();
+        let relationship_id = SctId::compose(4002, ComponentType::Relationship, None).unwrap();
+        let concrete_id = SctId::compose(4003, ComponentType::Relationship, None).unwrap();
+        let description = Description {
+            id: description_id,
+            effective_time: EffectiveTime::new_unchecked(20240131),
+            active: true,
+            module_id: constants::CORE_MODULE,
+            concept_id: MI,
+            language_code: "en".to_owned(),
+            type_id: constants::SYNONYM,
+            term: "Example".to_owned(),
+            case_significance_id: constants::CASE_INSENSITIVE,
+        };
+        let relationship = Relationship {
+            id: relationship_id,
+            effective_time: EffectiveTime::new_unchecked(20240131),
+            active: true,
+            module_id: constants::CORE_MODULE,
+            source_id: MI,
+            destination_id: constants::ROOT_CONCEPT,
+            relationship_group: 0,
+            type_id: constants::IS_A,
+            characteristic_type_id: constants::INFERRED_RELATIONSHIP,
+            modifier_id: constants::EXISTENTIAL_MODIFIER,
+        };
+        let concrete = RelationshipConcreteValue {
+            id: concrete_id,
+            effective_time: EffectiveTime::new_unchecked(20240131),
+            active: true,
+            module_id: constants::CORE_MODULE,
+            source_id: MI,
+            value: ConcreteValue::Number("1.5".to_owned()),
+            relationship_group: 0,
+            type_id: constants::IS_A,
+            characteristic_type_id: constants::INFERRED_RELATIONSHIP,
+            modifier_id: constants::EXISTENTIAL_MODIFIER,
+        };
+
+        let mut builder = HistoryStore::builder();
+        builder
+            .add_concepts([concept(20240131, true)])
+            .add_descriptions([description])
+            .add_relationships([relationship])
+            .add_relationship_concrete_values([concrete]);
+        let store = builder.build();
+        let at = EffectiveTime::new_unchecked(20241231);
+
+        assert_eq!(store.description_history(description_id).len(), 1);
+        assert_eq!(
+            store.description_at(description_id, at).unwrap().term,
+            "Example"
+        );
+        assert_eq!(store.relationship_history(relationship_id).len(), 1);
+        assert_eq!(
+            store
+                .relationship_at(relationship_id, at)
+                .unwrap()
+                .destination_id,
+            constants::ROOT_CONCEPT
+        );
+        assert_eq!(
+            store.relationship_concrete_value_history(concrete_id).len(),
+            1
+        );
+        assert_eq!(
+            store
+                .relationship_concrete_value_at(concrete_id, at)
+                .unwrap()
+                .value,
+            ConcreteValue::Number("1.5".to_owned())
+        );
+    }
+
+    #[test]
     fn unknown_id_has_empty_history() {
         let store = HistoryStore::builder().build();
         assert!(store.concept_history(MI).is_empty());
@@ -714,6 +929,36 @@ mod tests {
     }
 
     #[test]
+    fn history_loader_dispatches_identifier_files() {
+        let tmp = TempDir::new("identifier-history-load");
+        let scheme = SctId::compose(2001, ComponentType::Concept, None).unwrap();
+        let component = SctId::compose(3001, ComponentType::Concept, None).unwrap();
+        write(
+            tmp.path(),
+            "Full/Terminology/sct2_Identifier_Full_INT_20250321.txt",
+            &format!(
+                "alternateIdentifier\teffectiveTime\tactive\tmoduleId\tidentifierSchemeId\treferencedComponentId\n\
+                 CODE-1\t20240131\t1\t{}\t{scheme}\t{component}\n\
+                 CODE-1\t20250321\t0\t{}\t{scheme}\t{component}\n",
+                constants::CORE_MODULE,
+                constants::CORE_MODULE
+            ),
+        );
+
+        let mut builder = HistoryStore::builder();
+        let report = builder.load_release_dir(tmp.path()).unwrap();
+        assert_eq!(report.loaded.len(), 1);
+        assert!(report.skipped.is_empty());
+        assert_eq!(
+            builder
+                .build()
+                .alternate_identifier_history(scheme, "CODE-1")
+                .len(),
+            2
+        );
+    }
+
+    #[test]
     fn load_release_dir_only_loads_full_view_and_keeps_every_version() {
         let tmp = TempDir::new("history-load");
         let root = tmp.path();
@@ -732,6 +977,48 @@ mod tests {
                 constants::PRIMITIVE,
             ),
         );
+        let description_id = SctId::compose(4101, ComponentType::Description, None).unwrap();
+        write(
+            root,
+            "Full/Terminology/sct2_Description_Full-en_INT_20210101.txt",
+            &format!(
+                "id\teffectiveTime\tactive\tmoduleId\tconceptId\tlanguageCode\ttypeId\tterm\tcaseSignificanceId\n\
+                 {description_id}\t20190731\t1\t{}\t{MI}\ten\t{}\tOld term\t{}\n\
+                 {description_id}\t20200131\t1\t{}\t{MI}\ten\t{}\tNew term\t{}\n",
+                constants::CORE_MODULE,
+                constants::SYNONYM,
+                constants::CASE_INSENSITIVE,
+                constants::CORE_MODULE,
+                constants::SYNONYM,
+                constants::CASE_INSENSITIVE,
+            ),
+        );
+        let relationship_id = SctId::compose(4102, ComponentType::Relationship, None).unwrap();
+        write(
+            root,
+            "Full/Terminology/sct2_Relationship_Full_INT_20210101.txt",
+            &format!(
+                "id\teffectiveTime\tactive\tmoduleId\tsourceId\tdestinationId\trelationshipGroup\ttypeId\tcharacteristicTypeId\tmodifierId\n\
+                 {relationship_id}\t20190731\t1\t{}\t{MI}\t{}\t0\t{}\t{}\t{}\n\
+                 {relationship_id}\t20200131\t0\t{}\t{MI}\t{}\t0\t{}\t{}\t{}\n",
+                constants::CORE_MODULE,
+                constants::ROOT_CONCEPT,
+                constants::IS_A,
+                constants::INFERRED_RELATIONSHIP,
+                constants::EXISTENTIAL_MODIFIER,
+                constants::CORE_MODULE,
+                constants::ROOT_CONCEPT,
+                constants::IS_A,
+                constants::INFERRED_RELATIONSHIP,
+                constants::EXISTENTIAL_MODIFIER,
+            ),
+        );
+        write(
+            root,
+            "Full/Terminology/sct2_Unknown_Full_INT_20210101.txt",
+            "ignored\n",
+        );
+        write(root, "Full/Terminology/notes.txt", "ignored\n");
 
         // A Snapshot file for the same concept: must be filtered out
         // entirely, not merged into the history (spec/09 rule 2).
@@ -748,14 +1035,16 @@ mod tests {
 
         let mut builder = HistoryStore::builder();
         let report = builder.load_release_dir(root).unwrap();
-        assert_eq!(report.loaded.len(), 1, "{:?}", report.loaded);
-        assert_eq!(report.skipped.len(), 0, "{:?}", report.skipped);
+        assert_eq!(report.loaded.len(), 3, "{:?}", report.loaded);
+        assert_eq!(report.skipped.len(), 2, "{:?}", report.skipped);
 
         let store = builder.build();
         let history = store.concept_history(MI);
         assert_eq!(history.len(), 2, "the Snapshot row must not be merged in");
         assert_eq!(history[0].effective_time.as_u32(), 20190731);
         assert_eq!(history[1].effective_time.as_u32(), 20200131);
+        assert_eq!(store.description_history(description_id).len(), 2);
+        assert_eq!(store.relationship_history(relationship_id).len(), 2);
     }
 
     #[test]

@@ -10,6 +10,9 @@ keywords.workspace = true
 categories.workspace = true
 authors.workspace = true
 
+[lints]
+workspace = true
+
 [dependencies]
 snomed-core.workspace = true
 snomed-owl.workspace = true
