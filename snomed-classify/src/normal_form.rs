@@ -73,7 +73,6 @@ pub fn necessary_normal_form(axioms: &[Axiom]) -> NecessaryNormalFormReport {
         role_ancestors: &role_ancestors,
         proximal: &proximal,
         cache: HashMap::new(),
-        in_progress: HashSet::new(),
         chains: None,
     };
 
@@ -85,12 +84,7 @@ pub fn necessary_normal_form(axioms: &[Axiom]) -> NecessaryNormalFormReport {
     for &c in &concepts {
         let candidates = groups_for(c, &mut ctx);
         let is_a = proximal.get(&c).cloned().unwrap_or_default();
-        match finalize(is_a, candidates) {
-            Some(form) => {
-                forms.insert(c, form);
-            }
-            None => skipped.push(SkippedConstruct::UnnumberableGroups { concept: c }),
-        }
+        record_form(&mut forms, &mut skipped, c, finalize(is_a, candidates));
     }
 
     // Second pass: with the node graphs built, re-normalize the concepts
@@ -124,19 +118,30 @@ pub fn necessary_normal_form(axioms: &[Axiom]) -> NecessaryNormalFormReport {
             ctx.cache.remove(&c);
             let candidates = groups_for(c, &mut ctx);
             let is_a = proximal.get(&c).cloned().unwrap_or_default();
-            match finalize(is_a, candidates) {
-                Some(form) => {
-                    forms.insert(c, form);
-                }
-                None => {
-                    forms.remove(&c);
-                    skipped.push(SkippedConstruct::UnnumberableGroups { concept: c });
-                }
-            }
+            record_form(&mut forms, &mut skipped, c, finalize(is_a, candidates));
         }
     }
 
     NecessaryNormalFormReport { forms, skipped }
+}
+
+/// Stores `c`'s form, or, when its groups could not be numbered, removes
+/// any earlier form and reports the concept instead (RCA-CONV-1).
+fn record_form(
+    forms: &mut HashMap<SctId, NecessaryNormalForm>,
+    skipped: &mut Vec<SkippedConstruct>,
+    c: SctId,
+    form: Option<NecessaryNormalForm>,
+) {
+    match form {
+        Some(form) => {
+            forms.insert(c, form);
+        }
+        None => {
+            forms.remove(&c);
+            skipped.push(SkippedConstruct::UnnumberableGroups { concept: c });
+        }
+    }
 }
 
 fn dedup_unordered<T: PartialEq + Copy>(items: &mut Vec<T>) {
@@ -318,7 +323,6 @@ struct Context<'a> {
     role_ancestors: &'a HashMap<SctId, HashSet<SctId>>,
     proximal: &'a HashMap<SctId, Vec<SctId>>,
     cache: HashMap<SctId, Vec<GroupCandidate>>,
-    in_progress: HashSet<SctId>,
     /// `None` during the first pass, `Some` during the second: Rule 2
     /// needs the node graphs, and those can only be built once every
     /// concept's first-pass form is known (spec/14).
@@ -335,21 +339,29 @@ struct GroupCandidate {
 
 /// Computes (and caches) `c`'s redundancy-reduced attribute groups:
 /// its own stated groups plus each proximal parent's already-reduced
-/// groups, combined via [`insert_candidate`]. Cycle-safe: a concept
-/// reachable from itself via proximal-parent edges (only possible via a
-/// degenerate `EquivalentClasses` cycle — spec/14 rule 3) contributes
-/// nothing rather than recursing forever.
+/// groups, combined via [`insert_candidate`].
+///
+/// Equivalent concepts are computed together, as one class: every
+/// member's stated groups plus the groups of every member's proximal
+/// parents outside the class, cached for each member. Equivalents are each
+/// other's proximal parents, so computing one alone would meet the other
+/// in progress and cache a result missing its groups, depending on which
+/// was visited first (spec/14 rule 3; spec/09 rule 5's determinism).
+/// Every parent followed is strictly more general than the class (a
+/// parent equivalent to it would be in it), and strict subsumption is
+/// acyclic, so the recursion terminates without an in-progress guard.
 fn groups_for(c: SctId, ctx: &mut Context<'_>) -> Vec<GroupCandidate> {
     if let Some(cached) = ctx.cache.get(&c) {
         return cached.clone();
     }
-    if !ctx.in_progress.insert(c) {
-        return Vec::new();
-    }
+    let mut class: Vec<SctId> = ctx.classification.equivalent_to(c).collect();
+    class.push(c);
+    class.sort_unstable();
+    class.dedup();
 
     let mut candidates: Vec<GroupCandidate> = Vec::new();
 
-    if let Some(profile) = ctx.profiles.get(&c) {
+    for profile in class.iter().filter_map(|member| ctx.profiles.get(member)) {
         for &attr in &profile.ungrouped {
             insert_candidate(
                 &mut candidates,
@@ -376,7 +388,13 @@ fn groups_for(c: SctId, ctx: &mut Context<'_>) -> Vec<GroupCandidate> {
         }
     }
 
-    let parents = ctx.proximal.get(&c).cloned().unwrap_or_default();
+    let mut parents: Vec<SctId> = class
+        .iter()
+        .flat_map(|member| ctx.proximal.get(member).into_iter().flatten().copied())
+        .filter(|parent| class.binary_search(parent).is_err())
+        .collect();
+    parents.sort_unstable();
+    parents.dedup();
     for parent in parents {
         for inherited in groups_for(parent, ctx) {
             insert_candidate(
@@ -389,8 +407,9 @@ fn groups_for(c: SctId, ctx: &mut Context<'_>) -> Vec<GroupCandidate> {
         }
     }
 
-    ctx.in_progress.remove(&c);
-    ctx.cache.insert(c, candidates.clone());
+    for member in class {
+        ctx.cache.insert(member, candidates.clone());
+    }
     candidates
 }
 
@@ -490,7 +509,17 @@ fn group_number(index: usize) -> Option<u32> {
 }
 
 /// `None` when a group cannot be numbered; see [`group_number`].
-fn finalize(mut is_a: Vec<SctId>, candidates: Vec<GroupCandidate>) -> Option<NecessaryNormalForm> {
+fn finalize(is_a: Vec<SctId>, candidates: Vec<GroupCandidate>) -> Option<NecessaryNormalForm> {
+    finalize_numbered(is_a, candidates, group_number)
+}
+
+/// [`finalize`] with its group numbering supplied, so the refusal path is
+/// testable without four billion groups.
+fn finalize_numbered(
+    mut is_a: Vec<SctId>,
+    candidates: Vec<GroupCandidate>,
+    number: impl Fn(usize) -> Option<u32>,
+) -> Option<NecessaryNormalForm> {
     is_a.sort();
     is_a.dedup();
 
@@ -520,7 +549,7 @@ fn finalize(mut is_a: Vec<SctId>, candidates: Vec<GroupCandidate>) -> Option<Nec
         })
         .collect();
     for (index, group) in numbered_groups.into_iter().enumerate() {
-        let group_number = group_number(index)?;
+        let group_number = number(index)?;
         attributes.extend(
             group
                 .into_iter()
@@ -541,8 +570,34 @@ mod tests {
     use super::*;
 
     #[test]
+    fn unnumberable_groups_replace_a_form_with_a_report() {
+        let c = id(1098);
+        let attribute = (id(1099), id(1100));
+        let numbered = || {
+            vec![GroupCandidate {
+                group0: false,
+                fragments: vec![attribute],
+            }]
+        };
+        assert!(finalize_numbered(vec![], numbered(), |_| None).is_none());
+        assert!(finalize_numbered(vec![], numbered(), group_number).is_some());
+
+        let mut forms = HashMap::new();
+        let mut skipped = Vec::new();
+        record_form(&mut forms, &mut skipped, c, finalize(vec![], numbered()));
+        assert!(forms.contains_key(&c));
+        record_form(&mut forms, &mut skipped, c, None);
+        assert!(forms.is_empty());
+        assert_eq!(
+            skipped,
+            vec![SkippedConstruct::UnnumberableGroups { concept: c }]
+        );
+    }
+
+    #[test]
     fn group_number_is_one_based_and_refuses_past_u32() {
         assert_eq!(group_number(0), Some(1));
+        assert_eq!(group_number(usize::MAX), None);
         if let Ok(last) = usize::try_from(4_294_967_294_u64) {
             assert_eq!(group_number(last), Some(u32::MAX)); // last success
             assert_eq!(group_number(last + 1), None); // first failure
@@ -801,6 +856,36 @@ mod tests {
                 destination_id: value
             }]
         );
+    }
+
+    #[test]
+    fn equivalent_concepts_share_attributes_deterministically() {
+        // spec/14 rule 3: `A` and `B` are equivalent (each is the
+        // other's proximal parent). Whichever the traversal reached second
+        // used to see an in-progress cycle, inherit nothing, and cache
+        // that; which one lost the attribute depended on HashSet order.
+        let p = id(1093);
+        let a = id(1094);
+        let b = id(1095);
+        let attr = id(1096);
+        let value = id(1097);
+        let axioms = [
+            ax(&format!(
+                "EquivalentClasses(:{a} ObjectIntersectionOf(:{p} ObjectSomeValuesFrom(:{attr} :{value})))"
+            )),
+            ax(&format!("SubClassOf(:{b} :{a})")),
+            ax(&format!("SubClassOf(:{a} :{b})")),
+        ];
+        let expected = vec![Attribute {
+            group: 0,
+            type_id: attr,
+            destination_id: value,
+        }];
+        for _ in 0..30 {
+            let report = necessary_normal_form(&axioms);
+            assert_eq!(report.forms[&a].attributes, expected);
+            assert_eq!(report.forms[&b].attributes, expected);
+        }
     }
 
     #[test]

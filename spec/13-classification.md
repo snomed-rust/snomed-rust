@@ -153,11 +153,15 @@ three below are the complete set for classification proper.)
 - **`SubDataPropertyOf`** and **`DataHasValue`** (concrete values/concrete
   domains): comparing concrete values (numeric ranges, string patterns)
   is a fundamentally different kind of reasoning than EL's qualitative
-  completion — a `DataHasValue` conjunct inside an `ObjectIntersectionOf`
-  is dropped from the conjunct list (the rest of the intersection is
-  still classified normally); a bare `DataHasValue` used where a single
-  concept id is required normalizes to an isolated fresh concept with no
-  defining axioms (matches nothing, is matched by nothing).
+  completion. A `DataHasValue` is therefore never *dropped* — dropping
+  it from a premise (`B ⊓ DataHasValue(..) ⊑ A` read as `B ⊑ A`) would
+  entail subsumptions the axioms do not, which is unsound. Wherever it
+  occurs (a conjunct, a filler, a whole side) it normalizes to an atom
+  with no defining axioms, one atom per identical
+  `(attribute, value, datatype)` restriction, since an identical
+  restriction is the identical class. Only that exact atom relates to it,
+  so results stay sound and are incomplete only for concrete-value
+  reasoning (ranges, other literals, `SubDataPropertyOf`).
 - ~~**The "necessary normal form" relationship-generation pipeline**~~ —
   now implemented, see `spec/14-necessary-normal-form.md` and
   `necessary_normal_form`. `Classification` itself still only answers

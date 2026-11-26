@@ -271,10 +271,11 @@ such, not claimed to be feature-complete text search.
 5. Implicit value set URI parsing MUST reuse `snomed-ecl`'s parser for the
    `ecl/` form and `SnapshotStore`'s existing hierarchy/membership queries
    for `isa/`/`refset/` — never a bespoke re-implementation of either.
-6. `$expand` MUST return only concept codes: for the `refset/` and `ecl/`
-   forms, a result identifier that is not a concept in the snapshot (e.g. a
-   description id from a language refset, or any other referenced component)
-   MUST be dropped before `total` is computed and the page is sliced. The
+6. `$expand` MUST return only concept codes: for the bare `refset`,
+   `refset/`, and `ecl/` forms, a result identifier that is not a concept
+   in the snapshot (e.g. a refset id whose concept is not loaded, a
+   description id from a language refset, or any other referenced
+   component) MUST be dropped before `total` is computed and the page is sliced. The
    store and ECL keep raw membership (spec/08, spec/10); only the FHIR
    boundary narrows it, because a FHIR `code` that does not resolve as a
    concept is not a SNOMED CT code. An inactive concept stays eligible

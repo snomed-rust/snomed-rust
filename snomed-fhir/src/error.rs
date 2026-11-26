@@ -117,6 +117,10 @@ mod tests {
                 "malformed percent-encoding in url `bad%`",
             ),
             (
+                FhirError::InvalidPaging("offset 9 is past the end".to_owned()),
+                "invalid paging: offset 9 is past the end",
+            ),
+            (
                 FhirError::InvalidEcl("unexpected token".to_owned()),
                 "invalid ECL in implicit value set: unexpected token",
             ),

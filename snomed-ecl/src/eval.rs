@@ -2059,23 +2059,74 @@ fn evaluate_attribute_constraint(
     }
 }
 
+/// Splits a `["-" | "+"] digit+ ["." digit+]` decimal literal into its
+/// sign and canonical integer/fraction digits: leading integer zeros and
+/// trailing fraction zeros are dropped, and zero is never negative. Any
+/// other spelling (an exponent, `inf`, an empty part) is `None` — the
+/// grammar spec/10 and `ConcreteValue::parse` share admits nothing else.
+fn canonical_decimal(literal: &str) -> Option<(bool, &str, &str)> {
+    let (negative, unsigned) = match literal.as_bytes().first() {
+        Some(b'-') => (true, &literal[1..]),
+        Some(b'+') => (false, &literal[1..]),
+        _ => (false, literal),
+    };
+    let (integer, fraction) = match unsigned.split_once('.') {
+        Some((integer, fraction)) if !fraction.is_empty() => (integer, fraction),
+        Some(_) => return None,
+        None => (unsigned, ""),
+    };
+    if integer.is_empty()
+        || !integer.bytes().all(|b| b.is_ascii_digit())
+        || !fraction.bytes().all(|b| b.is_ascii_digit())
+    {
+        return None;
+    }
+    let integer = integer.trim_start_matches('0');
+    let fraction = fraction.trim_end_matches('0');
+    let is_zero = integer.is_empty() && fraction.is_empty();
+    Some((negative && !is_zero, integer, fraction))
+}
+
+/// Orders two decimal literals exactly, digit by digit — never through a
+/// binary float, which conflates `9007199254740993` with
+/// `9007199254740992` (spec/10-ecl-refinements.md "Concrete value
+/// comparisons"). `None` when either is not a decimal literal.
+fn compare_decimal(actual: &str, target: &str) -> Option<std::cmp::Ordering> {
+    use std::cmp::Ordering;
+    let (a_negative, a_integer, a_fraction) = canonical_decimal(actual)?;
+    let (b_negative, b_integer, b_fraction) = canonical_decimal(target)?;
+    let magnitude = a_integer
+        .len()
+        .cmp(&b_integer.len())
+        .then_with(|| a_integer.cmp(b_integer))
+        // Trailing zeros are trimmed, so plain lexicographic order on the
+        // fraction digits is numeric order ("5" > "25", "5" < "51").
+        .then_with(|| a_fraction.cmp(b_fraction));
+    Some(match (a_negative, b_negative) {
+        (false, true) => Ordering::Greater,
+        (true, false) => Ordering::Less,
+        (false, false) => magnitude,
+        (true, true) => magnitude.reverse(),
+    })
+}
+
 /// Compares two decimal literals (stored as text, per `ConcreteValue`'s
-/// own "preserve precision" convention) as `f64`. `Eq`/`NotEq` both
+/// own "preserve precision" convention) exactly via [`compare_decimal`]. `Eq`/`NotEq` both
 /// check equality here — see `evaluate_attribute_constraint`'s doc for
 /// why `NotEq`'s negation is applied at the cardinality level instead.
 /// A literal that somehow fails to parse (shouldn't happen — both RF2
 /// and this parser constrain the grammar) never matches, rather than
 /// panicking.
 fn numeric_matches(operator: NumericComparisonOp, actual: &str, target: &str) -> bool {
-    let (Ok(a), Ok(b)) = (actual.parse::<f64>(), target.parse::<f64>()) else {
+    let Some(ordering) = compare_decimal(actual, target) else {
         return false;
     };
     match operator {
-        NumericComparisonOp::Eq | NumericComparisonOp::NotEq => a == b,
-        NumericComparisonOp::Le => a <= b,
-        NumericComparisonOp::Lt => a < b,
-        NumericComparisonOp::Ge => a >= b,
-        NumericComparisonOp::Gt => a > b,
+        NumericComparisonOp::Eq | NumericComparisonOp::NotEq => ordering.is_eq(),
+        NumericComparisonOp::Le => ordering.is_le(),
+        NumericComparisonOp::Lt => ordering.is_lt(),
+        NumericComparisonOp::Ge => ordering.is_ge(),
+        NumericComparisonOp::Gt => ordering.is_gt(),
     }
 }
 
@@ -2092,16 +2143,16 @@ fn numeric_matches(operator: NumericComparisonOp, actual: &str, target: &str) ->
 /// into `mapGroup = #1` — caught by
 /// `member_filter_map_group_comparison_operators` before it shipped.
 fn field_numeric_matches(operator: NumericComparisonOp, actual: &str, target: &str) -> bool {
-    let (Ok(a), Ok(b)) = (actual.parse::<f64>(), target.parse::<f64>()) else {
+    let Some(ordering) = compare_decimal(actual, target) else {
         return false;
     };
     match operator {
-        NumericComparisonOp::Eq => a == b,
-        NumericComparisonOp::NotEq => a != b,
-        NumericComparisonOp::Le => a <= b,
-        NumericComparisonOp::Lt => a < b,
-        NumericComparisonOp::Ge => a >= b,
-        NumericComparisonOp::Gt => a > b,
+        NumericComparisonOp::Eq => ordering.is_eq(),
+        NumericComparisonOp::NotEq => ordering.is_ne(),
+        NumericComparisonOp::Le => ordering.is_le(),
+        NumericComparisonOp::Lt => ordering.is_lt(),
+        NumericComparisonOp::Ge => ordering.is_ge(),
+        NumericComparisonOp::Gt => ordering.is_gt(),
     }
 }
 
@@ -9999,6 +10050,63 @@ mod tests {
             &PreparedMemberFilter::Term(vec![PreparedSearch::Exact]),
             &core,
             &TypedFields::default()
+        ));
+    }
+
+    /// Decimal literals compare exactly, never through `f64`
+    /// (spec/10-ecl-refinements.md "Concrete value comparisons").
+    #[test]
+    fn decimal_comparison_is_exact() {
+        use std::cmp::Ordering::{Equal, Greater, Less};
+        let cases = [
+            ("9007199254740993", "9007199254740992", Greater),
+            ("9007199254740992", "9007199254740993", Less),
+            ("0.30000000000000001", "0.3", Greater),
+            ("1.50", "1.5", Equal),
+            ("+007", "7.000", Equal),
+            ("-0", "0.0", Equal),
+            ("-0.0", "+0", Equal),
+            ("-1", "1", Less),
+            ("1", "-1", Greater),
+            ("-2.5", "-2.25", Less),
+            ("-2.25", "-2.5", Greater),
+            ("10", "9.99", Greater),
+            ("0.5", "0.25", Greater),
+            ("0.5", "0.51", Less),
+            (
+                "123456789012345678901234567890",
+                "123456789012345678901234567891",
+                Less,
+            ),
+        ];
+        for (a, b, expected) in cases {
+            assert_eq!(compare_decimal(a, b), Some(expected), "{a} vs {b}");
+        }
+        for bad in [
+            "", "-", "+", ".5", "5.", "1e5", "inf", "NaN", "1.2.3", "--1", "1_0", "١",
+        ] {
+            assert_eq!(compare_decimal(bad, "1"), None, "{bad:?}");
+            assert_eq!(compare_decimal("1", bad), None, "{bad:?}");
+        }
+        assert!(numeric_matches(
+            NumericComparisonOp::Gt,
+            "9007199254740993",
+            "9007199254740992"
+        ));
+        assert!(!numeric_matches(
+            NumericComparisonOp::Eq,
+            "9007199254740993",
+            "9007199254740992"
+        ));
+        assert!(field_numeric_matches(
+            NumericComparisonOp::NotEq,
+            "9007199254740993",
+            "9007199254740992"
+        ));
+        assert!(!field_numeric_matches(
+            NumericComparisonOp::Le,
+            "9007199254740993",
+            "9007199254740992"
         ));
     }
 }

@@ -27,6 +27,22 @@ together, in dependency order (`snomed-core` → `snomed-rf2` → `snomed-owl`
 - The synthetic-release and synthetic-ontology benchmark examples fail on a malformed
   `SNOMED_BENCH_CONCEPTS`/`N` instead of using the default.
 
+### Fixed
+
+- `snomed-classify`: `classify` no longer drops a `DataHasValue` from a premise, which entailed
+  subsumptions the axioms do not (`A ≡ B ⊓ DataHasValue(..)` made every `B` an `A`). Each
+  distinct restriction is now an opaque atom on both sides (spec/13).
+- `snomed-classify`: `necessary_normal_form` computes equivalent concepts as one class, so each
+  carries the same inherited attributes on every run instead of one losing them depending on
+  hash order (spec/14 rule 3).
+- `snomed-ecl`: numeric concrete-value and numeric `memberFieldFilter` comparisons are exact
+  decimal comparisons, not `f64` (`#9007199254740993` no longer equals `#9007199254740992`).
+- `snomed-fhir`: the bare `refset` `$expand` form drops refset ids with no loaded concept instead
+  of emitting them as inactive codes (spec/11 rule 6).
+- `snomed-cli`: `validate` exits 1, still printing the report to stdout, when it finds issues or
+  loads no concepts (new `ValidationFailed` error). Directory `export` refuses two inputs that
+  would write the same output file instead of overwriting one and counting both.
+
 ## [0.57.0] — 2026-11-17
 
 **Breaking: MSRV raised from 1.96 to 1.98** (current stable 1.100 minus two).

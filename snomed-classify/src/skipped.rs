@@ -17,8 +17,9 @@ pub enum SkippedConstruct {
     /// A `SubDataPropertyOf` axiom — data (concrete-value) property
     /// hierarchy isn't modeled.
     DataProperty(SctId),
-    /// A `DataHasValue` conjunct on `attribute`, dropped from whatever
-    /// intersection or existential filler it appeared in.
+    /// A `DataHasValue` on `attribute`: classification keeps it as an
+    /// opaque atom (never a dropped premise, spec/13), and normal forms
+    /// omit it (spec/14).
     ConcreteValue { attribute: SctId },
     /// A `SubObjectPropertyOf` whose sub-property is an
     /// `ObjectPropertyChain` with no operands, naming the super-property
@@ -48,7 +49,7 @@ impl fmt::Display for SkippedConstruct {
             SkippedConstruct::ConcreteValue { attribute } => {
                 write!(
                     f,
-                    "DataHasValue on attribute :{attribute} was dropped (concrete values aren't classified)"
+                    "DataHasValue on attribute :{attribute} is opaque (concrete values aren't classified)"
                 )
             }
             SkippedConstruct::EmptyRoleChain(target) => {

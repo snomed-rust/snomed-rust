@@ -286,7 +286,12 @@ fn evaluate(
             ids.retain(|&member| store.concept(member).is_some());
             ids
         }
-        ImplicitValueSet::AllRefsets => store.refset_ids().collect(),
+        // A refset id need not have a loaded concept row (its concept may
+        // live in a module that was not loaded); spec/11 rule 6 drops it.
+        ImplicitValueSet::AllRefsets => store
+            .refset_ids()
+            .filter(|&id| store.concept(id).is_some())
+            .collect(),
     })
 }
 
@@ -656,6 +661,35 @@ mod tests {
         .unwrap();
         let codes: Vec<SctId> = result.contains.iter().map(|c| c.code).collect();
         assert_eq!(codes, vec![DISEASE]);
+    }
+
+    #[test]
+    fn bare_refset_form_drops_a_refset_id_with_no_concept_row() {
+        use snomed_rf2::refset::{RefsetMemberCore, SimpleRefsetMember};
+
+        // spec/11 rule 6: a refset whose own concept is not loaded must not
+        // be emitted as an (apparently inactive) code.
+        let unloaded = SctId::compose(7003, ComponentType::Concept, None).unwrap();
+        let mut b = SnapshotStore::builder();
+        b.add_concept(concept(FINDING, true));
+        b.add_simple_member(SimpleRefsetMember {
+            core: RefsetMemberCore {
+                id: MemberId::parse("80000000-0000-4000-8000-000000000032").unwrap(),
+                effective_time: EffectiveTime::new_unchecked(20190731),
+                active: true,
+                module_id: constants::CORE_MODULE,
+                refset_id: unloaded,
+                referenced_component_id: FINDING,
+            },
+        });
+        let result = expand(
+            &b.build(),
+            "http://snomed.info/sct?fhir_vs=refset",
+            &ExpandOptions::default(),
+        )
+        .unwrap();
+        assert_eq!(result.total, 0);
+        assert!(result.contains.is_empty());
     }
 
     #[test]

@@ -211,11 +211,33 @@ fn cmd_load(args: &[String]) -> Result<String, Box<dyn Error>> {
     Ok(out)
 }
 
+/// `validate` found issues, or found nothing to check: the complete report
+/// is in `report`. The binary prints it to stdout (like a clean report) and
+/// exits non-zero, so a release pipeline cannot pass a bad or empty release.
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[non_exhaustive]
+pub struct ValidationFailed {
+    /// The full `validate` output, exactly as a clean run would print it.
+    pub report: String,
+}
+
+impl std::fmt::Display for ValidationFailed {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("validation failed")
+    }
+}
+
+impl Error for ValidationFailed {}
+
 fn cmd_validate(args: &[String]) -> Result<String, Box<dyn Error>> {
     let (dir, release_type) = parse_load_args(args, "validate <release-dir> [--full]")?;
     let (store, mut out) = load(dir, release_type)?;
     let report = store.validate();
 
+    if store.concept_count() == 0 {
+        let _ = writeln!(out, "no concepts loaded: nothing to validate");
+        return Err(Box::new(ValidationFailed { report: out }));
+    }
     if report.is_clean() {
         let _ = writeln!(
             out,
@@ -261,7 +283,7 @@ fn cmd_validate(args: &[String]) -> Result<String, Box<dyn Error>> {
             let _ = writeln!(out, "    {id}");
         }
     }
-    Ok(out)
+    Err(Box::new(ValidationFailed { report: out }))
 }
 
 fn write_ids(out: &mut String, label: &str, ids: &[SctId]) {
@@ -617,6 +639,23 @@ fn cmd_export_dir(args: &[String]) -> Result<String, Box<dyn Error>> {
 
     let files = snomed_store::list_release_files(Path::new(dir), release_type)?;
     fs::create_dir_all(out_dir)?;
+
+    // Two inputs with the same stem (the same file in two subdirectories)
+    // would write the same output path, and the second would silently
+    // replace the first while both counted as exported. Refuse before
+    // writing anything.
+    let mut outputs: std::collections::BTreeMap<String, &Path> = std::collections::BTreeMap::new();
+    for (path, parsed) in &files {
+        if let Some(first) = outputs.insert(parsed.file_stem(), path) {
+            return Err(format!(
+                "{} and {} would both export to {}.ndjson",
+                first.display(),
+                path.display(),
+                parsed.file_stem()
+            )
+            .into());
+        }
+    }
 
     let mut exported = 0usize;
     let mut skipped: Vec<(std::path::PathBuf, String)> = Vec::new();

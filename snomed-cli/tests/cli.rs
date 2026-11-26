@@ -928,11 +928,16 @@ fn validate_detects_a_dangling_relationship_destination() {
         ),
     );
 
-    let out = snomed_cli::run(&[
+    let err = snomed_cli::run(&[
         "validate".to_string(),
         tmp.path().to_str().unwrap().to_string(),
     ])
-    .unwrap();
+    .unwrap_err();
+    let out = &err
+        .downcast_ref::<snomed_cli::ValidationFailed>()
+        .expect("findings are a ValidationFailed")
+        .report;
+    assert_eq!(err.to_string(), "validation failed");
 
     assert!(out.contains("1 issue(s) found"), "{out}");
     assert!(
@@ -1012,4 +1017,107 @@ fn cli_boundary_outputs_cover_skips_empty_relations_and_unsupported_exports() {
         snomed_cli::run(&["export".into(), unsupported.to_str().unwrap().into()]).unwrap_err();
     assert!(error.to_string().contains("not yet exportable"));
     assert!(snomed_cli::run(&["export".into(), tmp.path().to_str().unwrap().into(),]).is_err());
+}
+
+#[test]
+fn validate_fails_an_empty_release_directory() {
+    let tmp = TempDir::new("validate-empty");
+    let err = snomed_cli::run(&[
+        "validate".to_string(),
+        tmp.path().to_str().unwrap().to_string(),
+    ])
+    .unwrap_err();
+    let failed = err
+        .downcast_ref::<snomed_cli::ValidationFailed>()
+        .expect("an empty release is a ValidationFailed");
+    assert!(
+        failed
+            .report
+            .contains("no concepts loaded: nothing to validate"),
+        "{}",
+        failed.report
+    );
+}
+
+#[test]
+fn validate_binary_exits_non_zero_on_findings_and_prints_the_report() {
+    let tmp = TempDir::new("validate-binary-empty");
+    let output = std::process::Command::new(env!("CARGO_BIN_EXE_snomed-cli"))
+        .args(["validate", tmp.path().to_str().unwrap()])
+        .output()
+        .unwrap();
+    assert_eq!(output.status.code(), Some(1));
+    let stdout = String::from_utf8(output.stdout).unwrap();
+    assert!(stdout.contains("nothing to validate"), "{stdout}");
+    assert_eq!(
+        String::from_utf8(output.stderr).unwrap(),
+        "error: validation failed\n"
+    );
+}
+
+#[test]
+fn export_dir_refuses_inputs_that_would_share_an_output_file() {
+    let tmp = TempDir::new("export-dir-collision");
+    let concept = "id\teffectiveTime\tactive\tmoduleId\tdefinitionStatusId\n\
+                   138875005\t20190731\t1\t900000000000207008\t900000000000074008\n";
+    write(
+        tmp.path(),
+        "a/sct2_Concept_Snapshot_INT_20190731.txt",
+        concept,
+    );
+    write(
+        tmp.path(),
+        "b/sct2_Concept_Snapshot_INT_20190731.txt",
+        concept,
+    );
+    let out_dir = tmp.path().join("ndjson-out");
+
+    let err = snomed_cli::run(&[
+        "export".to_string(),
+        tmp.path().to_str().unwrap().to_string(),
+        out_dir.to_str().unwrap().to_string(),
+    ])
+    .unwrap_err()
+    .to_string();
+
+    assert!(
+        err.contains("would both export to sct2_Concept_Snapshot_INT_20190731.ndjson"),
+        "{err}"
+    );
+    assert!(!out_dir
+        .join("sct2_Concept_Snapshot_INT_20190731.ndjson")
+        .exists());
+}
+
+#[test]
+fn validate_reports_an_unsatisfied_module_dependency() {
+    // spec/08 rule 5: the core module depends on the model component
+    // module at 20190731, but nothing from that module is loaded.
+    let tmp = TempDir::new("validate-module-dependency");
+    write_synthetic_release(tmp.path());
+    let member = "80000000-0000-4000-8000-000000000501";
+    write(
+        tmp.path(),
+        "Snapshot/Refset/Metadata/der2_ssRefset_ModuleDependencySnapshot_INT_20190731.txt",
+        &format!(
+            "id\teffectiveTime\tactive\tmoduleId\trefsetId\treferencedComponentId\tsourceEffectiveTime\ttargetEffectiveTime\n\
+             {member}\t20190731\t1\t900000000000207008\t900000000000534007\t900000000000012004\t20190731\t20190731\n"
+        ),
+    );
+
+    let err = snomed_cli::run(&[
+        "validate".to_string(),
+        tmp.path().to_str().unwrap().to_string(),
+    ])
+    .unwrap_err();
+    let out = &err
+        .downcast_ref::<snomed_cli::ValidationFailed>()
+        .expect("findings are a ValidationFailed")
+        .report;
+    assert!(out.contains("1 issue(s) found"), "{out}");
+    assert!(
+        out.contains("not loaded at the required version (spec/08 rule 5) (1):"),
+        "{out}"
+    );
+    assert!(out.contains(member), "{out}");
 }

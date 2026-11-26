@@ -89,6 +89,59 @@ Completed work from 2026-11-19 onward through release 0.56.0 is in
 
 ## Next up
 
+### Production readiness audit follow-ups (2026-11-26)
+
+- [x] **Exact coverage gate restored.** CI's exact-coverage job was already
+      red at `043e3c0` (17 regions: unreachable `?` branches from the
+      checked-arithmetic work, the module-dependency `validate` output, an
+      error `Display`). Covered by tests or removed by restructuring
+      (`semantic_tag` splits instead of index arithmetic; NNF numbering is
+      injectable). 100.00% regions/functions/lines, 644 tests.
+
+Assessed from the external audit at `043e3c0` (since deleted). All six
+findings were source-verified; each is a real defect.
+
+- [x] **ECL numeric comparison loses precision.** (Done.) `numeric_matches`
+      and `field_numeric_matches` (`snomed-ecl/src/eval.rs`) parsed both
+      sides as `f64`, so `#9007199254740993 = #9007199254740992` held and
+      `>` failed. Now an exact digit-wise `compare_decimal` (sign, leading
+      and trailing zeros normalized; non-grammar spellings never match).
+      spec/10-ecl-refinements.md "Concrete value comparisons" updated.
+- [x] **Classifier drops required premises (unsound).** (Done: interned
+      opaque atoms on both sides; spec/13 updated.) `normalize.rs`
+      drops a `DataHasValue` conjunct on the *left* of an inclusion, so
+      `EquivalentClasses(:A ObjectIntersectionOf(:B DataHasValue(...)))`
+      yields `B ⊑ A`. Dropping a conclusion is sound (incomplete); dropping
+      a premise is not. Replace a left-side `DataHasValue` with an atom
+      nothing else derives (interned per attribute + literal), at the top
+      level and inside fillers. Tests: the equivalence above does not make
+      `B ⊑ A`; `A ⊑ B` still holds; the construct is still reported skipped.
+- [x] **NNF nondeterministic for equivalent concepts.** Two equivalent
+      concepts are each other's proximal parent, so `groups_for`'s
+      `in_progress` guard returns an empty set for whichever is reached
+      second and caches it; which one loses inherited attributes depends on
+      `HashSet` order (13/30 runs in the audit). (Done: groups are computed
+      per equivalence class, cached for every member; the now-unreachable
+      in-progress guard is gone; spec/14 rule 3 rewritten. The test repeats
+      30 runs and checks both equivalents carry the attribute.)
+- [x] **`validate` exits 0 with findings or no content.** (Done: a typed
+      `ValidationFailed` carries the report; the binary prints it and exits 1.) `cmd_validate`
+      returns `Ok` when issues are found, and an empty directory reports
+      "no issues found (0 concepts checked)". Exit non-zero when the report
+      is not clean or nothing was loaded; keep the report on stdout.
+- [x] **Directory export overwrites colliding outputs.** (Done: refused
+      before any write, naming both inputs.) `cmd_export_dir`
+      writes `<file_stem>.ndjson`; two inputs with the same stem (e.g. the
+      same file in two subdirectories) both count as exported while one
+      file survives. Detect a repeated output path and fail (or skip with a
+      reason) before writing; the count must equal files written.
+- [x] **FHIR `$expand` of the all-refsets form emits unresolved codes.**
+      (Done: spec/11 rule 6 covers the bare `refset` form.)
+      `ImplicitValueSet::AllRefsets` returns `store.refset_ids()` unfiltered,
+      so a refset id with no concept row is emitted with `inactive: true`.
+      Extend spec/11 rule 6 to this form and drop non-concepts before
+      `total` and paging.
+
 - [x] Raised exact production region, function, and line coverage to 100% and
       raised CI. The pinned-nightly metric excludes test source while running
       all 623 tests and unions only identical source coordinates across LLVM's

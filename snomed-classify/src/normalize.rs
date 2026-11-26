@@ -32,6 +32,9 @@ struct Normalizer {
     tbox: NormalizedTBox,
     next_fresh_concept: u32,
     next_fresh_role: u32,
+    /// One atom per distinct `DataHasValue(attribute, literal)` class, keyed
+    /// by `(attribute, value, datatype)` exactly as written (spec/13).
+    data_atoms: std::collections::HashMap<(SctId, String, String), ConceptId>,
 }
 
 pub(crate) fn normalize<'a>(axioms: impl IntoIterator<Item = &'a Axiom>) -> NormalizedTBox {
@@ -39,6 +42,7 @@ pub(crate) fn normalize<'a>(axioms: impl IntoIterator<Item = &'a Axiom>) -> Norm
         tbox: NormalizedTBox::default(),
         next_fresh_concept: 0,
         next_fresh_role: 0,
+        data_atoms: std::collections::HashMap::new(),
     };
     for axiom in axioms {
         n.add_axiom(axiom);
@@ -52,6 +56,27 @@ impl Normalizer {
         self.next_fresh_concept += 1;
         self.seed(id);
         id
+    }
+
+    /// The atom standing for `DataHasValue(attribute, value)`: concrete
+    /// values are not reasoned about, but the restriction is never dropped.
+    /// Dropping it from a premise (`B ⊓ DataHasValue(..) ⊑ A` becoming
+    /// `B ⊑ A`) would entail subsumptions the axioms do not (spec/13). An
+    /// identical restriction is the identical class, so occurrences share
+    /// one atom; anything else (another literal, a data-property hierarchy)
+    /// never relates to it — sound, and incomplete only for concrete values.
+    /// Every occurrence is still reported as skipped.
+    fn data_atom(&mut self, attribute: SctId, value: &snomed_owl::Literal) -> ConceptId {
+        self.tbox
+            .skipped
+            .push(SkippedConstruct::ConcreteValue { attribute });
+        let key = (attribute, value.value.clone(), value.datatype.clone());
+        if let Some(&atom) = self.data_atoms.get(&key) {
+            return atom;
+        }
+        let atom = self.fresh_concept();
+        self.data_atoms.insert(key, atom);
+        atom
     }
 
     fn fresh_role(&mut self) -> RoleId {
@@ -154,26 +179,9 @@ impl Normalizer {
         match expr {
             ClassExpression::ObjectIntersectionOf(ops) => ops
                 .iter()
-                .filter_map(|op| self.normalize_conjunct_operand(op))
+                .map(|op| self.normalize_concept_to_id(op))
                 .collect(),
-            other => match self.normalize_conjunct_operand(other) {
-                Some(id) => vec![id],
-                None => vec![],
-            },
-        }
-    }
-
-    /// `None` for a `DataHasValue` operand (dropped per spec/13 scope,
-    /// and reported in `skipped`); otherwise the operand's concept id.
-    fn normalize_conjunct_operand(&mut self, expr: &ClassExpression) -> Option<ConceptId> {
-        match expr {
-            ClassExpression::DataHasValue { attribute, .. } => {
-                self.tbox.skipped.push(SkippedConstruct::ConcreteValue {
-                    attribute: *attribute,
-                });
-                None
-            }
-            other => Some(self.normalize_concept_to_id(other)),
+            other => vec![self.normalize_concept_to_id(other)],
         }
     }
 
@@ -186,10 +194,10 @@ impl Normalizer {
             ClassExpression::ObjectIntersectionOf(ops) => {
                 let conjuncts: Vec<ConceptId> = ops
                     .iter()
-                    .filter_map(|op| self.normalize_conjunct_operand(op))
+                    .map(|op| self.normalize_concept_to_id(op))
                     .collect();
                 match conjuncts.as_slice() {
-                    [] => self.fresh_concept(), // every operand was DataHasValue
+                    [] => self.fresh_concept(), // a hand-built empty intersection
                     [single] => *single,
                     _ => {
                         let fresh = self.fresh_concept();
@@ -209,12 +217,7 @@ impl Normalizer {
                 self.tbox.nf3.push((role, filler_id, fresh)); // ∃r.D ⊑ F
                 fresh
             }
-            ClassExpression::DataHasValue { attribute, .. } => {
-                self.tbox.skipped.push(SkippedConstruct::ConcreteValue {
-                    attribute: *attribute,
-                });
-                self.fresh_concept() // isolated atom: matches/is matched by nothing
-            }
+            ClassExpression::DataHasValue { attribute, value } => self.data_atom(*attribute, value),
         }
     }
 
@@ -252,10 +255,9 @@ impl Normalizer {
                 };
                 self.tbox.nf2.push((source, role, filler_id));
             }
-            ClassExpression::DataHasValue { attribute, .. } => {
-                self.tbox.skipped.push(SkippedConstruct::ConcreteValue {
-                    attribute: *attribute,
-                });
+            ClassExpression::DataHasValue { attribute, value } => {
+                let atom = self.data_atom(*attribute, value);
+                self.tbox.nf1.push((conjuncts.to_vec(), atom));
             }
         }
     }
@@ -280,6 +282,30 @@ mod tests {
                 datatype: "xsd:integer".to_string(),
             },
         }
+    }
+
+    /// A hand-built empty `ObjectIntersectionOf` (owl:Thing) as a whole
+    /// premise says nothing classifiable; as a filler it becomes a fresh
+    /// atom. Neither panics (spec/13 rule 1).
+    #[test]
+    fn empty_intersections_normalize_without_rules_or_panics() {
+        let a = id(1005);
+        let role = id(2002);
+        let premise_only = normalize(&[Axiom::SubClassOf {
+            sub: ClassExpression::ObjectIntersectionOf(vec![]),
+            sup: ClassExpression::Concept(a),
+        }]);
+        assert!(premise_only.nf1.is_empty());
+
+        let filler = normalize(&[Axiom::SubClassOf {
+            sub: ClassExpression::Concept(a),
+            sup: ClassExpression::ObjectSomeValuesFrom {
+                attribute: role,
+                filler: Box::new(ClassExpression::ObjectIntersectionOf(vec![])),
+            },
+        }]);
+        assert_eq!(filler.nf2.len(), 1);
+        assert!(matches!(filler.nf2[0].2, ConceptId::Fresh(_)));
     }
 
     #[test]

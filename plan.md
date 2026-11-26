@@ -410,7 +410,7 @@ evaluator needs a caller-owned alias map rather than a hard-coded worldwide
 assumption. Exact coverage uses nightly `coverage(off)` to omit inline test
 bodies, ignores integration-test sources, and unions identical source regions
 across unit/integration objects. CI enforces 100.00% production
-regions/functions/lines (623 tests); LLVM's duplicate-object summary is
+regions/functions/lines (644 tests as of 2026-11-26); LLVM's duplicate-object summary is
 99.60%/100.00%/99.84%.
 
 Since 0.9.0 the ECL surface has grown by five constructs and one grammar

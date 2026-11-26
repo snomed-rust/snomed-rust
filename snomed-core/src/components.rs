@@ -73,11 +73,11 @@ impl Description {
         if !self.is_fsn() {
             return None;
         }
-        let t = self.term.trim_end();
-        let open = t.rfind('(')?;
-        // The term must end with `)`; the tag is whatever sits between the last `(` and it.
-        let inner = t.strip_suffix(')')?;
-        let tag = inner.get(open.checked_add(1)?..)?;
+        // The term must end with `)`; the tag is whatever sits between the
+        // last `(` and it. Splitting, not index arithmetic, so no
+        // unreachable overflow branch exists (RCA-IN-1).
+        let inner = self.term.trim_end().strip_suffix(')')?;
+        let (_, tag) = inner.rsplit_once('(')?;
         Some(tag)
     }
 }
@@ -175,7 +175,12 @@ mod tests {
     #[test]
     fn semantic_tag_rejects_incomplete_or_nonterminal_parentheses() {
         let mut description = fsn("Finding (finding)");
-        for term in ["Finding", "Finding (finding", "Finding (finding) suffix"] {
+        for term in [
+            "Finding",
+            "Finding (finding",
+            "Finding (finding) suffix",
+            "Finding)",
+        ] {
             description.term = term.to_string();
             assert_eq!(description.semantic_tag(), None);
         }

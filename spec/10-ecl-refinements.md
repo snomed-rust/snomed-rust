@@ -193,6 +193,11 @@ against `cardinality` (default `[1..*]`):
   afterwards, exactly like the expression form's `negated`, rather than
   redefining "matches" to mean "not equal" per-row. `<=`/`<`/`>=`/`>`
   have no such distinction; they define the per-row predicate directly.
+- Numbers compare **exactly** as decimals, digit by digit: never via a
+  binary float, so `#9007199254740993` is `>` (not `=`) `#9007199254740992`.
+  Leading integer zeros, trailing fraction zeros, a `+` sign, and the
+  sign of zero are not significant (`#1.50 = #1.5`, `#-0 = #0`). The same
+  exact comparison serves every numeric `memberFieldFilter` column.
 - A `String` value never matches a numeric comparison, and a `Number`
   value never matches a string comparison — a type mismatch, not an
   error.

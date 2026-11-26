@@ -164,6 +164,50 @@ mod tests {
         snomed_owl::parse(s).unwrap_or_else(|e| panic!("failed to parse {s:?}: {e}"))
     }
 
+    /// spec/13: a `DataHasValue` in a definition is a required premise.
+    /// Dropping it would make every `B` an `A`.
+    #[test]
+    fn a_concrete_value_premise_is_never_dropped() {
+        let a = id(1101);
+        let b = id(1102);
+        let c = id(1103);
+        let d = id(1104);
+        let strength = id(1105);
+        let axioms = vec![
+            ax(&format!(
+                "EquivalentClasses(:{a} ObjectIntersectionOf(:{b} DataHasValue(:{strength} \"5\"^^xsd:integer)))"
+            )),
+            // The same restriction is the same class: C is an A.
+            ax(&format!(
+                "SubClassOf(:{c} ObjectIntersectionOf(:{b} DataHasValue(:{strength} \"5\"^^xsd:integer)))"
+            )),
+            // A different literal is not: D is not an A.
+            ax(&format!(
+                "SubClassOf(:{d} ObjectIntersectionOf(:{b} DataHasValue(:{strength} \"6\"^^xsd:integer)))"
+            )),
+            // A GCI whose only premise is concrete never fires for B.
+            ax(&format!(
+                "SubClassOf(ObjectSomeValuesFrom(:{strength} ObjectIntersectionOf(:{b} DataHasValue(:{strength} \"5\"^^xsd:integer))) :{d})"
+            )),
+        ];
+        let report = classify(&axioms);
+        let cls = &report.classification;
+        assert!(cls.is_subsumed_by(a, b));
+        assert!(!cls.is_subsumed_by(b, a), "B ⊑ A is not entailed");
+        assert!(cls.is_subsumed_by(c, a));
+        assert!(!cls.is_subsumed_by(d, a));
+        assert_eq!(
+            report.skipped,
+            vec![
+                SkippedConstruct::ConcreteValue {
+                    attribute: strength
+                };
+                5
+            ],
+            "every occurrence is reported (an equivalence normalizes its operand once per direction)"
+        );
+    }
+
     #[test]
     fn plain_subclassof_chains_transitively() {
         let disease = id(1001);

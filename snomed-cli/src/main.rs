@@ -7,6 +7,9 @@ fn main() {
     match snomed_cli::run(&args) {
         Ok(output) => print!("{output}"),
         Err(e) => {
+            if let Some(failed) = e.downcast_ref::<snomed_cli::ValidationFailed>() {
+                print!("{}", failed.report);
+            }
             eprintln!("error: {e}");
             std::process::exit(1);
         }

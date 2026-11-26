@@ -227,12 +227,16 @@ normalization) and classify each:
    candidates as ordinary singleton groups in the same redundancy pool as
    numbered groups — never special-cased out of comparison — per the
    Java reference implementation.
-3. Recursive group computation MUST be cycle-safe: a concept reachable
-   from itself via proximal-parent edges (only possible via a degenerate
-   `EquivalentClasses` cycle between distinct named concepts — real
-   SNOMED content never does this) MUST NOT infinite-loop; it resolves to
-   an empty inherited-group contribution for the cycle, mirroring
-   `snomed-store`'s own cycle-safety invariant for hierarchy traversal.
+3. Recursive group computation MUST be cycle-safe and order-independent.
+   Equivalent named concepts are each other's proximal parents, the only
+   way a concept reaches itself via proximal-parent edges. They MUST be
+   computed together as one class: the union of every member's stated
+   groups plus the groups of every member's proximal parents outside the
+   class, giving every member the same groups. Computing one member alone
+   would meet the other mid-computation, and the member visited second
+   would lose inherited groups depending on iteration order (spec/09
+   rules 5-6). The recursion then follows only strictly more general
+   parents, and strict subsumption is acyclic, so it terminates.
 4. Every stated-axiom shape this module recognizes but can't turn into a
    `(type, value)` attribute pair MUST be reported via
    `SkippedConstruct`, never silently dropped — spec/13's "skip and
