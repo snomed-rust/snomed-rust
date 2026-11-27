@@ -581,9 +581,11 @@ Discord, video) — none adopted. The two GPT audits were source-verified.
         determined — a typed compose model the caller maps its JSON onto
         (spec/11). Needs a decision that the surface is wanted, not a
         design. `context` is permanently out of scope.
-      - **A `snomed-fhir` HTTP server crate**: would need a new external
-        dependency, so it is explicitly a user decision against the
-        zero-dependency policy, not an autonomous pick.
+      - ~~**A `snomed-fhir` HTTP server crate**~~ — decided 2026-11-26:
+        no crate here. The owner chose fhir-rust's `fhir-loco` server,
+        which now serves `$lookup`/`$subsumes`/`$expand` by depending on
+        the published `snomed` crates (its `SV2.20`). The dependency runs
+        one way, so this workspace stays dependency-free.
 - [ ] Remaining documented gaps, each awaiting external input or a surface
       decision: `regex:` search terms
       (an engine is a dependency); ECL alternate

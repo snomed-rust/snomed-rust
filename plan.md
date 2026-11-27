@@ -190,9 +190,10 @@ and harmonizes it with the sibling repositories (`hl7-rust`, `er7-rust`,
   parser (spec/11). What is undecided is whether the surface is wanted at
   all, since nothing in this workspace consumes it. `context` expansion is
   permanently out of scope.
-- **An HTTP server for `snomed-fhir`.** Needs an external dependency, so
-  it is explicitly a decision against the zero-dependency policy rather
-  than an autonomous pick.
+- ~~**An HTTP server for `snomed-fhir`.**~~ Decided 2026-11-26 by the
+  owner: it lives in fhir-rust's `fhir-loco` (`SV1.11`, `SV2.20`), which
+  depends on the published `snomed` crates. No crate here; the
+  zero-dependency policy is untouched.
 - **ECL `{{ M ... }}`'s `memberFieldFilter` kind** (a refset-type-specific
   column: `mapTarget`, `correlationId`, `order`, …) — surfaced 2026-09-01
   while closing the `{{ M ... }}` decision above for its three
@@ -640,8 +641,8 @@ licensed-rehearsal item lives in `tasks.md` "Next up".
   outside the workspace (Phase 8), not workspace members with
   dev-dependencies. Anything future that needs a dependency should first
   be asked whether it can live outside the workspace the same way — an
-  HTTP server for `snomed-fhir` (the standing candidate in `tasks.md`)
-  probably cannot, which is exactly why it stays a user decision.
+  HTTP server for `snomed-fhir` could not, and was settled the other way
+  round: `fhir-loco` depends on `snomed-fhir`, not the reverse.
 - MSRV moves on a schedule, not on demand: current stable minus two as of
   2026-08-29 (`spec/rust-msrv-n-minus-2/index.md`, tightened from minus
   three the same day the spec was written; ~12 weeks' lag at Rust's usual
